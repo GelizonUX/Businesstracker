@@ -531,6 +531,13 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 @media (max-width:900px){.kb-board{grid-template-columns:repeat(2,1fr)}}
 /* bulk bar */
 .bulk-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--accent-soft);border:1px solid var(--accent);border-radius:12px;padding:9px 14px;margin-bottom:14px;animation:fadeUp .25s var(--ease)}
+/* spotlight walkthrough */
+.tour-spot{position:fixed;border-radius:11px;box-shadow:0 0 0 9999px rgba(5,8,18,.66),0 0 0 3px var(--accent),0 0 26px rgba(99,102,241,.55);z-index:399;pointer-events:none;transition:top .4s var(--ease),left .4s var(--ease),width .4s var(--ease),height .4s var(--ease)}
+.tour-card{position:fixed;z-index:400;background:var(--bg-card);border:1px solid var(--border);border-radius:15px;box-shadow:var(--shadow-lg);width:300px;max-width:calc(100vw - 24px);padding:16px 18px;animation:popIn .3s var(--ease)}
+.tour-card h4{font-size:.98rem;font-weight:800;margin-bottom:5px}
+.tour-card p{font-size:.83rem;color:var(--text-2);line-height:1.55}
+.tour-step-n{font-size:.66rem;font-weight:800;letter-spacing:.08em;color:var(--accent);text-transform:uppercase;margin-bottom:4px}
+@media (max-width:700px){.tour-card{left:12px !important;right:12px;bottom:14px;top:auto !important;width:auto}}
 /* animated order status icons */
 .st-anim{display:inline-flex;align-items:center;width:26px;height:20px;position:relative;flex-shrink:0}
 .st-anim svg{width:17px;height:17px}
@@ -722,7 +729,7 @@ var DEFAULT_STATE={
     sync:{ url:'https://love-notes-eae0b-default-rtdb.firebaseio.com', path:'bizpilot', enabled:false, lastSync:null },
     productCats:['Candle','Keychain','Gift Box'], productAttrs:['Scent','Color'],
     moduleLabels:{}, bizAddress:'', bizPhone:'', onboarded:false, lang:'en', payQR:'', payQRLabel:'',
-    collapsedNav:[], taskLanes:['To do','Doing','Done'],
+    collapsedNav:[], taskLanes:['To do','Doing','Done'], bizLogo:'', tourDone:false,
     fx:{ auto:true, updated:null, phpPer:{USD:58.5,EUR:63.5,GBP:74,AUD:38,CAD:42.5,SGD:43.5,AED:16,JPY:0.39} } },
   invoices:[],  // {id,number,client,desc,amount,issueDate,dueDate,status,paidDate,createdAt}
   recurring:[], // {id,type,amount,category,note,client,day,active,lastPosted,startMonth}
@@ -911,6 +918,7 @@ function openModal(title,bodyHTML,opts){
           '<button class="btn-icon" data-action="close-modal" aria-label="Close">'+icon('x')+'</button></div>'+
         '<div class="modal-body"><form id="modal-form" novalidate>'+bodyHTML+
           '<div class="modal-foot">'+
+            (opts.extraFooterHTML||'')+
             '<button type="button" class="btn btn-ghost" data-action="close-modal">'+esc(tr('Cancel'))+'</button>'+
             '<button type="submit" class="btn btn-primary">'+esc(tr(opts.submitLabel||'Save'))+'</button>'+
           '</div></form></div></div></div>';
@@ -1311,7 +1319,11 @@ function render(){
 function renderSidebar(){
   var route=currentRoute();
   var openTasks=state.tasks.filter(function(t){ var d=daysUntil(t.deadline); return !t.done&&d!=null&&d<0; }).length;
-  var html='<div class="brand"><div class="brand-logo">'+icon('logo')+'</div><div><div class="brand-name">BizPilot</div><div class="brand-sub">Command Center</div></div></div><nav class="nav">';
+  var bl=state.settings.bizLogo;
+  var html='<div class="brand">'+
+    (bl?'<img src="'+bl+'" alt="" style="width:36px;height:36px;border-radius:10px;object-fit:cover;flex-shrink:0;box-shadow:0 4px 14px rgba(0,0,0,.35)">'
+       :'<div class="brand-logo">'+icon('logo')+'</div>')+
+    '<div><div class="brand-name" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(state.settings.businessName||'BizPilot')+'</div><div class="brand-sub">Command Center</div></div></div><nav class="nav">';
   var labels=state.settings.moduleLabels||{};
   var collapsed=state.settings.collapsedNav||[];
   // group routes by section; a section containing the active route is always shown open
@@ -1342,7 +1354,10 @@ function renderSidebar(){
     });
     html+='<button class="nav-item" data-action="custom-module-new" style="opacity:.75">'+icon('plus')+'<span>'+esc(tr('New module…'))+'</span></button>';
   }
-  html+='</nav><div class="sidebar-foot"><div class="biz-chip"><div class="avatar">'+esc((state.settings.businessName||'B').charAt(0).toUpperCase())+'</div><div><b>'+esc(state.settings.businessName||'My Business')+'</b><span>Local data · private</span></div></div></div>';
+  html+='</nav><div class="sidebar-foot"><div class="biz-chip">'+
+    (bl?'<img src="'+bl+'" alt="" style="width:30px;height:30px;border-radius:8px;object-fit:cover;flex-shrink:0">'
+       :'<div class="avatar">'+esc((state.settings.businessName||'B').charAt(0).toUpperCase())+'</div>')+
+    '<div><b>'+esc(state.settings.businessName||'My Business')+'</b><span>Local data · private</span></div></div></div>';
   var sb=byId('sidebar');
   var navEl=sb.querySelector('.nav');
   var keepScroll=navEl?navEl.scrollTop:0;
@@ -2380,6 +2395,12 @@ function viewSettings(){
     '</select></div>'+
     '<div class="field"><label>Default tax rate (%)</label><input class="input" type="number" step="any" min="0" max="60" name="taxRate" value="'+esc(s.taxRate)+'"></div></div>'+
     '<div class="field"><label>Monthly revenue target ('+esc(s.currency)+')</label><input class="input" type="number" step="any" min="0" name="monthlyTarget" value="'+(s.monthlyTarget||'')+'" placeholder="e.g. 100000"><p style="font-size:.74rem;color:var(--text-3);margin-top:4px">Used on the dashboard and in insights to track each month’s pace.</p></div>'+
+    '<div class="field"><label>Business logo (sidebar, browser tab icon & favicon)</label><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
+      '<img class="img-thumb-lg img-prev" src="'+(s.bizLogo||'')+'" style="'+(s.bizLogo?'':'display:none')+'" alt="">'+
+      '<input type="file" accept="image/*" class="input img-input" style="flex:1;min-width:140px;padding:6px">'+
+      '<input type="hidden" name="bizLogo" value="'+esc(s.bizLogo||'')+'">'+
+      (s.bizLogo?'<button type="button" class="btn btn-sm btn-danger" data-action="img-clear">'+icon('x')+' Remove</button>':'')+
+    '</div><p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Square images look best. Your logo replaces the BizPilot mark everywhere — your software, your brand.</p></div>'+
     '<div class="field"><label>Payment QR (GCash / Maya — shows on invoices, delivery slips & catalog)</label><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
       '<img class="img-thumb-lg img-prev" src="'+(s.payQR||'')+'" style="'+(s.payQR?'':'display:none')+'" alt="">'+
       '<input type="file" accept="image/*" class="input img-input" style="flex:1;min-width:140px;padding:6px">'+
@@ -2396,7 +2417,8 @@ function viewSettings(){
     '<button class="btn btn-primary" type="submit">'+icon('check')+' Save settings</button></form></div>';
   html+=fxCardHTML();
   html+='<div class="card"><div class="card-head"><h3>About</h3></div>'+
-    '<p style="font-size:.84rem;color:var(--text-2)">BizPilot is a single-file, local-first business command center. No accounts, no servers, no tracking — your numbers never leave this device unless you enable cloud sync. Works offline once loaded.</p></div>';
+    '<p style="font-size:.84rem;color:var(--text-2)">BizPilot is a single-file, local-first business command center. No accounts, no servers, no tracking — your numbers never leave this device unless you enable cloud sync. Works offline once loaded.</p>'+
+    '<button class="btn btn-ghost btn-sm" data-action="show-tour" style="margin-top:12px">'+icon('spark')+' Replay the welcome tour</button></div>';
   html+='</div>';
   return html;
 }
@@ -2965,6 +2987,15 @@ function loadSampleData(){
 /* ============================================================
    theme
    ============================================================ */
+function applyBrand(){
+  var s=state.settings;
+  document.title=(s.businessName&&s.businessName!=='My Business'?s.businessName+' — ':'')+'BizPilot';
+  if(s.bizLogo){
+    var link=document.querySelector('link[rel="icon"]');
+    if(!link){ link=document.createElement('link'); link.rel='icon'; document.head.appendChild(link); }
+    link.href=s.bizLogo;
+  }
+}
 function applyTheme(){
   var t=state.settings.theme;
   if(!t) t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';
@@ -3297,6 +3328,8 @@ document.addEventListener('submit',function(e){
     state.settings.lang=fv(form,'lang')||'en';
     state.settings.payQR=form.elements['payQR']?form.elements['payQR'].value:'';
     state.settings.payQRLabel=fv(form,'payQRLabel');
+    state.settings.bizLogo=form.elements['bizLogo']?form.elements['bizLogo'].value:'';
+    applyBrand();
     commit(); toast(state.settings.lang==='tl'?'Na-save na! Taglish mode activated. 🇵🇭':'Settings saved.');
     return;
   }
@@ -4159,10 +4192,12 @@ function productModal(p){
     '<input type="hidden" name="id" value="'+(p.id||'')+'">'+
     '<div class="field"><label>Product name *</label><input class="input" name="name" value="'+esc(p.name||'')+'" required placeholder="e.g. Lavender Dream Candle"></div>'+
     '<div class="form-row"><div class="field"><label>Category</label><select class="input" name="category">'+
-      productCats().map(function(c){return '<option'+(p.category===c?' selected':'')+'>'+esc(c)+'</option>';}).join('')+'</select></div>'+
+      productCats().map(function(c){return '<option'+(p.category===c?' selected':'')+'>'+esc(c)+'</option>';}).join('')+
+      '<option value="__new__">+ New category…</option></select>'+
+      '<input class="input" name="newPcat" placeholder="new category name" style="margin-top:6px;display:none" data-pcat-new></div>'+
     '<div class="field"><label>SKU / code (optional)</label><input class="input" name="sku" value="'+esc(p.sku||'')+'" placeholder="e.g. CNDL-LAV-01"></div></div>'+
     '<div id="prod-attrs" data-attrs="'+esc(JSON.stringify(p.attrs||{}))+'">'+prodAttrsSectionHTML(p.category||productCats()[0],p.attrs)+'</div>'+
-    (productFields().length?'':'<p style="font-size:.72rem;color:var(--text-3);margin-bottom:12px">Tip: add your own fields (Size, Flavor, Brand…) in Products → Customize catalog — they appear here, per category if you want.</p>')+
+    '<p style="font-size:.72rem;color:var(--text-3);margin-bottom:12px">Want different fields here (Size, Flavor, Brand…)? <button type="button" data-action="goto-customize-catalog" style="color:var(--accent);font-weight:700;text-decoration:underline;font-size:.72rem">Customize this form</button></p>'+
     '<div class="form-row-3"><div class="field"><label>Selling price ('+esc(state.settings.currency)+') *</label><input class="input" type="number" step="any" min="0" name="price" value="'+(p.price!=null?p.price:'')+'" required></div>'+
     '<div class="field"><label>Cost to make</label><input class="input" type="number" step="any" min="0" name="cost" value="'+(p.cost!=null?p.cost:'')+'"></div>'+
     '<div class="field"><label>Stock on hand</label><input class="input" type="number" step="1" name="stock" value="'+(p.stock!=null?p.stock:0)+'"></div></div>'+
@@ -4179,13 +4214,21 @@ function productModal(p){
       '<input type="hidden" name="photo" value="'+esc(p.photo||'')+'">'+
       (p.photo?'<button type="button" class="btn btn-sm btn-danger" data-action="img-clear">'+icon('x')+' Remove</button>':'')+
     '</div><p style="font-size:.72rem;color:var(--text-3);margin-top:5px">JPG, PNG, WebP, GIF — auto-compressed to stay light. HEIC works in Safari; elsewhere convert to JPG first. Photos sync to your Firebase cloud along with everything else.</p></div>';
-  openModal(isEdit?'Edit product':'Add product',body,{onSubmit:function(form){
+  openModal(isEdit?'Edit product':'Add product',body,{
+    extraFooterHTML:isEdit?'':'<button type="button" class="btn btn-ghost" data-action="product-save-another">'+icon('plus')+' Save & add another</button>',
+    onSubmit:function(form){
     var name=fv(form,'name');
     if(!name){ toast('Give the product a name.','error'); return false; }
     var price=num(fv(form,'price'));
     if(price<0){ toast('Price cannot be negative.','error'); return false; }
+    var cat=fv(form,'category');
+    if(cat==='__new__'){
+      cat=fv(form,'newPcat');
+      if(!cat){ toast('Type the new category name.','error'); return false; }
+      if(productCats().indexOf(cat)<0) state.settings.productCats=productCats().concat([cat]);
+    }
     var attrs={};
-    fieldsForCategory(fv(form,'category')).forEach(function(f){ var v=fv(form,'attr_'+f.label); if(v) attrs[f.label]=v; });
+    fieldsForCategory(cat).forEach(function(f){ var v=fv(form,'attr_'+f.label); if(v) attrs[f.label]=v; });
     var id=fv(form,'id');
     var bom=[];
     form.querySelectorAll('#bom-rows .bom-row').forEach(function(row){
@@ -4193,7 +4236,7 @@ function productModal(p){
       var bq=num(row.querySelector('.bom-qty').value);
       if(mid&&bq>0) bom.push({materialId:mid,qty:bq});
     });
-    var data={name:name,category:fv(form,'category'),sku:fv(form,'sku'),price:price,cost:num(fv(form,'cost')),stock:Math.round(num(fv(form,'stock'))),lowStock:Math.round(num(fv(form,'lowStock'))),attrs:attrs,desc:fv(form,'desc'),bom:bom,photo:form.elements['photo']?form.elements['photo'].value:'',active:true};
+    var data={name:name,category:cat,sku:fv(form,'sku'),price:price,cost:num(fv(form,'cost')),stock:Math.round(num(fv(form,'stock'))),lowStock:Math.round(num(fv(form,'lowStock'))),attrs:attrs,desc:fv(form,'desc'),bom:bom,photo:form.elements['photo']?form.elements['photo'].value:'',active:true};
     if(id){
       var ex=findProduct(id);
       if(ex) Object.assign(ex,data);
@@ -4202,6 +4245,10 @@ function productModal(p){
       data.id=uid();
       state.products.push(data);
       toast('"'+name+'" added to your catalog.');
+      if(window.__prodAddAnother){
+        window.__prodAddAnother=false;
+        setTimeout(function(){ productModal({category:cat,stock:0,lowStock:5,attrs:{}}); },80);
+      }
     }
     return true;
   }});
@@ -4637,6 +4684,23 @@ document.addEventListener('click',function(e){
 
   /* products */
   if(action==='product-new'){ productModal(); return; }
+  if(action==='product-save-another'){
+    var psf=el.closest('form');
+    if(psf){ window.__prodAddAnother=true; dispatchSubmit(psf); }
+    return;
+  }
+  if(action==='goto-customize-catalog'){
+    var mf=byId('modal-form');
+    var nameTyped=mf&&mf.elements['name']&&mf.elements['name'].value.trim();
+    if(nameTyped&&!confirm('Leave this form to customize fields & categories? What you typed will be discarded.')) return;
+    closeModal();
+    ui.productTab='catalog'; nav('products'); render();
+    setTimeout(function(){
+      var panel=document.querySelector('form[data-form="product-field-add"]');
+      if(panel&&panel.scrollIntoView) panel.scrollIntoView({behavior:'smooth',block:'center'});
+    },150);
+    return;
+  }
   if(action==='product-edit'){ var p=findProduct(id); if(p) productModal(p); return; }
   if(action==='product-delete'){
     var p2=findProduct(id);
@@ -5478,8 +5542,13 @@ var BIZ_PRESETS={
 };
 function maybeOnboard(){
   if(state.settings.onboarded) return;
-  if(state.finance.length||state.products.length||state.orders.length) { state.settings.onboarded=true; save(); return; }
+  if(state.finance.length||state.products.length||state.orders.length){ state.settings.onboarded=true; state.settings.wizardDone=true; save(); return; }
   state.settings.onboarded=true; save(); // show once, ever
+  // walkthrough first; the setup wizard opens when the tour ends
+  setTimeout(function(){ showTour(0); },700);
+}
+function openSetupWizard(){
+  state.settings.wizardDone=true; save();
   setTimeout(function(){
     var body=
       '<p style="font-size:.86rem;color:var(--text-2);margin-bottom:14px">60-second setup — everything can be changed later in Settings.</p>'+
@@ -5496,10 +5565,11 @@ function maybeOnboard(){
       state.settings.currency=fv(form,'currency')||'₱';
       state.settings.monthlyTarget=Math.max(0,num(fv(form,'target')));
       applyBizPreset(fv(form,'preset')||'general',true);
-      toast('You’re set up! Add your first product or income entry — or load sample data from Settings to explore.');
+      applyBrand();
+      toast('You’re set up! Add your first entry — or load sample data from Settings → Data to explore.');
       return true;
     }});
-  },600);
+  },200);
 }
 function applyBizPreset(key,silent){
   var p=BIZ_PRESETS[key];
@@ -5823,6 +5893,13 @@ document.addEventListener('change',function(e){
       box.setAttribute('data-attrs',JSON.stringify(current));
       box.innerHTML=prodAttrsSectionHTML(el.value,current);
     }
+  }
+});
+document.addEventListener('change',function(e){
+  if(e.target.name==='category'&&e.target.closest('#modal-form')){
+    var fld=e.target.closest('.field');
+    var pn=fld&&fld.querySelector('[data-pcat-new]');
+    if(pn) pn.style.display=e.target.value==='__new__'?'':'none';
   }
 });
 document.addEventListener('change',function(e){
@@ -6901,6 +6978,71 @@ document.addEventListener('change',function(e){
   }
 });
 
+/* ============================================================
+   v20 additions: welcome tour
+   ============================================================ */
+var TOUR_STEPS=[
+  {sel:'.sidebar .brand',title:'Your command center',
+   text:'Everything your business needs lives here — money, products, orders, clients, goals — saved privately in this browser. Works offline, no account needed.'},
+  {sel:'.main',title:'The Dashboard',
+   text:'Every morning this greets you with a Today panel — deliveries due, payments to chase, low stock — plus your business health score, charts and smart insights.'},
+  {sel:'.sidebar [data-route="finance"]',title:'Money',
+   text:'Log income & expenses here. Accounts tracks your bank/GCash balances, Invoices bills clients in any currency, and Reports prints clean monthly summaries.'},
+  {sel:'.sidebar [data-route="products"]',title:'Selling',
+   text:'Products with your own custom fields, Orders that deplete stock automatically, raw-material recipes, and a Customer Credit list for “pay later” customers — all connected.'},
+  {sel:'.sidebar [data-route="goals"]',title:'Execution',
+   text:'Goals track themselves from your real numbers. Roadmaps plan your launches. Tasks come as list, board, table or calendar — your pick.'},
+  {sel:'.sidebar [data-route="settings"]',title:'Make it yours',
+   text:'Upload your logo, add custom fields and whole new modules, load sample data to explore safely, and back up or sync from here. Tip: press Ctrl+K to search everything.'}
+];
+var tourOpenedSidebar=false;
+function showTour(step){
+  step=step||0;
+  state.settings.tourDone=true; save();
+  var s=TOUR_STEPS[step];
+  var root=byId('lightbox-root');
+  // mobile: sidebar steps need the drawer open
+  var sb=byId('sidebar');
+  if(s.sel.indexOf('.sidebar')===0&&window.innerWidth<=860){
+    if(!sb.classList.contains('open')){ sb.classList.add('open'); tourOpenedSidebar=true; }
+  } else if(tourOpenedSidebar){ sb.classList.remove('open'); tourOpenedSidebar=false; }
+  var target=document.querySelector(s.sel);
+  var r=target?target.getBoundingClientRect():{top:80,left:80,width:200,height:48};
+  if(s.sel==='.main') r={top:r.top,left:r.left,width:Math.min(r.width,640),height:Math.min(r.height,300)};
+  var pad=6;
+  var spot='top:'+(r.top-pad)+'px;left:'+(r.left-pad)+'px;width:'+(r.width+pad*2)+'px;height:'+(r.height+pad*2)+'px';
+  // card placement: right of sidebar targets, below main target; clamped
+  var cardTop,cardLeft;
+  if(s.sel.indexOf('.sidebar')===0){ cardLeft=Math.min(r.right+16,window.innerWidth-320); cardTop=clamp(r.top-8,12,window.innerHeight-240); }
+  else { cardLeft=clamp(r.left+40,12,window.innerWidth-320); cardTop=clamp(r.top+90,12,window.innerHeight-260); }
+  var isLast=step===TOUR_STEPS.length-1;
+  root.innerHTML=
+    '<div class="tour-spot" style="'+spot+'"></div>'+
+    '<div class="tour-card" style="top:'+cardTop+'px;left:'+cardLeft+'px">'+
+      '<div class="tour-step-n">Step '+(step+1)+' of '+TOUR_STEPS.length+'</div>'+
+      '<h4>'+s.title+'</h4><p>'+s.text+'</p>'+
+      '<div style="display:flex;gap:5px;margin:12px 0">'+
+        TOUR_STEPS.map(function(_,i){return '<span style="width:7px;height:7px;border-radius:50%;background:'+(i===step?'var(--accent)':'var(--border-2)')+'"></span>';}).join('')+'</div>'+
+      '<div style="display:flex;gap:7px">'+
+        (step>0?'<button class="btn btn-ghost btn-sm" data-action="tour-step" data-step="'+(step-1)+'">← Back</button>':'<button class="btn btn-ghost btn-sm" data-action="tour-end">Skip</button>')+
+        (isLast?'<button class="btn btn-primary btn-sm" data-action="tour-end">'+(state.settings.onboarded&&state.settings.businessName!=='My Business'?'Done ✨':'Set up my business →')+'</button>'
+               :'<button class="btn btn-primary btn-sm" data-action="tour-step" data-step="'+(step+1)+'">Next →</button>')+
+      '</div></div>';
+}
+function endTour(){
+  byId('lightbox-root').innerHTML='';
+  if(tourOpenedSidebar){ byId('sidebar').classList.remove('open'); tourOpenedSidebar=false; }
+  if(!state.settings.wizardDone&&!(state.finance.length||state.products.length)){ setTimeout(openSetupWizard,250); }
+  else { state.settings.wizardDone=true; save(); }
+}
+document.addEventListener('click',function(e){
+  var el=e.target.closest('[data-action]');
+  if(!el) return;
+  var action=el.getAttribute('data-action');
+  if(action==='tour-step'){ showTour(parseInt(el.getAttribute('data-step'),10)); return; }
+  if(action==='tour-end'){ endTour(); return; }
+  if(action==='show-tour'){ nav('dashboard'); setTimeout(function(){ showTour(0); },150); return; }
+});
 /* keyboard: Escape closes modal / sidebar */
 document.addEventListener('keydown',function(e){
   if(e.key==='Escape'){
@@ -6918,6 +7060,7 @@ window.addEventListener('hashchange',render);
 loadState();
 processRecurring();
 applyTheme();
+applyBrand();
 render();
 probeStorage();
 autoBackupCheck();
