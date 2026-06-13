@@ -456,9 +456,12 @@ details.calc .calc-body{margin-top:10px}
 .hero .hero-actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
 
 /* swot */
-.swot-cell h4{font-size:.85rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.swot-cell h4{font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;display:flex;align-items:center;gap:9px;margin-bottom:9px}
+.swot-cell h4 .swot-ico{width:24px;height:24px;border-radius:7px;display:inline-grid;place-items:center;flex:0 0 auto}
+.swot-cell h4 .swot-ico svg{width:14px;height:14px;display:block}
 .swot-cell textarea{min-height:110px}
 .swot-s h4{color:var(--good)}.swot-w h4{color:var(--risk)}.swot-o h4{color:var(--info)}.swot-t h4{color:var(--warn)}
+.swot-s h4 .swot-ico{background:var(--good-soft)}.swot-w h4 .swot-ico{background:var(--risk-soft)}.swot-o h4 .swot-ico{background:var(--info-soft)}.swot-t h4 .swot-ico{background:var(--warn-soft)}
 
 /* checklist */
 .wk-item{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--border);font-size:.9rem}
@@ -805,7 +808,7 @@ var ICONS = {
   logo:'<path d="M8 22l5-6 4 3 7-9" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
 };
 function icon(name,size){
-  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'+(size?' style="width:'+size+'px;height:'+size+'px"':'')+'>'+(ICONS[name]||'')+'</svg>';
+  return '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'+(size?' style="width:'+size+'px;height:'+size+'px"':'')+'>'+(ICONS[name]||'')+'</svg>';
 }
 
 /* ---------- license (Tier 0: stamp + key, injected per buyer by the generator) ---------- */
@@ -2587,10 +2590,10 @@ function viewReviews(){
   // SWOT
   var sw=state.reviews.swot||{s:'',w:'',o:'',t:''};
   html+='<div class="card mt"><div class="card-head"><h3>SWOT analysis</h3><span class="sub">auto-saves as you type away from the field</span></div>'+
-    '<div class="grid grid-2"><div class="swot-cell swot-s"><h4>'+icon('check')+' Strengths</h4><textarea class="input" data-swot="s" placeholder="What do you do better than anyone?">'+esc(sw.s)+'</textarea></div>'+
-    '<div class="swot-cell swot-w"><h4>'+icon('alert')+' Weaknesses</h4><textarea class="input" data-swot="w" placeholder="Where are you exposed?">'+esc(sw.w)+'</textarea></div>'+
-    '<div class="swot-cell swot-o"><h4>'+icon('arrowur')+' Opportunities</h4><textarea class="input" data-swot="o" placeholder="What could you capture next?">'+esc(sw.o)+'</textarea></div>'+
-    '<div class="swot-cell swot-t"><h4>'+icon('flag')+' Threats</h4><textarea class="input" data-swot="t" placeholder="What could hurt the business?">'+esc(sw.t)+'</textarea></div></div></div>';
+    '<div class="grid grid-2"><div class="swot-cell swot-s"><h4><span class="swot-ico">'+icon('check')+'</span> Strengths</h4><textarea class="input" data-swot="s" placeholder="What do you do better than anyone?">'+esc(sw.s)+'</textarea></div>'+
+    '<div class="swot-cell swot-w"><h4><span class="swot-ico">'+icon('alert')+'</span> Weaknesses</h4><textarea class="input" data-swot="w" placeholder="Where are you exposed?">'+esc(sw.w)+'</textarea></div>'+
+    '<div class="swot-cell swot-o"><h4><span class="swot-ico">'+icon('arrowur')+'</span> Opportunities</h4><textarea class="input" data-swot="o" placeholder="What could you capture next?">'+esc(sw.o)+'</textarea></div>'+
+    '<div class="swot-cell swot-t"><h4><span class="swot-ico">'+icon('flag')+'</span> Threats</h4><textarea class="input" data-swot="t" placeholder="What could hurt the business?">'+esc(sw.t)+'</textarea></div></div></div>';
   return html;
 }
 
