@@ -2683,7 +2683,8 @@ function settingsDataHTML(){
   html+='<div class="card"><div class="card-head"><h3>'+icon('upload',16)+' Smart CSV import</h3><span class="badge accent">Beta</span></div>'+
     '<p style="font-size:.84rem;color:var(--text-2);margin-bottom:14px">Have a spreadsheet of sales, expenses, products, customers or materials? Upload the CSV — Trakora detects what it is, maps the columns, and shows you a preview to confirm <b>before</b> anything is saved. Nothing is imported until you approve it.</p>'+
     '<div style="display:flex;gap:9px;flex-wrap:wrap">'+
-    '<button class="btn btn-primary" data-action="csv-import">'+icon('upload')+' Import a CSV file</button></div></div>';
+    '<button class="btn btn-primary" data-action="csv-import">'+icon('upload')+' Import a CSV file</button>'+
+    '<button class="btn btn-ghost" data-action="csv-sample">'+icon('download')+' Download sample CSV</button></div></div>';
   html+='<div class="card"><div class="card-head"><h3>Sample data & reset</h3></div>'+
     '<p style="font-size:.84rem;color:var(--text-2);margin-bottom:14px">Load realistic demo data to explore every feature, or wipe everything and start fresh.</p>'+
     '<div style="display:flex;gap:9px;flex-wrap:wrap">'+
@@ -3482,6 +3483,7 @@ document.addEventListener('click',function(e){
   if(action==='export-data'){ exportData(); return; }
   if(action==='import-data'){ byId('import-file').click(); return; }
   if(action==='csv-import'){ byId('csv-file').click(); return; }
+  if(action==='csv-sample'){ downloadSampleCsv(); return; }
   if(action==='csv-cancel'){ closeCsvImport(); return; }
   if(action==='csv-commit'){ commitCsvImport(); return; }
   if(action==='reset-data'){ resetData(); return; }
@@ -7537,7 +7539,9 @@ function csvExistingKeys(ent){
 function csvBuild(){
   var ent=csvCtx.entity,prof=IMPORT_ENTITIES[ent],map=csvCtx.map;
   var df=prof.fields.filter(function(f){ return f.kind==='date'; })[0];
-  if(df&&map[df.key]!=null) csvCtx.dateOrder=csvDetectOrder(map[df.key]);
+  var fmt=csvCtx.options.dateFormat;
+  if(fmt==='mdy'||fmt==='dmy') csvCtx.dateOrder=fmt;
+  else if(df&&map[df.key]!=null) csvCtx.dateOrder=csvDetectOrder(map[df.key]);
   var ready=[],invalid=0,dupes=0,seen={},existing=csvExistingKeys(ent);
   csvCtx.rows.forEach(function(r){
     var rec=csvNormalizeRow(ent,prof,map,r);
@@ -7560,23 +7564,63 @@ function openCsvImport(file){
   var reader=new FileReader();
   reader.onload=function(){
     var parsed=csvParse(String(reader.result||''));
-    if(!parsed.headers.length||!parsed.rows.length){ toast('Could not read any rows — make sure the CSV has a header row and at least one data row.','error'); return; }
+    if(!parsed.headers.length){ toast('Could not read any columns — is this a valid CSV file?','error'); return; }
+    var allRows=[parsed.headers.slice()].concat(parsed.rows);
+    if(allRows.length<1){ toast('That file has no rows.','error'); return; }
     var capped=false;
-    if(parsed.rows.length>5000){ parsed.rows=parsed.rows.slice(0,5000); capped=true; }
-    csvCtx={fileName:file.name,headers:parsed.headers,rows:parsed.rows,entity:null,map:{},dateOrder:'mdy',capped:capped,
-      options:{financeType:'auto',dedupe:true}};
-    var best=null,bestS=-1,scores={};
-    Object.keys(IMPORT_ENTITIES).forEach(function(e){ var sc=csvScoreEntity(e,parsed.headers); scores[e]=sc; if(sc>bestS){ bestS=sc; best=e; } });
-    csvCtx.scores=scores;
-    csvSetEntity(best||'finance');
+    if(allRows.length>5001){ allRows=allRows.slice(0,5001); capped=true; }
+    csvCtx={fileName:file.name,allRows:allRows,headers:[],rows:[],entity:null,map:{},dateOrder:'mdy',capped:capped,
+      hasHeader:allRows.length>1,
+      options:{financeType:'auto',dedupe:true,dateFormat:'auto'}};
+    csvApplyHeaderMode();
+    csvRedetect();
   };
   reader.onerror=function(){ toast('Could not read the file.','error'); };
   reader.readAsText(file);
 }
+function csvApplyHeaderMode(){
+  if(!csvCtx) return;
+  if(csvCtx.hasHeader){
+    csvCtx.headers=csvCtx.allRows[0].slice();
+    csvCtx.rows=csvCtx.allRows.slice(1);
+  } else {
+    var w=csvCtx.allRows[0].length, h=[];
+    for(var i=0;i<w;i++) h.push('Column '+(i+1));
+    csvCtx.headers=h;
+    csvCtx.rows=csvCtx.allRows.slice();
+  }
+}
+function csvRedetect(){
+  if(!csvCtx) return;
+  var best=null,bestS=-1,scores={};
+  Object.keys(IMPORT_ENTITIES).forEach(function(e){ var sc=csvScoreEntity(e,csvCtx.headers); scores[e]=sc; if(sc>bestS){ bestS=sc; best=e; } });
+  csvCtx.scores=scores;
+  csvSetEntity(csvCtx.entity||best||'finance');
+}
 function csvSetEntity(e){ if(!csvCtx) return; csvCtx.entity=e; csvCtx.map=csvAutoMap(e); renderCsvImport(); }
-function csvSetOption(k,v){ if(!csvCtx) return; csvCtx.options[k]=v; renderCsvImport(); }
+function csvSetOption(k,v){
+  if(!csvCtx) return;
+  if(k==='hasHeader'){ csvCtx.hasHeader=v; csvApplyHeaderMode(); csvCtx.entity=null; csvRedetect(); return; }
+  csvCtx.options[k]=v; renderCsvImport();
+}
 function csvSetMap(field,val){ if(!csvCtx) return; csvCtx.map[field]=(val===''?null:+val); renderCsvImport(); }
 function closeCsvImport(){ csvCtx=null; byId('modal-root').innerHTML=''; }
+function downloadSampleCsv(){
+  var cur=(state.settings.currency||'')+'';
+  var rows=[
+    ['Date','Description','Category','Amount','Type','Customer'],
+    [todayISO(),'Gift box order','Sales',cur+'1,500.00','income','Joanna Reyes'],
+    [todayISO(),'Candle supplies','Inventory / Supplies','(800)','expense',''],
+    [todayISO(),'Monthly retainer','Subscriptions','9000','income','Lumina Café']
+  ];
+  var csv=rows.map(function(r){ return r.map(function(c){ var s=String(c); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }).join(','); }).join('\r\n');
+  var blob=new Blob([csv],{type:'text/csv'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download='trakora-sample-import.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); },2000);
+  toast('Sample CSV downloaded — open it, then use “Import a CSV file” to try it.');
+}
 function renderCsvImport(){
   if(!csvCtx) return;
   var ent=csvCtx.entity,prof=IMPORT_ENTITIES[ent],headers=csvCtx.headers,map=csvCtx.map;
@@ -7588,11 +7632,17 @@ function renderCsvImport(){
     return '<div class="imp-map-row"><label>'+esc(f.label)+(f.required?' <span style="color:var(--risk)">*</span>':'')+'</label>'+
       '<select class="input" data-imp="map" data-field="'+f.key+'">'+colOpts(map[f.key]==null?'':map[f.key])+'</select></div>';
   }).join('');
+  var hasDateField=prof.fields.some(function(f){ return f.kind==='date'; });
   var optsHtml='';
   if(ent==='finance'){
     optsHtml+='<div class="imp-map-row" style="margin-top:10px"><label>Income or expense?</label><select class="input" data-imp="option" data-opt="financeType">'+
       [['auto','Detect (Type column / amount sign)'],['income','Treat all as income'],['expense','Treat all as expense']].map(function(o){
         return '<option value="'+o[0]+'"'+(csvCtx.options.financeType===o[0]?' selected':'')+'>'+esc(o[1])+'</option>'; }).join('')+'</select></div>';
+  }
+  if(hasDateField){
+    optsHtml+='<div class="imp-map-row" style="margin-top:10px"><label>Date format</label><select class="input" data-imp="option" data-opt="dateFormat">'+
+      [['auto','Auto-detect'],['mdy','MM/DD/YYYY (US)'],['dmy','DD/MM/YYYY (rest of world)']].map(function(o){
+        return '<option value="'+o[0]+'"'+(csvCtx.options.dateFormat===o[0]?' selected':'')+'>'+esc(o[1])+'</option>'; }).join('')+'</select></div>';
   }
   var miss=prof.fields.filter(function(f){ return f.required&&map[f.key]==null; });
   var res=miss.length?null:csvBuild();
@@ -7619,7 +7669,8 @@ function renderCsvImport(){
       '<div class="imp-grid">'+
         '<div class="imp-col"><div class="imp-sec-t">1 · What is this data?</div>'+entSel+
           '<p style="font-size:.74rem;color:var(--text-3);margin-top:7px;line-height:1.5">'+csvConfidence()+'</p>'+optsHtml+
-          '<label class="checkrow" style="margin-top:12px"><input type="checkbox" data-imp="option" data-opt="dedupe"'+(csvCtx.options.dedupe?' checked':'')+'> Skip rows that duplicate existing data</label>'+
+          '<label class="checkrow" style="margin-top:12px"><input type="checkbox" data-imp="option" data-opt="hasHeader"'+(csvCtx.hasHeader?' checked':'')+'> First row contains column names</label>'+
+          '<label class="checkrow" style="margin-top:9px"><input type="checkbox" data-imp="option" data-opt="dedupe"'+(csvCtx.options.dedupe?' checked':'')+'> Skip rows that duplicate existing data</label>'+
         '</div>'+
         '<div class="imp-col"><div class="imp-sec-t">2 · Map columns</div>'+mapRows+'</div>'+
       '</div>'+
