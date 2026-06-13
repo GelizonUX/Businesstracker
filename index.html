@@ -691,6 +691,20 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
   .tour-spot,.hero::after{animation:none !important}
   .nav-item:hover{transform:none}
 }
+
+/* ============================================================
+   smart CSV import
+   ============================================================ */
+.imp-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media (max-width:680px){.imp-grid{grid-template-columns:1fr;gap:16px}}
+.imp-sec-t{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:var(--accent);margin-bottom:10px}
+.imp-map-row{display:grid;grid-template-columns:128px 1fr;gap:10px;align-items:center;margin-bottom:8px}
+.imp-map-row label{font-size:.8rem;font-weight:600;color:var(--text-2)}
+.imp-map-row .input{padding:6px 9px}
+.imp-summary{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0}
+.imp-warn{display:flex;align-items:flex-start;gap:8px;font-size:.82rem;line-height:1.5;color:var(--text-2);background:var(--warn-soft);border:1px solid var(--warn-soft);border-radius:11px;padding:11px 13px;margin-top:6px}
+.imp-warn svg{width:16px;height:16px;color:var(--warn);flex-shrink:0;margin-top:1px}
+.imp-warn b{color:var(--text)}
 </style>
 </head>
 <body>
@@ -705,6 +719,7 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 <div id="lightbox-root"></div>
 <div id="gate-root"></div>
 <input type="file" id="import-file" accept=".json,application/json" style="display:none">
+<input type="file" id="csv-file" accept=".csv,text/csv,text/plain" style="display:none">
 <script>
 'use strict';
 /* ============================================================
@@ -2665,6 +2680,10 @@ function settingsDataHTML(){
     '<div style="display:flex;gap:9px;flex-wrap:wrap">'+
     '<button class="btn btn-primary" data-action="export-data">'+icon('download')+' Export JSON backup</button>'+
     '<button class="btn btn-ghost" data-action="import-data">'+icon('upload')+' Import backup</button></div></div>';
+  html+='<div class="card"><div class="card-head"><h3>'+icon('upload',16)+' Smart CSV import</h3><span class="badge accent">Beta</span></div>'+
+    '<p style="font-size:.84rem;color:var(--text-2);margin-bottom:14px">Have a spreadsheet of sales, expenses, products, customers or materials? Upload the CSV — Trakora detects what it is, maps the columns, and shows you a preview to confirm <b>before</b> anything is saved. Nothing is imported until you approve it.</p>'+
+    '<div style="display:flex;gap:9px;flex-wrap:wrap">'+
+    '<button class="btn btn-primary" data-action="csv-import">'+icon('upload')+' Import a CSV file</button></div></div>';
   html+='<div class="card"><div class="card-head"><h3>Sample data & reset</h3></div>'+
     '<p style="font-size:.84rem;color:var(--text-2);margin-bottom:14px">Load realistic demo data to explore every feature, or wipe everything and start fresh.</p>'+
     '<div style="display:flex;gap:9px;flex-wrap:wrap">'+
@@ -3462,6 +3481,9 @@ document.addEventListener('click',function(e){
   /* data management */
   if(action==='export-data'){ exportData(); return; }
   if(action==='import-data'){ byId('import-file').click(); return; }
+  if(action==='csv-import'){ byId('csv-file').click(); return; }
+  if(action==='csv-cancel'){ closeCsvImport(); return; }
+  if(action==='csv-commit'){ commitCsvImport(); return; }
   if(action==='reset-data'){ resetData(); return; }
   if(action==='deactivate-device'){ deactivateDevice(); return; }
   if(action==='load-sample'){
@@ -3611,6 +3633,16 @@ document.addEventListener('change',function(e){
     el.value='';
     return;
   }
+  /* smart CSV import */
+  if(el.id==='csv-file'){
+    if(el.files&&el.files[0]) openCsvImport(el.files[0]);
+    el.value='';
+    return;
+  }
+  /* smart CSV import — in-modal selects re-render preview */
+  if(el.getAttribute('data-imp')==='entity'){ csvSetEntity(el.value); return; }
+  if(el.getAttribute('data-imp')==='option'){ csvSetOption(el.getAttribute('data-opt'),el.type==='checkbox'?el.checked:el.value); return; }
+  if(el.getAttribute('data-imp')==='map'){ csvSetMap(el.getAttribute('data-field'),el.value); return; }
 });
 
 /* ============================================================
@@ -7297,6 +7329,323 @@ document.addEventListener('keydown',function(e){
     byId('scrim').classList.remove('show');
   }
 });
+
+/* ============================================================
+   smart CSV import — detect entity, map columns, normalize,
+   preview & confirm, then route rows into the right store.
+   Accuracy: deterministic parsing + value normalization +
+   mandatory human review. Nothing commits without confirmation.
+   ============================================================ */
+var IMPORT_ENTITIES={
+  finance:{ label:'Income & Expenses (transactions)', store:'finance',
+    fields:[
+      {key:'date',label:'Date',kind:'date',required:true,syn:['date','transaction date','trans date','posted','posting date','day','datetime','time','date paid','order date','paid date']},
+      {key:'amount',label:'Amount',kind:'money',required:true,syn:['amount','total','price','value','sum','grand total','net','paid','php','amt','subtotal','total amount','money']},
+      {key:'type',label:'Type (income/expense)',kind:'text',syn:['type','direction','kind','transaction type','dr/cr','drcr','flow','in/out','debit/credit','income/expense']},
+      {key:'category',label:'Category',kind:'text',syn:['category','cat','class','classification','account','group','expense type','income type','bucket']},
+      {key:'note',label:'Note / Description',kind:'text',syn:['note','notes','description','desc','memo','details','particulars','remarks','reference','narration','item','label']},
+      {key:'client',label:'Client / Customer',kind:'text',syn:['client','customer','payee','vendor','supplier','contact','name','paid to','received from','buyer','party','from','to']}
+    ]},
+  products:{ label:'Products / Inventory', store:'products',
+    fields:[
+      {key:'name',label:'Product name',kind:'text',required:true,syn:['name','product','product name','item','item name','title','description']},
+      {key:'sku',label:'SKU / Code',kind:'text',syn:['sku','code','product code','item code','barcode','ref','reference']},
+      {key:'category',label:'Category',kind:'text',syn:['category','cat','type','group','collection','department']},
+      {key:'price',label:'Selling price',kind:'money',syn:['price','selling price','srp','retail','unit price','sell price','amount','sale price']},
+      {key:'cost',label:'Cost',kind:'money',syn:['cost','unit cost','cost price','buy price','purchase price','cogs','base cost']},
+      {key:'stock',label:'Stock on hand',kind:'int',syn:['stock','qty','quantity','on hand','onhand','inventory','count','available','units','in stock']},
+      {key:'lowStock',label:'Low-stock alert',kind:'int',syn:['low stock','reorder','reorder level','reorder point','min','minimum','low','threshold']},
+      {key:'desc',label:'Description',kind:'text',syn:['description','desc','notes','details','about']}
+    ]},
+  clients:{ label:'Customers / Clients (CRM)', store:'clients',
+    fields:[
+      {key:'name',label:'Name',kind:'text',required:true,syn:['name','client','customer','company','contact name','full name','client name','customer name']},
+      {key:'contact',label:'Contact (email/phone)',kind:'text',syn:['contact','email','e-mail','phone','mobile','number','handle','telephone','cell','contact number','phone number']},
+      {key:'status',label:'Status',kind:'text',syn:['status','stage','type','segment','tag','tier']},
+      {key:'value',label:'Value / Spend',kind:'money',syn:['value','lifetime value','ltv','revenue','spend','total','amount','sales','total spend']},
+      {key:'note',label:'Notes',kind:'text',syn:['note','notes','description','details','remarks','memo','about']}
+    ]},
+  materials:{ label:'Raw Materials / Supplies', store:'materials',
+    fields:[
+      {key:'name',label:'Material name',kind:'text',required:true,syn:['name','material','item','ingredient','supply','component','raw material','material name']},
+      {key:'unit',label:'Unit (g, ml, pc)',kind:'text',syn:['unit','uom','measure','units','unit of measure','measurement']},
+      {key:'cost',label:'Cost per unit',kind:'money',syn:['cost','unit cost','price','cost per unit','unit price','rate']},
+      {key:'stock',label:'Stock',kind:'num',syn:['stock','qty','quantity','on hand','onhand','inventory','count','available','units']},
+      {key:'lowStock',label:'Low-stock alert',kind:'num',syn:['low stock','reorder','reorder level','min','minimum','threshold','low']}
+    ]}
+};
+var CSV_MONTHS={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+var csvCtx=null;
+
+function csvPad(n){ return String(n).padStart(2,'0'); }
+function csvNormHeader(h){ return String(h==null?'':h).toLowerCase().replace(/[^a-z0-9]/g,''); }
+function csvMatch(header,syns){
+  var nh=csvNormHeader(header); if(!nh) return 0; var best=0;
+  for(var i=0;i<syns.length;i++){ var ns=csvNormHeader(syns[i]); if(!ns) continue;
+    if(nh===ns){ best=1; break; }
+    if(nh.indexOf(ns)>-1||ns.indexOf(nh)>-1) best=Math.max(best,0.6);
+  }
+  return best;
+}
+function csvMoney(v){
+  if(v==null) return null;
+  var raw=String(v).trim(); if(raw==='') return null;
+  var neg=false;
+  if(/^\(.*\)$/.test(raw)){ neg=true; raw=raw.slice(1,-1); }
+  if(/-/.test(raw)) neg=true;
+  var s=raw.replace(/[^\d.,]/g,''); if(s==='') return null;
+  var commas=(s.match(/,/g)||[]).length, dots=(s.match(/\./g)||[]).length;
+  if(commas&&dots){
+    if(s.lastIndexOf(',')>s.lastIndexOf('.')){ s=s.replace(/\./g,'').replace(',','.'); }
+    else { s=s.replace(/,/g,''); }
+  } else if(commas){
+    if(commas===1){ var after=s.split(',')[1]; s=(after.length===3)?s.replace(',',''):s.replace(',','.'); }
+    else { s=s.replace(/,/g,''); }
+  } else if(dots>1){ s=s.replace(/\./g,''); }
+  var n=parseFloat(s); if(isNaN(n)) return null;
+  return neg?-n:n;
+}
+function csvDate(v){
+  if(v==null) return null;
+  var s=String(v).trim(); if(s==='') return null;
+  var m=s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if(m) return csvIso(+m[1],+m[2],+m[3]);
+  m=s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/);
+  if(m){
+    var a=+m[1],b=+m[2],y=+m[3]; if(y<100) y+=2000;
+    var order=(csvCtx&&csvCtx.dateOrder)||'mdy', mo,da;
+    if(a>12){ da=a; mo=b; } else if(b>12){ mo=a; da=b; }
+    else if(order==='dmy'){ da=a; mo=b; } else { mo=a; da=b; }
+    return csvIso(y,mo,da);
+  }
+  m=s.match(/^(\d{1,2})\s+([A-Za-z]{3,})\.?,?\s+(\d{2,4})$/);
+  if(m){ var mo2=CSV_MONTHS[m[2].slice(0,3).toLowerCase()]; if(mo2) return csvIso(csvY(+m[3]),mo2,+m[1]); }
+  m=s.match(/^([A-Za-z]{3,})\.?\s+(\d{1,2}),?\s+(\d{2,4})$/);
+  if(m){ var mo3=CSV_MONTHS[m[1].slice(0,3).toLowerCase()]; if(mo3) return csvIso(csvY(+m[3]),mo3,+m[2]); }
+  if(/^\d{5}$/.test(s)){ var nn=+s; if(nn>=20000&&nn<=60000){ return new Date(Date.UTC(1899,11,30)+nn*86400000).toISOString().slice(0,10); } }
+  if(/\d{4}/.test(s)){ var d=new Date(s); if(!isNaN(d.getTime())) return d.getFullYear()+'-'+csvPad(d.getMonth()+1)+'-'+csvPad(d.getDate()); }
+  return null;
+}
+function csvY(y){ return y<100?y+2000:y; }
+function csvIso(y,mo,da){ if(!(mo>=1&&mo<=12&&da>=1&&da<=31)) return null; return y+'-'+csvPad(mo)+'-'+csvPad(da); }
+function csvType(v,amount){
+  var s=String(v==null?'':v).trim().toLowerCase();
+  if(s){
+    if(/^(income|in\b|credit|cr\b|sale|sales|revenue|deposit|received|inflow|earn|\+)/.test(s)) return 'income';
+    if(/^(expense|exp\b|out\b|debit|dr\b|cost|purchase|paid|payment|withdraw|outflow|bill|spend|-)/.test(s)) return 'expense';
+  }
+  if(amount!=null&&amount<0) return 'expense';
+  return null;
+}
+function csvParse(text){
+  text=String(text||'').replace(/^\uFEFF/,'');
+  var nl=text.indexOf('\n'); var firstLine=nl>-1?text.slice(0,nl):text;
+  var delim=',',best=-1; [',',';','\t','|'].forEach(function(d){ var c=firstLine.split(d).length; if(c>best){best=c;delim=d;} });
+  var rows=[],row=[],field='',i=0,inQ=false,n=text.length;
+  while(i<n){
+    var ch=text[i];
+    if(inQ){
+      if(ch==='"'){ if(text[i+1]==='"'){ field+='"'; i+=2; continue; } inQ=false; i++; continue; }
+      field+=ch; i++; continue;
+    }
+    if(ch==='"'){ inQ=true; i++; continue; }
+    if(ch===delim){ row.push(field); field=''; i++; continue; }
+    if(ch==='\r'){ i++; continue; }
+    if(ch==='\n'){ row.push(field); rows.push(row); row=[]; field=''; i++; continue; }
+    field+=ch; i++;
+  }
+  if(field.length||row.length){ row.push(field); rows.push(row); }
+  rows=rows.filter(function(r){ return r.some(function(c){ return String(c).trim()!==''; }); });
+  if(!rows.length) return {headers:[],rows:[]};
+  var headers=rows.shift().map(function(h){ return String(h).trim(); });
+  rows=rows.map(function(r){ var o=r.slice(0,headers.length); while(o.length<headers.length) o.push(''); return o.map(function(c){ return String(c).trim(); }); });
+  return {headers:headers,rows:rows};
+}
+function csvColStats(rows,ci){
+  var dateN=0,numN=0,emailN=0,total=0;
+  rows.slice(0,30).forEach(function(r){ var v=(r[ci]||'').trim(); if(!v) return; total++;
+    if(csvDate(v)!=null) dateN++; if(csvMoney(v)!=null) numN++; if(/@/.test(v)) emailN++; });
+  return {total:total,dateRatio:total?dateN/total:0,numRatio:total?numN/total:0,emailRatio:total?emailN/total:0};
+}
+function csvScoreEntity(ent,headers){
+  var prof=IMPORT_ENTITIES[ent],score=0,reqHit=0;
+  prof.fields.forEach(function(f){
+    var b=0; headers.forEach(function(h){ b=Math.max(b,csvMatch(h,f.syn)); });
+    score+=b*(f.required?2:1);
+    if(f.required&&b>=0.55) reqHit++;
+  });
+  return score+reqHit*1.5;
+}
+function csvAutoMap(ent){
+  var prof=IMPORT_ENTITIES[ent],headers=csvCtx.headers,rows=csvCtx.rows,map={},used={},pairs=[];
+  prof.fields.forEach(function(f){ headers.forEach(function(h,ci){ var st=csvMatch(h,f.syn); if(st>0) pairs.push({f:f.key,ci:ci,st:st}); }); });
+  pairs.sort(function(a,b){ return b.st-a.st; });
+  pairs.forEach(function(p){ if(map[p.f]==null&&!used[p.ci]&&p.st>=0.5){ map[p.f]=p.ci; used[p.ci]=true; } });
+  prof.fields.forEach(function(f){
+    if(map[f.key]!=null) return;
+    var wantDate=f.kind==='date', wantNum=(f.kind==='money'||f.kind==='int'||f.kind==='num'), wantEmail=f.key==='contact';
+    if(!wantDate&&!wantNum&&!wantEmail) return;
+    var bestCi=-1,bestR=0;
+    headers.forEach(function(h,ci){ if(used[ci]) return; var st=csvColStats(rows,ci);
+      var r=wantDate?st.dateRatio:wantEmail?st.emailRatio:st.numRatio; if(r>bestR){ bestR=r; bestCi=ci; } });
+    if(bestCi>-1&&bestR>=0.6){ map[f.key]=bestCi; used[bestCi]=true; }
+  });
+  return map;
+}
+function csvDetectOrder(ci){
+  var order='mdy';
+  csvCtx.rows.slice(0,60).forEach(function(r){ var m=String(r[ci]||'').match(/^(\d{1,2})[-/.](\d{1,2})[-/.]/); if(m&&+m[1]>12) order='dmy'; });
+  return order;
+}
+function csvCell(map,r,k){ return map[k]!=null?(r[map[k]]||''):''; }
+function csvNormalizeRow(ent,prof,map,r){
+  var g=function(k){ return String(csvCell(map,r,k)).trim(); };
+  if(ent==='finance'){
+    var amt=csvMoney(g('amount')), date=csvDate(g('date'));
+    if(amt==null||date==null) return {ok:false};
+    var type=csvType(g('type'),amt);
+    if(!type){ var o=csvCtx.options.financeType; type=(o==='expense')?'expense':(o==='income')?'income':(amt<0?'expense':'income'); }
+    var cat=g('category')||(type==='income'?'Sales':'Other expense');
+    return {ok:true,val:{id:uid(),type:type,amount:Math.abs(amt),date:date,category:cat,note:g('note'),client:g('client'),offer:'',account:'',receipt:''}};
+  }
+  if(ent==='products'){
+    var name=g('name'); if(!name) return {ok:false};
+    return {ok:true,val:{id:uid(),name:name,category:g('category'),sku:g('sku'),price:csvMoney(g('price'))||0,cost:csvMoney(g('cost'))||0,
+      stock:Math.round(csvMoney(g('stock'))||0),lowStock:Math.round(csvMoney(g('lowStock'))||0),attrs:{},desc:g('desc'),bom:[],photo:'',active:true}};
+  }
+  if(ent==='clients'){
+    var cn=g('name'); if(!cn) return {ok:false};
+    return {ok:true,val:{id:uid(),name:cn,status:g('status')||'Active',value:csvMoney(g('value'))||0,contact:g('contact'),note:g('note'),createdAt:todayISO()}};
+  }
+  if(ent==='materials'){
+    var mn=g('name'); if(!mn) return {ok:false};
+    return {ok:true,val:{id:uid(),name:mn,unit:g('unit'),cost:csvMoney(g('cost'))||0,stock:csvMoney(g('stock'))||0,lowStock:csvMoney(g('lowStock'))||0}};
+  }
+  return {ok:false};
+}
+function csvDedupeKey(ent,v){
+  if(ent==='finance') return [v.date,Math.abs(v.amount).toFixed(2),v.type,(v.note||'').toLowerCase()].join('|');
+  if(ent==='products') return v.sku?('sku:'+v.sku.toLowerCase()):('nm:'+v.name.toLowerCase());
+  if(ent==='clients') return 'nm:'+v.name.toLowerCase()+'|'+(v.contact||'').toLowerCase();
+  if(ent==='materials') return 'nm:'+v.name.toLowerCase();
+  return JSON.stringify(v);
+}
+function csvExistingKeys(ent){
+  var out={}; (state[IMPORT_ENTITIES[ent].store]||[]).forEach(function(x){ out[csvDedupeKey(ent,x)]=true; });
+  return out;
+}
+function csvBuild(){
+  var ent=csvCtx.entity,prof=IMPORT_ENTITIES[ent],map=csvCtx.map;
+  var df=prof.fields.filter(function(f){ return f.kind==='date'; })[0];
+  if(df&&map[df.key]!=null) csvCtx.dateOrder=csvDetectOrder(map[df.key]);
+  var ready=[],invalid=0,dupes=0,seen={},existing=csvExistingKeys(ent);
+  csvCtx.rows.forEach(function(r){
+    var rec=csvNormalizeRow(ent,prof,map,r);
+    if(!rec.ok){ invalid++; return; }
+    var key=csvDedupeKey(ent,rec.val);
+    if(csvCtx.options.dedupe&&(existing[key]||seen[key])){ dupes++; return; }
+    seen[key]=true; ready.push(rec.val);
+  });
+  return {ready:ready,invalid:invalid,dupes:dupes,total:csvCtx.rows.length};
+}
+function csvNoun(ent,n){ var m={finance:'transaction',products:'product',clients:'client',materials:'material'}; var w=m[ent]||'record'; return n===1?w:w+'s'; }
+function csvConfidence(){
+  var prof=IMPORT_ENTITIES[csvCtx.entity],reqTot=0,reqHit=0,optTot=0,optHit=0;
+  prof.fields.forEach(function(f){ var mapped=csvCtx.map[f.key]!=null;
+    if(f.required){ reqTot++; if(mapped) reqHit++; } else { optTot++; if(mapped) optHit++; } });
+  var lvl=reqHit<reqTot?'needs your input':(optHit>=Math.ceil(optTot/2)?'high confidence':'looks good');
+  return reqHit+'/'+reqTot+' required &amp; '+optHit+'/'+optTot+' optional columns mapped — <b>'+lvl+'</b>. Change anything that looks off.';
+}
+function openCsvImport(file){
+  var reader=new FileReader();
+  reader.onload=function(){
+    var parsed=csvParse(String(reader.result||''));
+    if(!parsed.headers.length||!parsed.rows.length){ toast('Could not read any rows — make sure the CSV has a header row and at least one data row.','error'); return; }
+    var capped=false;
+    if(parsed.rows.length>5000){ parsed.rows=parsed.rows.slice(0,5000); capped=true; }
+    csvCtx={fileName:file.name,headers:parsed.headers,rows:parsed.rows,entity:null,map:{},dateOrder:'mdy',capped:capped,
+      options:{financeType:'auto',dedupe:true}};
+    var best=null,bestS=-1,scores={};
+    Object.keys(IMPORT_ENTITIES).forEach(function(e){ var sc=csvScoreEntity(e,parsed.headers); scores[e]=sc; if(sc>bestS){ bestS=sc; best=e; } });
+    csvCtx.scores=scores;
+    csvSetEntity(best||'finance');
+  };
+  reader.onerror=function(){ toast('Could not read the file.','error'); };
+  reader.readAsText(file);
+}
+function csvSetEntity(e){ if(!csvCtx) return; csvCtx.entity=e; csvCtx.map=csvAutoMap(e); renderCsvImport(); }
+function csvSetOption(k,v){ if(!csvCtx) return; csvCtx.options[k]=v; renderCsvImport(); }
+function csvSetMap(field,val){ if(!csvCtx) return; csvCtx.map[field]=(val===''?null:+val); renderCsvImport(); }
+function closeCsvImport(){ csvCtx=null; byId('modal-root').innerHTML=''; }
+function renderCsvImport(){
+  if(!csvCtx) return;
+  var ent=csvCtx.entity,prof=IMPORT_ENTITIES[ent],headers=csvCtx.headers,map=csvCtx.map;
+  var colOpts=function(selCi){ return '<option value="">— none —</option>'+headers.map(function(h,ci){
+    return '<option value="'+ci+'"'+(selCi===ci?' selected':'')+'>'+esc(h||('Column '+(ci+1)))+'</option>'; }).join(''); };
+  var entSel='<select class="input" data-imp="entity">'+Object.keys(IMPORT_ENTITIES).map(function(e){
+    return '<option value="'+e+'"'+(e===ent?' selected':'')+'>'+esc(IMPORT_ENTITIES[e].label)+'</option>'; }).join('')+'</select>';
+  var mapRows=prof.fields.map(function(f){
+    return '<div class="imp-map-row"><label>'+esc(f.label)+(f.required?' <span style="color:var(--risk)">*</span>':'')+'</label>'+
+      '<select class="input" data-imp="map" data-field="'+f.key+'">'+colOpts(map[f.key]==null?'':map[f.key])+'</select></div>';
+  }).join('');
+  var optsHtml='';
+  if(ent==='finance'){
+    optsHtml+='<div class="imp-map-row" style="margin-top:10px"><label>Income or expense?</label><select class="input" data-imp="option" data-opt="financeType">'+
+      [['auto','Detect (Type column / amount sign)'],['income','Treat all as income'],['expense','Treat all as expense']].map(function(o){
+        return '<option value="'+o[0]+'"'+(csvCtx.options.financeType===o[0]?' selected':'')+'>'+esc(o[1])+'</option>'; }).join('')+'</select></div>';
+  }
+  var miss=prof.fields.filter(function(f){ return f.required&&map[f.key]==null; });
+  var res=miss.length?null:csvBuild();
+  var prev;
+  if(miss.length){
+    prev='<div class="imp-warn">'+icon('alert')+'<span>Map the required field'+(miss.length>1?'s':'')+' marked <b style="color:var(--risk)">*</b> to preview and import: <b>'+miss.map(function(f){ return esc(f.label); }).join(', ')+'</b></span></div>';
+  } else {
+    var cols=prof.fields.filter(function(f){ return map[f.key]!=null||f.required; });
+    var head='<tr>'+cols.map(function(f){ return '<th>'+esc(f.label)+'</th>'; }).join('')+'</tr>';
+    var body=res.ready.slice(0,6).map(function(v){ return '<tr>'+cols.map(function(f){ var val=v[f.key];
+      if(f.kind==='money') val=fmtMoney(val); return '<td>'+esc(val==null?'':val)+'</td>'; }).join('')+'</tr>'; }).join('');
+    if(!res.ready.length) body='<tr><td colspan="'+cols.length+'" style="color:var(--text-3);text-align:center;padding:14px">No valid rows with the current mapping — check the columns above.</td></tr>';
+    prev='<div class="imp-summary"><span class="badge good">'+res.ready.length+' ready</span>'+
+      (res.dupes?'<span class="badge neutral">'+res.dupes+' duplicate'+(res.dupes>1?'s':'')+' skipped</span>':'')+
+      (res.invalid?'<span class="badge warn">'+res.invalid+' invalid skipped</span>':'')+
+      '<span style="color:var(--text-3);font-size:.78rem">of '+res.total+' rows</span></div>'+
+      '<div class="table-wrap" style="max-height:230px;overflow:auto"><table><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';
+  }
+  var canImport=!miss.length&&res&&res.ready.length>0;
+  var html='<div class="modal-overlay" style="align-items:flex-start"><div class="modal wide" role="dialog" aria-modal="true" style="max-width:780px">'+
+    '<div class="modal-head"><h3>'+icon('upload',18)+' Smart CSV import</h3><button class="btn-icon" data-action="csv-cancel" aria-label="Close">'+icon('x')+'</button></div>'+
+    '<div class="modal-body">'+
+      '<p style="font-size:.8rem;color:var(--text-2);margin-bottom:14px"><b>'+esc(csvCtx.fileName)+'</b> · '+csvCtx.rows.length+' rows · '+csvCtx.headers.length+' columns'+(csvCtx.capped?' (capped at 5,000)':'')+'. Confirm where this data goes and how columns map — nothing is saved until you press Import.</p>'+
+      '<div class="imp-grid">'+
+        '<div class="imp-col"><div class="imp-sec-t">1 · What is this data?</div>'+entSel+
+          '<p style="font-size:.74rem;color:var(--text-3);margin-top:7px;line-height:1.5">'+csvConfidence()+'</p>'+optsHtml+
+          '<label class="checkrow" style="margin-top:12px"><input type="checkbox" data-imp="option" data-opt="dedupe"'+(csvCtx.options.dedupe?' checked':'')+'> Skip rows that duplicate existing data</label>'+
+        '</div>'+
+        '<div class="imp-col"><div class="imp-sec-t">2 · Map columns</div>'+mapRows+'</div>'+
+      '</div>'+
+      '<div class="imp-sec-t" style="margin-top:16px">3 · Preview &amp; confirm</div>'+prev+
+    '</div>'+
+    '<div class="modal-foot" style="padding:14px 22px 20px">'+
+      '<button class="btn btn-ghost" data-action="csv-cancel">Cancel</button>'+
+      '<button class="btn btn-primary" data-action="csv-commit"'+(canImport?'':' disabled style="opacity:.45;cursor:not-allowed"')+'>'+icon('check')+' Import'+(canImport?' '+res.ready.length+' '+csvNoun(ent,res.ready.length):'')+'</button>'+
+    '</div></div></div>';
+  byId('modal-root').innerHTML=html;
+}
+function commitCsvImport(){
+  if(!csvCtx) return;
+  var ent=csvCtx.entity,prof=IMPORT_ENTITIES[ent];
+  var miss=prof.fields.filter(function(f){ return f.required&&csvCtx.map[f.key]==null; });
+  if(miss.length){ toast('Map the required field(s): '+miss.map(function(f){ return f.label; }).join(', '),'error'); return; }
+  var res=csvBuild();
+  if(!res.ready.length){ toast('Nothing to import — every row was invalid or a duplicate. Check the column mapping.','warn'); return; }
+  snapshotForUndo();
+  var target=state[prof.store];
+  res.ready.forEach(function(v){ target.push(v); });
+  var n=res.ready.length, noun=csvNoun(ent,n), dupes=res.dupes, invalid=res.invalid;
+  closeCsvImport();
+  commit();
+  toast('Imported '+n+' '+noun+(dupes?' · '+dupes+' duplicate'+(dupes>1?'s':'')+' skipped':'')+(invalid?' · '+invalid+' invalid skipped':''),'ok',{undo:true});
+}
 
 window.addEventListener('hashchange',render);
 
