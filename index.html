@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="description" content="BizPilot — a local-first business command center: finance, goals, roadmap, tasks, notes, CRM, metrics and smart insights. All data stays in your browser.">
-<title>BizPilot — Business Command Center</title>
+<meta name="description" content="Trakora — a local-first business command center: finance, goals, roadmap, tasks, notes, CRM, metrics and smart insights. All data stays in your browser.">
+<title>Trakora — Business Command Center</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236366f1'/%3E%3Cstop offset='1' stop-color='%238b5cf6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpath d='M8 22l5-6 4 3 7-9' stroke='%23fff' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>
 /* ============================================================
-   BizPilot — design tokens
+   Trakora — design tokens
    ============================================================ */
 :root{
   --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -636,6 +636,58 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .gate-steps{display:flex;gap:7px;justify-content:center;margin:0 0 18px;font-size:.66rem;color:#8087aa}
 .gate-steps span{display:flex;align-items:center;gap:4px}
 .gate-steps .dot{width:5px;height:5px;border-radius:50%;background:#6366f1}
+
+/* ============================================================
+   welcome tour — refined card + "why it matters" highlight
+   ============================================================ */
+.tour-card{width:330px;padding:18px 18px 16px;overflow:hidden}
+.tour-card::before{content:'';position:absolute;inset:0 0 auto 0;height:3px;background:var(--accent-grad)}
+.tour-card .tour-x{position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:var(--text-3);background:transparent;transition:background .15s,color .15s}
+.tour-card .tour-x:hover{background:var(--bg-hover);color:var(--accent)}
+.tour-card .tour-x svg{width:15px;height:15px}
+.tour-head{display:flex;align-items:center;gap:9px;margin-bottom:6px;padding-right:24px}
+.tour-head .tour-ico{width:30px;height:30px;border-radius:9px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;flex-shrink:0}
+.tour-head .tour-ico svg{width:17px;height:17px}
+.tour-why{display:flex;gap:8px;align-items:flex-start;margin-top:11px;padding:9px 11px;border-radius:11px;background:linear-gradient(135deg,var(--good-soft),transparent);border:1px solid var(--good-soft)}
+.tour-why svg{width:15px;height:15px;color:var(--good);flex-shrink:0;margin-top:1px}
+.tour-why span{font-size:.78rem;line-height:1.5;color:var(--text-2)}
+.tour-why b{color:var(--text);font-weight:700}
+.tour-dots{display:flex;gap:5px;margin:13px 0 12px}
+.tour-dots i{width:7px;height:7px;border-radius:50%;background:var(--border-2);transition:width .25s var(--ease),background .25s}
+.tour-dots i.on{width:18px;border-radius:99px;background:var(--accent-grad)}
+.tour-foot{display:flex;align-items:center;gap:7px}
+.tour-foot .spacer{margin-left:auto}
+.tour-skip{font-size:.78rem;font-weight:600;color:var(--text-3);background:transparent;padding:5px 4px;transition:color .15s}
+.tour-skip:hover{color:var(--text)}
+.tour-spot{box-shadow:0 0 0 9999px rgba(5,8,18,.62),0 0 0 3px var(--accent),0 0 0 7px var(--accent-soft),0 0 32px rgba(99,102,241,.6);animation:tourPulse 2.4s var(--ease) infinite}
+@keyframes tourPulse{0%,100%{box-shadow:0 0 0 9999px rgba(5,8,18,.62),0 0 0 3px var(--accent),0 0 0 6px var(--accent-soft),0 0 26px rgba(99,102,241,.45)}50%{box-shadow:0 0 0 9999px rgba(5,8,18,.62),0 0 0 3px var(--accent),0 0 0 9px var(--accent-soft),0 0 40px rgba(99,102,241,.7)}}
+
+/* ============================================================
+   advanced motion & polish — additive, layout-safe
+   ============================================================ */
+@keyframes floatGlow{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes sheen{0%{background-position:-180% 0}100%{background-position:180% 0}}
+@keyframes ringPulse{0%{box-shadow:0 0 0 0 rgba(99,102,241,.5)}70%{box-shadow:0 0 0 12px rgba(99,102,241,0)}100%{box-shadow:0 0 0 0 rgba(99,102,241,0)}}
+.hero{transition:box-shadow .4s var(--ease)}
+.hero:hover{box-shadow:var(--shadow)}
+.hero::after{animation:floatGlow 7s ease-in-out infinite}
+.hero h2{background:linear-gradient(90deg,var(--text),var(--accent) 60%,var(--accent-2));-webkit-background-clip:text;background-clip:text}
+.brand-logo{transition:transform .35s var(--ease),box-shadow .35s var(--ease)}
+.brand:hover .brand-logo{transform:rotate(-6deg) scale(1.06);box-shadow:0 6px 20px rgba(99,102,241,.6)}
+.nav-item{transition:background .15s,color .15s,transform .12s var(--ease)}
+.nav-item:hover{transform:translateX(3px)}
+.nav-item.active::before{animation:ringPulse 2s ease-out 1}
+.btn-primary{background-size:140% 140%;transition:all .2s var(--ease),background-position .5s var(--ease)}
+.btn-primary:hover{background-position:100% 50%}
+.stat-card,.kpi{transition:box-shadow .25s var(--ease),transform .25s var(--ease),border-color .25s}
+.stat-card:hover,.kpi:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+.badge{transition:transform .15s var(--ease)}
+.badge:hover{transform:translateY(-1px)}
+.theme-toggle:active{transform:rotate(180deg) scale(.92)}
+@media (prefers-reduced-motion:reduce){
+  .tour-spot,.hero::after{animation:none !important}
+  .nav-item:hover{transform:none}
+}
 </style>
 </head>
 <body>
@@ -653,7 +705,7 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 <script>
 'use strict';
 /* ============================================================
-   BizPilot — single-file business command center
+   Trakora — single-file business command center
    All data lives in localStorage under one key. No backend.
    ============================================================ */
 
@@ -778,7 +830,7 @@ function licTag(){ var l=licenseInfo(); return l?' · Licensed to '+esc(l.name):
    Set GATE.enabled=false to ship an un-gated build. */
 var GATE={
   enabled:true,
-  url:'https://love-notes-eae0b-default-rtdb.firebaseio.com',
+  url:'https://trakora-30796-default-rtdb.firebaseio.com',
   node:'licenses',
   deviceLimit:2,                 // fallback if a license record has none
   sellerContact:'the seller'     // shown on the gate ("don't have a key?")
@@ -872,7 +924,7 @@ function renderGate(){
   setTimeout(function(){ keyEl.focus(); },120);
 }
 function deactivateDevice(){
-  if(!confirm('Sign out this device?\n\nYou can re-activate anytime with the same key. This also frees a device slot so you can use BizPilot on another computer.')) return;
+  if(!confirm('Sign out this device?\n\nYou can re-activate anytime with the same key. This also frees a device slot so you can use Trakora on another computer.')) return;
   var a=getActivation();
   if(a&&a.key&&!a.unclaimed){
     fetch(gateEndpoint(a.key).replace('.json','/devices/'+encodeURIComponent(a.device||DEVICE_ID)+'.json'),{method:'DELETE'}).catch(function(){});
@@ -888,7 +940,7 @@ var DEFAULT_STATE={
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
     accent:'', autoBackupDays:0, lastAutoBackup:null, hiddenModules:[],
     customCats:{ income:[], expense:[] },
-    sync:{ url:'https://love-notes-eae0b-default-rtdb.firebaseio.com', path:'bizpilot', enabled:false, lastSync:null },
+    sync:{ url:'', path:'bizpilot', enabled:false, lastSync:null },
     productCats:['Candle','Keychain','Gift Box'], productAttrs:['Scent','Color'],
     moduleLabels:{}, bizAddress:'', bizPhone:'', onboarded:false, lang:'en', payQR:'', payQRLabel:'',
     collapsedNav:[], taskLanes:['To do','Doing','Done'], bizLogo:'', tourDone:false,
@@ -937,7 +989,7 @@ function loadState(){
       state.meta.createdAt=todayISO();
     }
   }catch(e){
-    console.warn('BizPilot: could not parse saved data, starting fresh.',e);
+    console.warn('Trakora: could not parse saved data, starting fresh.',e);
     state=JSON.parse(JSON.stringify(DEFAULT_STATE));
     state.meta.createdAt=todayISO();
   }
@@ -957,6 +1009,11 @@ function loadState(){
   if((state.phases||[]).length&&!(state.roadmaps||[]).length){
     state.roadmaps=[{id:uid(),name:'Main roadmap',phases:state.phases}];
     state.phases=[];
+  }
+  // scrub the old bundled default cloud URL so each owner connects their own database
+  if(state.settings.sync&&state.settings.sync.url==='https://love-notes-eae0b-default-rtdb.firebaseio.com'){
+    state.settings.sync.url='';
+    if(!state.settings.sync.enabled) state.settings.sync.lastSync=null;
   }
 }
 function allPhases(){
@@ -1485,7 +1542,7 @@ function renderSidebar(){
   var html='<div class="brand">'+
     (bl?'<img src="'+bl+'" alt="" style="width:36px;height:36px;border-radius:10px;object-fit:cover;flex-shrink:0;box-shadow:0 4px 14px rgba(0,0,0,.35)">'
        :'<div class="brand-logo">'+icon('logo')+'</div>')+
-    '<div><div class="brand-name" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(state.settings.businessName||'BizPilot')+'</div><div class="brand-sub">Command Center</div></div></div><nav class="nav">';
+    '<div><div class="brand-name" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(state.settings.businessName||'Trakora')+'</div><div class="brand-sub">Command Center</div></div></div><nav class="nav">';
   var labels=state.settings.moduleLabels||{};
   var collapsed=state.settings.collapsedNav||[];
   // group routes by section; a section containing the active route is always shown open
@@ -1553,10 +1610,11 @@ function viewDashboard(){
 
   if(!hasData && state.goals.length===0 && state.tasks.length===0){
     html+='<div class="hero"><h2>Welcome to your business command center 🚀</h2>'+
-      '<p>Track money, set goals, plan your roadmap, manage tasks, clients and notes — everything saved privately in this browser. Start by adding your first income or expense, or load sample data to explore.</p>'+
+      '<p>Track your money, sell without the chaos, and hit your goals — all in one private workspace that lives in this browser. See real profit and cash flow, never oversell, and know exactly what needs attention each day.</p>'+
       '<div class="hero-actions">'+
         '<button class="btn btn-primary" data-action="open-entry-modal">'+icon('plus')+' Add first entry</button>'+
         '<button class="btn btn-ghost" data-action="load-sample">'+icon('spark')+' Load sample data</button>'+
+        '<button class="btn btn-ghost" data-action="show-tour">'+icon('spark')+' Take the 1-min tour</button>'+
       '</div></div>';
   }
 
@@ -2562,7 +2620,7 @@ function viewSettings(){
       '<input type="file" accept="image/*" class="input img-input" style="flex:1;min-width:140px;padding:6px">'+
       '<input type="hidden" name="bizLogo" value="'+esc(s.bizLogo||'')+'">'+
       (s.bizLogo?'<button type="button" class="btn btn-sm btn-danger" data-action="img-clear">'+icon('x')+' Remove</button>':'')+
-    '</div><p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Square images look best. Your logo replaces the BizPilot mark everywhere — your software, your brand.</p></div>'+
+    '</div><p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Square images look best. Your logo replaces the Trakora mark everywhere — your software, your brand.</p></div>'+
     '<div class="field"><label>Payment QR (GCash / Maya — shows on invoices, delivery slips & catalog)</label><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
       '<img class="img-thumb-lg img-prev" src="'+(s.payQR||'')+'" style="'+(s.payQR?'':'display:none')+'" alt="">'+
       '<input type="file" accept="image/*" class="input img-input" style="flex:1;min-width:140px;padding:6px">'+
@@ -2579,7 +2637,7 @@ function viewSettings(){
     '<button class="btn btn-primary" type="submit">'+icon('check')+' Save settings</button></form></div>';
   html+=fxCardHTML();
   html+='<div class="card"><div class="card-head"><h3>About</h3></div>'+
-    '<p style="font-size:.84rem;color:var(--text-2)">BizPilot is a single-file, local-first business command center. No accounts, no servers, no tracking — your numbers never leave this device unless you enable cloud sync. Works offline once loaded.</p>'+
+    '<p style="font-size:.84rem;color:var(--text-2)">Trakora is a single-file, local-first business command center. No accounts, no servers, no tracking — your numbers never leave this device unless you enable cloud sync. Works offline once loaded.</p>'+
     (function(){ var l=licenseInfo(); if(!l) return '';
       var act=getActivation();
       return '<div style="margin-top:12px;padding:11px 14px;border-radius:11px;background:var(--accent-soft);border-left:3px solid var(--accent)">'+
@@ -2902,7 +2960,7 @@ function exportData(){
     var blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
     var a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
-    a.download='bizpilot-backup-'+todayISO()+'.json';
+    a.download='trakora-backup-'+todayISO()+'.json';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function(){ URL.revokeObjectURL(a.href); },2000);
     state.settings.lastBackup=todayISO();
@@ -2915,7 +2973,7 @@ function importData(file){
   reader.onload=function(){
     try{
       var data=JSON.parse(reader.result);
-      if(!data||typeof data!=='object'||!data.settings||(!Array.isArray(data.finance))) throw new Error('This file is not a BizPilot backup.');
+      if(!data||typeof data!=='object'||!data.settings||(!Array.isArray(data.finance))) throw new Error('This file is not a Trakora backup.');
       state=deepMerge(JSON.parse(JSON.stringify(DEFAULT_STATE)),data);
       state.settings.onboarded=true;
       commit();
@@ -3159,7 +3217,7 @@ function loadSampleData(){
    ============================================================ */
 function applyBrand(){
   var s=state.settings;
-  document.title=(s.businessName&&s.businessName!=='My Business'?s.businessName+' — ':'')+'BizPilot';
+  document.title=(s.businessName&&s.businessName!=='My Business'?s.businessName+' — ':'')+'Trakora';
   if(s.bizLogo){
     var link=document.querySelector('link[rel="icon"]');
     if(!link){ link=document.createElement('link'); link.rel='icon'; document.head.appendChild(link); }
@@ -3585,7 +3643,7 @@ function financeRecurringHTML(){
   var html='<div class="card"><div class="card-head"><h3>Recurring entries</h3><span class="sub">retainers, subscriptions, rent — posted automatically each month</span><span class="spacer"></span>'+
     '<button class="btn btn-sm btn-primary" data-action="recurring-new">'+icon('plus')+' New rule</button></div>';
   if(!(state.recurring||[]).length){
-    html+=emptyState('refresh','No recurring rules yet','Set up income or expenses that repeat monthly (e.g. a retainer or a software subscription). BizPilot posts them for you on the right day — even for months you missed.','<button class="btn btn-sm btn-primary" data-action="recurring-new">'+icon('plus')+' Create first rule</button>')+'</div>';
+    html+=emptyState('refresh','No recurring rules yet','Set up income or expenses that repeat monthly (e.g. a retainer or a software subscription). Trakora posts them for you on the right day — even for months you missed.','<button class="btn btn-sm btn-primary" data-action="recurring-new">'+icon('plus')+' Create first rule</button>')+'</div>';
     return html;
   }
   var monthlyIn=sum(state.recurring.filter(function(r){return r.active&&r.type==='income';}),function(r){return r.amount;});
@@ -4072,7 +4130,7 @@ function cloudPull(){
       return r.json();
     })
     .then(function(data){
-      if(!data||typeof data!=='object'||!data.settings){ toast('No BizPilot data found in the cloud yet — push first.','warn'); return; }
+      if(!data||typeof data!=='object'||!data.settings){ toast('No Trakora data found in the cloud yet — push first.','warn'); return; }
       if(!confirm('Replace the data on THIS device with the cloud copy? Local changes not yet pushed will be lost.')) return;
       if(state.meta&&state.meta.updatedAt&&data.meta&&data.meta.updatedAt&&state.meta.updatedAt>data.meta.updatedAt){
         if(!confirm('Heads up: THIS device has newer changes than the cloud copy. Pulling will lose them. Continue?')) return;
@@ -4090,7 +4148,7 @@ function cloudSyncCardHTML(){
   var s=state.settings.sync||{};
   var html='<div class="card"><div class="card-head"><h3>'+icon('cloud',16)+' Cloud sync</h3><span class="spacer"></span>'+
     (s.enabled?'<span class="badge good">Auto-sync on</span>':'<span class="badge neutral">Off</span>')+'</div>'+
-    '<p style="font-size:.8rem;color:var(--text-2);margin-bottom:12px">Sync your data to your own Firebase Realtime Database so it survives browser resets and follows you across devices. '+
+    '<p style="font-size:.8rem;color:var(--text-2);margin-bottom:12px">Sync your data to your own cloud Database so it survives browser resets and follows you across devices. '+
     (s.lastSync?'Last sync: <b>'+fmtDate(s.lastSync.slice(0,10))+'</b>.':'Never synced.')+'</p>'+
     '<form data-form="sync-settings">'+
     '<div class="field"><label>Realtime Database URL</label><input class="input" name="url" value="'+esc(s.url||'')+'" placeholder="https://your-project-default-rtdb.firebaseio.com"></div>'+
@@ -4377,7 +4435,7 @@ function productModal(p){
     ((state.materials||[]).length?'<div class="field"><label>Recipe — raw materials used per unit (optional)</label><div id="bom-rows">'+
       ((p.bom&&p.bom.length)?p.bom.map(bomRowHTML).join(''):'')+
       '</div><button type="button" class="btn btn-ghost btn-sm" data-action="bom-add">'+icon('plus')+' Add material</button>'+
-      '<p style="font-size:.72rem;color:var(--text-3);margin-top:5px">Materials deplete when you restock (make) this product — and BizPilot tells you how many more you can make.</p></div>'
+      '<p style="font-size:.72rem;color:var(--text-3);margin-top:5px">Materials deplete when you restock (make) this product — and Trakora tells you how many more you can make.</p></div>'
       :'<p style="font-size:.72rem;color:var(--text-3);margin-bottom:12px">Tip: add raw materials in Products → Materials tab to attach a recipe and track ingredient usage.</p>')+
     '<div class="field"><label>Product photo</label><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
       '<img class="img-thumb-lg img-prev" src="'+(p.photo||'')+'" style="'+(p.photo?'':'display:none')+'" alt="">'+
@@ -4533,7 +4591,7 @@ function viewOrders(){
   list=list.slice(0,oLimit);
   html+='<div class="card mt">';
   if(!list.length){
-    html+=emptyState('truck',orders.length?'No orders here':'No orders yet','Create an order: pick products, enter the delivery address, and BizPilot handles stock, totals and income for you.','<button class="btn btn-sm btn-primary" data-action="order-new">'+icon('plus')+' First order</button>');
+    html+=emptyState('truck',orders.length?'No orders here':'No orders yet','Create an order: pick products, enter the delivery address, and Trakora handles stock, totals and income for you.','<button class="btn btn-sm btn-primary" data-action="order-new">'+icon('plus')+' First order</button>');
   } else {
     list.forEach(function(o){
       var d=daysUntil(o.deliveryDate);
@@ -5408,7 +5466,7 @@ function viewMaterials(){
   '</div>';
   html+='<div class="card mt">';
   if(!mats.length){
-    html+=emptyState('box','No materials yet','Add your wax, wicks, jars, oils and packaging. Then attach a recipe to each product (edit product → Recipe) and BizPilot tracks ingredient usage automatically.','<button class="btn btn-sm btn-primary" data-action="material-new">'+icon('plus')+' Add first material</button>');
+    html+=emptyState('box','No materials yet','Add your wax, wicks, jars, oils and packaging. Then attach a recipe to each product (edit product → Recipe) and Trakora tracks ingredient usage automatically.','<button class="btn btn-sm btn-primary" data-action="material-new">'+icon('plus')+' Add first material</button>');
   } else {
     html+='<div class="table-wrap"><table><thead><tr><th>Material</th><th style="text-align:right">Cost / unit</th><th>Stock</th><th style="text-align:right">Value</th><th>Used in</th><th></th></tr></thead><tbody>';
     mats.forEach(function(m){
@@ -5722,7 +5780,7 @@ function openSetupWizard(){
   state.settings.wizardDone=true; save();
   setTimeout(function(){
     var body=
-      '<p style="font-size:.86rem;color:var(--text-2);margin-bottom:14px">60-second setup — everything can be changed later in Settings.</p>'+
+      '<p style="font-size:.86rem;color:var(--text-2);margin-bottom:14px">A quick 60-second setup so the numbers and categories fit your business. Optional — skip anytime, and change everything later in Settings.</p>'+
       '<div class="field"><label>Your business name</label><input class="input" name="bizname" placeholder="e.g. Hiraya Candle Co." value=""></div>'+
       '<div class="form-row"><div class="field"><label>Currency</label><select class="input" name="currency">'+
         ['₱','$','€','£','¥','₹'].map(function(c){return '<option'+(c==='₱'?' selected':'')+'>'+c+'</option>';}).join('')+'</select></div>'+
@@ -5730,7 +5788,7 @@ function openSetupWizard(){
       '<div class="field"><label>What do you sell?</label><select class="input" name="preset">'+
         Object.keys(BIZ_PRESETS).map(function(k){return '<option value="'+k+'">'+BIZ_PRESETS[k].label+'</option>';}).join('')+'</select>'+
       '<p style="font-size:.72rem;color:var(--text-3);margin-top:5px">This pre-builds your product categories and attributes (you can edit them anytime).</p></div>';
-    openModal('Welcome to BizPilot 👋',body,{submitLabel:'Set up my business',onSubmit:function(form){
+    openModal('Welcome to Trakora 👋',body,{submitLabel:'Set up my business',onSubmit:function(form){
       var nm=fv(form,'bizname');
       if(nm) state.settings.businessName=nm;
       state.settings.currency=fv(form,'currency')||'₱';
@@ -6028,7 +6086,7 @@ function transferModal(){
 function reconcileModal(a){
   var bal=accountBalance(a);
   var body='<input type="hidden" name="id" value="'+a.id+'">'+
-    '<p style="font-size:.86rem;color:var(--text-2);margin-bottom:12px">BizPilot thinks <b>'+esc(a.name)+'</b> holds <b>'+fmtMoney(bal)+'</b>. Check the real balance in your bank app / wallet and enter it below — the difference is recorded as an adjustment so the numbers match reality.</p>'+
+    '<p style="font-size:.86rem;color:var(--text-2);margin-bottom:12px">Trakora thinks <b>'+esc(a.name)+'</b> holds <b>'+fmtMoney(bal)+'</b>. Check the real balance in your bank app / wallet and enter it below — the difference is recorded as an adjustment so the numbers match reality.</p>'+
     '<div class="field"><label>Actual balance right now ('+esc(state.settings.currency)+')</label><input class="input" type="number" step="any" name="actual" value="'+bal+'" required></div>';
   openModal('Reconcile — '+a.name,body,{submitLabel:'Reconcile',onSubmit:function(form){
     var acct=findAccount(fv(form,'id'));
@@ -7153,18 +7211,24 @@ document.addEventListener('change',function(e){
    v20 additions: welcome tour
    ============================================================ */
 var TOUR_STEPS=[
-  {sel:'.sidebar .brand',title:'Your command center',
-   text:'Everything your business needs lives here — money, products, orders, clients, goals — saved privately in this browser. Works offline, no account needed.'},
-  {sel:'.main',title:'The Dashboard',
-   text:'Every morning this greets you with a Today panel — deliveries due, payments to chase, low stock — plus your business health score, charts and smart insights.'},
-  {sel:'.sidebar [data-route="finance"]',title:'Money',
-   text:'Log income & expenses here. Accounts tracks your bank/GCash balances, Invoices bills clients in any currency, and Reports prints clean monthly summaries.'},
-  {sel:'.sidebar [data-route="products"]',title:'Selling',
-   text:'Products with your own custom fields, Orders that deplete stock automatically, raw-material recipes, and a Customer Credit list for “pay later” customers — all connected.'},
-  {sel:'.sidebar [data-route="goals"]',title:'Execution',
-   text:'Goals track themselves from your real numbers. Roadmaps plan your launches. Tasks come as list, board, table or calendar — your pick.'},
-  {sel:'.sidebar [data-route="settings"]',title:'Make it yours',
-   text:'Upload your logo, add custom fields and whole new modules, load sample data to explore safely, and back up or sync from here. Tip: press Ctrl+K to search everything.'}
+  {sel:'.sidebar .brand',ico:'dashboard',title:'Your whole business, one place',
+   text:'Money, products, orders, clients, goals and notes all live here — saved privately in this browser, working offline with no account needed.',
+   why:'Stop juggling notebooks, chat threads and spreadsheets. <b>One source of truth = faster, calmer decisions.</b>'},
+  {sel:'.main',ico:'spark',title:'Your morning briefing',
+   text:'Each day opens with a Today panel — deliveries due, payments to chase, low stock — plus a business health score, charts and smart insights.',
+   why:'See what needs attention in <b>10 seconds</b>, so nothing profitable slips through the cracks.'},
+  {sel:'.sidebar [data-route="finance"]',ico:'wallet',title:'Know your real numbers',
+   text:'Log income & expenses, track bank / e-wallet balances in Accounts, bill clients with Invoices, and print clean monthly Reports.',
+   why:'Live profit and cash flow tell you <b>what to cut, what to push, and whether you can afford to grow.</b>'},
+  {sel:'.sidebar [data-route="products"]',ico:'box',title:'Sell without the chaos',
+   text:'Products with your own custom fields, Orders that auto-deplete stock, raw-material recipes, and a “pay later” Customer Credit list — all connected.',
+   why:'<b>Never oversell, never lose track of who owes you.</b> Every order updates stock and income for you.'},
+  {sel:'.sidebar [data-route="goals"]',ico:'flag',title:'Turn plans into progress',
+   text:'Goals track themselves from your real numbers. Roadmaps plan your launches. Tasks come as list, board, table or calendar — your pick.',
+   why:'Targets you can actually see keep you <b>moving toward growth, not just busywork.</b>'},
+  {sel:'.sidebar [data-route="settings"]',ico:'palette',title:'Make it truly yours',
+   text:'Add your logo, create custom fields and whole new modules, load sample data to explore safely, and back up or sync your data.',
+   why:'A tool shaped around how you actually work is one you’ll keep using. <b>Tip: press Ctrl+K to search everything.</b>'}
 ];
 var tourOpenedSidebar=false;
 function showTour(step){
@@ -7182,21 +7246,29 @@ function showTour(step){
   if(s.sel==='.main') r={top:r.top,left:r.left,width:Math.min(r.width,640),height:Math.min(r.height,300)};
   var pad=6;
   var spot='top:'+(r.top-pad)+'px;left:'+(r.left-pad)+'px;width:'+(r.width+pad*2)+'px;height:'+(r.height+pad*2)+'px';
-  // card placement: right of sidebar targets, below main target; clamped
+  // card placement: right of sidebar targets, below main target; clamped to stay fully on-screen
+  var CARD_W=330, CARD_H=300, GAP=16, M=12;
+  var maxLeft=window.innerWidth-CARD_W-M, maxTop=window.innerHeight-CARD_H-M;
   var cardTop,cardLeft;
-  if(s.sel.indexOf('.sidebar')===0){ cardLeft=Math.min(r.right+16,window.innerWidth-320); cardTop=clamp(r.top-8,12,window.innerHeight-240); }
-  else { cardLeft=clamp(r.left+40,12,window.innerWidth-320); cardTop=clamp(r.top+90,12,window.innerHeight-260); }
+  if(s.sel.indexOf('.sidebar')===0){ cardLeft=clamp(r.right+GAP,M,Math.max(M,maxLeft)); cardTop=clamp(r.top-8,M,Math.max(M,maxTop)); }
+  else { cardLeft=clamp(r.left+40,M,Math.max(M,maxLeft)); cardTop=clamp(r.bottom+GAP,M,Math.max(M,maxTop)); }
   var isLast=step===TOUR_STEPS.length-1;
+  var lastLabel=(state.settings.onboarded&&state.settings.businessName&&state.settings.businessName!=='My Business')?'Done ✨':'Set up my business →';
   root.innerHTML=
     '<div class="tour-spot" style="'+spot+'"></div>'+
     '<div class="tour-card" style="top:'+cardTop+'px;left:'+cardLeft+'px">'+
+      '<button class="tour-x" data-action="tour-end" aria-label="Close tour">'+icon('x')+'</button>'+
       '<div class="tour-step-n">Step '+(step+1)+' of '+TOUR_STEPS.length+'</div>'+
-      '<h4>'+s.title+'</h4><p>'+s.text+'</p>'+
-      '<div style="display:flex;gap:5px;margin:12px 0">'+
-        TOUR_STEPS.map(function(_,i){return '<span style="width:7px;height:7px;border-radius:50%;background:'+(i===step?'var(--accent)':'var(--border-2)')+'"></span>';}).join('')+'</div>'+
-      '<div style="display:flex;gap:7px">'+
-        (step>0?'<button class="btn btn-ghost btn-sm" data-action="tour-step" data-step="'+(step-1)+'">← Back</button>':'<button class="btn btn-ghost btn-sm" data-action="tour-end">Skip</button>')+
-        (isLast?'<button class="btn btn-primary btn-sm" data-action="tour-end">'+(state.settings.onboarded&&state.settings.businessName!=='My Business'?'Done ✨':'Set up my business →')+'</button>'
+      '<div class="tour-head"><span class="tour-ico">'+icon(s.ico||'spark')+'</span><h4>'+s.title+'</h4></div>'+
+      '<p>'+s.text+'</p>'+
+      (s.why?'<div class="tour-why">'+icon('spark')+'<span>'+s.why+'</span></div>':'')+
+      '<div class="tour-dots">'+
+        TOUR_STEPS.map(function(_,i){return '<i class="'+(i===step?'on':'')+'"></i>';}).join('')+'</div>'+
+      '<div class="tour-foot">'+
+        (step>0?'<button class="btn btn-ghost btn-sm" data-action="tour-step" data-step="'+(step-1)+'">← Back</button>':'')+
+        '<button class="tour-skip" data-action="tour-end">'+(isLast?'Close':'Skip tour')+'</button>'+
+        '<span class="spacer"></span>'+
+        (isLast?'<button class="btn btn-primary btn-sm" data-action="tour-end">'+lastLabel+'</button>'
                :'<button class="btn btn-primary btn-sm" data-action="tour-step" data-step="'+(step+1)+'">Next →</button>')+
       '</div></div>';
 }
