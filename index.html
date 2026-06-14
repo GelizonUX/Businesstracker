@@ -797,6 +797,17 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .dash-widget.dragging{opacity:.4}
 .dash-widget.dragging .card{box-shadow:var(--shadow-lg)}
 .dash-widget.drop-target>.card{box-shadow:0 0 0 2px var(--accent),0 0 0 6px var(--accent-soft)}
+
+/* getting-started checklist */
+.start-card{background:linear-gradient(135deg,var(--accent-soft),transparent 70%),var(--bg-card);border-color:var(--accent-soft)}
+.start-list{display:flex;flex-direction:column;gap:2px}
+.start-item{display:flex;align-items:center;gap:11px;padding:9px 2px;border-bottom:1px solid var(--border);font-size:.9rem}
+.start-item:last-child{border-bottom:none}
+.start-item.done .start-label{color:var(--text-3);text-decoration:line-through}
+.start-check{width:22px;height:22px;border-radius:50%;border:2px solid var(--border-2);display:grid;place-items:center;flex-shrink:0;color:#fff;transition:all .2s var(--ease)}
+.start-item.done .start-check{background:var(--good);border-color:var(--good)}
+.start-check svg{width:14px;height:14px}
+.start-label{min-width:0}
 </style>
 </head>
 <body>
@@ -1103,6 +1114,7 @@ var DEFAULT_STATE={
     fx:{ auto:true, updated:null, phpPer:{USD:58.5,EUR:63.5,GBP:74,AUD:38,CAD:42.5,SGD:43.5,AED:16,JPY:0.39} } },
   invoices:[],  // {id,number,client,desc,amount,issueDate,dueDate,status,paidDate,createdAt}
   recurring:[], // {id,type,amount,category,note,client,day,active,lastPosted,startMonth}
+  recurringInvoices:[], // {id,client,desc,amount,currency,day,netDays,active,lastGenerated,startMonth}
   offers:[],    // {id,name,price,desc}
   products:[],  // {id,name,sku,category,price,cost,stock,lowStock,attrs:{},active,desc}
   orders:[],    // {id,number,clientName,contact,address,items:[{productId,name,qty,price}],shipFee,discount,status,payStatus,orderDate,deliveryDate,note,incomeRecorded}
@@ -1845,6 +1857,39 @@ function emptyState(iconName,title,text,btnHTML){
   return '<div class="empty"><div class="e-icon">'+icon(iconName)+'</div><h4>'+esc(title)+'</h4><p>'+esc(text)+'</p>'+(btnHTML||'')+'</div>';
 }
 
+/* getting-started checklist — guides new owners through first setup */
+function getStartedSteps(){
+  var s=state.settings;
+  return [
+    {k:'name',label:'Name your business',done:!!(s.businessName&&s.businessName!=='My Business'),act:'data-action="settings-go" data-tab="business"',cta:'Set name'},
+    {k:'country',label:'Choose your country & currency',done:!!s.country,act:'data-action="settings-go" data-tab="business"',cta:'Choose'},
+    {k:'entry',label:'Log your first income or expense',done:(state.finance||[]).length>0,act:'data-action="open-entry-modal"',cta:'Add entry'},
+    {k:'product',label:'Add a product or service you sell',done:((state.products||[]).length>0||(state.offers||[]).length>0),act:'data-action="nav" data-route="products"',cta:'Add'},
+    {k:'target',label:'Set a monthly revenue target',done:(s.monthlyTarget||0)>0,act:'data-action="settings-go" data-tab="business"',cta:'Set target'},
+    {k:'goal',label:'Create your first goal',done:(state.goals||[]).length>0,act:'data-action="open-goal-modal"',cta:'New goal'},
+    {k:'protect',label:'Protect your data — set a PIN or back up',done:hasLock()||!!s.lastBackup,act:'data-action="settings-go" data-tab="data"',cta:'Protect'}
+  ];
+}
+function getStartedHTML(){
+  if(state.settings.startDismissed) return '';
+  var steps=getStartedSteps();
+  var done=steps.filter(function(x){return x.done;}).length, total=steps.length;
+  if(done>=total){
+    return '<div class="card start-card"><div class="card-head"><h3>🎉 You’re all set up!</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="start-dismiss">Dismiss</button></div>'+
+      '<p style="font-size:.85rem;color:var(--text-2)">Every starter step is done. Your dashboard is ready — keep your numbers current, drag the cards to suit you, and let Trakora do the math.</p></div>';
+  }
+  return '<div class="card start-card"><div class="card-head"><h3>'+icon('spark',16)+' Get started · '+done+' of '+total+'</h3><span class="spacer"></span><button class="btn-icon" data-action="start-dismiss" title="Hide this checklist" aria-label="Hide">'+icon('x')+'</button></div>'+
+    '<div class="progress thick" style="margin-bottom:13px"><div class="bar good" style="width:'+(done/total*100)+'%"></div></div>'+
+    '<div class="start-list">'+steps.map(function(st){
+      return '<div class="start-item'+(st.done?' done':'')+'">'+
+        '<span class="start-check">'+(st.done?icon('check',14):'')+'</span>'+
+        '<span class="start-label">'+esc(st.label)+'</span>'+
+        (st.done?'<span class="badge good" style="margin-left:auto">Done</span>'
+                :'<button class="btn btn-sm btn-primary" style="margin-left:auto" '+st.act+'>'+esc(st.cta)+'</button>')+
+      '</div>';
+    }).join('')+'</div></div>';
+}
+
 /* ============================================================
    view: dashboard
    ============================================================ */
@@ -1865,6 +1910,7 @@ function viewDashboard(){
       '</div></div>';
   }
 
+  html+=getStartedHTML();
   html+=todayPanelHTML();
   /* ---- reorderable dashboard widgets ---- */
   var mm=monthlyMap();
@@ -2952,6 +2998,7 @@ function settingsDataHTML(){
     '<p style="font-size:.84rem;color:var(--text-2);margin-bottom:14px">Load realistic demo data to explore every feature, or wipe everything and start fresh.</p>'+
     '<div style="display:flex;gap:9px;flex-wrap:wrap">'+
     '<button class="btn btn-ghost" data-action="load-sample">'+icon('spark')+' Load sample data</button>'+
+    (state.settings.startDismissed?'<button class="btn btn-ghost" data-action="start-show">'+icon('spark')+' Show getting-started checklist</button>':'')+
     '<button class="btn btn-danger" data-action="reset-data">'+icon('trash')+' Reset all data</button></div></div>';
   html+='</div>';
   return html;
@@ -3565,6 +3612,9 @@ document.addEventListener('click',function(e){
   if(action==='pin-remove'){ pinModal('remove'); return; }
   if(action==='lock-now'){ lockNow(); return; }
   if(action==='dash-customize'){ dashCustomizeModal(); return; }
+  if(action==='start-dismiss'){ state.settings.startDismissed=true; commit(); toast('Checklist hidden. You can bring it back from Settings → Data.'); return; }
+  if(action==='start-show'){ state.settings.startDismissed=false; nav('dashboard'); render(); toast('Getting-started checklist is back.'); return; }
+  if(action==='settings-go'){ ui.settingsTab=el.getAttribute('data-tab')||'business'; nav('settings'); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); return; }
   if(action==='dash-reset'){ state.settings.dashOrder=null; state.settings.dashHidden=[]; save(); closeModal(); nav('dashboard'); render(); toast('Dashboard layout reset.'); return; }
   if(action==='close-sidebar'){ byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); return; }
   if(action==='toggle-theme'){ toggleTheme(); return; }
@@ -4112,6 +4162,75 @@ function nextInvoiceNumber(){
   });
   return 'INV-'+String(max+1).padStart(4,'0');
 }
+function addDaysISO(iso,n){ var dt=new Date(iso+'T00:00:00'); if(isNaN(dt.getTime())) dt=new Date(); dt.setDate(dt.getDate()+(n||0)); return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
+/* auto-create invoices for recurring retainers/subscriptions, catching up missed months */
+function processRecurringInvoices(){
+  var made=0, cur=thisMonthKey();
+  (state.recurringInvoices||[]).forEach(function(r){
+    if(!r.active) return;
+    var m=r.lastGenerated?shiftMonth(r.lastGenerated,1):(r.startMonth||cur), guard=0;
+    while(m<=cur && guard<36){
+      var day=Math.min(r.day||1,daysInMonthKey(m));
+      var issue=m+'-'+String(day).padStart(2,'0');
+      state.invoices.push({id:uid(),number:nextInvoiceNumber(),client:r.client,desc:(r.desc||'Monthly retainer')+' ↻',amount:r.amount,
+        currency:r.currency||'PHP',fxRate:fxRateFor(r.currency||'PHP'),issueDate:issue,dueDate:addDaysISO(issue,r.netDays||14),
+        status:'Sent',paidDate:null,createdAt:issue,recurringId:r.id});
+      r.lastGenerated=m; made++; m=shiftMonth(m,1); guard++;
+    }
+  });
+  if(made){ save(); render(); setTimeout(function(){ toast(made+' recurring invoice'+(made>1?'s':'')+' generated and marked Sent.'); },700); }
+}
+function recurringInvoicesCardHTML(){
+  var list=state.recurringInvoices||[];
+  var html='<div class="card mt"><div class="card-head"><h3>'+icon('refresh',16)+' Recurring invoices</h3><span class="sub">retainers & subscriptions — auto-created each month</span><span class="spacer"></span><button class="btn btn-sm btn-primary" data-action="rinv-new">'+icon('plus')+' New recurring</button></div>';
+  if(!list.length){ html+='<p style="font-size:.82rem;color:var(--text-3)">Set up a monthly retainer once and Trakora drafts the invoice every month for you — even for months you missed.</p></div>'; return html; }
+  html+='<div class="table-wrap"><table><thead><tr><th>Client</th><th>Description</th><th class="num" style="text-align:right">Amount</th><th>Issued</th><th>Status</th><th></th></tr></thead><tbody>';
+  list.forEach(function(r){
+    html+='<tr><td><b>'+esc(r.client)+'</b></td><td>'+esc(r.desc||'—')+'</td><td class="num" style="text-align:right">'+fmtInvAmt(r)+'</td>'+
+      '<td>day '+(r.day||1)+'</td><td><span class="badge '+(r.active?'good':'neutral')+'">'+(r.active?'Active':'Paused')+'</span></td>'+
+      '<td><div class="row-actions" style="justify-content:flex-end"><button class="btn-icon" data-action="rinv-toggle" data-id="'+esc(r.id)+'" title="'+(r.active?'Pause':'Resume')+'">'+icon(r.active?'clock':'refresh')+'</button>'+
+      '<button class="btn-icon" data-action="rinv-edit" data-id="'+esc(r.id)+'" title="Edit">'+icon('edit')+'</button>'+
+      '<button class="btn-icon danger" data-action="rinv-delete" data-id="'+esc(r.id)+'" title="Delete">'+icon('trash')+'</button></div></td></tr>';
+  });
+  html+='</tbody></table></div></div>';
+  return html;
+}
+function recurringInvoiceModal(r){
+  var isEdit=!!r; r=r||{currency:state.settings.currency==='₱'?'PHP':'PHP',day:1,netDays:14,active:true};
+  var curOpts=['PHP','USD','EUR','GBP','AUD','CAD','SGD','AED','JPY'];
+  var body='<input type="hidden" name="id" value="'+esc(r.id||'')+'">'+
+    '<div class="field"><label>Client *</label><input class="input" name="client" value="'+esc(r.client||'')+'" required placeholder="e.g. Lumina Café"></div>'+
+    '<div class="field"><label>Description</label><input class="input" name="desc" value="'+esc(r.desc||'')+'" placeholder="e.g. Monthly social media retainer"></div>'+
+    '<div class="form-row"><div class="field"><label>Amount *</label><input class="input" type="number" step="any" min="0" name="amount" value="'+(r.amount||'')+'" required></div>'+
+    '<div class="field"><label>Currency</label><select class="input" name="currency">'+curOpts.map(function(c){return '<option'+((r.currency||'PHP')===c?' selected':'')+'>'+c+'</option>';}).join('')+'</select></div></div>'+
+    '<div class="form-row"><div class="field"><label>Issue on day of month</label><input class="input" type="number" min="1" max="28" name="day" value="'+(r.day||1)+'"></div>'+
+    '<div class="field"><label>Due in (days)</label><input class="input" type="number" min="0" max="120" name="netDays" value="'+(r.netDays!=null?r.netDays:14)+'"></div></div>'+
+    '<label class="checkrow"><input type="checkbox" name="active"'+(r.active!==false?' checked':'')+'> Active (auto-generate each month)</label>';
+  openModal(isEdit?'Edit recurring invoice':'New recurring invoice',body,{submitLabel:isEdit?'Save':'Create',onSubmit:function(form){
+    var client=fv(form,'client'), amount=num(fv(form,'amount'));
+    if(!client){ toast('Enter the client.','error'); return false; }
+    if(!(amount>0)){ toast('Enter an amount greater than zero.','error'); return false; }
+    var id=fv(form,'id');
+    var data={client:client,desc:fv(form,'desc'),amount:amount,currency:fv(form,'currency')||'PHP',
+      day:clamp(Math.round(num(fv(form,'day')))||1,1,28),netDays:clamp(Math.round(num(fv(form,'netDays'))),0,120),
+      active:!!(form.elements['active']&&form.elements['active'].checked)};
+    if(id){ var ex=(state.recurringInvoices||[]).find(function(x){return x.id===id;}); if(ex) Object.assign(ex,data); toast('Recurring invoice updated.'); }
+    else { data.id=uid(); data.startMonth=thisMonthKey(); data.lastGenerated=null; state.recurringInvoices.push(data); toast('Recurring invoice created — generating this month’s now.'); }
+    commit(); processRecurringInvoices();
+    return true;
+  }});
+}
+function invoiceReminderModal(iv){
+  if(!iv) return;
+  var msg='Hi '+(iv.client||'there')+',\n\nJust a friendly reminder that invoice '+iv.number+' for '+fmtInvAmt(iv)+' was due on '+fmtDate(iv.dueDate)+'. '+
+    'When you have a moment, kindly settle it at your convenience.\n\nThank you!\n— '+(state.settings.businessName||'');
+  var body='<p style="font-size:.84rem;color:var(--text-2);margin-bottom:12px">A polite payment reminder for <b>'+esc(iv.client)+'</b> — invoice '+esc(iv.number)+' ('+esc(fmtInvAmt(iv))+').</p>'+
+    '<textarea class="input" id="rem-msg" rows="7" style="font-family:inherit">'+esc(msg)+'</textarea>';
+  openModal('Send a payment reminder',body,{submitLabel:'Copy message',extraFooterHTML:'<button type="button" class="btn btn-ghost" data-action="invoice-remind-email" data-id="'+esc(iv.id)+'">'+icon('invoice')+' Open email</button>',onSubmit:function(){
+    var t=byId('rem-msg'); if(t){ (navigator.clipboard?navigator.clipboard.writeText(t.value):Promise.reject()).then(function(){ toast('Reminder copied — paste it to your client.'); },function(){}); }
+    closeModal(); return false;
+  }});
+}
 function viewInvoices(){
   var recv=receivablesSummary();
   var curM=thisMonthKey();
@@ -4127,6 +4246,7 @@ function viewInvoices(){
   html+='<div class="card mt-lg">';
   if(!(state.invoices||[]).length){
     html+=emptyState('invoice','No invoices yet','Create an invoice for a client. Marking it Paid automatically records the income in Finance.','<button class="btn btn-sm btn-primary" data-action="invoice-new">'+icon('plus')+' Create first invoice</button>')+'</div>';
+    html+=recurringInvoicesCardHTML();
     return html;
   }
   var list=state.invoices.slice().sort(function(a,b){
@@ -4148,12 +4268,14 @@ function viewInvoices(){
         (iv.payMethod?'<div style="font-size:.66rem;color:var(--text-3);margin-top:2px">'+esc(iv.payMethod)+'</div>':'')+'</td>'+
       '<td><div class="row-actions">'+
         (iv.status==='Draft'?'<button class="btn-icon" data-action="invoice-sent" data-id="'+iv.id+'" title="Mark sent">'+icon('flag')+'</button>':'')+
+        (iv.status==='Sent'?'<button class="btn-icon'+((daysUntil(iv.dueDate)!=null&&daysUntil(iv.dueDate)<0)?' danger':'')+'" data-action="invoice-remind" data-id="'+iv.id+'" title="Send payment reminder">'+icon('clock')+'</button>':'')+
         (iv.status!=='Paid'?'<button class="btn-icon" data-action="invoice-paid" data-id="'+iv.id+'" title="Mark paid (records income)">'+icon('check')+'</button>':'')+
         '<button class="btn-icon" data-action="invoice-print" data-id="'+iv.id+'" title="Print / PDF">'+icon('print')+'</button>'+
         '<button class="btn-icon" data-action="invoice-edit" data-id="'+iv.id+'">'+icon('edit')+'</button>'+
         '<button class="btn-icon danger" data-action="invoice-delete" data-id="'+iv.id+'">'+icon('trash')+'</button></div></td></tr>';
   });
   html+='</tbody></table></div></div>';
+  html+=recurringInvoicesCardHTML();
   return html;
 }
 function invoiceModal(iv){
@@ -4517,6 +4639,12 @@ document.addEventListener('click',function(e){
   var id=el.getAttribute('data-id');
 
   if(action==='invoice-new'){ invoiceModal(); return; }
+  if(action==='rinv-new'){ recurringInvoiceModal(); return; }
+  if(action==='rinv-edit'){ var ri=(state.recurringInvoices||[]).find(function(x){return x.id===id;}); if(ri) recurringInvoiceModal(ri); return; }
+  if(action==='rinv-toggle'){ var ri2=(state.recurringInvoices||[]).find(function(x){return x.id===id;}); if(ri2){ ri2.active=!ri2.active; commit(); if(ri2.active) processRecurringInvoices(); toast(ri2.active?'Resumed — catching up any missed months.':'Paused.'); } return; }
+  if(action==='rinv-delete'){ var ri3=(state.recurringInvoices||[]).find(function(x){return x.id===id;}); if(ri3&&confirm('Delete the recurring rule for "'+ri3.client+'"? Invoices already created stay.')){ state.recurringInvoices=state.recurringInvoices.filter(function(x){return x.id!==id;}); commit(); toast('Recurring invoice deleted.','warn'); } return; }
+  if(action==='invoice-remind'){ var ivr=(state.invoices||[]).find(function(x){return x.id===id;}); if(ivr) invoiceReminderModal(ivr); return; }
+  if(action==='invoice-remind-email'){ var ive=(state.invoices||[]).find(function(x){return x.id===id;}); if(ive){ var t=byId('rem-msg'); var b=t?t.value:''; window.location.href='mailto:?subject='+encodeURIComponent('Payment reminder — invoice '+ive.number)+'&body='+encodeURIComponent(b); } return; }
   if(action==='invoice-edit'){ var iv=state.invoices.find(function(x){return x.id===id;}); if(iv) invoiceModal(iv); return; }
   if(action==='invoice-delete'){
     var iv2=state.invoices.find(function(x){return x.id===id;});
@@ -8182,6 +8310,7 @@ function privacyLockCardHTML(){
 function bootApp(){
   if(hasLock() && !sessionUnlocked){ applyTheme(); renderLockScreen(); return; }
   processRecurring();
+  processRecurringInvoices();
   applyTheme();
   applyBrand();
   render();
