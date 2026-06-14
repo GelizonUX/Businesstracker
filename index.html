@@ -779,22 +779,24 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .app.nav-collapsed .sidebar-foot{padding:12px 0 2px}
 @media (max-width:860px){.app.nav-collapsed .sidebar{width:232px;padding:18px 12px}.app.nav-collapsed .main{margin-left:0}}
 
-/* drag-to-reorder dashboard widgets */
-.dash-grid{display:flex;flex-direction:column;gap:14px}
-.dash-widget{position:relative;border-radius:var(--r-lg);transition:opacity .18s,transform .18s,box-shadow .18s}
-.dash-widget>.grid,.dash-widget>.card{margin-top:0}
-.dash-handle{display:flex;align-items:center;gap:8px;cursor:grab;color:var(--text-3);font-size:.7rem;font-weight:700;
-  text-transform:uppercase;letter-spacing:.07em;padding:2px 2px 8px;user-select:none;opacity:.5;transition:opacity .15s,color .15s}
-.dash-widget:hover .dash-handle{opacity:1}
+/* per-card draggable dashboard grid */
+.dash-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr));gap:14px;align-items:stretch}
+.dash-widget{position:relative;display:flex;min-width:0;border-radius:var(--r-lg);transition:opacity .18s var(--ease),transform .18s var(--ease),box-shadow .18s var(--ease)}
+.dash-widget[data-span="2"]{grid-column:span 2}
+@media (max-width:680px){.dash-widget[data-span="2"]{grid-column:span 1}}
+.dash-widget>.card{flex:1;min-width:0;margin-top:0}
+/* small floating per-card drag handle (appears on hover) */
+.dash-handle{position:absolute;top:-9px;right:14px;z-index:6;display:inline-flex;align-items:center;gap:5px;
+  padding:2px 9px 2px 7px;border-radius:99px;background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--shadow-sm);
+  color:var(--text-3);font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;cursor:grab;user-select:none;
+  opacity:0;transform:translateY(3px);transition:opacity .15s,transform .15s,color .15s,border-color .15s}
+.dash-widget:hover .dash-handle{opacity:1;transform:none}
+.dash-handle:hover{color:var(--accent);border-color:var(--accent)}
 .dash-handle:active{cursor:grabbing}
-.dash-handle .dash-grip svg{width:15px;height:15px}
-.dash-handle .dash-wt{color:var(--text-2)}
-.dash-handle .dash-hint{margin-left:auto;display:inline-flex;align-items:center;gap:4px;opacity:.7;font-weight:600;text-transform:none;letter-spacing:0}
-.dash-handle .dash-hint svg{width:12px;height:12px}
-.dash-widget.dragging{opacity:.45;transform:scale(.99)}
-.dash-widget.drop-target{box-shadow:0 0 0 2px var(--accent),0 0 0 6px var(--accent-soft)}
-.dash-widget.drop-target::before{content:'';position:absolute;left:0;right:0;top:-8px;height:3px;border-radius:3px;background:var(--accent-grad)}
-@media (max-width:700px){.dash-handle .dash-hint{display:none}}
+.dash-handle svg{width:12px;height:12px}
+.dash-widget.dragging{opacity:.4}
+.dash-widget.dragging .card{box-shadow:var(--shadow-lg)}
+.dash-widget.drop-target>.card{box-shadow:0 0 0 2px var(--accent),0 0 0 6px var(--accent-soft)}
 </style>
 </head>
 <body>
@@ -885,6 +887,8 @@ var ICONS = {
   sun:'<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>',
   moon:'<path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/>',
   menu:'<path d="M3 12h18M3 6h18M3 18h18"/>',
+  collapseL:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M15.5 9.5L13 12l2.5 2.5"/>',
+  collapseR:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M13 9.5L15.5 12L13 14.5"/>',
   grip:'<circle cx="9" cy="5" r="1.5" fill="currentColor" stroke="none"/><circle cx="15" cy="5" r="1.5" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="9" cy="19" r="1.5" fill="currentColor" stroke="none"/><circle cx="15" cy="19" r="1.5" fill="currentColor" stroke="none"/>',
   up:'<path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/>',
   down:'<path d="M23 18l-9.5-9.5-5 5L1 6"/><path d="M17 18h6v-6"/>',
@@ -1069,7 +1073,7 @@ function renderGate(){
       setTimeout(function(){ root.innerHTML=''; applyActivationStamp(); bootApp(); },700);
     }).catch(function(err){
       btn.disabled=false; btn.innerHTML='Activate &amp; open →';
-      showMsg('✕ '+((err&&err.msg)||'Activation failed. Please try again.'),'err');
+      showMsg('✕ '+esc((err&&err.msg)||'Activation failed. Please try again.'),'err');
     });
   });
   setTimeout(function(){ keyEl.focus(); },120);
@@ -1829,7 +1833,7 @@ function renderSidebar(){
 function topbar(title,subtitle,actionsHTML){
   return '<div class="topbar">'+
     '<button class="hamburger" data-action="open-sidebar" aria-label="Menu">'+icon('menu')+'</button>'+
-    '<button class="nav-toggle" data-action="toggle-nav-collapse" title="Collapse / expand sidebar" aria-label="Collapse or expand sidebar">'+icon('menu')+'</button>'+
+    '<button class="nav-toggle" data-action="toggle-nav-collapse" title="'+((state.settings&&state.settings.navCollapsed)?'Expand sidebar':'Collapse sidebar')+'" aria-label="Collapse or expand sidebar">'+icon((state.settings&&state.settings.navCollapsed)?'collapseR':'collapseL')+'</button>'+
     '<div class="page-title"><h1>'+esc(tr(title))+'</h1><p>'+esc(tr(subtitle||''))+'</p></div>'+
     '<div class="topbar-actions">'+(actionsHTML||'')+
       '<button class="theme-toggle" data-action="open-palette" aria-label="Search everything (Ctrl+K)" title="Search everything (Ctrl+K)">'+icon('search')+'</button>'+
@@ -1848,6 +1852,7 @@ function viewDashboard(){
   var t=financeTotals();
   var hasData=state.finance.length>0;
   var html=topbar('Dashboard','Hello! Here is how '+(state.settings.businessName||'your business')+' is doing today.',
+    '<button class="btn btn-ghost" data-action="dash-customize" title="Show, hide & reorder cards">'+icon('palette')+'<span class="btn-txt">Customize</span></button>'+
     '<button class="btn btn-primary" data-action="open-entry-modal">'+icon('plus')+'<span class="btn-txt">Add entry</span></button>');
 
   if(!hasData && state.goals.length===0 && state.tasks.length===0){
@@ -1872,12 +1877,10 @@ function viewDashboard(){
     (g>=0?'<span class="stat-delta up">'+icon('up')+' '+fmtPct(g)+' MoM</span>':'<span class="stat-delta down">'+icon('down')+' '+fmtPct(Math.abs(g))+' MoM</span>');
   var W={};
 
-  W.kpis='<div class="grid grid-4">'+
-    statCard('Total revenue',fmtMoney(t.revenue),deltaHTML,svgSparkline(revSeries,90,30,'var(--income)'),'arrowur')+
-    statCard('Total expenses',fmtMoney(t.expenses),'<span class="stat-delta '+(t.expenseRatio!=null&&isFinite(t.expenseRatio)&&t.expenseRatio>70?'down':'flat')+'">'+(t.expenseRatio!=null&&isFinite(t.expenseRatio)?fmtPct(t.expenseRatio,0)+' of revenue':'—')+'</span>',svgSparkline(expSeries,90,30,'var(--expense)'),'arrowdr')+
-    statCard('Net profit',fmtMoney(t.profit),'<span class="stat-delta '+(t.profit>=0?'up':'down')+'">'+(t.profit>=0?'Profitable':'Loss')+'</span>',svgSparkline(profSeries,90,30,'var(--accent)'),'wallet')+
-    statCard('Profit margin',fmtPct(t.margin),'<span class="stat-delta '+(t.margin==null?'flat':(t.margin>=30?'up':(t.margin>=10?'flat':'down')))+'">'+(t.margin==null?'No revenue yet':(t.margin>=30?'Healthy':(t.margin>=10?'Thin':'Critical')))+'</span>','','pie')+
-  '</div>';
+  W.rev=statCard('Total revenue',fmtMoney(t.revenue),deltaHTML,svgSparkline(revSeries,90,30,'var(--income)'),'arrowur');
+  W.exp=statCard('Total expenses',fmtMoney(t.expenses),'<span class="stat-delta '+(t.expenseRatio!=null&&isFinite(t.expenseRatio)&&t.expenseRatio>70?'down':'flat')+'">'+(t.expenseRatio!=null&&isFinite(t.expenseRatio)?fmtPct(t.expenseRatio,0)+' of revenue':'—')+'</span>',svgSparkline(expSeries,90,30,'var(--expense)'),'arrowdr');
+  W.prof=statCard('Net profit',fmtMoney(t.profit),'<span class="stat-delta '+(t.profit>=0?'up':'down')+'">'+(t.profit>=0?'Profitable':'Loss')+'</span>',svgSparkline(profSeries,90,30,'var(--accent)'),'wallet');
+  W.margin=statCard('Profit margin',fmtPct(t.margin),'<span class="stat-delta '+(t.margin==null?'flat':(t.margin>=30?'up':(t.margin>=10?'flat':'down')))+'">'+(t.margin==null?'No revenue yet':(t.margin>=30?'Healthy':(t.margin>=10?'Thin':'Critical')))+'</span>','','pie');
 
   /* health + monthly chart */
   var hs=healthScore();
@@ -1902,7 +1905,7 @@ function viewDashboard(){
     chartBlk+=emptyState('metrics','No data to chart','Your monthly revenue vs expenses chart appears here once you log entries.');
   }
   chartBlk+='</div>';
-  W.health='<div class="grid grid-hero">'+healthBlk+chartBlk+'</div>';
+  W.health=healthBlk; W.chart=chartBlk;
 
   /* this month + goals + category leaders */
   var curK=thisMonthKey(), prevK=shiftMonth(curK,-1);
@@ -1941,7 +1944,7 @@ function viewDashboard(){
     catBlk+=emptyState('pie','No categories yet','Best income source and biggest expense show up here automatically.');
   }
   catBlk+='</div>';
-  W.snapshot='<div class="grid grid-3">'+monthBlk+goalsBlk+catBlk+'</div>';
+  W.month=monthBlk; W.goals=goalsBlk; W.cats=catBlk;
 
   /* warnings & opportunities */
   var ins=buildInsights().filter(function(i){return i.sev!=='info'||i.title.indexOf('Suggested focus')===0;}).slice(0,4);
@@ -1977,23 +1980,26 @@ function viewDashboard(){
     mileBlk+=emptyState('roadmap','No upcoming milestones','Add roadmap tasks with deadlines to see what is coming next.');
   }
   mileBlk+='</div>';
-  W.lists='<div class="grid grid-3">'+recvBlk+tasksBlk+mileBlk+'</div>';
+  W.recv=recvBlk; W.tasks=tasksBlk; W.miles=mileBlk;
 
-  var titles={kpis:'Key figures',health:'Health & performance',snapshot:'This month',insights:'Warnings & opportunities',lists:'What needs attention'};
-  html+='<div class="dash-grid mt">'+dashOrder().map(function(id){
+  html+='<div class="dash-grid mt">'+dashVisibleOrder().map(function(id){
     if(!W[id]) return '';
-    return '<section class="dash-widget" data-widget="'+id+'">'+
-      '<div class="dash-handle" draggable="true" data-dh="'+id+'" title="Drag to reorder"><span class="dash-grip">'+icon('grip')+'</span><span class="dash-wt">'+esc(titles[id]||id)+'</span><span class="dash-hint">'+icon('grip',12)+' drag to reorder</span></div>'+
+    return '<section class="dash-widget" data-widget="'+id+'" data-span="'+(DASH_SPAN[id]||1)+'">'+
+      '<div class="dash-handle" draggable="true" data-dh="'+id+'" title="Drag to reorder">'+icon('grip',12)+'<span>drag</span></div>'+
       W[id]+'</section>';
   }).join('')+'</div>';
   return html;
 }
-var DASH_DEFAULT=['kpis','health','snapshot','insights','lists'];
+var DASH_DEFAULT=['rev','exp','prof','margin','health','chart','month','goals','cats','insights','recv','tasks','miles'];
+var DASH_SPAN={rev:1,exp:1,prof:1,margin:1,health:1,chart:2,month:1,goals:1,cats:1,insights:2,recv:1,tasks:1,miles:1};
+var DASH_TITLES={rev:'Revenue',exp:'Expenses',prof:'Net profit',margin:'Profit margin',health:'Business health',chart:'Monthly performance',month:'This month vs last',goals:'Goal progress',cats:'Category leaders',insights:'Warnings & opportunities',recv:'Money owed to you',tasks:'Tasks due soon',miles:'Upcoming milestones'};
 function dashOrder(){
   var saved=((state.settings&&state.settings.dashOrder)||[]).filter(function(x){ return DASH_DEFAULT.indexOf(x)>=0; });
   DASH_DEFAULT.forEach(function(x){ if(saved.indexOf(x)<0) saved.push(x); });
   return saved;
 }
+function dashHidden(){ return (state.settings&&state.settings.dashHidden)||[]; }
+function dashVisibleOrder(){ var h=dashHidden(); return dashOrder().filter(function(id){ return h.indexOf(id)<0; }); }
 function reorderDash(fromId,toId){
   if(!fromId||fromId===toId) return;
   var order=dashOrder(); var fi=order.indexOf(fromId); if(fi<0) return;
@@ -2001,6 +2007,14 @@ function reorderDash(fromId,toId){
   var ti=order.indexOf(toId);
   if(ti<0) order.push(fromId); else order.splice(ti,0,fromId);
   state.settings.dashOrder=order; save(); render();
+}
+function dashCustomizeModal(){
+  var order=dashOrder(), hidden=dashHidden();
+  var body='<p style="font-size:.82rem;color:var(--text-2);margin-bottom:12px">Choose which cards show on your dashboard. Drag cards on the dashboard itself to reorder them.</p>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">'+
+    order.map(function(id){ return '<label class="checkrow" style="font-size:.84rem"><input type="checkbox" data-action-change="dash-toggle" data-id="'+id+'"'+(hidden.indexOf(id)<0?' checked':'')+'> '+esc(DASH_TITLES[id]||id)+'</label>'; }).join('')+
+    '</div>';
+  openModal('Customize dashboard',body,{submitLabel:'Done',extraFooterHTML:'<button type="button" class="btn btn-ghost" data-action="dash-reset">'+icon('refresh')+' Reset layout</button>',onSubmit:function(){ closeModal(); return false; }});
 }
 function statCard(label,value,deltaHTML,sparkHTML,iconName){
   return '<div class="card stat-card"><div class="stat-accent"></div>'+
@@ -3545,11 +3559,13 @@ document.addEventListener('click',function(e){
   if(action==='nav'){ nav(el.getAttribute('data-route')); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); return; }
   if(action==='go-import'){ ui.settingsTab='data'; nav('settings'); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); setTimeout(function(){ var c=document.querySelector('[data-action="csv-import"]'); if(c&&c.scrollIntoView) c.scrollIntoView({behavior:'smooth',block:'center'}); },120); return; }
   if(action==='open-sidebar'){ byId('sidebar').classList.add('open'); byId('scrim').classList.add('show'); return; }
-  if(action==='toggle-nav-collapse'){ state.settings.navCollapsed=!state.settings.navCollapsed; save(); applyNavCollapse(); return; }
+  if(action==='toggle-nav-collapse'){ state.settings.navCollapsed=!state.settings.navCollapsed; save(); applyNavCollapse(); render(); return; }
   if(action==='pin-set'){ pinModal('set'); return; }
   if(action==='pin-change'){ pinModal('change'); return; }
   if(action==='pin-remove'){ pinModal('remove'); return; }
   if(action==='lock-now'){ lockNow(); return; }
+  if(action==='dash-customize'){ dashCustomizeModal(); return; }
+  if(action==='dash-reset'){ state.settings.dashOrder=null; state.settings.dashHidden=[]; save(); closeModal(); nav('dashboard'); render(); toast('Dashboard layout reset.'); return; }
   if(action==='close-sidebar'){ byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); return; }
   if(action==='toggle-theme'){ toggleTheme(); return; }
   if(action==='close-modal'){ closeModal(); return; }
@@ -4636,6 +4652,7 @@ document.addEventListener('change',function(e){
     return;
   }
   if(act==='autolock-set'){ state.settings.autoLockMin=parseInt(el.value,10)||0; save(); toast(state.settings.autoLockMin?('Auto-lock set to '+state.settings.autoLockMin+' min.'):'Auto-lock turned off.'); return; }
+  if(act==='dash-toggle'){ var did=el.getAttribute('data-id'); var h=state.settings.dashHidden=state.settings.dashHidden||[]; if(el.checked){ state.settings.dashHidden=h.filter(function(x){return x!==did;}); } else if(h.indexOf(did)<0){ h.push(did); } save(); render(); return; }
   if(act==='apply-country'){
     if(applyCountry(el.value)){ var c=COUNTRIES[el.value]; commit(); toast('Set up for '+c.flag+' '+c.name+' — '+state.settings.currency+' · '+state.settings.taxLabel+' '+state.settings.taxRate+'%.'); }
     return;
@@ -4978,7 +4995,7 @@ function orderItemRowHTML(it){
   var prods=(state.products||[]).filter(function(p){return p.active!==false;});
   return '<div class="oi-row" style="display:flex;gap:7px;margin-bottom:7px;align-items:center">'+
     '<select class="input oi-prod" style="flex:2;min-width:120px"><option value="">— product —</option>'+
-      prods.map(function(p){return '<option value="'+p.id+'" data-price="'+p.price+'"'+(it.productId===p.id?' selected':'')+'>'+esc(p.name)+((p.attrs&&Object.keys(p.attrs).length)?' ('+Object.keys(p.attrs).map(function(k){return p.attrs[k];}).join(', ')+')':'')+'</option>';}).join('')+
+      prods.map(function(p){return '<option value="'+esc(p.id)+'" data-price="'+p.price+'"'+(it.productId===p.id?' selected':'')+'>'+esc(p.name)+((p.attrs&&Object.keys(p.attrs).length)?' ('+Object.keys(p.attrs).map(function(k){return esc(p.attrs[k]);}).join(', ')+')':'')+'</option>';}).join('')+
     '</select>'+
     '<input class="input oi-qty" type="number" min="1" step="1" value="'+(it.qty||1)+'" style="width:64px" title="Qty">'+
     '<input class="input oi-price" type="number" min="0" step="any" value="'+(it.price!=null?it.price:'')+'" style="width:96px" placeholder="price" title="Unit price">'+
@@ -5135,10 +5152,10 @@ function fieldRowHTML(f){
   f=f||{};
   var isExisting=!!f.key;
   return '<div class="mb-row" style="display:flex;gap:7px;margin-bottom:7px;align-items:center;flex-wrap:wrap">'+
-    (isExisting?'<input type="hidden" class="mb-key" value="'+f.key+'">':'')+
+    (isExisting?'<input type="hidden" class="mb-key" value="'+esc(f.key)+'">':'')+
     '<input class="input mb-label" value="'+esc(f.label||'')+'" placeholder="Field name, e.g. Supplier" style="flex:2;min-width:120px">'+
     (isExisting
-      ?'<span class="badge neutral" style="flex-shrink:0">'+esc(f.type)+'</span><input type="hidden" class="mb-type" value="'+f.type+'">'
+      ?'<span class="badge neutral" style="flex-shrink:0">'+esc(f.type)+'</span><input type="hidden" class="mb-type" value="'+esc(f.type)+'">'
       :'<select class="input mb-type" style="width:auto">'+CM_TYPES.map(function(t){return '<option value="'+t[0]+'"'+(f.type===t[0]?' selected':'')+'>'+t[1]+'</option>';}).join('')+'</select>')+
     '<input class="input mb-opts" value="'+esc((f.options||[]).join(', '))+'" placeholder="options, comma separated" style="flex:1.5;min-width:110px;'+((f.type==='select')?'':'display:none')+'">'+
     '<button type="button" class="btn-icon danger mb-del" title="Remove field">'+icon('x')+'</button></div>';
@@ -7588,14 +7605,17 @@ function showTour(step){
   state.settings.tourDone=true; save();
   var s=TOUR_STEPS[step];
   var root=byId('lightbox-root');
+  // keep the sidebar fully expanded (labels visible) for the duration of the tour
+  var appEl=byId('app'); if(appEl) appEl.classList.remove('nav-collapsed');
   // mobile: sidebar steps need the drawer open
   var sb=byId('sidebar');
   if(s.sel.indexOf('.sidebar')===0&&window.innerWidth<=860){
     if(!sb.classList.contains('open')){ sb.classList.add('open'); tourOpenedSidebar=true; }
   } else if(tourOpenedSidebar){ sb.classList.remove('open'); tourOpenedSidebar=false; }
   var target=document.querySelector(s.sel);
-  var r=target?target.getBoundingClientRect():{top:80,left:80,width:200,height:48};
-  if(s.sel==='.main') r={top:r.top,left:r.left,width:Math.min(r.width,640),height:Math.min(r.height,300)};
+  if(target&&target.scrollIntoView){ try{ target.scrollIntoView({block:'nearest',inline:'nearest'}); }catch(_){ } }
+  var r=target?target.getBoundingClientRect():{top:80,left:80,width:200,height:48,right:280,bottom:128};
+  if(s.sel==='.main'){ var mw=Math.min(r.width,640), mh=Math.min(r.height,300); r={top:r.top,left:r.left,width:mw,height:mh,right:r.left+mw,bottom:r.top+mh}; }
   var pad=6;
   var spot='top:'+(r.top-pad)+'px;left:'+(r.left-pad)+'px;width:'+(r.width+pad*2)+'px;height:'+(r.height+pad*2)+'px';
   // card placement: right of sidebar targets, below main target; clamped to stay fully on-screen
@@ -7627,6 +7647,7 @@ function showTour(step){
 function endTour(){
   byId('lightbox-root').innerHTML='';
   if(tourOpenedSidebar){ byId('sidebar').classList.remove('open'); tourOpenedSidebar=false; }
+  applyNavCollapse(); // restore the user's collapse preference
   if(!state.settings.wizardDone&&!(state.finance.length||state.products.length)){ setTimeout(openSetupWizard,250); }
   else { state.settings.wizardDone=true; save(); }
 }
