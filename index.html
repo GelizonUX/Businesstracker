@@ -705,6 +705,43 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .imp-warn{display:flex;align-items:flex-start;gap:8px;font-size:.82rem;line-height:1.5;color:var(--text-2);background:var(--warn-soft);border:1px solid var(--warn-soft);border-radius:11px;padding:11px 13px;margin-top:6px}
 .imp-warn svg{width:16px;height:16px;color:var(--warn);flex-shrink:0;margin-top:1px}
 .imp-warn b{color:var(--text)}
+
+/* ============================================================
+   sidebar CTA + per-section color coding + roadmap colors
+   ============================================================ */
+.sidebar-cta{display:flex;align-items:center;gap:9px;width:100%;margin:2px 0 8px;padding:9px 11px;border-radius:11px;
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font-weight:700;font-size:.86rem;
+  box-shadow:0 4px 14px rgba(99,102,241,.4);transition:transform .15s var(--ease),box-shadow .2s var(--ease)}
+.sidebar-cta:hover{transform:translateY(-1px);box-shadow:0 7px 22px rgba(99,102,241,.6)}
+.sidebar-cta svg{width:16px;height:16px;flex-shrink:0}
+.sidebar-cta>span:first-of-type{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.cta-beta{font-size:.58rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,.26);padding:1px 6px;border-radius:99px;flex-shrink:0}
+
+/* sidebar: kill horizontal scroll + truncate long labels */
+.nav{overflow-x:hidden}
+.nav-item{min-width:0}
+.nav-item>span:not(.nav-badge){flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* color-coded navigation (per section) */
+.nav-item svg{color:var(--ni,inherit)}
+.nav-item:hover{color:var(--sidebar-text-active)}
+.nav-item.active{background:var(--ni-soft,var(--sidebar-active));color:#fff}
+.nav-item.active svg{color:#fff}
+.nav-item.active::before{background:var(--ni,var(--accent))}
+.nav-section{transition:color .15s}
+
+/* color-coded page accents (driven by --page-color set on .main per route) */
+.page-title{border-left:3px solid var(--page-color,var(--accent));padding-left:12px}
+.stat-accent{background:linear-gradient(90deg,var(--page-color,var(--accent)),var(--accent-2))}
+.stat-card:hover{border-color:var(--page-color,var(--border))}
+
+/* roadmap color swatches + chip dots */
+.swatch-row{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.swatch{width:24px;height:24px;border-radius:7px;border:2px solid transparent;cursor:pointer;transition:transform .12s var(--ease);padding:0}
+.swatch:hover{transform:scale(1.12)}
+.swatch.on{box-shadow:0 0 0 2px var(--bg-card),0 0 0 4px currentColor}
+.chip-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle;flex-shrink:0}
+.chip.active{border-color:var(--rc,var(--accent));color:var(--rc,var(--accent));background:var(--bg-card)}
 </style>
 </head>
 <body>
@@ -1028,6 +1065,8 @@ function loadState(){
     state.roadmaps=[{id:uid(),name:'Main roadmap',phases:state.phases}];
     state.phases=[];
   }
+  // give existing roadmaps a color so the new color-coding is varied
+  (state.roadmaps||[]).forEach(function(r,i){ if(!r.color) r.color=ROADMAP_COLORS[i%ROADMAP_COLORS.length]; });
   // scrub the old bundled default cloud URL so each owner connects their own database
   if(state.settings.sync&&state.settings.sync.url==='https://love-notes-eae0b-default-rtdb.firebaseio.com'){
     state.settings.sync.url='';
@@ -1526,6 +1565,22 @@ function currentRoute(){
 }
 function nav(route){ location.hash='#/'+route; }
 
+/* per-section color coding */
+var SECTION_COLORS={ 'Overview':'#6366f1','Money':'#10b981','Shop':'#f59e0b','Execution':'#8b5cf6','Workspace':'#3b82f6','System':'#64748b','My Modules':'#ec4899' };
+function sectionColorOf(name){ return SECTION_COLORS[name]||'#6366f1'; }
+function routeSection(routeId){
+  if(routeId&&routeId.indexOf('custom-')===0) return 'My Modules';
+  var r=ROUTES.filter(function(x){ return x.id===routeId; })[0];
+  return r?r.section:'Overview';
+}
+function routeColor(routeId){ return sectionColorOf(routeSection(routeId)); }
+function hexA(hex,a){
+  var h=String(hex||'').replace('#',''); if(h.length===3) h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+  var n=parseInt(h,16); if(isNaN(n)) return 'rgba(99,102,241,'+a+')';
+  return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';
+}
+var ROADMAP_COLORS=['#6366f1','#8b5cf6','#ec4899','#ef4444','#f59e0b','#10b981','#14b8a6','#3b82f6'];
+
 /* UI-only state (not persisted) */
 var ui={
   financeFilter:{type:'all',q:'',month:'all',category:'all'},
@@ -1550,6 +1605,10 @@ function render(){
   };
   if(route.indexOf('custom-')===0) main.innerHTML=viewCustomModule(route.slice(7));
   else main.innerHTML=(views[route]||viewDashboard)();
+  // color-code the page: section color, or the roadmap's own color on the roadmap view
+  var pc=routeColor(route);
+  if(route==='roadmap'){ var crm=currentRoadmap(); if(crm&&crm.color) pc=crm.color; }
+  main.style.setProperty('--page-color',pc);
   main.scrollTop=0;
 }
 
@@ -1560,7 +1619,9 @@ function renderSidebar(){
   var html='<div class="brand">'+
     (bl?'<img src="'+bl+'" alt="" style="width:36px;height:36px;border-radius:10px;object-fit:cover;flex-shrink:0;box-shadow:0 4px 14px rgba(0,0,0,.35)">'
        :'<div class="brand-logo">'+icon('logo')+'</div>')+
-    '<div><div class="brand-name" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(state.settings.businessName||'Trakora')+'</div><div class="brand-sub">Command Center</div></div></div><nav class="nav">';
+    '<div><div class="brand-name" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(state.settings.businessName||'Trakora')+'</div><div class="brand-sub">Command Center</div></div></div>'+
+    '<button class="sidebar-cta" data-action="go-import" title="Import a spreadsheet — opens Data & Sync">'+icon('upload')+'<span>Smart CSV import</span><span class="cta-beta">Beta</span></button>'+
+    '<nav class="nav">';
   var labels=state.settings.moduleLabels||{};
   var collapsed=state.settings.collapsedNav||[];
   // group routes by section; a section containing the active route is always shown open
@@ -1573,23 +1634,26 @@ function renderSidebar(){
   sections.forEach(function(sec){
     var hasActive=sec.items.some(function(r){return r.id===route;});
     var isCollapsed=collapsed.indexOf(sec.name)>=0&&!hasActive;
-    html+='<div class="nav-section nav-sec-toggle" data-action="nav-sec-toggle" data-sec="'+esc(sec.name)+'" role="button">'+esc(tr(sec.name))+
+    var col=sectionColorOf(sec.name);
+    html+='<div class="nav-section nav-sec-toggle" data-action="nav-sec-toggle" data-sec="'+esc(sec.name)+'" role="button" style="color:'+col+'">'+esc(tr(sec.name))+
       '<span class="nav-chev'+(isCollapsed?' closed':'')+'">'+icon('down-chev',10)+'</span></div>';
     if(isCollapsed) return;
     sec.items.forEach(function(r){
-      html+='<button class="nav-item'+(route===r.id?' active':'')+'" data-action="nav" data-route="'+r.id+'">'+icon(r.icon)+'<span>'+esc(labels[r.id]||tr(r.label))+'</span>'+
+      var nv='--ni:'+col+';--ni-soft:'+hexA(col,.2);
+      html+='<button class="nav-item'+(route===r.id?' active':'')+'" data-action="nav" data-route="'+r.id+'" style="'+nv+'">'+icon(r.icon)+'<span>'+esc(labels[r.id]||tr(r.label))+'</span>'+
         (r.id==='tasks'&&openTasks>0?'<span class="nav-badge">'+openTasks+'</span>':'')+'</button>';
     });
   });
   var modsActive=route.indexOf('custom-')===0;
   var modsCollapsed=collapsed.indexOf('My Modules')>=0&&!modsActive;
-  html+='<div class="nav-section nav-sec-toggle" data-action="nav-sec-toggle" data-sec="My Modules" role="button">'+esc(tr('My Modules'))+
+  var modCol=sectionColorOf('My Modules');
+  html+='<div class="nav-section nav-sec-toggle" data-action="nav-sec-toggle" data-sec="My Modules" role="button" style="color:'+modCol+'">'+esc(tr('My Modules'))+
     '<span class="nav-chev'+(modsCollapsed?' closed':'')+'">'+icon('down-chev',10)+'</span></div>';
   if(!modsCollapsed){
     (state.customModules||[]).forEach(function(m){
-      html+='<button class="nav-item'+(route==='custom-'+m.id?' active':'')+'" data-action="nav" data-route="custom-'+m.id+'">'+icon(m.icon||'notes')+'<span>'+esc(m.name)+'</span></button>';
+      html+='<button class="nav-item'+(route==='custom-'+m.id?' active':'')+'" data-action="nav" data-route="custom-'+m.id+'" style="--ni:'+modCol+';--ni-soft:'+hexA(modCol,.2)+'">'+icon(m.icon||'notes')+'<span>'+esc(m.name)+'</span></button>';
     });
-    html+='<button class="nav-item" data-action="custom-module-new" style="opacity:.75">'+icon('plus')+'<span>'+esc(tr('New module…'))+'</span></button>';
+    html+='<button class="nav-item" data-action="custom-module-new" style="--ni:'+modCol+';opacity:.75">'+icon('plus')+'<span>'+esc(tr('New module…'))+'</span></button>';
   }
   html+='</nav><div class="sidebar-foot"><div class="biz-chip">'+
     (bl?'<img src="'+bl+'" alt="" style="width:30px;height:30px;border-radius:8px;object-fit:cover;flex-shrink:0">'
@@ -2196,9 +2260,10 @@ function viewRoadmap(){
   if(rms.length){
     html+='<div class="chips" style="margin-bottom:14px">'+rms.map(function(r){
       var rs=roadmapStats(r);
-      return '<button class="chip '+(rm&&rm.id===r.id?'active':'')+'" data-action="roadmap-switch" data-id="'+r.id+'">'+esc(r.name)+' · '+fmtPct(rs.pct,0)+'</button>';
+      var rc=r.color||sectionColorOf('Execution');
+      return '<button class="chip '+(rm&&rm.id===r.id?'active':'')+'" data-action="roadmap-switch" data-id="'+r.id+'" style="--rc:'+rc+'"><span class="chip-dot" style="background:'+rc+'"></span>'+esc(r.name)+' · '+fmtPct(rs.pct,0)+'</button>';
     }).join('')+
-    (rm?'<button class="chip" data-action="roadmap-rename" data-id="'+rm.id+'" title="Rename this roadmap">'+icon('edit',11)+'</button>'+
+    (rm?'<button class="chip" data-action="roadmap-rename" data-id="'+rm.id+'" title="Edit name & color">'+icon('edit',11)+'</button>'+
         '<button class="chip" data-action="roadmap-delete" data-id="'+rm.id+'" title="Delete this roadmap" style="color:var(--risk)">'+icon('trash',11)+'</button>':'')+
     '</div>';
   }
@@ -2889,19 +2954,25 @@ function clientModal(client){
 function roadmapModal(rm){
   var isEdit=!!rm;
   rm=rm||{};
+  var curColor=rm.color||ROADMAP_COLORS[(state.roadmaps||[]).length%ROADMAP_COLORS.length];
   var body='<input type="hidden" name="id" value="'+(rm.id||'')+'">'+
     '<div class="field"><label>Roadmap name *</label><input class="input" name="name" value="'+esc(rm.name||'')+'" required placeholder="e.g. Launch 1, Christmas Collection, Q3 Push"></div>'+
+    '<div class="field"><label>Color</label><div class="swatch-row">'+
+      ROADMAP_COLORS.map(function(c){ return '<button type="button" class="swatch'+(curColor===c?' on':'')+'" style="background:'+c+';color:'+c+'" data-action="rm-color" data-color="'+c+'" aria-label="'+c+'"></button>'; }).join('')+
+      '<input type="hidden" name="color" value="'+esc(curColor)+'"></div>'+
+      '<p style="font-size:.72rem;color:var(--text-3);margin-top:6px">This color marks the roadmap everywhere — its chip, page accents and progress.</p></div>'+
     (isEdit?'':'<p style="font-size:.74rem;color:var(--text-3)">Each roadmap has its own phases and milestones. Create one per big push and switch between them with the chips on top.</p>');
-  openModal(isEdit?'Rename roadmap':'New roadmap',body,{submitLabel:isEdit?'Save':'Create roadmap',onSubmit:function(form){
+  openModal(isEdit?'Edit roadmap':'New roadmap',body,{submitLabel:isEdit?'Save':'Create roadmap',onSubmit:function(form){
     var name=fv(form,'name');
     if(!name){ toast('Give the roadmap a name.','error'); return false; }
+    var color=fv(form,'color')||ROADMAP_COLORS[0];
     var id=fv(form,'id');
     if(id){
       var ex=(state.roadmaps||[]).find(function(r){return r.id===id;});
-      if(ex) ex.name=name;
-      toast('Roadmap renamed.');
+      if(ex){ ex.name=name; ex.color=color; }
+      toast('Roadmap updated.');
     } else {
-      var nr={id:uid(),name:name,phases:[]};
+      var nr={id:uid(),name:name,color:color,phases:[]};
       state.roadmaps.push(nr);
       ui.roadmapId=nr.id;
       toast('"'+name+'" created — add its first phase.');
@@ -3288,6 +3359,7 @@ document.addEventListener('click',function(e){
 
   /* navigation & shell */
   if(action==='nav'){ nav(el.getAttribute('data-route')); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); return; }
+  if(action==='go-import'){ ui.settingsTab='data'; nav('settings'); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); setTimeout(function(){ var c=document.querySelector('[data-action="csv-import"]'); if(c&&c.scrollIntoView) c.scrollIntoView({behavior:'smooth',block:'center'}); },120); return; }
   if(action==='open-sidebar'){ byId('sidebar').classList.add('open'); byId('scrim').classList.add('show'); return; }
   if(action==='close-sidebar'){ byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); return; }
   if(action==='toggle-theme'){ toggleTheme(); return; }
@@ -3366,6 +3438,7 @@ document.addEventListener('click',function(e){
 
   /* roadmap */
   if(action==='open-phase-modal'){ phaseModal(); return; }
+  if(action==='rm-color'){ var f=byId('modal-form'); if(f&&f.elements['color']){ f.elements['color'].value=el.getAttribute('data-color'); f.querySelectorAll('.swatch').forEach(function(s){ s.classList.toggle('on',s===el); }); } return; }
   if(action==='roadmap-new'){ roadmapModal(); return; }
   if(action==='roadmap-switch'){ ui.roadmapId=id; render(); return; }
   if(action==='roadmap-rename'){ var rmr=(state.roadmaps||[]).find(function(r){return r.id===id;}); if(rmr) roadmapModal(rmr); return; }
