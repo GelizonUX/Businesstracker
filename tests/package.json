@@ -1,0 +1,12 @@
+{
+  "name": "trakora-tests",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Automated regression suite for Trakora (index.html). Runs the real app in jsdom.",
+  "scripts": {
+    "test": "node check-syntax.js && node app.test.js"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.3"
+  }
+}
