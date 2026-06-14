@@ -807,7 +807,9 @@ function fmtMoney(n,dec){
   if(n==null||isNaN(n)) return '—';
   var sym=(state.settings.currency||'₱');
   var neg=n<0; var v=Math.abs(n);
-  var s=v.toLocaleString((state.settings&&state.settings.locale)||undefined,{minimumFractionDigits:dec==null?(v%1?2:0):dec,maximumFractionDigits:2});
+  var fd={minimumFractionDigits:dec==null?(v%1?2:0):dec,maximumFractionDigits:2};
+  var loc=(state.settings&&state.settings.locale)||undefined, s;
+  try{ s=v.toLocaleString(loc,fd); }catch(_){ s=v.toLocaleString(undefined,fd); }
   return (neg?'−':'')+sym+s;
 }
 function fmtPct(n,dec){ if(n==null||isNaN(n)||!isFinite(n)) return '—'; return fmtNum(n,dec==null?1:dec)+'%'; }
@@ -909,16 +911,53 @@ function applyActivationStamp(){
   var a=getActivation();
   if(a&&a.name){ EMBEDDED_LICENSE={name:a.name,email:a.email||'',key:a.key||''}; }
 }
+/* fetch with a timeout so a dead connection fails fast instead of hanging.
+   Only a rejected promise (no HTTP response at all) is a true "can't reach". */
+function gateFetch(url,opts,ms){
+  ms=ms||12000;
+  return new Promise(function(resolve,reject){
+    var settled=false, ctrl=(typeof AbortController!=='undefined')?new AbortController():null;
+    var t=setTimeout(function(){
+      if(settled) return; settled=true;
+      if(ctrl){ try{ ctrl.abort(); }catch(_){ } }
+      reject({code:'timeout',msg:'The activation server took too long to respond. Check your internet connection and try again.'});
+    },ms);
+    fetch(url,ctrl?Object.assign({},opts||{},{signal:ctrl.signal}):(opts||{}))
+      .then(function(r){ if(settled) return; settled=true; clearTimeout(t); resolve(r); })
+      .catch(function(){ if(settled) return; settled=true; clearTimeout(t);
+        reject({code:'net',msg:'Could not reach the activation server. Check your internet connection and try again.'}); });
+  });
+}
+/* GET the license record, with one automatic retry on a transient network error.
+   Distinguishes locked rules / missing database / server errors from a real outage. */
+function gateReadLicense(key,attempt){
+  return gateFetch(gateEndpoint(key)).then(function(r){
+    return r.text().then(function(body){
+      var data=null; try{ data=body?JSON.parse(body):null; }catch(_){ data=null; }
+      if(!r.ok){
+        var ferr=(data&&data.error)?String(data.error):'';
+        if(r.status===401||r.status===403||/permission denied/i.test(ferr))
+          throw {code:'rules',msg:'The activation database is locked. The seller needs to allow public read on the “'+GATE.node+'” path in the Firebase Realtime Database rules.'};
+        if(r.status===404)
+          throw {code:'nodb',msg:'Activation database not found — the database URL or region looks misconfigured. Please contact '+esc(GATE.sellerContact)+'.'};
+        throw {code:'http',msg:'Activation server error (HTTP '+r.status+'). Please try again in a moment.'};
+      }
+      if(data&&typeof data==='object'&&data.error&&!data.email&&!data.devices)
+        throw {code:'rules',msg:'The activation database denied access (“'+esc(String(data.error))+'”). The seller must allow read on the “'+GATE.node+'” path.'};
+      return data;
+    });
+  }).catch(function(err){
+    if(err&&(err.code==='net'||err.code==='timeout')&&!attempt) return gateReadLicense(key,1);
+    throw err;
+  });
+}
 /* verify a key+email against Firebase, claim a device slot, store activation locally */
 function verifyActivation(key,email){
   key=normKey(key); email=String(email||'').trim().toLowerCase();
-  return fetch(gateEndpoint(key)).then(function(r){
-    if(!r.ok) throw {code:'net',msg:'Could not reach the activation server. Check your internet and try again.'};
-    return r.json();
-  }).then(function(lic){
-    if(!lic||typeof lic!=='object') throw {code:'nokey',msg:'That license key wasn’t found. Double-check the key from your purchase email.'};
+  return gateReadLicense(key,0).then(function(lic){
+    if(!lic||typeof lic!=='object') throw {code:'nokey',msg:'That license key wasn’t found. Double-check the key from your purchase email — and that it was issued on the current activation database.'};
     if(lic.status&&lic.status!=='active') throw {code:'revoked',msg:'This license has been disabled. Please contact '+esc(GATE.sellerContact)+'.'};
-    if((lic.email||'').trim().toLowerCase()!==email) throw {code:'email',msg:'This key is registered to a different email address.'};
+    if((lic.email||'').trim().toLowerCase()!==email) throw {code:'email',msg:'This key is registered to a different email address. Use the email from your purchase.'};
     var devices=lic.devices||{};
     var limit=lic.deviceLimit||GATE.deviceLimit;
     var mine=DEVICE_ID;
@@ -926,16 +965,18 @@ function verifyActivation(key,email){
       throw {code:'limit',msg:'This license is already active on its maximum of '+limit+' device'+(limit>1?'s':'')+'. Contact '+esc(GATE.sellerContact)+' to move it.'};
     }
     // claim this device (create-only write under devices)
-    return fetch(gateEndpoint(key).replace('.json','/devices/'+encodeURIComponent(mine)+'.json'),{
+    return gateFetch(gateEndpoint(key).replace('.json','/devices/'+encodeURIComponent(mine)+'.json'),{
       method:'PUT',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({at:Date.now(),ua:String(navigator.userAgent||'').slice(0,120)})
-    }).then(function(){
+    }).then(function(r){
+      // a non-OK PUT (write denied by rules) is not a real claim — mark it so we don't free a slot we never took
       var act={key:key,email:email,name:lic.name||email,activatedAt:Date.now(),device:mine};
+      if(!(r&&r.ok)) act.unclaimed=true;
       setActivation(act);
       return act;
     }).catch(function(){
-      // device-claim write failed (rules) — still let them in; we verified the key
+      // device-claim write failed (network) — still let them in; the key & email are verified
       var act={key:key,email:email,name:lic.name||email,activatedAt:Date.now(),device:mine,unclaimed:true};
       setActivation(act);
       return act;
