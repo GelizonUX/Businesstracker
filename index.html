@@ -742,6 +742,14 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .swatch.on{box-shadow:0 0 0 2px var(--bg-card),0 0 0 4px currentColor}
 .chip-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle;flex-shrink:0}
 .chip.active{border-color:var(--rc,var(--accent));color:var(--rc,var(--accent));background:var(--bg-card)}
+
+/* sidebar section editor (Customization) */
+.sec-edit{display:flex;flex-direction:column;gap:8px}
+.sec-edit-row{display:flex;align-items:center;gap:9px}
+.sec-color{width:38px;height:34px;padding:2px;border:1.5px solid var(--border);border-radius:9px;background:var(--bg-input);cursor:pointer;flex-shrink:0}
+.sec-color::-webkit-color-swatch-wrapper{padding:0}
+.sec-color::-webkit-color-swatch{border:none;border-radius:6px}
+.sec-edit-row .sec-label{flex:1;min-width:0;padding:7px 10px}
 </style>
 </head>
 <body>
@@ -799,7 +807,7 @@ function fmtMoney(n,dec){
   if(n==null||isNaN(n)) return '—';
   var sym=(state.settings.currency||'₱');
   var neg=n<0; var v=Math.abs(n);
-  var s=v.toLocaleString(undefined,{minimumFractionDigits:dec==null?(v%1?2:0):dec,maximumFractionDigits:2});
+  var s=v.toLocaleString((state.settings&&state.settings.locale)||undefined,{minimumFractionDigits:dec==null?(v%1?2:0):dec,maximumFractionDigits:2});
   return (neg?'−':'')+sym+s;
 }
 function fmtPct(n,dec){ if(n==null||isNaN(n)||!isFinite(n)) return '—'; return fmtNum(n,dec==null?1:dec)+'%'; }
@@ -999,6 +1007,7 @@ var DEFAULT_STATE={
     productCats:['Candle','Keychain','Gift Box'], productAttrs:['Scent','Color'],
     moduleLabels:{}, bizAddress:'', bizPhone:'', onboarded:false, lang:'en', payQR:'', payQRLabel:'',
     collapsedNav:[], taskLanes:['To do','Doing','Done'], bizLogo:'', tourDone:false,
+    country:'', taxLabel:'', locale:'', sectionColors:{}, sectionLabels:{},
     fx:{ auto:true, updated:null, phpPer:{USD:58.5,EUR:63.5,GBP:74,AUD:38,CAD:42.5,SGD:43.5,AED:16,JPY:0.39} } },
   invoices:[],  // {id,number,client,desc,amount,issueDate,dueDate,status,paidDate,createdAt}
   recurring:[], // {id,type,amount,category,note,client,day,active,lastPosted,startMonth}
@@ -1565,9 +1574,20 @@ function currentRoute(){
 }
 function nav(route){ location.hash='#/'+route; }
 
-/* per-section color coding */
+/* per-section color coding (user-overridable) */
 var SECTION_COLORS={ 'Overview':'#6366f1','Money':'#10b981','Shop':'#f59e0b','Execution':'#8b5cf6','Workspace':'#3b82f6','System':'#64748b','My Modules':'#ec4899' };
-function sectionColorOf(name){ return SECTION_COLORS[name]||'#6366f1'; }
+function sectionList(){
+  var out=[]; ROUTES.forEach(function(r){ if(out.indexOf(r.section)<0) out.push(r.section); });
+  out.push('My Modules'); return out;
+}
+function sectionColorOf(name){
+  var o=(state.settings&&state.settings.sectionColors)||{};
+  return o[name]||SECTION_COLORS[name]||'#6366f1';
+}
+function sectionLabelOf(name){
+  var o=(state.settings&&state.settings.sectionLabels)||{};
+  return o[name]||tr(name);
+}
 function routeSection(routeId){
   if(routeId&&routeId.indexOf('custom-')===0) return 'My Modules';
   var r=ROUTES.filter(function(x){ return x.id===routeId; })[0];
@@ -1580,6 +1600,47 @@ function hexA(hex,a){
   return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';
 }
 var ROADMAP_COLORS=['#6366f1','#8b5cf6','#ec4899','#ef4444','#f59e0b','#10b981','#14b8a6','#3b82f6'];
+
+/* ---------- country / location presets — drive currency, tax & guidelines ---------- */
+var COUNTRIES={
+  PH:{name:'Philippines',flag:'🇵🇭',cur:'₱',code:'PHP',locale:'en-PH',tax:8,taxLabel:'Income tax (8% option)',
+      note:'Small businesses under the ₱3M threshold typically use the 8% income tax option or 3% percentage tax. VAT (12%) applies once you exceed the threshold. Set aside taxes for the BIR.'},
+  US:{name:'United States',flag:'🇺🇸',cur:'$',code:'USD',locale:'en-US',tax:25,taxLabel:'Income + self-employment (est.)',
+      note:'Sales tax varies by state (0–10%+) and is collected separately. Set aside ~25–30% of profit for federal/state income + self-employment tax.'},
+  JP:{name:'Japan',flag:'🇯🇵',cur:'¥',code:'JPY',locale:'ja-JP',tax:10,taxLabel:'Consumption tax',
+      note:'Consumption tax is 10% (8% reduced rate for some food & drink). Income tax is progressive.'},
+  VN:{name:'Vietnam',flag:'🇻🇳',cur:'₫',code:'VND',locale:'vi-VN',tax:10,taxLabel:'VAT',
+      note:'Standard VAT is 10% (5% or 8% for some goods). Household businesses may pay a flat % of revenue instead.'},
+  SG:{name:'Singapore',flag:'🇸🇬',cur:'$',code:'SGD',locale:'en-SG',tax:9,taxLabel:'GST',
+      note:'GST is 9%. Corporate tax is a flat 17% on profits.'},
+  GB:{name:'United Kingdom',flag:'🇬🇧',cur:'£',code:'GBP',locale:'en-GB',tax:20,taxLabel:'VAT',
+      note:'VAT standard rate is 20%. Register once turnover exceeds the VAT threshold.'},
+  AU:{name:'Australia',flag:'🇦🇺',cur:'A$',code:'AUD',locale:'en-AU',tax:10,taxLabel:'GST',
+      note:'GST is 10%. Register for GST once turnover reaches the threshold.'},
+  CA:{name:'Canada',flag:'🇨🇦',cur:'C$',code:'CAD',locale:'en-CA',tax:5,taxLabel:'GST/HST',
+      note:'GST is 5% federally; combined GST/HST varies by province (up to 15%).'},
+  IN:{name:'India',flag:'🇮🇳',cur:'₹',code:'INR',locale:'en-IN',tax:18,taxLabel:'GST',
+      note:'GST slabs are 5/12/18/28%; 18% is the common services rate.'},
+  AE:{name:'UAE',flag:'🇦🇪',cur:'AED',code:'AED',locale:'en-AE',tax:5,taxLabel:'VAT',
+      note:'VAT is 5%. Corporate tax of 9% applies above the profit threshold.'},
+  MY:{name:'Malaysia',flag:'🇲🇾',cur:'RM',code:'MYR',locale:'ms-MY',tax:6,taxLabel:'SST',
+      note:'Sales & service tax is 6–10% depending on the item/service.'},
+  ID:{name:'Indonesia',flag:'🇮🇩',cur:'Rp',code:'IDR',locale:'id-ID',tax:11,taxLabel:'VAT (PPN)',
+      note:'VAT (PPN) is 11%.'},
+  TH:{name:'Thailand',flag:'🇹🇭',cur:'฿',code:'THB',locale:'th-TH',tax:7,taxLabel:'VAT',
+      note:'VAT is 7%.'}
+};
+function applyCountry(code){
+  var c=COUNTRIES[code]; if(!c) return false;
+  state.settings.country=code;
+  state.settings.currency=c.cur;
+  state.settings.taxRate=c.tax;
+  state.settings.taxLabel=c.taxLabel;
+  state.settings.locale=c.locale||'';
+  return true;
+}
+function countryNote(){ var c=COUNTRIES[state.settings.country]; return c?c.note:''; }
+function taxLabelText(){ return state.settings.taxLabel||'Tax'; }
 
 /* UI-only state (not persisted) */
 var ui={
@@ -1635,7 +1696,7 @@ function renderSidebar(){
     var hasActive=sec.items.some(function(r){return r.id===route;});
     var isCollapsed=collapsed.indexOf(sec.name)>=0&&!hasActive;
     var col=sectionColorOf(sec.name);
-    html+='<div class="nav-section nav-sec-toggle" data-action="nav-sec-toggle" data-sec="'+esc(sec.name)+'" role="button" style="color:'+col+'">'+esc(tr(sec.name))+
+    html+='<div class="nav-section nav-sec-toggle" data-action="nav-sec-toggle" data-sec="'+esc(sec.name)+'" role="button" style="color:'+col+'">'+esc(sectionLabelOf(sec.name))+
       '<span class="nav-chev'+(isCollapsed?' closed':'')+'">'+icon('down-chev',10)+'</span></div>';
     if(isCollapsed) return;
     sec.items.forEach(function(r){
@@ -1647,7 +1708,7 @@ function renderSidebar(){
   var modsActive=route.indexOf('custom-')===0;
   var modsCollapsed=collapsed.indexOf('My Modules')>=0&&!modsActive;
   var modCol=sectionColorOf('My Modules');
-  html+='<div class="nav-section nav-sec-toggle" data-action="nav-sec-toggle" data-sec="My Modules" role="button" style="color:'+modCol+'">'+esc(tr('My Modules'))+
+  html+='<div class="nav-section nav-sec-toggle" data-action="nav-sec-toggle" data-sec="My Modules" role="button" style="color:'+modCol+'">'+esc(sectionLabelOf('My Modules'))+
     '<span class="nav-chev'+(modsCollapsed?' closed':'')+'">'+icon('down-chev',10)+'</span></div>';
   if(!modsCollapsed){
     (state.customModules||[]).forEach(function(m){
@@ -2062,9 +2123,9 @@ function viewCalculators(){
     calcField('cost','Cost per unit','',avgCost)+
     calcField('targetmargin','Target margin %','',50)+
     calcField('curprice','Current price','',avgPrice));
-  html+=calcCard('tax','Tax set-aside','Put this aside so taxes never surprise you.','shield',
+  html+=calcCard('tax','Tax set-aside'+(COUNTRIES[state.settings.country]?' · '+COUNTRIES[state.settings.country].flag+' '+taxLabelText():''),'Put this aside so taxes never surprise you.','shield',
     calcField('income','Income amount','',Math.round(cur.revenue)||'')+
-    calcField('rate','Tax rate %','',state.settings.taxRate||8));
+    calcField('rate',(state.settings.taxLabel||'Tax')+' rate %','',state.settings.taxRate||8));
   html+=calcCard('forecast','Revenue forecast','Project the months ahead from your average.','arrowur',
     calcField('base','Monthly revenue','',avg3)+
     calcField('growth','Growth % / month','',5)+
@@ -2119,7 +2180,8 @@ function runCalculator(key,form){
       else out+='<small>Markup over cost: '+fmtPct((rec-cost)/cost*100,0)+'.</small>'; }
   } else if(key==='tax'){
     var incv=g('income'),rate=g('rate')||state.settings.taxRate||8;
-    out='Set aside <b>'+fmtMoney(incv*rate/100)+'</b> ('+fmtPct(rate,1)+').<small>Keep '+fmtMoney(incv*(1-rate/100))+' as spendable. Move the tax amount to a separate account the day you get paid.</small>';
+    var cnote=countryNote();
+    out='Set aside <b>'+fmtMoney(incv*rate/100)+'</b> ('+fmtPct(rate,1)+').<small>Keep '+fmtMoney(incv*(1-rate/100))+' as spendable. Move the tax amount to a separate account the day you get paid.'+(cnote?' <b>'+esc(COUNTRIES[state.settings.country].flag+' '+COUNTRIES[state.settings.country].name)+':</b> '+esc(cnote):'')+'</small>';
   } else if(key==='forecast'){
     var base=g('base')||avgMonthlyRevenue(3),gr=g('growth'),mo=clamp(Math.round(g('months'))||6,1,36);
     var total=0,v=base,lines=[];
@@ -2687,16 +2749,20 @@ function viewSettings(){
   var html=topbar('Settings & Data','Your business profile, plus full control of your data.');
   html+='<div class="tabs">'+[['business','Business'],['custom','Customization'],['data','Data & Sync']].map(function(x){
     return '<button class="'+(tab===x[0]?'active':'')+'" data-action="settings-tab" data-tab="'+x[0]+'">'+esc(tr(x[1]))+'</button>';}).join('')+'</div>';
-  if(tab==='custom'){ return html+'<div class="grid grid-2">'+customizationCardHTML()+'</div>'; }
+  if(tab==='custom'){ return html+'<div class="grid grid-2">'+customizationCardHTML()+customizationExtrasCardHTML()+'</div>'; }
   if(tab==='data'){ return html+settingsDataHTML(); }
   html+='<div class="grid grid-2">';
   html+='<div class="card"><div class="card-head"><h3>Business profile</h3></div>'+
     '<form data-form="settings">'+
     '<div class="field"><label>Business name</label><input class="input" name="businessName" value="'+esc(s.businessName)+'" required></div>'+
+    '<div class="field"><label>Country / region</label><select class="input" name="country" data-action-change="apply-country">'+
+      '<option value=""'+(!s.country?' selected':'')+'>— Select to auto-set currency & tax —</option>'+
+      Object.keys(COUNTRIES).map(function(k){ var c=COUNTRIES[k]; return '<option value="'+k+'"'+(s.country===k?' selected':'')+'>'+c.flag+' '+esc(c.name)+'</option>'; }).join('')+
+    '</select>'+(s.country&&COUNTRIES[s.country]?'<p style="font-size:.72rem;color:var(--text-3);margin-top:4px">'+esc(COUNTRIES[s.country].note)+'</p>':'<p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Sets your currency, default tax rate & tax rules. You can still fine-tune the fields below.</p>')+'</div>'+
     '<div class="form-row"><div class="field"><label>Currency symbol</label><select class="input" name="currency">'+
-      ['₱','$','€','£','¥','₹','A$','C$'].map(function(c){return '<option'+(s.currency===c?' selected':'')+'>'+c+'</option>';}).join('')+
+      ['₱','$','€','£','¥','₹','A$','C$','₫','RM','Rp','฿','AED'].map(function(c){return '<option'+(s.currency===c?' selected':'')+'>'+c+'</option>';}).join('')+
     '</select></div>'+
-    '<div class="field"><label>Default tax rate (%)</label><input class="input" type="number" step="any" min="0" max="60" name="taxRate" value="'+esc(s.taxRate)+'"></div></div>'+
+    '<div class="field"><label>'+esc(s.taxLabel||'Default tax')+' rate (%)</label><input class="input" type="number" step="any" min="0" max="60" name="taxRate" value="'+esc(s.taxRate)+'"></div></div>'+
     '<div class="field"><label>Monthly revenue target ('+esc(s.currency)+')</label><input class="input" type="number" step="any" min="0" name="monthlyTarget" value="'+(s.monthlyTarget||'')+'" placeholder="e.g. 100000"><p style="font-size:.74rem;color:var(--text-3);margin-top:4px">Used on the dashboard and in insights to track each month’s pace.</p></div>'+
     '<div class="field"><label>Business logo (sidebar, browser tab icon & favicon)</label><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
       '<img class="img-thumb-lg img-prev" src="'+(s.bizLogo||'')+'" style="'+(s.bizLogo?'':'display:none')+'" alt="">'+
@@ -3650,6 +3716,7 @@ document.addEventListener('submit',function(e){
   }
   if(kind==='settings'){
     state.settings.businessName=fv(form,'businessName')||'My Business';
+    if(form.elements['country']) state.settings.country=fv(form,'country');
     state.settings.currency=fv(form,'currency')||'₱';
     state.settings.taxRate=clamp(num(fv(form,'taxRate')),0,60);
     state.settings.monthlyTarget=Math.max(0,num(fv(form,'monthlyTarget')));
@@ -4147,12 +4214,22 @@ function customizationCardHTML(){
   var s=state.settings;
   var hidden=s.hiddenModules||[];
   var hideable=ROUTES.filter(function(r){ return r.id!=='dashboard'&&r.id!=='settings'; });
-  var html='<div class="card"><div class="card-head"><h3>'+icon('palette',16)+' Customization</h3></div>';
+  var html='<div class="card"><div class="card-head"><h3>'+icon('palette',16)+' Appearance &amp; sidebar</h3></div>';
   // accent
   html+='<div class="field"><label>Accent color</label><div class="swatches">'+
     '<button class="swatch'+(!s.accent?' active':'')+'" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)" data-action="set-accent" data-color="" title="Default"></button>'+
     ACCENTS.map(function(c){return '<button class="swatch'+(s.accent===c?' active':'')+'" style="background:'+c+'" data-action="set-accent" data-color="'+c+'"></button>';}).join('')+
     '</div></div>';
+  // sidebar sections: color + rename
+  html+='<div class="field"><label>Sidebar menu — color &amp; name each section</label><div class="sec-edit">'+
+    sectionList().map(function(name){
+      return '<div class="sec-edit-row">'+
+        '<input type="color" class="sec-color" data-action-change="section-color" data-sec="'+esc(name)+'" value="'+esc(sectionColorOf(name))+'" title="Color for '+esc(name)+'">'+
+        '<input class="input sec-label" data-action-change="section-label" data-sec="'+esc(name)+'" value="'+esc(sectionLabelOf(name))+'" placeholder="'+esc(name)+'">'+
+      '</div>';
+    }).join('')+'</div>'+
+    '<div style="display:flex;justify-content:flex-end;margin-top:8px"><button type="button" class="btn btn-ghost btn-sm" data-action="reset-sections">'+icon('refresh')+' Reset to defaults</button></div>'+
+    '<p style="font-size:.72rem;color:var(--text-3);margin-top:3px">Pick a color and rename any section — changes show in the sidebar instantly.</p></div>';
   // modules
   html+='<div class="field"><label>Visible modules</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">'+
     hideable.map(function(r){
@@ -4160,7 +4237,11 @@ function customizationCardHTML(){
       return '<label class="checkrow" style="font-size:.84rem"><input type="checkbox" data-action-change="toggle-module" data-id="'+r.id+'"'+(hidden.indexOf(r.id)<0?' checked':'')+'> '+esc(lbl)+
         ' <button type="button" class="btn-icon" style="width:20px;height:20px" data-action="rename-module" data-id="'+r.id+'" title="Rename">'+icon('edit')+'</button></label>';
     }).join('')+'</div><p style="font-size:.72rem;color:var(--text-3);margin-top:5px">Hide modules you don’t use — nothing is deleted, they just leave the sidebar.</p></div>';
-  // categories
+  html+='</div>';
+  return html;
+}
+function customizationExtrasCardHTML(){
+  var s=state.settings;
   function catManager(type,label){
     var custom=(s.customCats&&s.customCats[type])||[];
     return '<div class="field"><label>'+label+'</label>'+
@@ -4170,6 +4251,7 @@ function customizationCardHTML(){
       '</div>'+
       '<form data-form="add-cat" style="display:flex;gap:7px"><input type="hidden" name="type" value="'+type+'"><input class="input" name="name" placeholder="Add custom category…" style="flex:1"><button class="btn btn-ghost btn-sm" type="submit">'+icon('plus')+' Add</button></form></div>';
   }
+  var html='<div class="card"><div class="card-head"><h3>'+icon('ledger',16)+' Categories &amp; workflow</h3></div>';
   html+=catManager('income','Income categories')+catManager('expense','Expense categories');
   // business presets
   html+='<div class="field"><label>Business type presets</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+
@@ -4353,6 +4435,11 @@ document.addEventListener('click',function(e){
     save(); applyAccent(); render();
     return;
   }
+  if(action==='reset-sections'){
+    state.settings.sectionColors={}; state.settings.sectionLabels={};
+    commit(); toast('Sidebar colors & names reset to defaults.');
+    return;
+  }
   if(action==='del-custom-cat'){
     var type=el.getAttribute('data-type'), name=el.getAttribute('data-name');
     var arr=(state.settings.customCats&&state.settings.customCats[type])||[];
@@ -4410,6 +4497,25 @@ document.addEventListener('change',function(e){
     commit();
     return;
   }
+  if(act==='section-color'){
+    var scs=el.getAttribute('data-sec');
+    state.settings.sectionColors=state.settings.sectionColors||{};
+    state.settings.sectionColors[scs]=el.value;
+    save(); renderSidebar(); flashSaved();
+    return;
+  }
+  if(act==='section-label'){
+    var sls=el.getAttribute('data-sec');
+    state.settings.sectionLabels=state.settings.sectionLabels||{};
+    var v=(el.value||'').trim();
+    if(v&&v!==sls) state.settings.sectionLabels[sls]=v; else delete state.settings.sectionLabels[sls];
+    save(); renderSidebar(); flashSaved();
+    return;
+  }
+  if(act==='apply-country'){
+    if(applyCountry(el.value)){ var c=COUNTRIES[el.value]; commit(); toast('Set up for '+c.flag+' '+c.name+' — '+state.settings.currency+' · '+state.settings.taxLabel+' '+state.settings.taxRate+'%.'); }
+    return;
+  }
 });
 
 /* ============================================================
@@ -4443,6 +4549,14 @@ function stockBadge(p){
   if(p.stock<=0) return '<span class="badge risk">Out of stock</span>';
   if(p.stock<=lo) return '<span class="badge warn">Low · '+p.stock+' left</span>';
   return '<span class="badge good">'+p.stock+' in stock</span>';
+}
+/* inner markup of the inline stock control — re-rendered in place on +/- so the screen never flashes */
+function stockCellInner(p){
+  return '<div style="display:flex;align-items:center;gap:6px">'+
+    '<button class="btn-icon" data-action="stock-adjust" data-id="'+p.id+'" data-delta="-1" title="−1 stock" style="width:22px;height:22px">−</button>'+
+    stockBadge(p)+
+    '<button class="btn-icon" data-action="stock-adjust" data-id="'+p.id+'" data-delta="1" title="+1 stock" style="width:22px;height:22px">+</button></div>'+
+    ((p.bom||[]).length?'<div style="font-size:.68rem;color:var(--text-3);margin-top:3px">can make '+fmtNum(canMake(p),0)+' more</div>':'');
 }
 function viewProducts(){
   var prods=(state.products||[]).filter(function(p){return p.active!==false;});
@@ -4484,11 +4598,7 @@ function viewProducts(){
         '<td class="num" style="text-align:right;font-weight:700">'+fmtMoney(p.price)+'</td>'+
         '<td class="num" style="text-align:right">'+(p.cost?fmtMoney(p.cost):'—')+'</td>'+
         '<td class="num" style="text-align:right">'+(margin!=null?'<span class="badge '+(margin>=50?'good':(margin>=25?'warn':'risk'))+'">'+fmtPct(margin,0)+'</span>':'—')+'</td>'+
-        '<td><div style="display:flex;align-items:center;gap:6px">'+
-          '<button class="btn-icon" data-action="stock-adjust" data-id="'+p.id+'" data-delta="-1" title="−1 stock" style="width:22px;height:22px">−</button>'+
-          stockBadge(p)+
-          '<button class="btn-icon" data-action="stock-adjust" data-id="'+p.id+'" data-delta="1" title="+1 stock" style="width:22px;height:22px">+</button></div>'+
-          ((p.bom||[]).length?'<div style="font-size:.68rem;color:var(--text-3);margin-top:3px">can make '+fmtNum(canMake(p),0)+' more</div>':'')+'</td>'+
+        '<td><div class="stock-cell" data-stock-cell="'+p.id+'">'+stockCellInner(p)+'</div></td>'+
         '<td><div class="row-actions">'+
           '<button class="btn-icon" data-action="product-duplicate" data-id="'+p.id+'" title="Duplicate (new scent/color variant)">'+icon('plus')+'</button>'+
           '<button class="btn-icon" data-action="product-restock" data-id="'+p.id+'" title="Restock">'+icon('refresh')+'</button>'+
@@ -5060,7 +5170,13 @@ document.addEventListener('click',function(e){
   if(action==='product-restock'){ var p4=findProduct(id); if(p4) restockModal(p4); return; }
   if(action==='stock-adjust'){
     var p5=findProduct(id);
-    if(p5){ p5.stock+=parseInt(el.getAttribute('data-delta'),10); commit(); }
+    if(p5){
+      p5.stock=(p5.stock||0)+parseInt(el.getAttribute('data-delta'),10);
+      save();
+      var cell=document.querySelector('[data-stock-cell="'+p5.id+'"]');
+      if(cell) cell.innerHTML=stockCellInner(p5); else render();
+      flashSaved();
+    }
     return;
   }
   if(action==='product-cat-filter'){ ui.productCat=el.getAttribute('data-val'); render(); return; }
@@ -5892,16 +6008,18 @@ function openSetupWizard(){
     var body=
       '<p style="font-size:.86rem;color:var(--text-2);margin-bottom:14px">A quick 60-second setup so the numbers and categories fit your business. Optional — skip anytime, and change everything later in Settings.</p>'+
       '<div class="field"><label>Your business name</label><input class="input" name="bizname" placeholder="e.g. Hiraya Candle Co." value=""></div>'+
-      '<div class="form-row"><div class="field"><label>Currency</label><select class="input" name="currency">'+
-        ['₱','$','€','£','¥','₹'].map(function(c){return '<option'+(c==='₱'?' selected':'')+'>'+c+'</option>';}).join('')+'</select></div>'+
-      '<div class="field"><label>Monthly revenue target (optional)</label><input class="input" type="number" min="0" step="any" name="target" placeholder="e.g. 50000"></div></div>'+
+      '<div class="field"><label>Where is your business based?</label><select class="input" name="country">'+
+        '<option value="">— Choose your country —</option>'+
+        Object.keys(COUNTRIES).map(function(k){ var c=COUNTRIES[k]; return '<option value="'+k+'"'+(k==='PH'?' selected':'')+'>'+c.flag+' '+c.name+'</option>'; }).join('')+'</select>'+
+        '<p style="font-size:.72rem;color:var(--text-3);margin-top:5px">Sets your currency and tax rules so every calculation matches your country.</p></div>'+
+      '<div class="field"><label>Monthly revenue target (optional)</label><input class="input" type="number" min="0" step="any" name="target" placeholder="e.g. 50000"></div>'+
       '<div class="field"><label>What do you sell?</label><select class="input" name="preset">'+
         Object.keys(BIZ_PRESETS).map(function(k){return '<option value="'+k+'">'+BIZ_PRESETS[k].label+'</option>';}).join('')+'</select>'+
       '<p style="font-size:.72rem;color:var(--text-3);margin-top:5px">This pre-builds your product categories and attributes (you can edit them anytime).</p></div>';
     openModal('Welcome to Trakora 👋',body,{submitLabel:'Set up my business',onSubmit:function(form){
       var nm=fv(form,'bizname');
       if(nm) state.settings.businessName=nm;
-      state.settings.currency=fv(form,'currency')||'₱';
+      var ctry=fv(form,'country'); if(ctry) applyCountry(ctry);
       state.settings.monthlyTarget=Math.max(0,num(fv(form,'target')));
       applyBizPreset(fv(form,'preset')||'general',true);
       applyBrand();
