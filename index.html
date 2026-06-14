@@ -2,6 +2,8 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https:; media-src 'self' data: blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'">
+<meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Trakora — a local-first business command center: finance, goals, roadmap, tasks, notes, CRM, metrics and smart insights. All data stays in your browser.">
 <title>Trakora — Business Command Center</title>
@@ -382,7 +384,7 @@ tr:hover .row-actions{opacity:1}
 .chips{display:flex;gap:7px;flex-wrap:wrap}
 .chip{padding:5px 13px;border-radius:99px;font-size:.8rem;font-weight:600;color:var(--text-2);background:var(--bg-sunken);transition:all .15s;border:1px solid transparent}
 .chip:hover{color:var(--text);border-color:var(--border-2)}
-.chip.active{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.chip.active{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700;box-shadow:0 2px 10px var(--accent-soft)}
 
 /* tasks */
 .task-row{display:flex;align-items:flex-start;gap:11px;padding:11px 6px;border-bottom:1px solid var(--border);transition:background .12s;border-radius:8px}
@@ -605,7 +607,7 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 }
 
 /* ============ activation gate ============ */
-#gate-root:empty{display:none}
+#gate-root:empty,#lock-root:empty{display:none}
 .gate{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;
   background:#0d0f17;font-family:var(--font)}
 .gate-card{position:relative;width:100%;max-width:380px;background:#15171f;
@@ -741,7 +743,8 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .swatch:hover{transform:scale(1.12)}
 .swatch.on{box-shadow:0 0 0 2px var(--bg-card),0 0 0 4px currentColor}
 .chip-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle;flex-shrink:0}
-.chip.active{border-color:var(--rc,var(--accent));color:var(--rc,var(--accent));background:var(--bg-card)}
+.chip.rm-chip.active{background:var(--rc,var(--accent));color:#fff;border-color:var(--rc,var(--accent));box-shadow:0 2px 10px rgba(0,0,0,.15)}
+.chip.rm-chip.active .chip-dot{background:#fff}
 
 /* sidebar section editor (Customization) */
 .sec-edit{display:flex;flex-direction:column;gap:8px}
@@ -750,10 +753,52 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .sec-color::-webkit-color-swatch-wrapper{padding:0}
 .sec-color::-webkit-color-swatch{border:none;border-radius:6px}
 .sec-edit-row .sec-label{flex:1;min-width:0;padding:7px 10px}
+
+/* collapsible sidebar — desktop icon rail */
+.nav-toggle{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);box-shadow:var(--shadow-sm);color:var(--text-2);transition:all .18s var(--ease);flex-shrink:0}
+.nav-toggle:hover{border-color:var(--accent);color:var(--accent)}
+.nav-toggle svg{width:18px;height:18px}
+@media (max-width:860px){.nav-toggle{display:none}}
+.sidebar{transition:transform .3s var(--ease),width .22s var(--ease),padding .22s var(--ease)}
+.main{transition:margin-left .22s var(--ease)}
+.app.nav-collapsed .sidebar{width:74px;padding:18px 10px}
+.app.nav-collapsed .main{margin-left:74px}
+.app.nav-collapsed .brand{justify-content:center;padding:6px 0 16px}
+.app.nav-collapsed .brand>div:last-child,
+.app.nav-collapsed .sidebar-cta>span:first-of-type,
+.app.nav-collapsed .cta-beta,
+.app.nav-collapsed .nav-item>span:not(.nav-badge),
+.app.nav-collapsed .nav-section,
+.app.nav-collapsed .biz-chip>div:last-child{display:none}
+.app.nav-collapsed .sidebar-cta{justify-content:center;padding:11px 0}
+.app.nav-collapsed .nav-item{justify-content:center;padding:10px 0}
+.app.nav-collapsed .nav-item svg{opacity:1}
+.app.nav-collapsed .nav-item.active::before{left:-10px}
+.app.nav-collapsed .nav-badge{position:absolute;top:2px;right:9px;margin:0;padding:0 4px;min-width:13px;font-size:.54rem;line-height:1.5}
+.app.nav-collapsed .biz-chip{justify-content:center}
+.app.nav-collapsed .sidebar-foot{padding:12px 0 2px}
+@media (max-width:860px){.app.nav-collapsed .sidebar{width:232px;padding:18px 12px}.app.nav-collapsed .main{margin-left:0}}
+
+/* drag-to-reorder dashboard widgets */
+.dash-grid{display:flex;flex-direction:column;gap:14px}
+.dash-widget{position:relative;border-radius:var(--r-lg);transition:opacity .18s,transform .18s,box-shadow .18s}
+.dash-widget>.grid,.dash-widget>.card{margin-top:0}
+.dash-handle{display:flex;align-items:center;gap:8px;cursor:grab;color:var(--text-3);font-size:.7rem;font-weight:700;
+  text-transform:uppercase;letter-spacing:.07em;padding:2px 2px 8px;user-select:none;opacity:.5;transition:opacity .15s,color .15s}
+.dash-widget:hover .dash-handle{opacity:1}
+.dash-handle:active{cursor:grabbing}
+.dash-handle .dash-grip svg{width:15px;height:15px}
+.dash-handle .dash-wt{color:var(--text-2)}
+.dash-handle .dash-hint{margin-left:auto;display:inline-flex;align-items:center;gap:4px;opacity:.7;font-weight:600;text-transform:none;letter-spacing:0}
+.dash-handle .dash-hint svg{width:12px;height:12px}
+.dash-widget.dragging{opacity:.45;transform:scale(.99)}
+.dash-widget.drop-target{box-shadow:0 0 0 2px var(--accent),0 0 0 6px var(--accent-soft)}
+.dash-widget.drop-target::before{content:'';position:absolute;left:0;right:0;top:-8px;height:3px;border-radius:3px;background:var(--accent-grad)}
+@media (max-width:700px){.dash-handle .dash-hint{display:none}}
 </style>
 </head>
 <body>
-<div class="app">
+<div class="app" id="app">
   <div class="scrim" id="scrim" data-action="close-sidebar"></div>
   <aside class="sidebar" id="sidebar"></aside>
   <main class="main" id="main"></main>
@@ -763,6 +808,7 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 <div id="print-area"></div>
 <div id="lightbox-root"></div>
 <div id="gate-root"></div>
+<div id="lock-root"></div>
 <input type="file" id="import-file" accept=".json,application/json" style="display:none">
 <input type="file" id="csv-file" accept=".csv,text/csv,text/plain" style="display:none">
 <script>
@@ -839,6 +885,7 @@ var ICONS = {
   sun:'<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>',
   moon:'<path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/>',
   menu:'<path d="M3 12h18M3 6h18M3 18h18"/>',
+  grip:'<circle cx="9" cy="5" r="1.5" fill="currentColor" stroke="none"/><circle cx="15" cy="5" r="1.5" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="9" cy="19" r="1.5" fill="currentColor" stroke="none"/><circle cx="15" cy="19" r="1.5" fill="currentColor" stroke="none"/>',
   up:'<path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/>',
   down:'<path d="M23 18l-9.5-9.5-5 5L1 6"/><path d="M17 18h6v-6"/>',
   'down-chev':'<path d="M6 9l6 6 6-6"/>',
@@ -1621,9 +1668,14 @@ function sectionList(){
   var out=[]; ROUTES.forEach(function(r){ if(out.indexOf(r.section)<0) out.push(r.section); });
   out.push('My Modules'); return out;
 }
+/* only allow well-formed CSS colors into inline styles — blocks attribute-injection via imported/synced data */
+function safeColor(c,fb){
+  c=String(c==null?'':c).trim();
+  return /^(#[0-9a-fA-F]{3,8}|[a-zA-Z]{1,20}|rgba?\([0-9.,%\s/]+\)|hsla?\([0-9.,%\s/]+\))$/.test(c)?c:(fb||'#6366f1');
+}
 function sectionColorOf(name){
   var o=(state.settings&&state.settings.sectionColors)||{};
-  return o[name]||SECTION_COLORS[name]||'#6366f1';
+  return safeColor(o[name]||SECTION_COLORS[name],'#6366f1');
 }
 function sectionLabelOf(name){
   var o=(state.settings&&state.settings.sectionLabels)||{};
@@ -1710,8 +1762,12 @@ function render(){
   // color-code the page: section color, or the roadmap's own color on the roadmap view
   var pc=routeColor(route);
   if(route==='roadmap'){ var crm=currentRoadmap(); if(crm&&crm.color) pc=crm.color; }
-  main.style.setProperty('--page-color',pc);
+  main.style.setProperty('--page-color',safeColor(pc,'#6366f1'));
+  applyNavCollapse();
   main.scrollTop=0;
+}
+function applyNavCollapse(){
+  var app=byId('app'); if(app) app.classList.toggle('nav-collapsed',!!(state.settings&&state.settings.navCollapsed));
 }
 
 function renderSidebar(){
@@ -1719,7 +1775,7 @@ function renderSidebar(){
   var openTasks=state.tasks.filter(function(t){ var d=daysUntil(t.deadline); return !t.done&&d!=null&&d<0; }).length;
   var bl=state.settings.bizLogo;
   var html='<div class="brand">'+
-    (bl?'<img src="'+bl+'" alt="" style="width:36px;height:36px;border-radius:10px;object-fit:cover;flex-shrink:0;box-shadow:0 4px 14px rgba(0,0,0,.35)">'
+    (bl?'<img src="'+esc(bl)+'" alt="" style="width:36px;height:36px;border-radius:10px;object-fit:cover;flex-shrink:0;box-shadow:0 4px 14px rgba(0,0,0,.35)">'
        :'<div class="brand-logo">'+icon('logo')+'</div>')+
     '<div><div class="brand-name" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(state.settings.businessName||'Trakora')+'</div><div class="brand-sub">Command Center</div></div></div>'+
     '<button class="sidebar-cta" data-action="go-import" title="Import a spreadsheet — opens Data & Sync">'+icon('upload')+'<span>Smart CSV import</span><span class="cta-beta">Beta</span></button>'+
@@ -1742,7 +1798,8 @@ function renderSidebar(){
     if(isCollapsed) return;
     sec.items.forEach(function(r){
       var nv='--ni:'+col+';--ni-soft:'+hexA(col,.2);
-      html+='<button class="nav-item'+(route===r.id?' active':'')+'" data-action="nav" data-route="'+r.id+'" style="'+nv+'">'+icon(r.icon)+'<span>'+esc(labels[r.id]||tr(r.label))+'</span>'+
+      var rlbl=labels[r.id]||tr(r.label);
+      html+='<button class="nav-item'+(route===r.id?' active':'')+'" data-action="nav" data-route="'+r.id+'" title="'+esc(rlbl)+'" style="'+nv+'">'+icon(r.icon)+'<span>'+esc(rlbl)+'</span>'+
         (r.id==='tasks'&&openTasks>0?'<span class="nav-badge">'+openTasks+'</span>':'')+'</button>';
     });
   });
@@ -1753,12 +1810,12 @@ function renderSidebar(){
     '<span class="nav-chev'+(modsCollapsed?' closed':'')+'">'+icon('down-chev',10)+'</span></div>';
   if(!modsCollapsed){
     (state.customModules||[]).forEach(function(m){
-      html+='<button class="nav-item'+(route==='custom-'+m.id?' active':'')+'" data-action="nav" data-route="custom-'+m.id+'" style="--ni:'+modCol+';--ni-soft:'+hexA(modCol,.2)+'">'+icon(m.icon||'notes')+'<span>'+esc(m.name)+'</span></button>';
+      html+='<button class="nav-item'+(route==='custom-'+m.id?' active':'')+'" data-action="nav" data-route="custom-'+m.id+'" title="'+esc(m.name)+'" style="--ni:'+modCol+';--ni-soft:'+hexA(modCol,.2)+'">'+icon(m.icon||'notes')+'<span>'+esc(m.name)+'</span></button>';
     });
     html+='<button class="nav-item" data-action="custom-module-new" style="--ni:'+modCol+';opacity:.75">'+icon('plus')+'<span>'+esc(tr('New module…'))+'</span></button>';
   }
   html+='</nav><div class="sidebar-foot"><div class="biz-chip">'+
-    (bl?'<img src="'+bl+'" alt="" style="width:30px;height:30px;border-radius:8px;object-fit:cover;flex-shrink:0">'
+    (bl?'<img src="'+esc(bl)+'" alt="" style="width:30px;height:30px;border-radius:8px;object-fit:cover;flex-shrink:0">'
        :'<div class="avatar">'+esc((state.settings.businessName||'B').charAt(0).toUpperCase())+'</div>')+
     '<div><b>'+esc(state.settings.businessName||'My Business')+'</b><span>'+(licenseInfo()?'Licensed to '+esc(licenseInfo().name):'Local data · private')+'</span></div></div></div>';
   var sb=byId('sidebar');
@@ -1772,6 +1829,7 @@ function renderSidebar(){
 function topbar(title,subtitle,actionsHTML){
   return '<div class="topbar">'+
     '<button class="hamburger" data-action="open-sidebar" aria-label="Menu">'+icon('menu')+'</button>'+
+    '<button class="nav-toggle" data-action="toggle-nav-collapse" title="Collapse / expand sidebar" aria-label="Collapse or expand sidebar">'+icon('menu')+'</button>'+
     '<div class="page-title"><h1>'+esc(tr(title))+'</h1><p>'+esc(tr(subtitle||''))+'</p></div>'+
     '<div class="topbar-actions">'+(actionsHTML||'')+
       '<button class="theme-toggle" data-action="open-palette" aria-label="Search everything (Ctrl+K)" title="Search everything (Ctrl+K)">'+icon('search')+'</button>'+
@@ -1803,7 +1861,7 @@ function viewDashboard(){
   }
 
   html+=todayPanelHTML();
-  /* KPI cards */
+  /* ---- reorderable dashboard widgets ---- */
   var mm=monthlyMap();
   var months6=lastNMonths(6);
   var revSeries=months6.map(function(k){ return mm[k]?mm[k].revenue:0; });
@@ -1812,8 +1870,9 @@ function viewDashboard(){
   var g=revenueGrowth();
   var deltaHTML=g==null?'<span class="stat-delta flat">— vs last month</span>':
     (g>=0?'<span class="stat-delta up">'+icon('up')+' '+fmtPct(g)+' MoM</span>':'<span class="stat-delta down">'+icon('down')+' '+fmtPct(Math.abs(g))+' MoM</span>');
+  var W={};
 
-  html+='<div class="grid grid-4 mt">'+
+  W.kpis='<div class="grid grid-4">'+
     statCard('Total revenue',fmtMoney(t.revenue),deltaHTML,svgSparkline(revSeries,90,30,'var(--income)'),'arrowur')+
     statCard('Total expenses',fmtMoney(t.expenses),'<span class="stat-delta '+(t.expenseRatio!=null&&isFinite(t.expenseRatio)&&t.expenseRatio>70?'down':'flat')+'">'+(t.expenseRatio!=null&&isFinite(t.expenseRatio)?fmtPct(t.expenseRatio,0)+' of revenue':'—')+'</span>',svgSparkline(expSeries,90,30,'var(--expense)'),'arrowdr')+
     statCard('Net profit',fmtMoney(t.profit),'<span class="stat-delta '+(t.profit>=0?'up':'down')+'">'+(t.profit>=0?'Profitable':'Loss')+'</span>',svgSparkline(profSeries,90,30,'var(--accent)'),'wallet')+
@@ -1822,35 +1881,33 @@ function viewDashboard(){
 
   /* health + monthly chart */
   var hs=healthScore();
-  html+='<div class="grid grid-hero mt">';
-  html+='<div class="card"><div class="card-head"><h3>Business health</h3></div>';
+  var healthBlk='<div class="card"><div class="card-head"><h3>Business health</h3></div>';
   if(hs){
     var hl=healthLabel(hs.score);
-    html+='<div class="ring-wrap">'+svgRing(hs.score,128,null,String(hs.score),'/ 100')+
+    healthBlk+='<div class="ring-wrap">'+svgRing(hs.score,128,null,String(hs.score),'/ 100')+
       '<div style="flex:1;min-width:0"><span class="badge '+hl.cls+'">'+hl.label+'</span><div class="mt" style="margin-top:10px">'+
       hs.parts.map(function(p){
         return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:.76rem;color:var(--text-2)"><span>'+esc(p.k)+'</span><b>'+Math.round(p.pts)+'/'+p.max+'</b></div>'+
           '<div class="progress" style="height:5px;margin-top:3px"><div class="bar '+(p.pts/p.max>=0.6?'good':(p.pts/p.max>=0.35?'warn':'risk'))+'" style="width:'+(p.pts/p.max*100)+'%"></div></div></div>';
       }).join('')+'</div></div></div>';
   } else {
-    html+=emptyState('shield','No health score yet','Add finance entries and the score is computed automatically from margin, growth, expense control and execution.');
+    healthBlk+=emptyState('shield','No health score yet','Add finance entries and the score is computed automatically from margin, growth, expense control and execution.');
   }
-  html+='</div>';
-  html+='<div class="card"><div class="card-head"><h3>Monthly performance</h3><span class="sub">last 6 months</span></div>';
+  healthBlk+='</div>';
+  var chartBlk='<div class="card"><div class="card-head"><h3>Monthly performance</h3><span class="sub">last 6 months</span></div>';
   if(hasData){
-    html+='<div class="chart-box">'+svgBarChart(months6,mm)+'</div>'+
+    chartBlk+='<div class="chart-box">'+svgBarChart(months6,mm)+'</div>'+
       '<div class="legend"><span><span class="dot" style="background:var(--income)"></span>Revenue</span><span><span class="dot" style="background:var(--expense)"></span>Expenses</span></div>';
   } else {
-    html+=emptyState('metrics','No data to chart','Your monthly revenue vs expenses chart appears here once you log entries.');
+    chartBlk+=emptyState('metrics','No data to chart','Your monthly revenue vs expenses chart appears here once you log entries.');
   }
-  html+='</div></div>';
+  chartBlk+='</div>';
+  W.health='<div class="grid grid-hero">'+healthBlk+chartBlk+'</div>';
 
-  /* this month + goals + insights preview */
+  /* this month + goals + category leaders */
   var curK=thisMonthKey(), prevK=shiftMonth(curK,-1);
   var cur=mm[curK]||{revenue:0,expenses:0}, prev=mm[prevK]||{revenue:0,expenses:0};
-  html+='<div class="grid grid-3 mt">';
-  // month comparison card
-  html+='<div class="card"><div class="card-head"><h3>This month vs last</h3></div>'+
+  var monthBlk='<div class="card"><div class="card-head"><h3>This month vs last</h3></div>'+
     monthCompareRow('Revenue',cur.revenue,prev.revenue,false)+
     monthCompareRow('Expenses',cur.expenses,prev.expenses,true)+
     monthCompareRow('Profit',cur.revenue-cur.expenses,prev.revenue-prev.expenses,false)+
@@ -1859,72 +1916,91 @@ function viewDashboard(){
       '<div class="progress mt" style="margin-top:6px"><div class="bar '+(cur.revenue>=state.settings.monthlyTarget?'good':'')+'" style="width:'+clamp(cur.revenue/state.settings.monthlyTarget*100,0,100)+'%"></div></div></div>'
       :'<p style="font-size:.78rem;color:var(--text-3);margin-top:12px">Tip: set a monthly revenue target in Settings to track it here.</p>')+
   '</div>';
-  // goals card
   var openGoals=state.goals.filter(function(x){return !x.done;}).slice(0,3);
-  html+='<div class="card"><div class="card-head"><h3>Goal progress</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="nav" data-route="goals">View all</button></div>';
+  var goalsBlk='<div class="card"><div class="card-head"><h3>Goal progress</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="nav" data-route="goals">View all</button></div>';
   if(openGoals.length){
     openGoals.forEach(function(gl){
       var gp=goalProgress(gl), st=goalStatus(gl);
-      html+='<div style="margin-bottom:13px"><div style="display:flex;justify-content:space-between;gap:8px;font-size:.84rem"><b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(gl.title)+'</b><span class="badge '+st.cls+'">'+st.label+'</span></div>'+
+      goalsBlk+='<div style="margin-bottom:13px"><div style="display:flex;justify-content:space-between;gap:8px;font-size:.84rem"><b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(gl.title)+'</b><span class="badge '+st.cls+'">'+st.label+'</span></div>'+
         '<div class="progress" style="margin-top:6px"><div class="bar '+(st.cls==='good'?'good':(st.cls==='risk'?'risk':''))+'" style="width:'+gp.pct+'%"></div></div>'+
         '<div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--text-3);margin-top:4px"><span>'+fmtPct(gp.pct,0)+' complete</span><span>'+(daysUntil(gl.deadline)!=null?(daysUntil(gl.deadline)>=0?daysUntil(gl.deadline)+' days left':'overdue'):'no deadline')+'</span></div></div>';
     });
   } else {
-    html+=emptyState('goals','No active goals','Set a revenue, profit or custom goal to give your work a direction.','<button class="btn btn-sm btn-primary" data-action="open-goal-modal">'+icon('plus')+' New goal</button>');
+    goalsBlk+=emptyState('goals','No active goals','Set a revenue, profit or custom goal to give your work a direction.','<button class="btn btn-sm btn-primary" data-action="open-goal-modal">'+icon('plus')+' New goal</button>');
   }
-  html+='</div>';
-  // category leaders
+  goalsBlk+='</div>';
   var bestInc=topCategory('income'), bigExp=topCategory('expense');
-  html+='<div class="card"><div class="card-head"><h3>Category leaders</h3></div>';
+  var catBlk='<div class="card"><div class="card-head"><h3>Category leaders</h3></div>';
   if(bestInc||bigExp){
-    if(bestInc) html+='<div class="list-row"><span class="badge good">'+icon('arrowur')+' Best earner</span><div style="flex:1;min-width:0"><b style="font-size:.88rem">'+esc(bestInc.name)+'</b></div><span class="num" style="font-weight:700">'+fmtMoney(bestInc.amount)+'</span></div>';
-    if(bigExp) html+='<div class="list-row"><span class="badge risk">'+icon('arrowdr')+' Biggest cost</span><div style="flex:1;min-width:0"><b style="font-size:.88rem">'+esc(bigExp.name)+'</b></div><span class="num" style="font-weight:700">'+fmtMoney(bigExp.amount)+'</span></div>';
+    if(bestInc) catBlk+='<div class="list-row"><span class="badge good">'+icon('arrowur')+' Best earner</span><div style="flex:1;min-width:0"><b style="font-size:.88rem">'+esc(bestInc.name)+'</b></div><span class="num" style="font-weight:700">'+fmtMoney(bestInc.amount)+'</span></div>';
+    if(bigExp) catBlk+='<div class="list-row"><span class="badge risk">'+icon('arrowdr')+' Biggest cost</span><div style="flex:1;min-width:0"><b style="font-size:.88rem">'+esc(bigExp.name)+'</b></div><span class="num" style="font-weight:700">'+fmtMoney(bigExp.amount)+'</span></div>';
     var expCats=categoryMap('expense');
     var entries=Object.keys(expCats).map(function(k){return {label:k,value:expCats[k]};}).sort(function(a,b){return b.value-a.value;}).slice(0,6);
-    if(entries.length) html+='<div style="display:flex;gap:14px;align-items:center;margin-top:12px;flex-wrap:wrap">'+svgDonut(entries,110)+'<div class="legend" style="flex-direction:column;gap:5px;margin-top:0">'+donutLegend(entries)+'</div></div>';
+    if(entries.length) catBlk+='<div style="display:flex;gap:14px;align-items:center;margin-top:12px;flex-wrap:wrap">'+svgDonut(entries,110)+'<div class="legend" style="flex-direction:column;gap:5px;margin-top:0">'+donutLegend(entries)+'</div></div>';
   } else {
-    html+=emptyState('pie','No categories yet','Best income source and biggest expense show up here automatically.');
+    catBlk+=emptyState('pie','No categories yet','Best income source and biggest expense show up here automatically.');
   }
-  html+='</div></div>';
+  catBlk+='</div>';
+  W.snapshot='<div class="grid grid-3">'+monthBlk+goalsBlk+catBlk+'</div>';
 
   /* warnings & opportunities */
   var ins=buildInsights().filter(function(i){return i.sev!=='info'||i.title.indexOf('Suggested focus')===0;}).slice(0,4);
-  html+='<div class="card mt"><div class="card-head"><h3>Warnings & opportunities</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="nav" data-route="insights">All insights</button></div>'+
+  W.insights='<div class="card"><div class="card-head"><h3>Warnings & opportunities</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="nav" data-route="insights">All insights</button></div>'+
     '<div class="grid grid-2">'+ins.map(insightHTML).join('')+'</div></div>';
 
-  /* due soon */
+  /* what needs attention: receivables + tasks + milestones */
   var dueSoon=state.tasks.filter(function(x){ var d=daysUntil(x.deadline); return !x.done&&d!=null&&d<=7; })
     .sort(function(a,b){ return (a.deadline||'').localeCompare(b.deadline||''); }).slice(0,5);
   var upcoming=upcomingMilestones().slice(0,3);
-  html+='<div class="grid grid-3 mt">';
-  // receivables
   var recv=receivablesSummary();
-  html+='<div class="card"><div class="card-head"><h3>Money owed to you</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="nav" data-route="invoices">Invoices</button></div>';
+  var recvBlk='<div class="card"><div class="card-head"><h3>Money owed to you</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="nav" data-route="invoices">Invoices</button></div>';
   if(recv.count>0){
-    html+='<div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:1.45rem;font-variant-numeric:tabular-nums">'+fmtMoney(recv.total)+'</b><span style="font-size:.8rem;color:var(--text-3)">across '+recv.count+' invoice'+(recv.count>1?'s':'')+'</span></div>';
-    if(recv.overdueTotal>0) html+='<span class="badge risk" style="margin-top:6px">'+icon('alert')+' '+fmtMoney(recv.overdueTotal)+' overdue ('+recv.overdueCount+')</span>';
-    else html+='<span class="badge good" style="margin-top:6px">Nothing overdue</span>';
+    recvBlk+='<div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:1.45rem;font-variant-numeric:tabular-nums">'+fmtMoney(recv.total)+'</b><span style="font-size:.8rem;color:var(--text-3)">across '+recv.count+' invoice'+(recv.count>1?'s':'')+'</span></div>';
+    if(recv.overdueTotal>0) recvBlk+='<span class="badge risk" style="margin-top:6px">'+icon('alert')+' '+fmtMoney(recv.overdueTotal)+' overdue ('+recv.overdueCount+')</span>';
+    else recvBlk+='<span class="badge good" style="margin-top:6px">Nothing overdue</span>';
     recv.top.forEach(function(iv){
-      html+='<div class="list-row" style="padding:8px 0"><div style="flex:1;min-width:0"><b style="font-size:.85rem">'+esc(iv.client)+'</b><div style="font-size:.72rem;color:var(--text-3)">'+esc(iv.number)+' · due '+fmtDate(iv.dueDate)+'</div></div><span class="num" style="font-weight:700">'+fmtMoney(iv.amount)+'</span></div>';
+      recvBlk+='<div class="list-row" style="padding:8px 0"><div style="flex:1;min-width:0"><b style="font-size:.85rem">'+esc(iv.client)+'</b><div style="font-size:.72rem;color:var(--text-3)">'+esc(iv.number)+' · due '+fmtDate(iv.dueDate)+'</div></div><span class="num" style="font-weight:700">'+fmtMoney(iv.amount)+'</span></div>';
     });
   } else {
-    html+=emptyState('invoice','No unpaid invoices','Invoices you mark as Sent appear here until they are paid.');
+    recvBlk+=emptyState('invoice','No unpaid invoices','Invoices you mark as Sent appear here until they are paid.');
   }
-  html+='</div>';
-  html+='<div class="card"><div class="card-head"><h3>Tasks due soon</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="nav" data-route="tasks">Tasks</button></div>';
-  html+=dueSoon.length?dueSoon.map(taskRowHTML).join(''):emptyState('tasks','Nothing due this week','Tasks with deadlines in the next 7 days appear here.');
-  html+='</div>';
-  html+='<div class="card"><div class="card-head"><h3>Upcoming milestones</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="nav" data-route="roadmap">Roadmap</button></div>';
+  recvBlk+='</div>';
+  var tasksBlk='<div class="card"><div class="card-head"><h3>Tasks due soon</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="nav" data-route="tasks">Tasks</button></div>'+
+    (dueSoon.length?dueSoon.map(taskRowHTML).join(''):emptyState('tasks','Nothing due this week','Tasks with deadlines in the next 7 days appear here.'))+'</div>';
+  var mileBlk='<div class="card"><div class="card-head"><h3>Upcoming milestones</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="nav" data-route="roadmap">Roadmap</button></div>';
   if(upcoming.length){
     upcoming.forEach(function(m){
       var d=daysUntil(m.deadline);
-      html+='<div class="list-row">'+icon('flag',15)+'<div style="flex:1;min-width:0"><b style="font-size:.88rem">'+esc(m.title)+'</b><div style="font-size:.74rem;color:var(--text-3)">'+esc(m.phase)+'</div></div><span class="badge '+(d<0?'risk':(d<=7?'warn':'neutral'))+'">'+(d<0?'overdue':fmtDate(m.deadline))+'</span></div>';
+      mileBlk+='<div class="list-row">'+icon('flag',15)+'<div style="flex:1;min-width:0"><b style="font-size:.88rem">'+esc(m.title)+'</b><div style="font-size:.74rem;color:var(--text-3)">'+esc(m.phase)+'</div></div><span class="badge '+(d<0?'risk':(d<=7?'warn':'neutral'))+'">'+(d<0?'overdue':fmtDate(m.deadline))+'</span></div>';
     });
   } else {
-    html+=emptyState('roadmap','No upcoming milestones','Add roadmap tasks with deadlines to see what is coming next.');
+    mileBlk+=emptyState('roadmap','No upcoming milestones','Add roadmap tasks with deadlines to see what is coming next.');
   }
-  html+='</div></div>';
+  mileBlk+='</div>';
+  W.lists='<div class="grid grid-3">'+recvBlk+tasksBlk+mileBlk+'</div>';
+
+  var titles={kpis:'Key figures',health:'Health & performance',snapshot:'This month',insights:'Warnings & opportunities',lists:'What needs attention'};
+  html+='<div class="dash-grid mt">'+dashOrder().map(function(id){
+    if(!W[id]) return '';
+    return '<section class="dash-widget" data-widget="'+id+'">'+
+      '<div class="dash-handle" draggable="true" data-dh="'+id+'" title="Drag to reorder"><span class="dash-grip">'+icon('grip')+'</span><span class="dash-wt">'+esc(titles[id]||id)+'</span><span class="dash-hint">'+icon('grip',12)+' drag to reorder</span></div>'+
+      W[id]+'</section>';
+  }).join('')+'</div>';
   return html;
+}
+var DASH_DEFAULT=['kpis','health','snapshot','insights','lists'];
+function dashOrder(){
+  var saved=((state.settings&&state.settings.dashOrder)||[]).filter(function(x){ return DASH_DEFAULT.indexOf(x)>=0; });
+  DASH_DEFAULT.forEach(function(x){ if(saved.indexOf(x)<0) saved.push(x); });
+  return saved;
+}
+function reorderDash(fromId,toId){
+  if(!fromId||fromId===toId) return;
+  var order=dashOrder(); var fi=order.indexOf(fromId); if(fi<0) return;
+  order.splice(fi,1);
+  var ti=order.indexOf(toId);
+  if(ti<0) order.push(fromId); else order.splice(ti,0,fromId);
+  state.settings.dashOrder=order; save(); render();
 }
 function statCard(label,value,deltaHTML,sparkHTML,iconName){
   return '<div class="card stat-card"><div class="stat-accent"></div>'+
@@ -2049,7 +2125,7 @@ function financeEntriesHTML(){
       '<td><span class="badge '+(e.type==='income'?'good':'risk')+'">'+(e.type==='income'?'Income':'Expense')+'</span></td>'+
       '<td>'+esc(e.category||'Other')+'</td>'+
       '<td style="max-width:240px" title="'+esc(e.note||'')+'"><div style="display:flex;align-items:center;gap:7px">'+
-        (e.receipt?'<img class="img-thumb" style="width:26px;height:26px" src="'+e.receipt+'" alt="receipt" title="View receipt">':'')+
+        (e.receipt?'<img class="img-thumb" style="width:26px;height:26px" src="'+esc(e.receipt)+'" alt="receipt" title="View receipt">':'')+
         '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(e.note||'—')+'</span></div></td>'+
       '<td>'+esc(e.client||'—')+'</td>'+
       '<td class="num" style="text-align:right;color:'+(e.type==='income'?'var(--income)':'var(--expense)')+'">'+(e.type==='income'?'+':'−')+fmtMoney(e.amount)+'</td>'+
@@ -2363,8 +2439,8 @@ function viewRoadmap(){
   if(rms.length){
     html+='<div class="chips" style="margin-bottom:14px">'+rms.map(function(r){
       var rs=roadmapStats(r);
-      var rc=r.color||sectionColorOf('Execution');
-      return '<button class="chip '+(rm&&rm.id===r.id?'active':'')+'" data-action="roadmap-switch" data-id="'+r.id+'" style="--rc:'+rc+'"><span class="chip-dot" style="background:'+rc+'"></span>'+esc(r.name)+' · '+fmtPct(rs.pct,0)+'</button>';
+      var rc=safeColor(r.color||sectionColorOf('Execution'),'#8b5cf6');
+      return '<button class="chip rm-chip '+(rm&&rm.id===r.id?'active':'')+'" data-action="roadmap-switch" data-id="'+r.id+'" style="--rc:'+rc+'"><span class="chip-dot" style="background:'+rc+'"></span>'+esc(r.name)+' · '+fmtPct(rs.pct,0)+'</button>';
     }).join('')+
     (rm?'<button class="chip" data-action="roadmap-rename" data-id="'+rm.id+'" title="Edit name & color">'+icon('edit',11)+'</button>'+
         '<button class="chip" data-action="roadmap-delete" data-id="'+rm.id+'" title="Delete this roadmap" style="color:var(--risk)">'+icon('trash',11)+'</button>':'')+
@@ -2806,13 +2882,13 @@ function viewSettings(){
     '<div class="field"><label>'+esc(s.taxLabel||'Default tax')+' rate (%)</label><input class="input" type="number" step="any" min="0" max="60" name="taxRate" value="'+esc(s.taxRate)+'"></div></div>'+
     '<div class="field"><label>Monthly revenue target ('+esc(s.currency)+')</label><input class="input" type="number" step="any" min="0" name="monthlyTarget" value="'+(s.monthlyTarget||'')+'" placeholder="e.g. 100000"><p style="font-size:.74rem;color:var(--text-3);margin-top:4px">Used on the dashboard and in insights to track each month’s pace.</p></div>'+
     '<div class="field"><label>Business logo (sidebar, browser tab icon & favicon)</label><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
-      '<img class="img-thumb-lg img-prev" src="'+(s.bizLogo||'')+'" style="'+(s.bizLogo?'':'display:none')+'" alt="">'+
+      '<img class="img-thumb-lg img-prev" src="'+esc(s.bizLogo||'')+'" style="'+(s.bizLogo?'':'display:none')+'" alt="">'+
       '<input type="file" accept="image/*" class="input img-input" style="flex:1;min-width:140px;padding:6px">'+
       '<input type="hidden" name="bizLogo" value="'+esc(s.bizLogo||'')+'">'+
       (s.bizLogo?'<button type="button" class="btn btn-sm btn-danger" data-action="img-clear">'+icon('x')+' Remove</button>':'')+
     '</div><p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Square images look best. Your logo replaces the Trakora mark everywhere — your software, your brand.</p></div>'+
     '<div class="field"><label>Payment QR (GCash / Maya — shows on invoices, delivery slips & catalog)</label><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
-      '<img class="img-thumb-lg img-prev" src="'+(s.payQR||'')+'" style="'+(s.payQR?'':'display:none')+'" alt="">'+
+      '<img class="img-thumb-lg img-prev" src="'+esc(s.payQR||'')+'" style="'+(s.payQR?'':'display:none')+'" alt="">'+
       '<input type="file" accept="image/*" class="input img-input" style="flex:1;min-width:140px;padding:6px">'+
       '<input type="hidden" name="payQR" value="'+esc(s.payQR||'')+'">'+
       (s.payQR?'<button type="button" class="btn btn-sm btn-danger" data-action="img-clear">'+icon('x')+' Remove</button>':'')+
@@ -2844,6 +2920,7 @@ function settingsDataHTML(){
   var s=state.settings;
   var entryCount=state.finance.length+state.goals.length+state.tasks.length+state.notes.length+state.clients.length;
   var html='<div class="grid grid-2">';
+  html+=privacyLockCardHTML();
   html+=storageCardHTML();
   html+=cloudSyncCardHTML();
   html+='<div class="card"><div class="card-head"><h3>Backup & restore</h3></div>'+
@@ -2896,7 +2973,7 @@ function entryModal(entry){
       state.accounts.map(function(a){return '<option value="'+a.id+'"'+(entry.account===a.id?' selected':'')+'>'+esc(a.name)+'</option>';}).join('')+'</select></div>':'')+
     '<div class="field"><label>Note</label><input class="input" name="note" value="'+esc(entry.note||'')+'" placeholder="What was this for?"></div>'+
     '<div class="field"><label>Receipt / proof photo (optional)</label><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
-      '<img class="img-thumb-lg img-prev" src="'+(entry.receipt||'')+'" style="'+(entry.receipt?'':'display:none')+'" alt="">'+
+      '<img class="img-thumb-lg img-prev" src="'+esc(entry.receipt||'')+'" style="'+(entry.receipt?'':'display:none')+'" alt="">'+
       '<input type="file" accept="image/*,.heic,.heif" class="input img-input" style="flex:1;min-width:140px;padding:7px">'+
       '<input type="hidden" name="receipt" value="'+esc(entry.receipt||'')+'">'+
       (entry.receipt?'<button type="button" class="btn btn-sm btn-danger" data-action="img-clear">'+icon('x')+' Remove</button>':'')+
@@ -3468,6 +3545,11 @@ document.addEventListener('click',function(e){
   if(action==='nav'){ nav(el.getAttribute('data-route')); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); return; }
   if(action==='go-import'){ ui.settingsTab='data'; nav('settings'); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); setTimeout(function(){ var c=document.querySelector('[data-action="csv-import"]'); if(c&&c.scrollIntoView) c.scrollIntoView({behavior:'smooth',block:'center'}); },120); return; }
   if(action==='open-sidebar'){ byId('sidebar').classList.add('open'); byId('scrim').classList.add('show'); return; }
+  if(action==='toggle-nav-collapse'){ state.settings.navCollapsed=!state.settings.navCollapsed; save(); applyNavCollapse(); return; }
+  if(action==='pin-set'){ pinModal('set'); return; }
+  if(action==='pin-change'){ pinModal('change'); return; }
+  if(action==='pin-remove'){ pinModal('remove'); return; }
+  if(action==='lock-now'){ lockNow(); return; }
   if(action==='close-sidebar'){ byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); return; }
   if(action==='toggle-theme'){ toggleTheme(); return; }
   if(action==='close-modal'){ closeModal(); return; }
@@ -4074,7 +4156,7 @@ function invoiceModal(iv){
       ['Local bank transfer','GCash','Maya','PayPal','Wise','Payoneer','Card','Cash','Other'].map(function(pm){return '<option'+((iv.payMethod||'Local bank transfer')===pm?' selected':'')+'>'+pm+'</option>';}).join('')+'</select></div></div>'+
     '<div class="field"><label>Payment details on the invoice (account #, PayPal email, payment link…)</label><textarea class="input" name="payDetails" rows="2" placeholder="e.g. BPI 1234-5678-90 · PayPal: you@mail.com · pay.link/yourname">'+esc(iv.payDetails!=null?iv.payDetails:(state.settings.payQRLabel||''))+'</textarea></div>'+
     '<div class="form-row"><div class="field"><label>Payment QR on invoice</label><div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">'+
-      (function(){ var q=iv.payQR!=null?iv.payQR:(state.settings.payQR||''); return '<img class="img-thumb img-prev" src="'+q+'" style="'+(q?'':'display:none')+'" alt="">'+
+      (function(){ var q=iv.payQR!=null?iv.payQR:(state.settings.payQR||''); return '<img class="img-thumb img-prev" src="'+esc(q)+'" style="'+(q?'':'display:none')+'" alt="">'+
       '<input type="file" accept="image/*" class="input img-input" style="flex:1;min-width:120px;padding:6px">'+
       '<input type="hidden" name="invPayQR" value="'+esc(q)+'">'+
       (q?'<button type="button" class="btn btn-sm btn-danger" data-action="img-clear">'+icon('x')+'</button>':''); })()+
@@ -4152,7 +4234,7 @@ function printInvoice(iv){
     '</tbody></table>'+
     '<p style="margin-top:14px">Status: <b>'+esc(iv.status)+(iv.status==='Paid'&&iv.paidDate?' on '+fmtDate(iv.paidDate):'')+'</b></p>'+
     (iv.payDetails?'<h2>Payment details</h2><p>'+esc(iv.payDetails).replace(/\n/g,'<br>')+'</p>':'')+
-    (qr?'<img class="pr-qr pr-qr-'+pos+'" src="'+qr+'" alt="Payment QR">':'')+
+    (qr?'<img class="pr-qr pr-qr-'+pos+'" src="'+esc(qr)+'" alt="Payment QR">':'')+
     '<div class="pr-foot">'+esc(state.settings.businessName)+' · Thank you for your business! · '+fmtDate(todayISO())+licTag()+'</div>'+
     '</div>';
   printDoc(html);
@@ -4553,6 +4635,7 @@ document.addEventListener('change',function(e){
     save(); renderSidebar(); flashSaved();
     return;
   }
+  if(act==='autolock-set'){ state.settings.autoLockMin=parseInt(el.value,10)||0; save(); toast(state.settings.autoLockMin?('Auto-lock set to '+state.settings.autoLockMin+' min.'):'Auto-lock turned off.'); return; }
   if(act==='apply-country'){
     if(applyCountry(el.value)){ var c=COUNTRIES[el.value]; commit(); toast('Set up for '+c.flag+' '+c.name+' — '+state.settings.currency+' · '+state.settings.taxLabel+' '+state.settings.taxRate+'%.'); }
     return;
@@ -4632,7 +4715,7 @@ function viewProducts(){
     list.forEach(function(p){
       var margin=p.price>0?(p.price-(p.cost||0))/p.price*100:null;
       html+='<tr><td><div style="display:flex;align-items:center;gap:10px">'+
-        (p.photo?'<img class="img-thumb" src="'+p.photo+'" alt="">':'<span class="img-thumb img-placeholder">'+icon('box',16)+'</span>')+
+        (p.photo?'<img class="img-thumb" src="'+esc(p.photo)+'" alt="">':'<span class="img-thumb img-placeholder">'+icon('box',16)+'</span>')+
         '<div><b>'+esc(p.name)+'</b>'+(p.sku?'<div style="font-size:.7rem;color:var(--text-3)" class="mono">'+esc(p.sku)+'</div>':'')+'</div></div></td>'+
         '<td><span class="badge accent">'+esc(p.category||'General')+'</span></td>'+
         productAttrs().map(function(a){return '<td>'+esc((p.attrs||{})[a]||'—')+'</td>';}).join('')+
@@ -4699,7 +4782,7 @@ function productModal(p){
       '<p style="font-size:.72rem;color:var(--text-3);margin-top:5px">Materials deplete when you restock (make) this product — and Trakora tells you how many more you can make.</p></div>'
       :'<p style="font-size:.72rem;color:var(--text-3);margin-bottom:12px">Tip: add raw materials in Products → Materials tab to attach a recipe and track ingredient usage.</p>')+
     '<div class="field"><label>Product photo</label><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
-      '<img class="img-thumb-lg img-prev" src="'+(p.photo||'')+'" style="'+(p.photo?'':'display:none')+'" alt="">'+
+      '<img class="img-thumb-lg img-prev" src="'+esc(p.photo||'')+'" style="'+(p.photo?'':'display:none')+'" alt="">'+
       '<input type="file" accept="image/*,.heic,.heif" class="input img-input" style="flex:1;min-width:150px;padding:7px">'+
       '<input type="hidden" name="photo" value="'+esc(p.photo||'')+'">'+
       (p.photo?'<button type="button" class="btn btn-sm btn-danger" data-action="img-clear">'+icon('x')+' Remove</button>':'')+
@@ -4984,10 +5067,10 @@ function cmFormatCell(f,v){
   if(v==null||v==='') return '—';
   if(f.type==='image'){
     if(typeof v==='object'&&v&&v.data){
-      if((v.data||'').indexOf('data:image')===0) return '<img class="img-thumb" src="'+v.data+'" alt="">';
+      if((v.data||'').indexOf('data:image')===0) return '<img class="img-thumb" src="'+esc(v.data)+'" alt="">';
       return '<a href="'+v.data+'" download="'+esc(v.name||'file')+'" class="badge accent">📎 '+esc(v.name||'file')+'</a>';
     }
-    if(String(v).indexOf('data:image')===0) return '<img class="img-thumb" src="'+v+'" alt="">';
+    if(String(v).indexOf('data:image')===0) return '<img class="img-thumb" src="'+esc(v)+'" alt="">';
     return '—';
   }
   if(f.type==='money') return fmtMoney(num(v));
@@ -5124,7 +5207,7 @@ function cmRecordModal(m,rec){
         var cur=(v&&typeof v==='object')?v.data:(v||'');
         var isImg=(cur||'').indexOf('data:image')===0;
         return '<div class="field"><label>'+esc(f.label)+'</label><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
-          '<img class="img-thumb-lg img-prev" src="'+(isImg?cur:'')+'" style="'+(isImg?'':'display:none')+'" alt="">'+
+          '<img class="img-thumb-lg img-prev" src="'+esc(isImg?cur:'')+'" style="'+(isImg?'':'display:none')+'" alt="">'+
           (cur&&!isImg?'<span class="badge accent">📎 '+esc((v&&v.name)||'file')+'</span>':'')+
           '<input type="file" class="input img-input" style="flex:1;min-width:140px;padding:7px" data-keep-name="1">'+
           '<input type="hidden" name="'+f.key+'" value="'+esc(cur||'')+'"><input type="hidden" name="'+f.key+'__name" value="'+esc((v&&typeof v==='object'&&v.name)||'')+'">'+
@@ -5987,7 +6070,7 @@ function catalogDocHTML(){
     '<div class="cat-grid">'+prods.map(function(p){
       var attrs=Object.keys(p.attrs||{}).map(function(k){return p.attrs[k];}).filter(Boolean).join(' · ');
       return '<div style="border:1px solid #ccc;border-radius:10px;padding:10px;page-break-inside:avoid">'+
-        (p.photo?'<img src="'+p.photo+'" alt="">':'')+
+        (p.photo?'<img src="'+esc(p.photo)+'" alt="">':'')+
         '<div style="font-weight:bold;margin-top:6px">'+esc(p.name)+'</div>'+
         (attrs?'<div style="font-size:.8rem;color:#555">'+esc(attrs)+'</div>':'')+
         (p.desc?'<div style="font-size:.75rem;color:#777">'+esc(p.desc)+'</div>':'')+
@@ -6088,7 +6171,7 @@ function openLightbox(src){
   if(!src) return;
   byId('lightbox-root').innerHTML='<div class="lightbox" data-action="close-lightbox">'+
     '<button class="lb-close" data-action="close-lightbox" aria-label="Close">'+icon('x')+'</button>'+
-    '<img src="'+src+'" alt=""></div>';
+    '<img src="'+esc(src)+'" alt=""></div>';
 }
 function closeLightbox(){ byId('lightbox-root').innerHTML=''; }
 
@@ -6241,7 +6324,7 @@ function viewAccounts(){
     var col=a.color||brandColorFor(a.name);
     html+='<div class="card acct-card" style="--acct-color:'+col+'">'+
       '<div style="display:flex;align-items:flex-start;gap:9px">'+
-      (a.logo?'<img class="acct-logo" src="'+a.logo+'" alt="">':'<span class="acct-chip" style="background:'+col+'22;color:'+col+'">'+icon(a.type==='Cash'?'cash':'bank')+'</span>')+
+      (a.logo?'<img class="acct-logo" src="'+esc(a.logo)+'" alt="">':'<span class="acct-chip" style="background:'+col+'22;color:'+col+'">'+icon(a.type==='Cash'?'cash':'bank')+'</span>')+
       '<div style="flex:1;min-width:0"><b style="font-size:.95rem;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(a.name)+'</b><span class="badge" style="background:'+col+'1d;color:'+col+'">'+esc(a.type)+'</span></div></div>'+
       '<div class="acct-balance" style="margin-top:12px;color:'+(bal>=0?'var(--text)':'var(--risk)')+'">'+fmtMoney(bal)+'</div>'+
       '<div style="font-size:.74rem;color:var(--text-3);margin-top:2px">this month: <span style="color:var(--good)">+'+fmtMoney(flow.inn)+'</span> · <span style="color:var(--risk)">−'+fmtMoney(flow.out)+'</span></div>'+
@@ -6309,7 +6392,7 @@ function accountModal(a){
       BRAND_COLORS.slice(0,9).map(function(bc){return '<button type="button" class="color-dot" style="background:'+bc[1]+'" title="'+bc[0]+'" data-action="acct-swatch" data-color="'+bc[1]+'"></button>';}).join('')+
     '</div></div>'+
     '<div class="field"><label>Logo (optional — upload the bank/wallet logo or any photo)</label><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
-      '<img class="img-thumb img-prev" src="'+(a.logo||'')+'" style="'+(a.logo?'':'display:none')+'" alt="">'+
+      '<img class="img-thumb img-prev" src="'+esc(a.logo||'')+'" style="'+(a.logo?'':'display:none')+'" alt="">'+
       '<input type="file" accept="image/*,.heic,.heif" class="input img-input" style="flex:1;min-width:140px;padding:6px">'+
       '<input type="hidden" name="logo" value="'+esc(a.logo||'')+'">'+
       (a.logo?'<button type="button" class="btn btn-sm btn-danger" data-action="img-clear">'+icon('x')+' Remove</button>':'')+
@@ -7016,7 +7099,7 @@ function payQRDocHTML(){
   var s=state.settings;
   if(!s.payQR) return '';
   return '<h2>Scan to pay</h2><div style="display:flex;gap:14px;align-items:center">'+
-    '<img src="'+s.payQR+'" style="width:150px;height:150px;object-fit:contain;border:1px solid #ccc;border-radius:8px">'+
+    '<img src="'+esc(s.payQR)+'" style="width:150px;height:150px;object-fit:contain;border:1px solid #ccc;border-radius:8px">'+
     (s.payQRLabel?'<div style="font-size:.95rem"><b>'+esc(s.payQRLabel)+'</b><br><span style="font-size:.8rem;color:#555">Send a screenshot after paying. Thank you! 💛</span></div>':'')+
     '</div>';
 }
@@ -7940,12 +8023,143 @@ function commitCsvImport(){
   toast('Imported '+n+' '+noun+(dupes?' · '+dupes+' duplicate'+(dupes>1?'s':'')+' skipped':'')+(invalid?' · '+invalid+' invalid skipped':''),'ok',{undo:true});
 }
 
+/* dashboard widgets: drag to reorder (handle-initiated) */
+var dashDragId=null;
+document.addEventListener('dragstart',function(e){
+  var h=e.target.closest&&e.target.closest('[data-dh]'); if(!h) return;
+  dashDragId=h.getAttribute('data-dh');
+  if(e.dataTransfer){ try{ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',dashDragId); }catch(_){ } }
+  var w=h.closest('.dash-widget'); if(w) w.classList.add('dragging');
+});
+document.addEventListener('dragover',function(e){
+  if(!dashDragId) return;
+  var w=e.target.closest&&e.target.closest('.dash-widget'); if(!w) return;
+  e.preventDefault(); if(e.dataTransfer) e.dataTransfer.dropEffect='move';
+  var marked=document.querySelectorAll('.dash-widget.drop-target');
+  for(var i=0;i<marked.length;i++) if(marked[i]!==w) marked[i].classList.remove('drop-target');
+  if(w.getAttribute('data-widget')!==dashDragId) w.classList.add('drop-target');
+});
+document.addEventListener('drop',function(e){
+  if(!dashDragId) return;
+  var w=e.target.closest&&e.target.closest('.dash-widget'); var from=dashDragId; dashDragId=null;
+  if(!w) return; e.preventDefault();
+  reorderDash(from,w.getAttribute('data-widget'));
+});
+document.addEventListener('dragend',function(){
+  dashDragId=null;
+  var d=document.querySelectorAll('.dash-widget.dragging,.dash-widget.drop-target');
+  for(var i=0;i<d.length;i++){ d[i].classList.remove('dragging'); d[i].classList.remove('drop-target'); }
+});
+
 window.addEventListener('hashchange',render);
 
 /* ============================================================
    init
    ============================================================ */
+/* ============================================================
+   App Lock — optional PIN gate (privacy). The PIN is stored only on
+   this device as a salted PBKDF2 hash (never synced, never reversible).
+   ============================================================ */
+var LOCK_KEY='trakora.lock';
+var sessionUnlocked=false, lockHiddenAt=null;
+function getLock(){ try{ return JSON.parse(localStorage.getItem(LOCK_KEY)||'null'); }catch(_){ return null; } }
+function setLockRec(o){ try{ if(o) localStorage.setItem(LOCK_KEY,JSON.stringify(o)); else localStorage.removeItem(LOCK_KEY); }catch(_){ } }
+function hasLock(){ var l=getLock(); return !!(l&&l.hash); }
+function lockHex(buf){ var a=new Uint8Array(buf),s=''; for(var i=0;i<a.length;i++) s+=('0'+a[i].toString(16)).slice(-2); return s; }
+function lockRandHex(n){ var a=new Uint8Array(n); if(window.crypto&&window.crypto.getRandomValues) window.crypto.getRandomValues(a); else for(var i=0;i<n;i++) a[i]=Math.floor(Math.random()*256); return lockHex(a.buffer); }
+function pinHash(pin,saltHex,iter){
+  iter=iter||150000;
+  if(window.crypto&&window.crypto.subtle&&typeof TextEncoder!=='undefined'){
+    var salt=new Uint8Array(saltHex.match(/.{2}/g).map(function(h){return parseInt(h,16);}));
+    return window.crypto.subtle.importKey('raw',new TextEncoder().encode(String(pin)),{name:'PBKDF2'},false,['deriveBits'])
+      .then(function(k){ return window.crypto.subtle.deriveBits({name:'PBKDF2',salt:salt,iterations:iter,hash:'SHA-256'},k,256); })
+      .then(function(bits){ return lockHex(bits); });
+  }
+  return Promise.resolve((function(){ var s=String(pin)+'|'+saltHex,h=5381; for(var r=0;r<9000;r++){ for(var i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))>>>0; s=(h>>>0).toString(36)+'|'+saltHex; } return ('0000000'+(h>>>0).toString(16)).slice(-8)+saltHex; })());
+}
+function setPin(pin){ var salt=lockRandHex(16); return pinHash(pin,salt,150000).then(function(hx){ setLockRec({v:1,salt:salt,iter:150000,hash:hx,fails:0}); return true; }); }
+function verifyPin(pin){ var l=getLock(); if(!l||!l.hash) return Promise.resolve(true); return pinHash(pin,l.salt,l.iter||150000).then(function(hx){ return hx===l.hash; }); }
+function removeLock(){ setLockRec(null); }
+function autoLockMins(){ return Math.max(0,parseInt((state.settings&&state.settings.autoLockMin)||0,10)||0); }
+function lockNow(){ if(hasLock()){ sessionUnlocked=false; if(byId('modal-root')) byId('modal-root').innerHTML=''; renderLockScreen(); } }
+function renderLockScreen(){
+  var root=byId('lock-root'); if(!root) return;
+  var biz=esc((state.settings&&state.settings.businessName&&state.settings.businessName!=='My Business')?state.settings.businessName:'Trakora');
+  root.innerHTML='<div class="gate"><div class="gate-card">'+
+    '<div style="text-align:center;margin-bottom:6px">'+icon('shield',30)+'</div>'+
+    '<h1>'+biz+' is locked</h1>'+
+    '<p class="gate-sub">Enter your PIN to unlock your business data on this device.</p>'+
+    '<form id="lock-form" autocomplete="off">'+
+      '<div class="gate-field"><label>PIN</label><input class="gate-input key" id="lock-pin" type="password" inputmode="numeric" maxlength="12" placeholder="••••" autocomplete="off" spellcheck="false"></div>'+
+      '<button class="gate-btn" id="lock-go" type="submit">Unlock →</button>'+
+      '<div class="gate-msg" id="lock-msg"></div>'+
+    '</form>'+
+    '<div class="gate-foot">The PIN protects this device only — your data never leaves it unless you enable cloud sync.</div>'+
+  '</div></div>';
+  var pinEl=byId('lock-pin'), msg=byId('lock-msg'), btn=byId('lock-go');
+  function showM(t,k){ msg.className='gate-msg show '+k; msg.textContent=t; }
+  byId('lock-form').addEventListener('submit',function(e){
+    e.preventDefault();
+    var l=getLock(), fails=(l&&l.fails)||0;
+    var delay=fails>=5?Math.min(20000,(fails-4)*2000):0;
+    btn.disabled=true; btn.innerHTML='<span class="gate-spin"></span>'+(delay?'Please wait…':'Checking…');
+    setTimeout(function(){
+      verifyPin(pinEl.value).then(function(okv){
+        if(okv){ if(l){ l.fails=0; setLockRec(l); } root.innerHTML=''; sessionUnlocked=true; lockHiddenAt=null; bootApp(); }
+        else { if(l){ l.fails=fails+1; setLockRec(l); } btn.disabled=false; btn.innerHTML='Unlock →';
+          showM(fails+1>=5?'Wrong PIN. Extra delay added after repeated tries.':'Wrong PIN. Try again.','err'); pinEl.value=''; pinEl.focus(); }
+      });
+    },delay);
+  });
+  setTimeout(function(){ pinEl.focus(); },120);
+}
+document.addEventListener('visibilitychange',function(){
+  if(!hasLock()||!autoLockMins()||!sessionUnlocked) return;
+  if(document.hidden){ lockHiddenAt=Date.now(); }
+  else if(lockHiddenAt && Date.now()-lockHiddenAt >= autoLockMins()*60000){ lockNow(); }
+});
+function pinModal(mode){
+  var body, title, label;
+  if(mode==='set'){ title='Set a privacy PIN'; body='<p style="font-size:.82rem;color:var(--text-2);margin-bottom:12px">Choose a 4–8 digit PIN. You’ll enter it each time you open Trakora on this device. <b>There is no recovery</b> — if you forget it you can still re-activate, but keep it safe.</p>'+
+    '<div class="field"><label>New PIN</label><input class="input" name="newpin" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password"></div>'+
+    '<div class="field"><label>Confirm PIN</label><input class="input" name="confirmpin" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password"></div>'; }
+  else if(mode==='change'){ title='Change PIN'; body='<div class="field"><label>Current PIN</label><input class="input" name="curpin" type="password" inputmode="numeric" maxlength="8"></div>'+
+    '<div class="field"><label>New PIN</label><input class="input" name="newpin" type="password" inputmode="numeric" maxlength="8"></div>'+
+    '<div class="field"><label>Confirm new PIN</label><input class="input" name="confirmpin" type="password" inputmode="numeric" maxlength="8"></div>'; }
+  else { title='Remove privacy lock'; body='<p style="font-size:.82rem;color:var(--text-2);margin-bottom:12px">Enter your current PIN to turn off the lock.</p><div class="field"><label>Current PIN</label><input class="input" name="curpin" type="password" inputmode="numeric" maxlength="8"></div>'; }
+  openModal(title,body,{submitLabel:mode==='remove'?'Remove lock':'Save',onSubmit:function(form){
+    if(mode==='remove'){
+      verifyPin(fv(form,'curpin')).then(function(ok){ if(!ok){ toast('That PIN is incorrect.','error'); return; } removeLock(); closeModal(); toast('Privacy lock removed.'); render(); });
+      return false;
+    }
+    var np=fv(form,'newpin'), cp=fv(form,'confirmpin');
+    if(!/^\d{4,8}$/.test(np)){ toast('PIN must be 4–8 digits.','error'); return false; }
+    if(np!==cp){ toast('The PINs don’t match.','error'); return false; }
+    if(mode==='change'){
+      verifyPin(fv(form,'curpin')).then(function(ok){ if(!ok){ toast('Your current PIN is incorrect.','error'); return; }
+        setPin(np).then(function(){ closeModal(); toast('PIN updated. 🔒'); render(); }); });
+      return false;
+    }
+    setPin(np).then(function(){ closeModal(); toast('Privacy lock enabled. 🔒'); render(); });
+    return false;
+  }});
+}
+function privacyLockCardHTML(){
+  var on=hasLock();
+  return '<div class="card"><div class="card-head"><h3>'+icon('shield',16)+' Privacy lock (PIN)</h3><span class="spacer"></span>'+(on?'<span class="badge good">On</span>':'<span class="badge neutral">Off</span>')+'</div>'+
+    '<p style="font-size:.84rem;color:var(--text-2);margin-bottom:13px">Require a PIN before your dashboard opens on this device — so a borrowed laptop or shared phone can’t peek at your numbers. The PIN is stored only here as a salted PBKDF2 hash; it never syncs and can’t be reversed.</p>'+
+    (on?'<div class="field" style="max-width:240px"><label>Auto-lock after inactivity</label><select class="input" data-action-change="autolock-set">'+
+        [[0,'Off'],[1,'1 minute'],[5,'5 minutes'],[15,'15 minutes'],[30,'30 minutes']].map(function(o){return '<option value="'+o[0]+'"'+(autoLockMins()===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select></div>':'')+
+    '<div style="display:flex;gap:9px;flex-wrap:wrap">'+
+    (on?'<button class="btn btn-ghost btn-sm" data-action="lock-now">'+icon('shield')+' Lock now</button>'+
+        '<button class="btn btn-ghost btn-sm" data-action="pin-change">Change PIN</button>'+
+        '<button class="btn btn-danger btn-sm" data-action="pin-remove">Remove lock</button>'
+       :'<button class="btn btn-primary btn-sm" data-action="pin-set">'+icon('shield')+' Set a PIN</button>')+
+    '</div></div>';
+}
+
 function bootApp(){
+  if(hasLock() && !sessionUnlocked){ applyTheme(); renderLockScreen(); return; }
   processRecurring();
   applyTheme();
   applyBrand();
