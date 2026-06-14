@@ -7341,39 +7341,39 @@ document.addEventListener('keydown',function(e){
 var IMPORT_ENTITIES={
   finance:{ label:'Income & Expenses (transactions)', store:'finance',
     fields:[
-      {key:'date',label:'Date',kind:'date',required:true,syn:['date','transaction date','trans date','posted','posting date','day','datetime','time','date paid','order date','paid date']},
-      {key:'amount',label:'Amount',kind:'money',required:true,syn:['amount','total','price','value','sum','grand total','net','paid','php','amt','subtotal','total amount','money']},
-      {key:'type',label:'Type (income/expense)',kind:'text',syn:['type','direction','kind','transaction type','dr/cr','drcr','flow','in/out','debit/credit','income/expense']},
-      {key:'category',label:'Category',kind:'text',syn:['category','cat','class','classification','account','group','expense type','income type','bucket']},
-      {key:'note',label:'Note / Description',kind:'text',syn:['note','notes','description','desc','memo','details','particulars','remarks','reference','narration','item','label']},
-      {key:'client',label:'Client / Customer',kind:'text',syn:['client','customer','payee','vendor','supplier','contact','name','paid to','received from','buyer','party','from','to']}
+      {key:'date',label:'Date',kind:'date',required:true,syn:['date','transaction date','trans date','txn date','tx date','date posted','posted','posting date','day','datetime','date time','time','timestamp','date paid','paid date','payment date','date of payment','order date','invoice date','sale date','date of sale','purchase date','date of purchase','entry date','record date','value date','petsa','araw','when','date created','created']},
+      {key:'amount',label:'Amount',kind:'money',required:true,syn:['amount','total','total amount','grand total','amount paid','amount due','amt','value','sum','net','net amount','gross','gross amount','subtotal','sub total','money','cash','payment','paid','sales amount','total sales','charge','charged','price','total price','php','peso','pesos','amount (php)','total (php)','halaga','kabuuan','bayad','presyo','amount php']},
+      {key:'type',label:'Type (income/expense)',kind:'text',syn:['type','transaction type','txn type','direction','kind','dr/cr','drcr','debit/credit','debit or credit','flow','in/out','inflow/outflow','income/expense','income or expense','entry type','nature','uri','cash flow','money in/out']},
+      {key:'category',label:'Category',kind:'text',syn:['category','categories','cat','class','classification','expense category','income category','expense type','income type','group','grouping','bucket','tag','label','gl account','ledger','chart of account','account category','type of expense','spending category']},
+      {key:'note',label:'Note / Description',kind:'text',syn:['note','notes','description','desc','memo','details','detail','particulars','particular','remarks','remark','reference','ref','narration','comment','comments','item','items','product','purpose','paid for','what for','what','paglalarawan','paliwanag','transaction details','line item']},
+      {key:'client',label:'Client / Customer',kind:'text',syn:['client','clients','customer','customers','payee','payer','vendor','vendors','supplier','suppliers','contact','name','customer name','client name','paid to','received from','paid by','received by','buyer','seller','party','from','to','account holder','who','suki','pangalan','kliyente','mamimili','tindera','merchant','store']}
     ]},
   products:{ label:'Products / Inventory', store:'products',
     fields:[
-      {key:'name',label:'Product name',kind:'text',required:true,syn:['name','product','product name','item','item name','title','description']},
-      {key:'sku',label:'SKU / Code',kind:'text',syn:['sku','code','product code','item code','barcode','ref','reference']},
-      {key:'category',label:'Category',kind:'text',syn:['category','cat','type','group','collection','department']},
-      {key:'price',label:'Selling price',kind:'money',syn:['price','selling price','srp','retail','unit price','sell price','amount','sale price']},
-      {key:'cost',label:'Cost',kind:'money',syn:['cost','unit cost','cost price','buy price','purchase price','cogs','base cost']},
-      {key:'stock',label:'Stock on hand',kind:'int',syn:['stock','qty','quantity','on hand','onhand','inventory','count','available','units','in stock']},
-      {key:'lowStock',label:'Low-stock alert',kind:'int',syn:['low stock','reorder','reorder level','reorder point','min','minimum','low','threshold']},
-      {key:'desc',label:'Description',kind:'text',syn:['description','desc','notes','details','about']}
+      {key:'name',label:'Product name',kind:'text',required:true,syn:['name','product','product name','products','item','item name','items','title','product title','goods','merchandise','listing','listing name','item description','description','produkto','pangalan','article name','variant name']},
+      {key:'sku',label:'SKU / Code',kind:'text',syn:['sku','code','product code','item code','sku code','barcode','bar code','upc','ean','ref','reference','product id','item id','model','model number','model no','art no','article','article no','stock code','item no','item number','product no','product number','serial']},
+      {key:'category',label:'Category',kind:'text',syn:['category','categories','cat','type','product type','group','collection','department','dept','line','product line','class','section','kind']},
+      {key:'price',label:'Selling price',kind:'money',syn:['price','selling price','sell price','sale price','retail','retail price','srp','unit price','price per unit','list price','rrp','amount','sales price','regular price','price (php)','unit selling price','presyo','benta','tindahan price','price php']},
+      {key:'cost',label:'Cost',kind:'money',syn:['cost','unit cost','cost price','buy price','buying price','purchase price','cogs','base cost','wholesale','wholesale price','supplier price','landed cost','capital','puhunan','cost per unit','cost (php)','acquisition cost']},
+      {key:'stock',label:'Stock on hand',kind:'int',syn:['stock','stocks','qty','quantity','qty on hand','on hand','onhand','on-hand','inventory','count','available','availability','units','no of units','in stock','stock on hand','stock qty','current stock','beginning inventory','bilang','dami','kantidad','balance','remaining']},
+      {key:'lowStock',label:'Low-stock alert',kind:'int',syn:['low stock','low stock alert','reorder','reorder level','reorder point','re-order','re-order level','min','minimum','minimum stock','min stock','low','threshold','safety stock','alert level','par level','restock level']},
+      {key:'desc',label:'Description',kind:'text',syn:['description','desc','notes','note','details','about','summary','long description','product description','remarks','specs','specification']}
     ]},
   clients:{ label:'Customers / Clients (CRM)', store:'clients',
     fields:[
-      {key:'name',label:'Name',kind:'text',required:true,syn:['name','client','customer','company','contact name','full name','client name','customer name']},
-      {key:'contact',label:'Contact (email/phone)',kind:'text',syn:['contact','email','e-mail','phone','mobile','number','handle','telephone','cell','contact number','phone number']},
-      {key:'status',label:'Status',kind:'text',syn:['status','stage','type','segment','tag','tier']},
-      {key:'value',label:'Value / Spend',kind:'money',syn:['value','lifetime value','ltv','revenue','spend','total','amount','sales','total spend']},
-      {key:'note',label:'Notes',kind:'text',syn:['note','notes','description','details','remarks','memo','about']}
+      {key:'name',label:'Name',kind:'text',required:true,syn:['name','client','clients','customer','customers','company','company name','contact name','full name','client name','customer name','account name','business name','first name','lead name','pangalan','suki','kliyente','mamimili','buyer name']},
+      {key:'contact',label:'Contact (email/phone)',kind:'text',syn:['contact','contact info','contact number','contact details','contact no','email','e-mail','email address','phone','phone number','phone no','mobile','mobile number','mobile no','cell','cellphone','cellphone number','number','telephone','tel','handle','social','fb','facebook','viber','whatsapp','messenger','ig','instagram']},
+      {key:'status',label:'Status',kind:'text',syn:['status','stage','type','customer type','client type','segment','tag','tags','tier','level','category','group','lead status','classification','vip','loyalty']},
+      {key:'value',label:'Value / Spend',kind:'money',syn:['value','lifetime value','ltv','customer value','revenue','total revenue','spend','total spend','total spent','total','amount','sales','total sales','purchases','total purchases','total orders value','halaga']},
+      {key:'note',label:'Notes',kind:'text',syn:['note','notes','description','details','remarks','memo','about','comments','comment','info','additional info','address','notes/remarks']}
     ]},
   materials:{ label:'Raw Materials / Supplies', store:'materials',
     fields:[
-      {key:'name',label:'Material name',kind:'text',required:true,syn:['name','material','item','ingredient','supply','component','raw material','material name']},
-      {key:'unit',label:'Unit (g, ml, pc)',kind:'text',syn:['unit','uom','measure','units','unit of measure','measurement']},
-      {key:'cost',label:'Cost per unit',kind:'money',syn:['cost','unit cost','price','cost per unit','unit price','rate']},
-      {key:'stock',label:'Stock',kind:'num',syn:['stock','qty','quantity','on hand','onhand','inventory','count','available','units']},
-      {key:'lowStock',label:'Low-stock alert',kind:'num',syn:['low stock','reorder','reorder level','min','minimum','threshold','low']}
+      {key:'name',label:'Material name',kind:'text',required:true,syn:['name','material','materials','item','ingredient','ingredients','supply','supplies','component','components','raw material','raw materials','material name','part','parts','sangkap','pangalan','consumable','input']},
+      {key:'unit',label:'Unit (g, ml, pc)',kind:'text',syn:['unit','units','uom','u/m','measure','unit of measure','measurement','packaging','per','sold by','base unit','unit type','size']},
+      {key:'cost',label:'Cost per unit',kind:'money',syn:['cost','unit cost','cost per unit','price','unit price','cost price','rate','buy price','purchase price','supplier price','price (php)','presyo','halaga','puhunan','cost (php)']},
+      {key:'stock',label:'Stock',kind:'num',syn:['stock','stocks','qty','quantity','qty on hand','on hand','onhand','inventory','count','available','units','in stock','current stock','balance','remaining','dami','bilang','kantidad']},
+      {key:'lowStock',label:'Low-stock alert',kind:'num',syn:['low stock','low stock alert','reorder','reorder level','reorder point','min','minimum','min stock','threshold','low','safety stock','par level','alert level','restock level']}
     ]}
 };
 var CSV_MONTHS={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
@@ -7381,11 +7381,18 @@ var csvCtx=null;
 
 function csvPad(n){ return String(n).padStart(2,'0'); }
 function csvNormHeader(h){ return String(h==null?'':h).toLowerCase().replace(/[^a-z0-9]/g,''); }
+function csvTokens(s){ return String(s==null?'':s).toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().split(/\s+/).filter(Boolean); }
 function csvMatch(header,syns){
-  var nh=csvNormHeader(header); if(!nh) return 0; var best=0;
-  for(var i=0;i<syns.length;i++){ var ns=csvNormHeader(syns[i]); if(!ns) continue;
-    if(nh===ns){ best=1; break; }
-    if(nh.indexOf(ns)>-1||ns.indexOf(nh)>-1) best=Math.max(best,0.6);
+  var nh=csvNormHeader(header); if(!nh) return 0;
+  var ht=csvTokens(header), best=0;
+  for(var i=0;i<syns.length;i++){
+    var ns=csvNormHeader(syns[i]); if(!ns) continue;
+    if(nh===ns) return 1;                                                   // exact (normalized) header == synonym
+    var st=csvTokens(syns[i]);
+    if(st.length>1 && st.every(function(t){ return ht.indexOf(t)>-1; })){ best=Math.max(best,0.92); continue; } // all words of a multi-word synonym appear in the header
+    if(st.length===1 && ht.indexOf(st[0])>-1){ best=Math.max(best,0.85); continue; }                            // a single-word synonym is one of the header's words
+    if(nh.indexOf(ns)>-1||ns.indexOf(nh)>-1){ best=Math.max(best,0.6); continue; }                               // normalized substring (e.g. "amountphp" ⊇ "amount")
+    for(var j=0;j<ht.length;j++){ var t=ht[j]; if(t.length>=3&&ns.length>=3&&(t.indexOf(ns)===0||ns.indexOf(t)===0)) best=Math.max(best,0.5); } // abbreviation / prefix on a single token
   }
   return best;
 }
@@ -7660,6 +7667,9 @@ function renderCsvImport(){
       (res.invalid?'<span class="badge warn">'+res.invalid+' invalid skipped</span>':'')+
       '<span style="color:var(--text-3);font-size:.78rem">of '+res.total+' rows</span></div>'+
       '<div class="table-wrap" style="max-height:230px;overflow:auto"><table><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';
+    var usedCols={}; Object.keys(map).forEach(function(k){ if(map[k]!=null) usedCols[map[k]]=true; });
+    var unused=headers.filter(function(h,ci){ return !usedCols[ci]&&String(h).trim()!==''; });
+    if(unused.length) prev+='<p style="font-size:.74rem;color:var(--text-3);margin-top:9px">Columns not imported: <b>'+unused.map(function(h){ return esc(h); }).join(', ')+'</b>. If any belongs in a field above, pick it from that field’s dropdown.</p>';
   }
   var canImport=!miss.length&&res&&res.ready.length>0;
   var html='<div class="modal-overlay" style="align-items:flex-start"><div class="modal wide" role="dialog" aria-modal="true" style="max-width:780px">'+
