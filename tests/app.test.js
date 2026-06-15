@@ -12,12 +12,19 @@ function ok(name, cond, extra) {
   else { fail++; console.log('FAIL — ' + name + (extra !== undefined ? '  >> ' + JSON.stringify(extra) : '')); }
 }
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+// Poll until a condition holds — robust against slow CI runners doing PBKDF2/AES.
+async function waitFor(fn, timeout = 8000, step = 15) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeout) { try { if (fn()) return true; } catch (_) {} await wait(step); }
+  try { return !!fn(); } catch (_) { return false; }
+}
 
 const dom = new JSDOM(html, { runScripts: 'dangerously', resources: 'usable', url: 'https://x.test/', pretendToBeVisual: true });
 const { window } = dom;
 const d = window.document;
-window.crypto = webcrypto;
+Object.defineProperty(window, 'crypto', { value: webcrypto, configurable: true, writable: true });
 window.TextEncoder = global.TextEncoder;
+window.TextDecoder = global.TextDecoder;
 // jsdom has no layout engine — give the tour realistic rects so positions are finite
 window.Element.prototype.getBoundingClientRect = function () { return { top: 100, left: 90, right: 260, bottom: 140, width: 170, height: 40, x: 90, y: 100 }; };
 Object.defineProperty(window, 'innerWidth', { value: 1280, configurable: true });
@@ -121,6 +128,38 @@ async function main() {
     window.state.recurringInvoices[0].lastGenerated = window.shiftMonth(window.thisMonthKey(), -3);
     window.processRecurringInvoices();
     ok('recurring catches up missed months', window.state.invoices.length === n1 + 3);
+
+    // ---------- at-rest encryption (PIN-derived AES-GCM) ----------
+    ok('WebCrypto available in test env', window.cryptoOK && window.cryptoOK() === true);
+    window.state.finance = [{ id: 'F1', type: 'income', amount: 4242, date: '2026-06-01', category: 'Sales', note: 'secret-marker' }];
+    window.save();
+    await window.setPin('1234');
+    await window.enableEncryption('1234'); // resolves only after the encrypted snapshot is written
+    const isEnc = () => { try { return JSON.parse(window.localStorage.getItem('bizpilot.v1')).__enc === 1; } catch (_) { return false; } };
+    await waitFor(isEnc);
+    const encRaw = window.localStorage.getItem('bizpilot.v1');
+    // note: ciphertext is hex, so only test for a non-hex plaintext marker (e.g. '4242' is valid hex and collides by chance)
+    ok('storage encrypted, no plaintext leak', isEnc() && encRaw.indexOf('secret-marker') === -1);
+    // simulate a fresh reload
+    window.cryptoKey = null; window.pendingEncBlob = null; window.state = null; window.sessionUnlocked = false;
+    window.loadState();
+    ok('reload loads encrypted shell (no data until unlock)', window.pendingEncBlob && (window.state.finance || []).length === 0);
+    window.bootApp();
+    await waitFor(() => d.getElementById('lock-root').innerHTML.indexOf('is locked') > -1);
+    d.getElementById('lock-pin').value = '9999'; fire(d.getElementById('lock-form'), 'submit');
+    await waitFor(() => (window.getLock().fails || 0) >= 1); // wrong-PIN attempt processed
+    ok('wrong PIN does not decrypt', (window.state.finance || []).length === 0 && d.getElementById('lock-root').innerHTML.indexOf('is locked') > -1);
+    d.getElementById('lock-pin').value = '1234'; fire(d.getElementById('lock-form'), 'submit');
+    await waitFor(() => window.sessionUnlocked === true && (window.state.finance || []).length === 1);
+    ok('correct PIN decrypts with data intact', window.sessionUnlocked === true && window.state.finance[0].amount === 4242 && window.state.finance[0].note === 'secret-marker');
+    // re-lock drops the AES key from memory; re-unlock re-derives it so saves stay encrypted
+    window.lockNow();
+    ok('re-lock clears AES key from memory', window.cryptoKey === null && d.getElementById('lock-root').innerHTML.indexOf('is locked') > -1);
+    d.getElementById('lock-pin').value = '1234'; fire(d.getElementById('lock-form'), 'submit');
+    await waitFor(() => window.cryptoKey !== null && window.sessionUnlocked === true);
+    ok('re-unlock re-derives key with data intact', !!window.cryptoKey && (window.state.finance || []).length === 1);
+    window.removeLock(); window.cryptoKey = null; await window.save();
+    ok('remove lock restores plaintext storage', window.localStorage.getItem('bizpilot.v1').indexOf('__enc') === -1 && window.localStorage.getItem('bizpilot.v1').indexOf('secret-marker') > -1);
 
     // ---------- getting-started checklist ----------
     window.state.settings.startDismissed = false; window.state.settings.businessName = 'My Business'; window.state.settings.country = ''; window.state.settings.monthlyTarget = 0;
