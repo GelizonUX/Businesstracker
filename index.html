@@ -1228,16 +1228,19 @@ function save(){
     state.meta.deviceId=DEVICE_ID;
     if(cryptoKey){
       var seq=++saveSeq;
-      encryptJSON(state).then(function(blob){
+      var p=encryptJSON(state).then(function(blob){
         if(seq!==saveSeq) return; // a newer save superseded this one
         try{ localStorage.setItem(LS_KEY,blob); }catch(_){ toast('Could not save — browser storage may be full.','error'); }
       }).catch(function(){ toast('Could not encrypt your data — change not saved.','error'); });
-    } else {
-      localStorage.setItem(LS_KEY,JSON.stringify(state));
+      scheduleCloudPush();
+      return p; // resolves once the encrypted snapshot is actually written
     }
+    localStorage.setItem(LS_KEY,JSON.stringify(state));
     scheduleCloudPush();
+    return Promise.resolve();
   }catch(e){
     toast('Could not save — browser storage may be full.','error');
+    return Promise.resolve();
   }
 }
 function commit(){ save(); render(); flashSaved(); }
@@ -8280,7 +8283,8 @@ function decryptBlob(blob,key){
 function enableEncryption(pin){
   var encSalt=lockRandHex(16);
   return deriveAesKey(pin,encSalt,200000).then(function(key){
-    cryptoKey=key; var l=getLock()||{}; l.enc=true; l.encSalt=encSalt; l.encIter=200000; setLockRec(l); save(); return true;
+    cryptoKey=key; var l=getLock()||{}; l.enc=true; l.encSalt=encSalt; l.encIter=200000; setLockRec(l);
+    return save(); // resolves only after the encrypted snapshot is written
   });
 }
 function autoLockMins(){ return Math.max(0,parseInt((state.settings&&state.settings.autoLockMin)||0,10)||0); }
