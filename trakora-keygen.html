@@ -155,7 +155,8 @@ td.k{font-family:var(--mono);font-size:.8rem;white-space:nowrap}
 
   <div class="foot">
     Keys validate against the same formula built into your Trakora app. Keep this file private — anyone with it can mint keys.<br>
-    Recommended rules (Firebase → Realtime Database → Rules): <code>{ "rules": { "licenses": { "$key": { ".read": true, ".write": true } } } }</code>
+    Recommended <b>anti-piracy</b> rules (Firebase → Realtime Database → Rules): <code>{ "rules": { "licenses": { "$key": { ".read": true, "devices": { ".write": true } } } } }</code><br>
+    Buyers can verify a key and claim a device slot, but <b>cannot create license records</b> — only you can, using your database admin secret (set it in Advanced settings above). This stops self-issued keys.
   </div>
 </div>
 
@@ -220,7 +221,7 @@ $('test').addEventListener('click',function(){
     showMsg('conn-msg',allGood?'ok':'warn',
       '<b>'+detail.join(' · ')+'</b><br>'+
       (allGood?'Your database is ready to issue and verify licenses.'
-              :'Activation needs <b>read</b> on the licenses path; device-slot tracking needs <b>write</b>. Set rules: <code>{ "rules": { "licenses": { "$key": { ".read": true, ".write": true } } } }</code>'));
+              :'Activation needs <b>read</b> on the licenses path. For issuing, use your admin secret (Advanced) with these <b>anti-piracy</b> rules: <code>{ "rules": { "licenses": { "$key": { ".read": true, "devices": { ".write": true } } } } }</code>'));
   }).catch(function(){
     dot.className='statusdot bad'; $('conn').textContent='Could not reach the database';
     showMsg('conn-msg','err','Could not reach <b>'+cfg().url+'</b>. Check the URL/region and your internet connection.');

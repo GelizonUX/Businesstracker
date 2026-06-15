@@ -152,6 +152,12 @@ async function main() {
     d.getElementById('lock-pin').value = '1234'; fire(d.getElementById('lock-form'), 'submit');
     await waitFor(() => window.sessionUnlocked === true && (window.state.finance || []).length === 1);
     ok('correct PIN decrypts with data intact', window.sessionUnlocked === true && window.state.finance[0].amount === 4242 && window.state.finance[0].note === 'secret-marker');
+    // re-lock drops the AES key from memory; re-unlock re-derives it so saves stay encrypted
+    window.lockNow();
+    ok('re-lock clears AES key from memory', window.cryptoKey === null && d.getElementById('lock-root').innerHTML.indexOf('is locked') > -1);
+    d.getElementById('lock-pin').value = '1234'; fire(d.getElementById('lock-form'), 'submit');
+    await waitFor(() => window.cryptoKey !== null && window.sessionUnlocked === true);
+    ok('re-unlock re-derives key with data intact', !!window.cryptoKey && (window.state.finance || []).length === 1);
     window.removeLock(); window.cryptoKey = null; await window.save();
     ok('remove lock restores plaintext storage', window.localStorage.getItem('bizpilot.v1').indexOf('__enc') === -1 && window.localStorage.getItem('bizpilot.v1').indexOf('secret-marker') > -1);
 
