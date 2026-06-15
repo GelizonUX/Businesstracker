@@ -167,6 +167,23 @@ async function main() {
     window.location.hash = '#/dashboard'; window.render(); await wait(20);
     ok('checklist shows for new account', /Get started ·/.test(d.getElementById('main').innerHTML));
 
+    // ---------- design/a11y polish ----------
+    window.state.tasks = []; window.render();
+    ok('onboarding de-cluttered: hero hidden while checklist shows', d.getElementById('main').innerHTML.indexOf('Welcome to your business command center') === -1);
+    window.state.settings.startDismissed = true; window.render();
+    ok('hero returns once checklist dismissed (still empty)', d.getElementById('main').innerHTML.indexOf('Welcome to your business command center') > -1);
+    window.toast('hello world');
+    const tEl = d.getElementById('toast-root').querySelector('.toast');
+    ok('toast is announced to screen readers (role=alert)', tEl && tEl.getAttribute('role') === 'alert' && !!tEl.getAttribute('aria-live'));
+    ok('AA contrast: --text-3 darkened (light #646b82 / dark #828bac)', html.indexOf('--text-3:#646b82') > -1 && html.indexOf('--text-3:#828bac') > -1);
+    ok('focus-visible covers custom controls', /\.chip:focus-visible,\.seg button:focus-visible/.test(html));
+    ok('snappy easing token added', html.indexOf('--ease-snappy:') > -1);
+    ok('modal focus trap + return-focus wired', html.indexOf('modalReturnFocus') > -1 && /e\.key!=='Tab'/.test(html));
+    // overdue invoice row marker
+    window.state.invoices = [{ id: 'o1', number: 'INV-1', client: 'X', amount: 100, currency: 'PHP', issueDate: '2026-01-01', dueDate: '2026-01-15', status: 'Sent' }];
+    window.location.hash = '#/invoices'; window.render();
+    ok('overdue invoices get a visual row marker', d.getElementById('main').innerHTML.indexOf('inv-overdue') > -1);
+
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
   } catch (e) {
