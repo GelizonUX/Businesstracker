@@ -30,7 +30,7 @@
 
   --text:#1c2033;
   --text-2:#5b6178;
-  --text-3:#8e94ab;
+  --text-3:#646b82;
 
   --border:#e4e7f2;
   --border-2:#d4d8e8;
@@ -52,6 +52,7 @@
   --shadow:0 2px 6px rgba(20,24,50,.05),0 10px 28px rgba(20,24,50,.07);
   --shadow-lg:0 8px 16px rgba(20,24,50,.08),0 24px 56px rgba(20,24,50,.14);
   --ease:cubic-bezier(.4,0,.2,1);
+  --ease-snappy:cubic-bezier(.25,.46,.45,.94);
   --chart-grid:#eceef6;
 }
 html[data-theme="dark"]{
@@ -68,7 +69,7 @@ html[data-theme="dark"]{
 
   --text:#e8eaf6;
   --text-2:#a4aac6;
-  --text-3:#6f7592;
+  --text-3:#828bac;
 
   --border:#252a44;
   --border-2:#323858;
@@ -106,7 +107,9 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 input,select,textarea{font-family:inherit;font-size:.95rem;color:var(--text)}
 a{color:var(--accent);text-decoration:none}
 ::placeholder{color:var(--text-3)}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;box-shadow:0 0 0 4px var(--accent-soft);border-radius:6px}
+.chip:focus-visible,.seg button:focus-visible,.nav-sec-toggle:focus-visible,.nav-item:focus-visible,[role="button"]:focus-visible,.btn-icon:focus-visible,.dash-handle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn-icon:active{transform:scale(.92)}
 
 /* scrollbars */
 ::-webkit-scrollbar{width:10px;height:10px}
@@ -296,7 +299,7 @@ tbody tr{transition:background .12s}
 tbody tr:hover{background:var(--bg-hover)}
 tbody tr:last-child td{border-bottom:none}
 td.num{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
-td .row-actions{display:flex;gap:2px;justify-content:flex-end;opacity:.35;transition:opacity .15s}
+td .row-actions{display:flex;gap:2px;justify-content:flex-end;opacity:.6;transition:opacity .15s}
 tr:hover .row-actions{opacity:1}
 
 /* ============================================================
@@ -603,7 +606,8 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
   #print-area .pr-foot{margin-top:26px;font-size:.75rem;color:#666;border-top:1px solid #ccc;padding-top:8px}
 }
 @media (prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:.01ms !important;transition-duration:.01ms !important}
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;scroll-behavior:auto !important}
+  td .row-actions,.dash-handle{opacity:1 !important}
 }
 
 /* ============ activation gate ============ */
@@ -808,6 +812,20 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .start-item.done .start-check{background:var(--good);border-color:var(--good)}
 .start-check svg{width:14px;height:14px}
 .start-label{min-width:0}
+
+/* design-review polish: snappier micro-motion, mobile touch targets, overdue rows */
+.btn:active{transition:transform .1s var(--ease-snappy)}
+.btn-icon{transition:background .12s var(--ease-snappy),color .12s,transform .1s var(--ease-snappy)}
+.chip,.seg button{transition:all .14s var(--ease-snappy)}
+.theme-toggle:active,.nav-toggle:active{transform:scale(.94)}
+tr.inv-overdue{background:var(--risk-soft)}
+tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
+@media (max-width:768px){
+  .btn-icon,.hamburger,.theme-toggle,.nav-toggle{width:40px;height:40px}
+  .btn-icon svg{width:17px;height:17px}
+  input[type=checkbox]{width:19px;height:19px}
+  .btn{padding:9px 16px}
+}
 </style>
 </head>
 <body>
@@ -1246,6 +1264,8 @@ function toast(msg,type,opts){
   var root=byId('toast-root');
   var el=document.createElement('div');
   el.className='toast '+(type||'good');
+  el.setAttribute('role','alert');
+  el.setAttribute('aria-live',(type==='error'||type==='warn')?'assertive':'polite');
   var ic=type==='error'?'alert':(type==='warn'?'alert':'check');
   el.innerHTML='<span class="t-icon">'+icon(ic)+'</span><div style="flex:1">'+esc(msg)+'</div>'+
     (opts&&opts.undo?'<button class="btn btn-sm btn-ghost" data-action="do-undo" style="flex-shrink:0">Undo</button>':'');
@@ -1335,10 +1355,24 @@ function openModal(title,bodyHTML,opts){
             '<button type="button" class="btn btn-ghost" data-action="close-modal">'+esc(tr('Cancel'))+'</button>'+
             '<button type="submit" class="btn btn-primary">'+esc(tr(opts.submitLabel||'Save'))+'</button>'+
           '</div></form></div></div></div>';
-  var first=root.querySelector('input,select,textarea');
-  if(first) setTimeout(function(){ first.focus(); },60);
+  modalReturnFocus=document.activeElement;
+  var first=root.querySelector('input,select,textarea')||root.querySelector('.modal button');
+  if(first) setTimeout(function(){ try{ first.focus(); }catch(_){ } },60);
 }
-function closeModal(){ byId('modal-root').innerHTML=''; modalSubmitHandler=null; }
+var modalReturnFocus=null;
+/* keep keyboard focus inside the open modal (WCAG focus trap) */
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Tab') return;
+  var modal=byId('modal-root').querySelector('.modal'); if(!modal) return;
+  var f=modal.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])');
+  f=Array.prototype.filter.call(f,function(el){ return el.offsetParent!==null||el===document.activeElement; });
+  if(!f.length) return;
+  var firstEl=f[0], lastEl=f[f.length-1];
+  if(e.shiftKey&&document.activeElement===firstEl){ e.preventDefault(); lastEl.focus(); }
+  else if(!e.shiftKey&&document.activeElement===lastEl){ e.preventDefault(); firstEl.focus(); }
+  else if(!modal.contains(document.activeElement)){ e.preventDefault(); firstEl.focus(); }
+});
+function closeModal(){ byId('modal-root').innerHTML=''; modalSubmitHandler=null; if(modalReturnFocus&&modalReturnFocus.focus){ try{ modalReturnFocus.focus(); }catch(_){ } } modalReturnFocus=null; }
 function fv(form,name){ var el=form.elements[name]; return el?el.value.trim():''; }
 
 /* ---------- finance computations ---------- */
@@ -1924,7 +1958,7 @@ function viewDashboard(){
     '<button class="btn btn-ghost" data-action="dash-customize" title="Show, hide & reorder cards">'+icon('palette')+'<span class="btn-txt">Customize</span></button>'+
     '<button class="btn btn-primary" data-action="open-entry-modal">'+icon('plus')+'<span class="btn-txt">Add entry</span></button>');
 
-  if(!hasData && state.goals.length===0 && state.tasks.length===0){
+  if(!hasData && state.goals.length===0 && state.tasks.length===0 && state.settings.startDismissed){
     html+='<div class="hero"><h2>Welcome to your business command center 🚀</h2>'+
       '<p>Track your money, sell without the chaos, and hit your goals — all in one private workspace that lives in this browser. See real profit and cash flow, never oversell, and know exactly what needs attention each day.</p>'+
       '<div class="hero-actions">'+
@@ -4279,7 +4313,8 @@ function viewInvoices(){
   });
   html+='<div class="table-wrap"><table><thead><tr><th>#</th><th>Client</th><th>Description</th><th>Issued</th><th>Due</th><th style="text-align:right">Amount</th><th>Status</th><th></th></tr></thead><tbody>';
   list.forEach(function(iv){
-    html+='<tr><td class="mono" style="font-weight:600;white-space:nowrap">'+esc(iv.number)+'</td>'+
+    var od=iv.status==='Sent'&&daysUntil(iv.dueDate)!=null&&daysUntil(iv.dueDate)<0;
+    html+='<tr'+(od?' class="inv-overdue"':'')+'><td class="mono" style="font-weight:600;white-space:nowrap">'+esc(iv.number)+'</td>'+
       '<td style="font-weight:600">'+esc(iv.client)+'</td>'+
       '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(iv.desc||'')+'">'+esc(iv.desc||'—')+'</td>'+
       '<td style="white-space:nowrap">'+fmtDate(iv.issueDate)+'</td>'+
