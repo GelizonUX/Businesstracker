@@ -1135,6 +1135,9 @@ var DEFAULT_STATE={
   meta:{ createdAt:null }
 };
 var state=null;
+var cryptoKey=null;        // AES-GCM key derived from the PIN when at-rest encryption is on
+var pendingEncBlob=null;   // encrypted snapshot read on boot, decrypted after PIN unlock
+var saveSeq=0;             // guards async encrypted writes against out-of-order persistence
 
 function deepMerge(base,extra){
   var out=Array.isArray(base)?base.slice():Object.assign({},base);
@@ -1146,21 +1149,7 @@ function deepMerge(base,extra){
   });
   return out;
 }
-function loadState(){
-  try{
-    var raw=localStorage.getItem(LS_KEY);
-    if(raw){
-      var parsed=JSON.parse(raw);
-      state=deepMerge(JSON.parse(JSON.stringify(DEFAULT_STATE)),parsed);
-    } else {
-      state=JSON.parse(JSON.stringify(DEFAULT_STATE));
-      state.meta.createdAt=todayISO();
-    }
-  }catch(e){
-    console.warn('Trakora: could not parse saved data, starting fresh.',e);
-    state=JSON.parse(JSON.stringify(DEFAULT_STATE));
-    state.meta.createdAt=todayISO();
-  }
+function migrateState(){
   // migrate product attributes to typed, category-scoped fields (v18+)
   if(!(state.settings.productFields&&state.settings.productFields.length)&&(state.settings.productAttrs||[]).length){
     state.settings.productFields=state.settings.productAttrs.map(function(a){
@@ -1186,6 +1175,34 @@ function loadState(){
     if(!state.settings.sync.enabled) state.settings.sync.lastSync=null;
   }
 }
+function applyLoaded(parsed){
+  state=deepMerge(JSON.parse(JSON.stringify(DEFAULT_STATE)),parsed);
+  migrateState();
+}
+function loadState(){
+  try{
+    var raw=localStorage.getItem(LS_KEY);
+    if(raw){
+      var parsed=JSON.parse(raw);
+      if(parsed&&parsed.__enc){
+        // data is encrypted at rest — load a safe shell; the real data is decrypted after PIN unlock
+        pendingEncBlob=parsed;
+        state=JSON.parse(JSON.stringify(DEFAULT_STATE));
+        return;
+      }
+      applyLoaded(parsed);
+    } else {
+      state=JSON.parse(JSON.stringify(DEFAULT_STATE));
+      state.meta.createdAt=todayISO();
+      migrateState();
+    }
+  }catch(e){
+    console.warn('Trakora: could not parse saved data, starting fresh.',e);
+    state=JSON.parse(JSON.stringify(DEFAULT_STATE));
+    state.meta.createdAt=todayISO();
+    migrateState();
+  }
+}
 function allPhases(){
   var out=[];
   (state.roadmaps||[]).forEach(function(r){ (r.phases||[]).forEach(function(p){ out.push(p); }); });
@@ -1209,7 +1226,15 @@ function save(){
   try{
     state.meta.updatedAt=Date.now();
     state.meta.deviceId=DEVICE_ID;
-    localStorage.setItem(LS_KEY,JSON.stringify(state));
+    if(cryptoKey){
+      var seq=++saveSeq;
+      encryptJSON(state).then(function(blob){
+        if(seq!==saveSeq) return; // a newer save superseded this one
+        try{ localStorage.setItem(LS_KEY,blob); }catch(_){ toast('Could not save — browser storage may be full.','error'); }
+      }).catch(function(){ toast('Could not encrypt your data — change not saved.','error'); });
+    } else {
+      localStorage.setItem(LS_KEY,JSON.stringify(state));
+    }
     scheduleCloudPush();
   }catch(e){
     toast('Could not save — browser storage may be full.','error');
@@ -8229,6 +8254,35 @@ function pinHash(pin,saltHex,iter){
 function setPin(pin){ var salt=lockRandHex(16); return pinHash(pin,salt,150000).then(function(hx){ setLockRec({v:1,salt:salt,iter:150000,hash:hx,fails:0}); return true; }); }
 function verifyPin(pin){ var l=getLock(); if(!l||!l.hash) return Promise.resolve(true); return pinHash(pin,l.salt,l.iter||150000).then(function(hx){ return hx===l.hash; }); }
 function removeLock(){ setLockRec(null); }
+/* ---- at-rest encryption (AES-GCM key derived from the PIN) ---- */
+function encActive(){ var l=getLock(); return !!(l&&l.enc); }
+function cryptoOK(){ return !!(window.crypto&&window.crypto.subtle&&typeof TextEncoder!=='undefined'&&typeof TextDecoder!=='undefined'); }
+function deriveAesKey(pin,saltHex,iter){
+  iter=iter||200000;
+  if(!cryptoOK()) return Promise.reject(new Error('no-subtle'));
+  var salt=new Uint8Array(saltHex.match(/.{2}/g).map(function(h){return parseInt(h,16);}));
+  return window.crypto.subtle.importKey('raw',new TextEncoder().encode(String(pin)),{name:'PBKDF2'},false,['deriveKey'])
+    .then(function(k){ return window.crypto.subtle.deriveKey({name:'PBKDF2',salt:salt,iterations:iter,hash:'SHA-256'},k,{name:'AES-GCM',length:256},false,['encrypt','decrypt']); });
+}
+function encryptJSON(obj){
+  var iv=window.crypto.getRandomValues(new Uint8Array(12));
+  var data=new TextEncoder().encode(JSON.stringify(obj));
+  return window.crypto.subtle.encrypt({name:'AES-GCM',iv:iv},cryptoKey,data).then(function(ct){
+    return JSON.stringify({__enc:1,v:1,iv:lockHex(iv.buffer),ct:lockHex(ct)});
+  });
+}
+function decryptBlob(blob,key){
+  var iv=new Uint8Array(blob.iv.match(/.{2}/g).map(function(h){return parseInt(h,16);}));
+  var ct=new Uint8Array(blob.ct.match(/.{2}/g).map(function(h){return parseInt(h,16);}));
+  return window.crypto.subtle.decrypt({name:'AES-GCM',iv:iv},key,ct).then(function(buf){ return JSON.parse(new TextDecoder().decode(buf)); });
+}
+/* turn on encryption for the current (in-memory, plaintext) state, then persist it encrypted */
+function enableEncryption(pin){
+  var encSalt=lockRandHex(16);
+  return deriveAesKey(pin,encSalt,200000).then(function(key){
+    cryptoKey=key; var l=getLock()||{}; l.enc=true; l.encSalt=encSalt; l.encIter=200000; setLockRec(l); save(); return true;
+  });
+}
 function autoLockMins(){ return Math.max(0,parseInt((state.settings&&state.settings.autoLockMin)||0,10)||0); }
 function lockNow(){ if(hasLock()){ sessionUnlocked=false; if(byId('modal-root')) byId('modal-root').innerHTML=''; renderLockScreen(); } }
 function renderLockScreen(){
@@ -8254,7 +8308,15 @@ function renderLockScreen(){
     btn.disabled=true; btn.innerHTML='<span class="gate-spin"></span>'+(delay?'Please wait…':'Checking…');
     setTimeout(function(){
       verifyPin(pinEl.value).then(function(okv){
-        if(okv){ if(l){ l.fails=0; setLockRec(l); } root.innerHTML=''; sessionUnlocked=true; lockHiddenAt=null; bootApp(); }
+        if(okv){
+          if(l){ l.fails=0; setLockRec(l); }
+          var finish=function(){ root.innerHTML=''; sessionUnlocked=true; lockHiddenAt=null; bootApp(); };
+          if(pendingEncBlob&&l&&l.enc){
+            deriveAesKey(pinEl.value,l.encSalt,l.encIter||200000)
+              .then(function(key){ return decryptBlob(pendingEncBlob,key).then(function(obj){ cryptoKey=key; applyLoaded(obj); pendingEncBlob=null; finish(); }); })
+              .catch(function(){ btn.disabled=false; btn.innerHTML='Unlock →'; showM('Could not decrypt your data on this device. If this keeps happening, restore from a JSON backup.','err'); });
+          } else { finish(); }
+        }
         else { if(l){ l.fails=fails+1; setLockRec(l); } btn.disabled=false; btn.innerHTML='Unlock →';
           showM(fails+1>=5?'Wrong PIN. Extra delay added after repeated tries.':'Wrong PIN. Try again.','err'); pinEl.value=''; pinEl.focus(); }
       });
@@ -8271,32 +8333,48 @@ function pinModal(mode){
   var body, title, label;
   if(mode==='set'){ title='Set a privacy PIN'; body='<p style="font-size:.82rem;color:var(--text-2);margin-bottom:12px">Choose a 4–8 digit PIN. You’ll enter it each time you open Trakora on this device. <b>There is no recovery</b> — if you forget it you can still re-activate, but keep it safe.</p>'+
     '<div class="field"><label>New PIN</label><input class="input" name="newpin" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password"></div>'+
-    '<div class="field"><label>Confirm PIN</label><input class="input" name="confirmpin" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password"></div>'; }
+    '<div class="field"><label>Confirm PIN</label><input class="input" name="confirmpin" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password"></div>'+
+    (cryptoOK()?'<label class="checkrow" style="margin-top:2px"><input type="checkbox" name="encrypt" checked> Also <b>encrypt my data</b> on this device (AES‑256)</label>'+
+      '<p style="font-size:.72rem;color:var(--text-3);margin-top:5px">With encryption on, your saved data is unreadable without the PIN — even from the browser’s storage. Keep a JSON backup somewhere safe; a forgotten PIN means the encrypted data can’t be recovered. Cloud sync, if enabled, stores data in your own database (secure that separately).</p>':''); }
   else if(mode==='change'){ title='Change PIN'; body='<div class="field"><label>Current PIN</label><input class="input" name="curpin" type="password" inputmode="numeric" maxlength="8"></div>'+
     '<div class="field"><label>New PIN</label><input class="input" name="newpin" type="password" inputmode="numeric" maxlength="8"></div>'+
     '<div class="field"><label>Confirm new PIN</label><input class="input" name="confirmpin" type="password" inputmode="numeric" maxlength="8"></div>'; }
   else { title='Remove privacy lock'; body='<p style="font-size:.82rem;color:var(--text-2);margin-bottom:12px">Enter your current PIN to turn off the lock.</p><div class="field"><label>Current PIN</label><input class="input" name="curpin" type="password" inputmode="numeric" maxlength="8"></div>'; }
   openModal(title,body,{submitLabel:mode==='remove'?'Remove lock':'Save',onSubmit:function(form){
     if(mode==='remove'){
-      verifyPin(fv(form,'curpin')).then(function(ok){ if(!ok){ toast('That PIN is incorrect.','error'); return; } removeLock(); closeModal(); toast('Privacy lock removed.'); render(); });
+      var wasEnc=encActive();
+      verifyPin(fv(form,'curpin')).then(function(ok){ if(!ok){ toast('That PIN is incorrect.','error'); return; }
+        removeLock(); if(wasEnc){ cryptoKey=null; save(); } // decrypt back to plaintext on this device
+        closeModal(); toast(wasEnc?'Lock & encryption removed — data stored normally again.':'Privacy lock removed.'); render(); });
       return false;
     }
     var np=fv(form,'newpin'), cp=fv(form,'confirmpin');
     if(!/^\d{4,8}$/.test(np)){ toast('PIN must be 4–8 digits.','error'); return false; }
     if(np!==cp){ toast('The PINs don’t match.','error'); return false; }
     if(mode==='change'){
+      var wasEnc2=encActive();
       verifyPin(fv(form,'curpin')).then(function(ok){ if(!ok){ toast('Your current PIN is incorrect.','error'); return; }
-        setPin(np).then(function(){ closeModal(); toast('PIN updated. 🔒'); render(); }); });
+        setPin(np).then(function(){
+          if(wasEnc2){ enableEncryption(np).then(function(){ closeModal(); toast('PIN updated & data re-encrypted. 🔒'); render(); }).catch(function(){ closeModal(); toast('PIN updated.'); render(); }); }
+          else { closeModal(); toast('PIN updated. 🔒'); render(); }
+        }); });
       return false;
     }
-    setPin(np).then(function(){ closeModal(); toast('Privacy lock enabled. 🔒'); render(); });
+    var wantEnc=!!(form.elements['encrypt']&&form.elements['encrypt'].checked);
+    setPin(np).then(function(){
+      if(wantEnc){ enableEncryption(np).then(function(){ closeModal(); toast('Privacy lock + encryption enabled. 🔒'); render(); })
+        .catch(function(){ closeModal(); toast('PIN set. Encryption isn’t supported in this browser, so data isn’t encrypted.','warn'); render(); }); }
+      else { closeModal(); toast('Privacy lock enabled. 🔒'); render(); }
+    });
     return false;
   }});
 }
 function privacyLockCardHTML(){
-  var on=hasLock();
-  return '<div class="card"><div class="card-head"><h3>'+icon('shield',16)+' Privacy lock (PIN)</h3><span class="spacer"></span>'+(on?'<span class="badge good">On</span>':'<span class="badge neutral">Off</span>')+'</div>'+
-    '<p style="font-size:.84rem;color:var(--text-2);margin-bottom:13px">Require a PIN before your dashboard opens on this device — so a borrowed laptop or shared phone can’t peek at your numbers. The PIN is stored only here as a salted PBKDF2 hash; it never syncs and can’t be reversed.</p>'+
+  var on=hasLock(), enc=encActive();
+  return '<div class="card"><div class="card-head"><h3>'+icon('shield',16)+' Privacy lock (PIN)</h3><span class="spacer"></span>'+
+    (enc?'<span class="badge good">'+icon('shield',11)+' Encrypted</span>':(on?'<span class="badge good">On</span>':'<span class="badge neutral">Off</span>'))+'</div>'+
+    '<p style="font-size:.84rem;color:var(--text-2);margin-bottom:13px">Require a PIN before your dashboard opens on this device — so a borrowed laptop or shared phone can’t peek at your numbers. The PIN is stored only here as a salted PBKDF2 hash; it never syncs and can’t be reversed.'+
+    (enc?' <b>Your saved data is encrypted (AES‑256)</b> and unreadable without the PIN.':(on&&cryptoOK()?' Tip: remove & re-set the PIN to also turn on data encryption.':''))+'</p>'+
     (on?'<div class="field" style="max-width:240px"><label>Auto-lock after inactivity</label><select class="input" data-action-change="autolock-set">'+
         [[0,'Off'],[1,'1 minute'],[5,'5 minutes'],[15,'15 minutes'],[30,'30 minutes']].map(function(o){return '<option value="'+o[0]+'"'+(autoLockMins()===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select></div>':'')+
     '<div style="display:flex;gap:9px;flex-wrap:wrap">'+
