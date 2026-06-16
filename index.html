@@ -143,11 +143,12 @@ a{color:var(--accent);text-decoration:none}
 .nav-item{
   display:flex;align-items:center;gap:10px;
   padding:6.5px 11px;border-radius:9px;
-  color:var(--sidebar-text);font-size:.9rem;font-weight:500;
+  color:#fff;font-size:.9rem;font-weight:500;
   transition:background .15s,color .15s,transform .1s;
   width:100%;text-align:left;position:relative;
 }
-.nav-item:hover{background:var(--sidebar-hover);color:var(--sidebar-text-active)}
+.nav-item:not(.active){color:#eef1fb}
+.nav-item:hover{background:var(--sidebar-hover);color:#fff}
 .nav-item.active{background:var(--sidebar-active);color:var(--sidebar-text-active);font-weight:600}
 .nav-item.active::before{content:'';position:absolute;left:-12px;top:20%;bottom:20%;width:3px;border-radius:0 3px 3px 0;background:var(--accent-grad)}
 .nav-item svg{width:17px;height:17px;flex-shrink:0;opacity:.85}
@@ -826,6 +827,74 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
   input[type=checkbox]{width:19px;height:19px}
   .btn{padding:9px 16px}
 }
+
+/* ===== Advisor page ===== */
+.advisor-hero{background:linear-gradient(135deg,var(--accent-soft),transparent 70%),var(--bg-card)}
+.adv-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.adv-avatar{width:40px;height:40px;border-radius:12px;background:var(--accent-grad);color:#fff;display:grid;place-items:center;flex-shrink:0;box-shadow:0 4px 14px rgba(99,102,241,.4)}
+.adv-avatar svg{width:21px;height:21px}
+.adv-head h3{font-size:1.05rem;font-weight:800}
+.adv-sub{font-size:.74rem;color:var(--text-3)}
+.adv-narrative{font-size:1rem;line-height:1.7;color:var(--text)}
+.adv-actions{list-style:none;display:flex;flex-direction:column;gap:10px}
+.adv-act{display:flex;gap:11px;align-items:flex-start;padding:11px 12px;border-radius:12px;background:var(--bg-sunken);border-left:3px solid var(--border-2)}
+.adv-act.risk{border-left-color:var(--risk);background:var(--risk-soft)}
+.adv-act.warn{border-left-color:var(--warn);background:var(--warn-soft)}
+.adv-num{width:24px;height:24px;border-radius:50%;background:var(--bg-card);color:var(--text-2);font-weight:800;font-size:.78rem;display:grid;place-items:center;flex-shrink:0;box-shadow:var(--shadow-sm)}
+.adv-act b{font-size:.9rem;display:block}
+.adv-act p{font-size:.82rem;color:var(--text-2);line-height:1.5;margin-top:2px}
+.adv-wins{list-style:none;display:flex;flex-direction:column;gap:11px}
+.adv-wins li{display:flex;gap:10px;align-items:flex-start}
+.adv-dot{width:9px;height:9px;border-radius:50%;background:var(--good);margin-top:6px;flex-shrink:0;box-shadow:0 0 0 3px var(--good-soft)}
+.adv-wins b{font-size:.88rem;display:block}
+.adv-wins p{font-size:.8rem;color:var(--text-3);margin-top:1px}
+
+/* ===== onboarding carousel ===== */
+.onb-overlay{position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(8,10,22,.66);backdrop-filter:blur(5px);animation:fadeIn .2s}
+.onb-card{position:relative;width:100%;max-width:440px;background:var(--bg-card);border:1px solid var(--border);border-radius:22px;overflow:hidden;box-shadow:var(--shadow-lg);animation:popIn .32s var(--ease)}
+.onb-x{position:absolute;top:12px;right:12px;z-index:3;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:#fff;background:rgba(0,0,0,.28)}
+.onb-x svg{width:16px;height:16px}
+.onb-mock{padding:26px 26px 0;background:linear-gradient(160deg,var(--accent-soft),transparent)}
+.onb-mock-svg{width:100%;height:auto;display:block;border-radius:12px;filter:drop-shadow(0 10px 24px rgba(20,24,50,.16))}
+.onb-body{padding:20px 26px 24px}
+.onb-eyebrow{display:inline-flex;align-items:center;gap:6px;font-size:.66rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);margin-bottom:7px}
+.onb-eyebrow svg{width:14px;height:14px}
+.onb-title{font-size:1.4rem;font-weight:800;letter-spacing:-.02em;line-height:1.15}
+.onb-desc{font-size:.92rem;color:var(--text-2);line-height:1.6;margin-top:8px;min-height:76px;animation:fadeUp .3s var(--ease)}
+.onb-dots{display:flex;gap:7px;justify-content:center;margin:16px 0}
+.onb-dot{width:8px;height:8px;border-radius:99px;background:var(--border-2);padding:0;border:none;transition:width .25s var(--ease),background .25s;cursor:pointer}
+.onb-dot.on{width:22px;background:var(--accent-grad)}
+.onb-foot{display:flex;align-items:center;gap:8px}
+@media(max-width:480px){.onb-card{max-width:none}.onb-title{font-size:1.25rem}}
+
+/* ===== floating Advisor bubble ===== */
+#advisor-bubble{position:fixed;right:20px;bottom:20px;z-index:90;max-width:min(340px,calc(100vw - 40px))}
+.advisor-bubble{display:inline-flex;align-items:center;gap:10px;padding:11px 14px 11px 11px;border-radius:18px 18px 18px 6px;background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--shadow-lg);cursor:pointer;text-align:left;animation:abPop .4s var(--ease) both;transition:transform .15s var(--ease),box-shadow .2s}
+.advisor-bubble:hover{transform:translateY(-2px);box-shadow:0 16px 40px rgba(20,24,50,.22)}
+.ab-avatar{width:32px;height:32px;border-radius:10px;background:var(--accent-grad);color:#fff;display:grid;place-items:center;flex-shrink:0;box-shadow:0 4px 12px rgba(99,102,241,.45);animation:abFloat 3s ease-in-out infinite}
+.ab-avatar svg{width:17px;height:17px}
+.ab-text{font-size:.84rem;font-weight:600;color:var(--text);line-height:1.35;min-width:0}
+.ab-caret{font-weight:700;color:var(--accent);animation:abBlink 1s step-end infinite;margin-left:-6px}
+.ab-x{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;color:var(--text-3);flex-shrink:0;align-self:flex-start}
+.ab-x:hover{background:var(--bg-hover);color:var(--text)}
+.ab-x svg{width:13px;height:13px}
+@keyframes abPop{from{opacity:0;transform:translateY(14px) scale(.9)}to{opacity:1;transform:none}}
+@keyframes abBlink{50%{opacity:0}}
+@keyframes abFloat{50%{transform:translateY(-3px)}}
+@media(max-width:560px){#advisor-bubble{right:12px;bottom:12px}}
+@media (prefers-reduced-motion:reduce){.ab-avatar,.ab-caret{animation:none}}
+/* review polish */
+.t-risk{color:var(--risk)}.t-good{color:var(--good)}
+.adv-narrative{line-height:1.8}
+.adv-act{padding:12px 14px}
+.adv-wins b{font-size:.92rem}.adv-dot{width:11px;height:11px}
+.ab-x{width:24px;height:24px;background:var(--bg-sunken)}
+@media(max-width:480px){
+  .onb-mock{padding:16px 16px 0}.onb-body{padding:16px 18px 20px}
+  #advisor-bubble{right:10px;bottom:10px;max-width:calc(100vw - 24px)}
+  .advisor-bubble{padding:9px 11px 9px 9px}.ab-text{font-size:.8rem}
+  .onb-dots{gap:12px}.onb-dot{width:10px;height:10px}.onb-dot.on{width:26px}
+}
 </style>
 </head>
 <body>
@@ -834,6 +903,7 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
   <aside class="sidebar" id="sidebar"></aside>
   <main class="main" id="main"></main>
 </div>
+<div id="advisor-bubble"></div>
 <div id="modal-root"></div>
 <div class="toast-root" id="toast-root"></div>
 <div id="print-area"></div>
@@ -1707,7 +1777,7 @@ function svgRing(pct,size,color,labelTop,labelBottom){
    ============================================================ */
 var ROUTES=[
   {id:'dashboard',label:'Dashboard',icon:'dashboard',section:'Overview'},
-  {id:'insights',label:'Insights',icon:'insights',section:'Overview'},
+  {id:'insights',label:'Advisor',icon:'spark',section:'Overview'},
   {id:'accounts',label:'Accounts & Cash',icon:'bank',section:'Money'},
   {id:'finance',label:'Finance',icon:'finance',section:'Money'},
   {id:'invoices',label:'Invoices',icon:'invoice',section:'Money'},
@@ -1838,6 +1908,7 @@ function render(){
   if(route==='roadmap'){ var crm=currentRoadmap(); if(crm&&crm.color) pc=crm.color; }
   main.style.setProperty('--page-color',safeColor(pc,'#6366f1'));
   applyNavCollapse();
+  if(typeof updateAdvisorBubble==='function') updateAdvisorBubble(route);
   main.scrollTop=0;
 }
 function applyNavCollapse(){
@@ -2152,17 +2223,57 @@ function upcomingMilestones(){
 /* ============================================================
    view: insights
    ============================================================ */
+function advisorNarrative(){
+  var mm=monthlyMap(), ck=thisMonthKey(), cur=mm[ck]||{revenue:0,expenses:0};
+  var t=financeTotals(), g=revenueGrowth(), prof=cur.revenue-cur.expenses;
+  var biz=(state.settings.businessName&&state.settings.businessName!=='My Business')?esc(state.settings.businessName):'your business';
+  var p=[];
+  p.push('This month '+biz+' brought in <b>'+fmtMoney(cur.revenue)+'</b> and spent <b>'+fmtMoney(cur.expenses)+'</b> — '+
+    (prof>=0?'a profit of <b>'+fmtMoney(prof)+'</b>':'a <b class="t-risk">loss of '+fmtMoney(-prof)+'</b>')+
+    (t.margin!=null?' ('+fmtPct(t.margin,0)+' margin)':'')+'.');
+  if(g!=null) p.push('Revenue is '+(g>=0?'<b class="t-good">up '+fmtPct(g)+'</b>':'<b class="t-risk">down '+fmtPct(Math.abs(g))+'</b>')+' versus last month.');
+  var topExp=topCategory('expense');
+  if(topExp&&t.expenses>0) p.push('Your biggest cost is <b>'+esc(topExp.name)+'</b> at '+fmtMoney(topExp.amount)+' ('+fmtPct(topExp.amount/t.expenses*100,0)+' of spending).');
+  var recv=receivablesSummary();
+  if(recv&&recv.total>0) p.push(recv.overdueTotal>0?'<b class="t-risk">'+fmtMoney(recv.overdueTotal)+' is overdue</b> from clients — that is your fastest cash to collect.':fmtMoney(recv.total)+' is owed to you across '+recv.count+' invoice'+(recv.count>1?'s':'')+'.');
+  if(state.settings.monthlyTarget>0){
+    var togo=Math.max(0,state.settings.monthlyTarget-cur.revenue);
+    p.push(togo>0?'You are <b>'+fmtMoney(togo)+'</b> from your monthly target.':'You have <b class="t-good">hit your monthly target</b> 🎉.');
+  }
+  return p.join(' ');
+}
 function viewInsights(){
+  var html=topbar('Advisor','Your business, read and explained — what is working, what needs attention, and what to do next.');
+  if(!state.finance.length){
+    html+='<div class="card">'+emptyState('spark','Your advisor is ready','Add your first income or expense and I will summarize your money, flag the risks, and tell you exactly what to do next — no spreadsheets.','<button class="btn btn-sm btn-primary" data-action="open-entry-modal">'+icon('plus')+' Add first entry</button>')+'</div>';
+    return html;
+  }
   var ins=buildInsights();
-  var html=topbar('Smart Insights','Automatic analysis generated from your real numbers — updated on every change.');
-  var counts={risk:0,warn:0,good:0,info:0};
-  ins.forEach(function(i){counts[i.sev]++;});
-  html+='<div class="grid grid-4">'+
-    '<div class="card stat-card"><div class="stat-label" style="color:var(--risk)">'+icon('alert')+' Risks</div><div class="stat-value">'+counts.risk+'</div></div>'+
-    '<div class="card stat-card"><div class="stat-label" style="color:var(--warn)">'+icon('alert')+' Warnings</div><div class="stat-value">'+counts.warn+'</div></div>'+
-    '<div class="card stat-card"><div class="stat-label" style="color:var(--good)">'+icon('check')+' Strengths</div><div class="stat-value">'+counts.good+'</div></div>'+
-    '<div class="card stat-card"><div class="stat-label" style="color:var(--info)">'+icon('insights')+' Notes</div><div class="stat-value">'+counts.info+'</div></div></div>';
-  html+='<div class="grid grid-2 mt">'+ins.map(insightHTML).join('')+'</div>';
+  var hs=healthScore();
+  var actions=ins.filter(function(i){return i.sev==='risk'||i.sev==='warn';});
+  var wins=ins.filter(function(i){return i.sev==='good';});
+  var notes=ins.filter(function(i){return i.sev==='info';});
+  // 1) narrative + health
+  html+='<div class="card advisor-hero"><div class="adv-head"><span class="adv-avatar">'+icon('spark')+'</span>'+
+    '<div style="flex:1;min-width:0"><h3>Here is your read</h3><div class="adv-sub">Generated live from your latest numbers</div></div>'+
+    (hs?svgRing(hs.score,64,null,String(hs.score),'/100'):'')+'</div>'+
+    '<p class="adv-narrative">'+advisorNarrative()+'</p></div>';
+  // 2) priorities + going well
+  html+='<div class="grid grid-2 mt">';
+  html+='<div class="card"><div class="card-head"><h3>'+icon('alert',16)+' Do this now</h3><span class="spacer"></span>'+
+    '<span class="badge '+(actions.length?'warn':'good')+'">'+(actions.length?actions.length+' to act on':'All clear')+'</span></div>';
+  if(actions.length){
+    html+='<ol class="adv-actions">'+actions.slice(0,6).map(function(i,n){
+      return '<li class="adv-act '+i.sev+'"><span class="adv-num">'+(n+1)+'</span><div><b>'+esc(i.title)+'</b><p>'+esc(i.text)+'</p></div></li>';
+    }).join('')+'</ol>';
+  } else html+='<p style="color:var(--text-2);font-size:.88rem">Nothing urgent right now — your numbers look steady. Keep logging and check back tomorrow.</p>';
+  html+='</div>';
+  html+='<div class="card"><div class="card-head"><h3>'+icon('check',16)+' Going well</h3></div>';
+  if(wins.length) html+='<ul class="adv-wins">'+wins.slice(0,6).map(function(i){return '<li><span class="adv-dot"></span><div><b>'+esc(i.title)+'</b><p>'+esc(i.text)+'</p></div></li>';}).join('')+'</ul>';
+  else html+='<p style="color:var(--text-3);font-size:.86rem">Strengths will appear here as your numbers grow.</p>';
+  html+='</div></div>';
+  // 3) good-to-know
+  if(notes.length) html+='<div class="card mt"><div class="card-head"><h3>Good to know</h3><span class="sub">context, timing &amp; opportunities</span></div><div class="grid grid-2">'+notes.map(insightHTML).join('')+'</div></div>';
   return html;
 }
 
@@ -4557,6 +4668,8 @@ function customizationCardHTML(){
       return '<label class="checkrow" style="font-size:.84rem"><input type="checkbox" data-action-change="toggle-module" data-id="'+r.id+'"'+(hidden.indexOf(r.id)<0?' checked':'')+'> '+esc(lbl)+
         ' <button type="button" class="btn-icon" style="width:20px;height:20px" data-action="rename-module" data-id="'+r.id+'" title="Rename">'+icon('edit')+'</button></label>';
     }).join('')+'</div><p style="font-size:.72rem;color:var(--text-3);margin-top:5px">Hide modules you don’t use — nothing is deleted, they just leave the sidebar.</p></div>';
+  html+='<div class="field"><label class="checkrow"><input type="checkbox" data-action-change="advisor-bubble-toggle"'+(s.advisorBubbleOff?'':' checked')+'> Show the floating Advisor bubble</label>'+
+    '<p style="font-size:.72rem;color:var(--text-3);margin-top:4px">A friendly prompt that nudges you to check your Advisor — appears on every page except the Advisor itself.</p></div>';
   html+='</div>';
   return html;
 }
@@ -4840,6 +4953,7 @@ document.addEventListener('change',function(e){
   }
   if(act==='autolock-set'){ state.settings.autoLockMin=parseInt(el.value,10)||0; save(); toast(state.settings.autoLockMin?('Auto-lock set to '+state.settings.autoLockMin+' min.'):'Auto-lock turned off.'); return; }
   if(act==='dash-toggle'){ var did=el.getAttribute('data-id'); var h=state.settings.dashHidden=state.settings.dashHidden||[]; if(el.checked){ state.settings.dashHidden=h.filter(function(x){return x!==did;}); } else if(h.indexOf(did)<0){ h.push(did); } save(); render(); return; }
+  if(act==='advisor-bubble-toggle'){ state.settings.advisorBubbleOff=!el.checked; save(); updateAdvisorBubble(currentRoute()); toast(el.checked?'Advisor bubble is on.':'Advisor bubble hidden.'); return; }
   if(act==='apply-country'){
     if(applyCountry(el.value)){ var c=COUNTRIES[el.value]; commit(); toast('Set up for '+c.flag+' '+c.name+' — '+state.settings.currency+' · '+state.settings.taxLabel+' '+state.settings.taxRate+'%.'); }
     return;
@@ -6327,8 +6441,8 @@ function maybeOnboard(){
   if(state.settings.onboarded) return;
   if(state.finance.length||state.products.length||state.orders.length){ state.settings.onboarded=true; state.settings.wizardDone=true; save(); return; }
   state.settings.onboarded=true; save(); // show once, ever
-  // walkthrough first; the setup wizard opens when the tour ends
-  setTimeout(function(){ showTour(0); },700);
+  // carousel intro first; the setup wizard opens when it ends
+  setTimeout(function(){ showOnboard(0); },600);
 }
 function openSetupWizard(){
   state.settings.wizardDone=true; save();
@@ -7766,88 +7880,129 @@ document.addEventListener('change',function(e){
 /* ============================================================
    v20 additions: welcome tour
    ============================================================ */
-var TOUR_STEPS=[
-  {sel:'.sidebar .brand',ico:'dashboard',title:'Your whole business, one place',
-   text:'Money, products, orders, clients, goals and notes all live here — saved privately in this browser, working offline with no account needed.',
-   why:'Stop juggling notebooks, chat threads and spreadsheets. <b>One source of truth = faster, calmer decisions.</b>'},
-  {sel:'.main',ico:'spark',title:'Your morning briefing',
-   text:'Each day opens with a Today panel — deliveries due, payments to chase, low stock — plus a business health score, charts and smart insights.',
-   why:'See what needs attention in <b>10 seconds</b>, so nothing profitable slips through the cracks.'},
-  {sel:'.sidebar [data-route="finance"]',ico:'wallet',title:'Know your real numbers',
-   text:'Log income & expenses, track bank / e-wallet balances in Accounts, bill clients with Invoices, and print clean monthly Reports.',
-   why:'Live profit and cash flow tell you <b>what to cut, what to push, and whether you can afford to grow.</b>'},
-  {sel:'.sidebar [data-route="products"]',ico:'box',title:'Sell without the chaos',
-   text:'Products with your own custom fields, Orders that auto-deplete stock, raw-material recipes, and a “pay later” Customer Credit list — all connected.',
-   why:'<b>Never oversell, never lose track of who owes you.</b> Every order updates stock and income for you.'},
-  {sel:'.sidebar [data-route="goals"]',ico:'flag',title:'Turn plans into progress',
-   text:'Goals track themselves from your real numbers. Roadmaps plan your launches. Tasks come as list, board, table or calendar — your pick.',
-   why:'Targets you can actually see keep you <b>moving toward growth, not just busywork.</b>'},
-  {sel:'.sidebar [data-route="settings"]',ico:'palette',title:'Make it truly yours',
-   text:'Add your logo, create custom fields and whole new modules, load sample data to explore safely, and back up or sync your data.',
-   why:'A tool shaped around how you actually work is one you’ll keep using. <b>Tip: press Ctrl+K to search everything.</b>'}
+/* ============================================================
+   onboarding carousel + floating Advisor bubble (v25)
+   ============================================================ */
+var ONBOARD_SLIDES=[
+  {ico:'dashboard',title:'Welcome to Trakora',mock:'welcome',
+   desc:'Your whole business in one private workspace — money, sales, goals, clients and notes. It runs in your browser, works offline, and your numbers never leave this device.'},
+  {ico:'spark',title:'Your daily briefing',mock:'dashboard',
+   desc:'Open each morning to a clear read: profit, cash, what needs attention today, and a business-health score — so nothing profitable slips through the cracks.'},
+  {ico:'wallet',title:'Know your real numbers',mock:'money',
+   desc:'Log income and expenses, send invoices (even recurring retainers), and track every bank or e-wallet balance. Profit and cash flow update the instant you type.'},
+  {ico:'box',title:'Sell without the chaos',mock:'selling',
+   desc:'Products with your own fields, orders that auto-update stock, and a pay-later credit list. Never oversell, never lose track of who owes you.'},
+  {ico:'spark',title:'Meet your Advisor',mock:'advisor',
+   desc:'Trakora reads your numbers and explains — in plain words — what is working, what needs attention, and what to focus on next. No more guessing from a spreadsheet.'},
+  {ico:'palette',title:'Make it yours',mock:'customize',
+   desc:'Your logo and colors, import a spreadsheet in seconds, and lock everything behind a PIN with encryption. Tip: press Ctrl+K to search anything, anywhere.'}
 ];
-var tourOpenedSidebar=false;
-function showTour(step){
-  step=step||0;
-  state.settings.tourDone=true; save();
-  var s=TOUR_STEPS[step];
-  var root=byId('lightbox-root');
-  // keep the sidebar fully expanded (labels visible) for the duration of the tour
-  var appEl=byId('app'); if(appEl) appEl.classList.remove('nav-collapsed');
-  // mobile: sidebar steps need the drawer open
-  var sb=byId('sidebar');
-  if(s.sel.indexOf('.sidebar')===0&&window.innerWidth<=860){
-    if(!sb.classList.contains('open')){ sb.classList.add('open'); tourOpenedSidebar=true; }
-  } else if(tourOpenedSidebar){ sb.classList.remove('open'); tourOpenedSidebar=false; }
-  var target=document.querySelector(s.sel);
-  if(target&&target.scrollIntoView){ try{ target.scrollIntoView({block:'nearest',inline:'nearest'}); }catch(_){ } }
-  var r=target?target.getBoundingClientRect():{top:80,left:80,width:200,height:48,right:280,bottom:128};
-  if(s.sel==='.main'){ var mw=Math.min(r.width,640), mh=Math.min(r.height,300); r={top:r.top,left:r.left,width:mw,height:mh,right:r.left+mw,bottom:r.top+mh}; }
-  var pad=6;
-  var spot='top:'+(r.top-pad)+'px;left:'+(r.left-pad)+'px;width:'+(r.width+pad*2)+'px;height:'+(r.height+pad*2)+'px';
-  // card placement: right of sidebar targets, below main target; clamped to stay fully on-screen
-  var CARD_W=330, CARD_H=300, GAP=16, M=12;
-  var maxLeft=window.innerWidth-CARD_W-M, maxTop=window.innerHeight-CARD_H-M;
-  var cardTop,cardLeft;
-  if(s.sel.indexOf('.sidebar')===0){ cardLeft=clamp(r.right+GAP,M,Math.max(M,maxLeft)); cardTop=clamp(r.top-8,M,Math.max(M,maxTop)); }
-  else { cardLeft=clamp(r.left+40,M,Math.max(M,maxLeft)); cardTop=clamp(r.bottom+GAP,M,Math.max(M,maxTop)); }
-  var isLast=step===TOUR_STEPS.length-1;
-  var lastLabel=(state.settings.onboarded&&state.settings.businessName&&state.settings.businessName!=='My Business')?'Done ✨':'Set up my business →';
-  root.innerHTML=
-    '<div class="tour-spot" style="'+spot+'"></div>'+
-    '<div class="tour-card" style="top:'+cardTop+'px;left:'+cardLeft+'px">'+
-      '<button class="tour-x" data-action="tour-end" aria-label="Close tour">'+icon('x')+'</button>'+
-      '<div class="tour-step-n">Step '+(step+1)+' of '+TOUR_STEPS.length+'</div>'+
-      '<div class="tour-head"><span class="tour-ico">'+icon(s.ico||'spark')+'</span><h4>'+s.title+'</h4></div>'+
-      '<p>'+s.text+'</p>'+
-      (s.why?'<div class="tour-why">'+icon('spark')+'<span>'+s.why+'</span></div>':'')+
-      '<div class="tour-dots">'+
-        TOUR_STEPS.map(function(_,i){return '<i class="'+(i===step?'on':'')+'"></i>';}).join('')+'</div>'+
-      '<div class="tour-foot">'+
-        (step>0?'<button class="btn btn-ghost btn-sm" data-action="tour-step" data-step="'+(step-1)+'">← Back</button>':'')+
-        '<button class="tour-skip" data-action="tour-end">'+(isLast?'Close':'Skip tour')+'</button>'+
-        '<span class="spacer"></span>'+
-        (isLast?'<button class="btn btn-primary btn-sm" data-action="tour-end">'+lastLabel+'</button>'
-               :'<button class="btn btn-primary btn-sm" data-action="tour-step" data-step="'+(step+1)+'">Next →</button>')+
-      '</div></div>';
+function onbMockup(kind){
+  var f='<rect x="6" y="6" width="308" height="168" rx="12" fill="#f4f5fb"/><rect x="6" y="6" width="308" height="26" rx="12" fill="#eaecf6"/><circle cx="20" cy="19" r="3" fill="#cdd2e6"/><circle cx="32" cy="19" r="3" fill="#cdd2e6"/><circle cx="44" cy="19" r="3" fill="#cdd2e6"/>';
+  var b='';
+  if(kind==='welcome'){
+    b='<rect x="132" y="56" width="56" height="56" rx="15" fill="#6366f1"/><path d="M148 90l8 8 16-20" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><rect x="116" y="126" width="88" height="9" rx="4" fill="#cdd2e6"/><rect x="134" y="144" width="52" height="6" rx="3" fill="#dde1ee"/>';
+  } else if(kind==='dashboard'){
+    b='<rect x="20" y="44" width="84" height="40" rx="8" fill="#fff"/><rect x="112" y="44" width="84" height="40" rx="8" fill="#fff"/><rect x="204" y="44" width="92" height="40" rx="8" fill="#fff"/>'+
+      '<circle cx="44" cy="64" r="11" fill="none" stroke="#6366f1" stroke-width="4"/><rect x="128" y="54" width="40" height="7" rx="3" fill="#10b981"/><rect x="128" y="66" width="56" height="6" rx="3" fill="#dde1ee"/><rect x="216" y="56" width="44" height="7" rx="3" fill="#cdd2e6"/><rect x="216" y="68" width="60" height="6" rx="3" fill="#dde1ee"/>'+
+      '<rect x="20" y="96" width="180" height="66" rx="8" fill="#fff"/>'+[0,1,2,3,4].map(function(i){var h=18+i*8;return '<rect x="'+(34+i*30)+'" y="'+(150-h)+'" width="14" height="'+h+'" rx="3" fill="#34d399"/>';}).join('')+
+      '<rect x="208" y="96" width="88" height="66" rx="8" fill="#fff"/><rect x="218" y="108" width="60" height="7" rx="3" fill="#cdd2e6"/><rect x="218" y="122" width="68" height="6" rx="3" fill="#dde1ee"/><rect x="218" y="134" width="44" height="6" rx="3" fill="#dde1ee"/>';
+  } else if(kind==='money'){
+    b='<rect x="20" y="44" width="180" height="118" rx="8" fill="#fff"/>'+[0,1,2,3].map(function(i){var y=56+i*26;return '<circle cx="36" cy="'+(y+8)+'" r="7" fill="'+(i%2?'#fde2e2':'#d6f5e8')+'"/><rect x="52" y="'+y+'" width="80" height="7" rx="3" fill="#cdd2e6"/><rect x="52" y="'+(y+12)+'" width="50" height="6" rx="3" fill="#e6e9f3"/><rect x="150" y="'+(y+4)+'" width="40" height="9" rx="4" fill="'+(i%2?'#ef4444':'#10b981')+'"/>';}).join('')+
+      '<rect x="208" y="44" width="88" height="118" rx="8" fill="#fff"/><rect x="220" y="56" width="64" height="8" rx="4" fill="#6366f1"/><rect x="220" y="74" width="64" height="6" rx="3" fill="#dde1ee"/><rect x="220" y="86" width="48" height="6" rx="3" fill="#dde1ee"/><rect x="220" y="120" width="64" height="28" rx="6" fill="#eef0ff"/>';
+  } else if(kind==='selling'){
+    b=[0,1,2].map(function(i){var x=20+i*94;return '<rect x="'+x+'" y="44" width="84" height="76" rx="8" fill="#fff"/><rect x="'+(x+10)+'" y="54" width="64" height="34" rx="6" fill="#eef0ff"/><rect x="'+(x+10)+'" y="94" width="48" height="7" rx="3" fill="#cdd2e6"/><rect x="'+(x+10)+'" y="106" width="30" height="9" rx="4" fill="#10b981"/>';}).join('')+
+      '<rect x="20" y="130" width="276" height="30" rx="8" fill="#fff"/><rect x="32" y="140" width="90" height="9" rx="4" fill="#cdd2e6"/><rect x="240" y="138" width="44" height="13" rx="6" fill="#d6f5e8"/>';
+  } else if(kind==='advisor'){
+    b='<circle cx="40" cy="64" r="16" fill="#6366f1"/><path d="M33 64l5 5 9-11" stroke="#fff" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'+
+      '<rect x="68" y="46" width="228" height="60" rx="10" fill="#fff"/><rect x="80" y="58" width="180" height="8" rx="4" fill="#1c2033"/><rect x="80" y="74" width="200" height="6" rx="3" fill="#cdd2e6"/><rect x="80" y="86" width="150" height="6" rx="3" fill="#dde1ee"/>'+
+      '<rect x="20" y="120" width="130" height="44" rx="8" fill="#fff5f0"/><rect x="32" y="130" width="14" height="14" rx="4" fill="#f59e0b"/><rect x="54" y="131" width="84" height="7" rx="3" fill="#cdd2e6"/><rect x="54" y="143" width="60" height="6" rx="3" fill="#e6e9f3"/>'+
+      '<rect x="160" y="120" width="136" height="44" rx="8" fill="#eefaf3"/><rect x="172" y="130" width="14" height="14" rx="4" fill="#10b981"/><rect x="194" y="131" width="90" height="7" rx="3" fill="#cdd2e6"/><rect x="194" y="143" width="66" height="6" rx="3" fill="#e6e9f3"/>';
+  } else {
+    b='<rect x="20" y="44" width="160" height="118" rx="8" fill="#fff"/><rect x="32" y="56" width="80" height="8" rx="4" fill="#cdd2e6"/>'+['#6366f1','#0ea5e9','#10b981','#f59e0b','#ef4444','#ec4899','#8b5cf6'].map(function(c,i){return '<circle cx="'+(40+i*20)+'" cy="84" r="8" fill="'+c+'"/>';}).join('')+
+      '<rect x="32" y="104" width="136" height="10" rx="5" fill="#eef0ff"/><rect x="32" y="104" width="80" height="10" rx="5" fill="#6366f1"/><rect x="32" y="124" width="136" height="10" rx="5" fill="#eef0ff"/><rect x="32" y="124" width="50" height="10" rx="5" fill="#10b981"/>'+
+      '<rect x="188" y="44" width="108" height="118" rx="8" fill="#fff"/><rect x="200" y="56" width="84" height="40" rx="6" fill="#f4f5fb"/><path d="M232 86l8-10 6 6 10-12" stroke="#94a3b8" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/><rect x="200" y="108" width="84" height="9" rx="4" fill="#dde1ee"/><rect x="200" y="124" width="60" height="9" rx="4" fill="#dde1ee"/><rect x="200" y="140" width="84" height="14" rx="7" fill="#eef0ff"/>';
+  }
+  return '<svg viewBox="0 0 320 180" class="onb-mock-svg" role="img" aria-label="section preview">'+f+b+'</svg>';
 }
-function endTour(){
+var onboardIdx=0;
+function showOnboard(idx){
+  onboardIdx=clamp(idx||0,0,ONBOARD_SLIDES.length-1);
+  state.settings.tourDone=true; save();
+  var s=ONBOARD_SLIDES[onboardIdx], last=onboardIdx===ONBOARD_SLIDES.length-1;
+  byId('lightbox-root').innerHTML=
+    '<div class="onb-overlay" data-action="onb-skip-bg"><div class="onb-card" role="dialog" aria-modal="true" aria-label="Welcome to Trakora">'+
+      '<button class="onb-x" data-action="onb-skip" aria-label="Skip intro">'+icon('x')+'</button>'+
+      '<div class="onb-mock">'+onbMockup(s.mock)+'</div>'+
+      '<div class="onb-body"><div class="onb-eyebrow">'+icon(s.ico,14)+'<span>'+(onboardIdx+1)+' of '+ONBOARD_SLIDES.length+'</span></div>'+
+        '<h2 class="onb-title">'+esc(s.title)+'</h2><p class="onb-desc">'+esc(s.desc)+'</p>'+
+        '<div class="onb-dots">'+ONBOARD_SLIDES.map(function(_,i){return '<button class="onb-dot'+(i===onboardIdx?' on':'')+'" data-action="onb-go" data-i="'+i+'" aria-label="Go to slide '+(i+1)+'"></button>';}).join('')+'</div>'+
+        '<div class="onb-foot">'+
+          (onboardIdx>0?'<button class="btn btn-ghost" data-action="onb-go" data-i="'+(onboardIdx-1)+'">← Back</button>':'<button class="btn btn-ghost" data-action="onb-skip">Skip</button>')+
+          '<span class="spacer"></span>'+
+          (last?'<button class="btn btn-primary" data-action="onb-finish">Get started →</button>':'<button class="btn btn-primary" data-action="onb-go" data-i="'+(onboardIdx+1)+'">Next →</button>')+
+        '</div></div></div></div>';
+}
+function endOnboard(){
   byId('lightbox-root').innerHTML='';
-  if(tourOpenedSidebar){ byId('sidebar').classList.remove('open'); tourOpenedSidebar=false; }
-  applyNavCollapse(); // restore the user's collapse preference
   if(!state.settings.wizardDone&&!(state.finance.length||state.products.length)){ setTimeout(openSetupWizard,250); }
   else { state.settings.wizardDone=true; save(); }
 }
+(function(){ var x0=null;
+  document.addEventListener('touchstart',function(e){ if(byId('lightbox-root').querySelector('.onb-card')&&e.touches[0]) x0=e.touches[0].clientX; },{passive:true});
+  document.addEventListener('touchend',function(e){ if(x0==null) return; var dx=(e.changedTouches[0]?e.changedTouches[0].clientX:x0)-x0; x0=null; if(Math.abs(dx)<40) return; showOnboard(dx<0?onboardIdx+1:onboardIdx-1); });
+})();
+
+/* floating Advisor bubble with typing prompt — shows everywhere except the Advisor/Settings page */
+var advisorTypeTimer=null, lastBubbleState='';
+var ADVISOR_GENERIC=['Want to know what is happening with your money this month?','Curious how your business is really doing?','Your numbers have a story — want the quick read?'];
+/* a context-aware prompt so it does not feel like the same frozen line every day */
+function advisorPrompt(){
+  try{
+    var recv=receivablesSummary();
+    if(recv&&recv.overdueTotal>0) return 'You have '+fmtMoney(recv.overdueTotal)+' overdue — want the quick plan?';
+    var cur=monthlyMap()[thisMonthKey()]||{revenue:0,expenses:0};
+    if(cur.expenses>cur.revenue&&(cur.revenue||cur.expenses)) return 'Spending is ahead of income this month — see what to do?';
+    if(state.settings.monthlyTarget>0&&cur.revenue<state.settings.monthlyTarget) return 'Want to see how close you are to your target?';
+  }catch(_){ }
+  return ADVISOR_GENERIC[Math.floor(Math.random()*ADVISOR_GENERIC.length)];
+}
+function updateAdvisorBubble(route){
+  var root=byId('advisor-bubble'); if(!root) return;
+  var blocked=route==='insights'||route==='settings'||(state.settings&&state.settings.advisorBubbleOff)||(byId('lock-root')&&byId('lock-root').innerHTML)||(byId('gate-root')&&byId('gate-root').innerHTML)||!state.finance||!state.finance.length;
+  // only rebuild (and re-type) when the visible/hidden state actually changes — not on every render
+  var key=blocked?'hidden':'shown';
+  if(key===lastBubbleState && (blocked? root.innerHTML==='' : root.querySelector('.advisor-bubble'))) return;
+  lastBubbleState=key;
+  if(advisorTypeTimer){ clearTimeout(advisorTypeTimer); advisorTypeTimer=null; }
+  if(blocked){ root.innerHTML=''; return; }
+  var msg=advisorPrompt();
+  root.innerHTML='<button class="advisor-bubble" data-action="open-advisor" aria-label="Open your Advisor — '+esc(msg)+'">'+
+    '<span class="ab-avatar">'+icon('spark')+'</span><span class="ab-text" id="ab-text"></span><span class="ab-caret" aria-hidden="true">|</span>'+
+    '<span class="ab-x" data-action="advisor-bubble-dismiss" role="button" tabindex="0" aria-label="Hide advisor bubble">'+icon('x')+'</span></button>';
+  typeAdvisor(msg);
+}
+function typeAdvisor(msg){
+  var i=0;
+  (function step(){ var e2=byId('ab-text'); if(!e2){ advisorTypeTimer=null; return; } e2.textContent=msg.slice(0,i); i++; if(i<=msg.length){ advisorTypeTimer=setTimeout(step,30); } })();
+}
+
 document.addEventListener('click',function(e){
-  var el=e.target.closest('[data-action]');
-  if(!el) return;
+  var el=e.target.closest('[data-action]'); if(!el) return;
   var action=el.getAttribute('data-action');
-  if(action==='tour-step'){ showTour(parseInt(el.getAttribute('data-step'),10)); return; }
-  if(action==='tour-end'){ endTour(); return; }
-  if(action==='show-tour'){ nav('dashboard'); setTimeout(function(){ showTour(0); },150); return; }
+  if(action==='onb-go'){ showOnboard(parseInt(el.getAttribute('data-i'),10)); return; }
+  if(action==='onb-skip'||action==='onb-finish'){ endOnboard(); return; }
+  if(action==='onb-skip-bg'){ if(e.target===el) endOnboard(); return; }
+  if(action==='show-tour'){ showOnboard(0); return; }
+  if(action==='open-advisor'){ nav('insights'); return; }
+  if(action==='advisor-bubble-dismiss'){ e.stopPropagation(); state.settings.advisorBubbleOff=true; save(); updateAdvisorBubble(currentRoute()); toast('Advisor bubble hidden — turn it back on in Settings → Customization.'); return; }
 });
-/* keyboard: Escape closes modal / sidebar */
 document.addEventListener('keydown',function(e){
+  if(byId('lightbox-root').querySelector('.onb-card')){
+    if(e.key==='ArrowRight'){ showOnboard(onboardIdx+1); return; }
+    if(e.key==='ArrowLeft'){ showOnboard(onboardIdx-1); return; }
+    if(e.key==='Escape'){ endOnboard(); return; }
+  }
   if(e.key==='Escape'){
     if(byId('modal-root').innerHTML) closeModal();
     byId('sidebar').classList.remove('open');

@@ -40,6 +40,7 @@ async function main() {
     window.GATE.enabled = false;
     window.bootApp();
     await wait(60);
+    if (d.getElementById('gate-root')) d.getElementById('gate-root').innerHTML = ''; // simulate post-activation (gate bypassed in tests)
 
     // ---------- boot + every view renders ----------
     ok('app boots (state present)', !!window.state);
@@ -104,20 +105,48 @@ async function main() {
     window.reorderDash('miles', 'rev'); await wait(20);
     ok('single-card reorder persists', d.querySelectorAll('.dash-widget')[0].getAttribute('data-widget') === 'miles');
 
-    // ---------- welcome tour — guards the NaN regression ----------
-    window.state.settings.navCollapsed = true; window.render();
-    let tourErr = null;
-    for (let st = 0; st < 6; st++) {
-      window.showTour(st);
-      const card = d.querySelector('.tour-card');
-      if (!card) { tourErr = 'no card at step ' + st; break; }
-      const top = parseFloat(card.style.top), left = parseFloat(card.style.left);
-      if (!isFinite(top) || !isFinite(left) || top < 0 || left < 0 || top > window.innerHeight || left > window.innerWidth) { tourErr = 'off-screen/NaN at step ' + st + ' (' + left + ',' + top + ')'; break; }
+    // ---------- onboarding carousel (replaces the old spotlight tour) ----------
+    let onbErr = null;
+    for (let st = 0; st < window.ONBOARD_SLIDES.length; st++) {
+      window.showOnboard(st);
+      const card = d.querySelector('.onb-card');
+      if (!card) { onbErr = 'no slide at ' + st; break; }
+      if (!/of /.test(card.textContent) || !card.querySelector('.onb-mock-svg') || card.querySelectorAll('.onb-dot').length !== window.ONBOARD_SLIDES.length) { onbErr = 'malformed slide ' + st; break; }
     }
-    ok('tour positions all 6 steps on-screen (no NaN)', tourErr === null, tourErr);
-    window.endTour();
-    ok('endTour clears overlay + restores collapse', d.getElementById('lightbox-root').innerHTML === '' && d.getElementById('app').classList.contains('nav-collapsed'));
-    window.state.settings.navCollapsed = false;
+    ok('carousel renders all slides with mockups + dots', onbErr === null, onbErr);
+    window.showOnboard(0);
+    ok('first slide has Skip not Back', /Skip/.test(d.querySelector('.onb-card').textContent));
+    click(d.querySelector('.onb-card [data-action="onb-go"][data-i="1"]'));
+    ok('Next advances the carousel', /2 of /.test(d.querySelector('.onb-card').textContent));
+    window.showOnboard(window.ONBOARD_SLIDES.length - 1);
+    ok('last slide shows Get started', /Get started/.test(d.querySelector('.onb-card').textContent));
+    click(d.querySelector('.onb-card [data-action="onb-finish"]'));
+    ok('finishing closes the carousel', d.getElementById('lightbox-root').innerHTML === '');
+
+    // ---------- Advisor page (upgraded Insights) ----------
+    window.state.finance = [{ id: 'fa', type: 'income', amount: 5000, date: window.todayISO(), category: 'Sales', note: 'x' }, { id: 'fb', type: 'expense', amount: 2000, date: window.todayISO(), category: 'Marketing & Ads', note: 'y' }];
+    window.location.hash = '#/insights'; window.render();
+    const advHtml = d.getElementById('main').innerHTML;
+    ok('Advisor shows a narrative read', /Here is your read/.test(advHtml) && /brought in/.test(advHtml));
+    ok('Advisor shows a prioritized action list or all-clear', /Do this now/.test(advHtml));
+    ok('Advisor route relabeled in sidebar', /Advisor/.test(d.getElementById('sidebar').innerHTML));
+
+    // ---------- floating Advisor bubble ----------
+    window.state.settings.advisorBubbleOff = false;
+    window.location.hash = '#/dashboard'; window.render();
+    await waitFor(() => d.getElementById('advisor-bubble').querySelector('.advisor-bubble') !== null);
+    ok('bubble appears off the Advisor page', !!d.getElementById('advisor-bubble').querySelector('.advisor-bubble'));
+    window.location.hash = '#/insights'; window.render();
+    ok('bubble hides on the Advisor page', d.getElementById('advisor-bubble').innerHTML === '');
+    window.location.hash = '#/dashboard'; window.render();
+    await waitFor(() => !!d.getElementById('ab-text'));
+    await waitFor(() => d.getElementById('ab-text') && d.getElementById('ab-text').textContent.length > 5);
+    ok('bubble types its prompt', d.getElementById('ab-text').textContent.length > 5);
+    click(d.querySelector('[data-action="advisor-bubble-dismiss"]'));
+    ok('dismissing hides the bubble + persists', window.state.settings.advisorBubbleOff === true && d.getElementById('advisor-bubble').innerHTML === '');
+
+    // ---------- sidebar default white text ----------
+    ok('sidebar nav text is white by default', html.indexOf('color:#fff;font-size:.9rem') > -1 || /\.nav-item\{[^}]*color:#fff/.test(html));
 
     // ---------- recurring invoices: generate + idempotent + catch-up ----------
     window.state.invoices = []; window.state.recurringInvoices = [{ id: 'r1', client: 'Lumina', desc: 'Retainer', amount: 9000, currency: 'PHP', day: 1, netDays: 14, active: true, lastGenerated: null, startMonth: window.thisMonthKey() }];
