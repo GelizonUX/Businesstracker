@@ -586,8 +586,12 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
   /* zero page margin removes the browser's own URL/date header & footer;
      the document supplies its own padding instead */
   @page{margin:0;size:auto}
-  body.printing > .app,body.printing > .toast-root,body.printing > #modal-root{display:none !important}
-  body.printing #print-area{display:block !important}
+  /* Default-hide EVERY body-level element while printing, then reveal only the
+     print document. This is leak-proof: any current or future floating/overlay
+     element (advisor bubble, toasts, storage banner, saved chip, modals, lock/
+     gate screens) can never bleed into a printed invoice/report. */
+  body.printing > *{display:none !important}
+  body.printing > #print-area{display:block !important}
   #print-area{color:#000;background:#fff;font-family:Helvetica,Arial,sans-serif}
   #print-area .pr-qr{position:absolute;width:108px;height:108px;object-fit:contain;border:1px solid #ccc;border-radius:8px;background:#fff}
   #print-area .pr-qr-ur{top:0;right:0} #print-area .pr-qr-ul{top:0;left:0}
@@ -878,7 +882,7 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 #main.view-enter{animation:viewEnter .2s var(--ease)}
 
 /* ===== floating Advisor bubble ===== */
-#advisor-bubble{position:fixed;right:20px;bottom:20px;z-index:90;width:min(320px,calc(100vw - 40px))}
+#advisor-bubble{position:fixed;right:20px;bottom:84px;z-index:90;width:min(320px,calc(100vw - 40px))}
 .advisor-bubble{display:flex;width:100%;box-sizing:border-box;align-items:center;gap:10px;padding:11px 14px 11px 11px;border-radius:18px 18px 18px 6px;background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--shadow-lg);cursor:pointer;text-align:left;animation:abPop .4s var(--ease) both;transition:transform .15s var(--ease),box-shadow .2s}
 .advisor-bubble:hover{transform:translateY(-2px);box-shadow:0 16px 40px rgba(20,24,50,.22)}
 .ab-avatar{width:32px;height:32px;border-radius:10px;background:var(--accent-grad);color:#fff;display:grid;place-items:center;flex-shrink:0;box-shadow:0 4px 12px rgba(99,102,241,.45);animation:abFloat 3s ease-in-out infinite}
@@ -891,7 +895,7 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 @keyframes abPop{from{opacity:0;transform:translateY(14px) scale(.9)}to{opacity:1;transform:none}}
 @keyframes abBlink{50%{opacity:0}}
 @keyframes abFloat{50%{transform:translateY(-3px)}}
-@media(max-width:560px){#advisor-bubble{right:12px;bottom:12px}}
+@media(max-width:560px){#advisor-bubble{right:12px;bottom:76px}}
 @media (prefers-reduced-motion:reduce){.ab-avatar,.ab-caret,.advisor-bubble{animation:none}.advisor-bubble:hover{transform:none}}
 /* review polish */
 .t-risk{color:var(--risk)}.t-good{color:var(--good)}
@@ -901,7 +905,7 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 .ab-x{width:24px;height:24px;background:var(--bg-sunken)}
 @media(max-width:480px){
   .onb-mock{padding:16px 16px 0}.onb-body{padding:16px 18px 20px}
-  #advisor-bubble{right:10px;bottom:10px;width:calc(100vw - 24px)}
+  #advisor-bubble{right:10px;bottom:74px;width:calc(100vw - 24px)}
   .advisor-bubble{padding:9px 11px 9px 9px}.ab-text{font-size:.8rem}
   .onb-dots{gap:12px}.onb-dot{width:10px;height:10px}.onb-dot.on{width:26px}
 }
@@ -1438,6 +1442,7 @@ function openModal(title,bodyHTML,opts){
   modalReturnFocus=document.activeElement;
   var first=root.querySelector('input,select,textarea')||root.querySelector('.modal button');
   if(first) setTimeout(function(){ try{ first.focus(); }catch(_){ } },60);
+  if(typeof updateAdvisorBubble==='function') updateAdvisorBubble(currentRoute());
 }
 var modalReturnFocus=null;
 /* keep keyboard focus inside the open modal (WCAG focus trap) */
@@ -1452,7 +1457,7 @@ document.addEventListener('keydown',function(e){
   else if(!e.shiftKey&&document.activeElement===lastEl){ e.preventDefault(); firstEl.focus(); }
   else if(!modal.contains(document.activeElement)){ e.preventDefault(); firstEl.focus(); }
 });
-function closeModal(){ byId('modal-root').innerHTML=''; modalSubmitHandler=null; if(modalReturnFocus&&modalReturnFocus.focus){ try{ modalReturnFocus.focus(); }catch(_){ } } modalReturnFocus=null; }
+function closeModal(){ byId('modal-root').innerHTML=''; modalSubmitHandler=null; if(modalReturnFocus&&modalReturnFocus.focus){ try{ modalReturnFocus.focus(); }catch(_){ } } modalReturnFocus=null; if(typeof updateAdvisorBubble==='function') updateAdvisorBubble(currentRoute()); }
 function fv(form,name){ var el=form.elements[name]; return el?el.value.trim():''; }
 
 /* ---------- finance computations ---------- */
@@ -7967,6 +7972,7 @@ function showOnboard(idx){
     root.innerHTML='<div class="onb-overlay" data-action="onb-skip-bg"><div class="onb-card" role="dialog" aria-modal="true" aria-label="Welcome to Trakora">'+
       '<button class="onb-x" data-action="onb-skip" aria-label="Skip intro">'+icon('x')+'</button>'+
       '<div class="onb-stage">'+onbStageHTML()+'</div></div></div>';
+    if(typeof updateAdvisorBubble==='function') updateAdvisorBubble(currentRoute());
     return;
   }
   // subsequent slides: swap only the inner content with a directional slide — the card never blinks
@@ -7977,6 +7983,7 @@ function showOnboard(idx){
 }
 function endOnboard(){
   byId('lightbox-root').innerHTML='';
+  if(typeof updateAdvisorBubble==='function') updateAdvisorBubble(currentRoute());
   if(!state.settings.wizardDone&&!(state.finance.length||state.products.length)){ setTimeout(openSetupWizard,250); }
   else { state.settings.wizardDone=true; save(); }
 }
@@ -8006,7 +8013,12 @@ function advisorPrompts(){
 }
 function updateAdvisorBubble(route){
   var root=byId('advisor-bubble'); if(!root) return;
+  // "blocked" controls whether the bubble CONTENT exists (route/settings/lock/gate/empty app).
   var blocked=route==='insights'||route==='settings'||(state.settings&&state.settings.advisorBubbleOff)||(byId('lock-root')&&byId('lock-root').innerHTML)||(byId('gate-root')&&byId('gate-root').innerHTML)||!state.finance||!state.finance.length;
+  // "suppressed" is a transient overlay (modal / onboarding carousel) — hide the bubble
+  // WITHOUT rebuilding so it never re-pops or re-types just because a dialog opened/closed.
+  var suppressed=(byId('modal-root')&&byId('modal-root').innerHTML)||(byId('lightbox-root')&&byId('lightbox-root').querySelector('.onb-card'));
+  root.style.display=suppressed?'none':'';
   // only rebuild (and re-type) when the visible/hidden state actually changes — not on every render
   var key=blocked?'hidden':'shown';
   if(key===lastBubbleState && (blocked? root.innerHTML==='' : root.querySelector('.advisor-bubble'))) return;

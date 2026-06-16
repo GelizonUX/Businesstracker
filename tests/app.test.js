@@ -150,12 +150,25 @@ async function main() {
     ok('bubble types its prompt', d.getElementById('ab-text').textContent.length > 5);
     // bubble should have a small set of lines to cycle (feels like it is talking)
     ok('bubble has 3-5 messages to cycle', (() => { const p = window.advisorPrompts(); return Array.isArray(p) && p.length >= 3 && p.length <= 5; })());
+    // bubble must step aside while a modal is open, then return WITHOUT being rebuilt
+    // (visibility toggle, not a rebuild — so it never re-types when a dialog closes)
+    const builtBubble = d.getElementById('advisor-bubble').querySelector('.advisor-bubble');
+    window.openModal('Test', '<p>hi</p>');
+    ok('bubble hides while a modal is open', d.getElementById('advisor-bubble').style.display === 'none');
+    window.closeModal();
+    ok('bubble returns after the modal closes (not re-typed)', d.getElementById('advisor-bubble').style.display !== 'none' && d.getElementById('advisor-bubble').querySelector('.advisor-bubble') === builtBubble);
     click(d.querySelector('[data-action="advisor-bubble-dismiss"]'));
     ok('dismissing hides the bubble + persists', window.state.settings.advisorBubbleOff === true && d.getElementById('advisor-bubble').innerHTML === '');
 
     // ---------- sidebar default white text + white icons ----------
     ok('sidebar nav text is white by default', html.indexOf('color:#fff;font-size:.9rem') > -1 || /\.nav-item\{[^}]*color:#fff/.test(html));
     ok('sidebar nav icons are white by default', /\.nav-item svg\{color:#fff\}/.test(html));
+
+    // ---------- print hygiene: floating overlays must NOT bleed into printed docs ----------
+    // (regression: the advisor bubble appeared on a printed invoice)
+    // Leak-proof approach: hide EVERY body-level element while printing, reveal only #print-area.
+    ok('print hides all body-level overlays (wildcard)', /body\.printing\s*>\s*\*\{display:none\s*!important\}/.test(html));
+    ok('print reveals only the print document', /body\.printing\s*>\s*#print-area\{display:block\s*!important\}/.test(html));
 
     // ---------- recurring invoices: generate + idempotent + catch-up ----------
     window.state.invoices = []; window.state.recurringInvoices = [{ id: 'r1', client: 'Lumina', desc: 'Retainer', amount: 9000, currency: 'PHP', day: 1, netDays: 14, active: true, lastGenerated: null, startMonth: window.thisMonthKey() }];
