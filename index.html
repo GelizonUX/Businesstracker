@@ -810,10 +810,12 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .dash-handle:hover{color:var(--accent);border-color:var(--accent)}
 .dash-handle:active{cursor:grabbing}
 .dash-handle svg{width:12px;height:12px}
-/* while dragging, the picked-up card collapses into a dashed "drop here" placeholder
-   that follows the cursor's insertion point; the other cards smoothly make room (FLIP). */
+/* while dragging, the real card floats under the cursor (drag image) and its slot becomes
+   an empty highlighted "drop here" placeholder that follows the cursor's insertion point —
+   even into empty white space — while the other cards smoothly make room (FLIP). */
 .dash-widget.dragging{opacity:1}
-.dash-widget.dragging>.card{border:2px dashed var(--accent);box-shadow:none;opacity:.5}
+.dash-widget.dragging>.card{background:var(--accent-soft);border:2px dashed var(--accent);box-shadow:none}
+.dash-widget.dragging>.card>*{visibility:hidden}
 .dash-widget.dragging .dash-handle{opacity:0}
 .dash-grid.is-dragging .dash-widget:not(.dragging){cursor:grab}
 
@@ -8493,24 +8495,40 @@ function dashDragCleanup(){
     dashWidgetEls(g).forEach(function(w){ if(w._flipRaf){ cancelAnimationFrame(w._flipRaf); w._flipRaf=null; } w.classList.remove('dragging'); w.style.transition=''; w.style.transform=''; }); }
   dashDragId=null;
 }
+// where should the dragged card land for a pointer at (x,y)? works anywhere in the grid —
+// over a card OR over empty white space — by finding the nearest card centre in reading order.
+function dashInsertRef(g,x,y,dragEl){
+  var els=dashWidgetEls(g).filter(function(w){ return w!==dragEl; });
+  if(!els.length) return null;
+  var best=null,bestD=Infinity,after=false;
+  els.forEach(function(el){
+    var r=el.getBoundingClientRect(); var cx=r.left+r.width/2, cy=r.top+r.height/2;
+    var d=(x-cx)*(x-cx)+(y-cy)*(y-cy);
+    if(d<bestD){ bestD=d; best=el;
+      after=(y>cy+r.height*0.25)||(Math.abs(y-cy)<=r.height*0.5&&x>cx); }
+  });
+  if(!best) return null;
+  return after?best.nextElementSibling:best;
+}
 document.addEventListener('dragstart',function(e){
   var h=e.target.closest&&e.target.closest('[data-dh]'); if(!h) return;
   dashDragId=h.getAttribute('data-dh');
-  if(e.dataTransfer){ try{ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',dashDragId); }catch(_){ } }
-  var g=dashGridEl(), w=h.closest('.dash-widget');
+  var g=dashGridEl(), w=h.closest('.dash-widget'), card=w&&w.querySelector(':scope > .card');
+  if(e.dataTransfer){ try{
+    e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',dashDragId);
+    // float the REAL card under the cursor (captured now, before it collapses to a placeholder)
+    if(card&&e.dataTransfer.setDragImage){ var r=card.getBoundingClientRect(); e.dataTransfer.setDragImage(card,Math.max(0,Math.min(r.width,e.clientX-r.left)),Math.max(0,Math.min(r.height,e.clientY-r.top))); }
+  }catch(_){ } }
   if(g) g.classList.add('is-dragging');
-  if(w) w.classList.add('dragging');
+  // collapse the slot to a placeholder on the NEXT tick so the drag image is the full card
+  if(w) setTimeout(function(){ if(dashDragId) w.classList.add('dragging'); },0);
 });
 document.addEventListener('dragover',function(e){
   if(!dashDragId) return;
   var g=dashGridEl(); if(!g||!g.contains(e.target)) return;
   var dragEl=g.querySelector('.dash-widget.dragging'); if(!dragEl) return;
   e.preventDefault(); if(e.dataTransfer) e.dataTransfer.dropEffect='move';
-  var over=e.target.closest('.dash-widget');
-  if(!over||over===dragEl||over.parentNode!==g) return;
-  var b=over.getBoundingClientRect();
-  var before=(b.width>=b.height) ? (e.clientX < b.left+b.width/2) : (e.clientY < b.top+b.height/2);
-  var ref=before?over:over.nextElementSibling;
+  var ref=dashInsertRef(g,e.clientX,e.clientY,dragEl);
   if(ref===dragEl||ref===dragEl.nextElementSibling) return; // already in place
   var prev=dashFlipRecord(g);
   g.insertBefore(dragEl,ref);

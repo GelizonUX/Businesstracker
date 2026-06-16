@@ -113,8 +113,9 @@ async function main() {
     const dHandle = dws[0].querySelector('[data-dh]');
     const fireEv = (el, type) => { const ev = new window.Event(type, { bubbles: true, cancelable: true }); el.dispatchEvent(ev); return ev; };
     fireEv(dHandle, 'dragstart');
-    ok('drag start collapses the card to a placeholder + flags the grid',
-       dws[0].classList.contains('dragging') && dgrid.classList.contains('is-dragging'));
+    ok('drag start flags the grid immediately', dgrid.classList.contains('is-dragging'));
+    await wait(10); // placeholder is applied on the next tick (so the drag image is the full card)
+    ok('the dragged slot becomes a placeholder', dws[0].classList.contains('dragging'));
     fireEv(dws[2], 'dragover');
     const liveOrder = Array.from(dgrid.querySelectorAll('.dash-widget')).map((w) => w.getAttribute('data-widget'));
     ok('dragging over another card live-reorders the DOM (gap follows cursor)', liveOrder[0] !== dragId && liveOrder.indexOf(dragId) > 0);
