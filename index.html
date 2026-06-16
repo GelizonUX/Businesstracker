@@ -882,7 +882,7 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 @keyframes abBlink{50%{opacity:0}}
 @keyframes abFloat{50%{transform:translateY(-3px)}}
 @media(max-width:560px){#advisor-bubble{right:12px;bottom:12px}}
-@media (prefers-reduced-motion:reduce){.ab-avatar,.ab-caret{animation:none}}
+@media (prefers-reduced-motion:reduce){.ab-avatar,.ab-caret,.advisor-bubble{animation:none}.advisor-bubble:hover{transform:none}}
 /* review polish */
 .t-risk{color:var(--risk)}.t-good{color:var(--good)}
 .adv-narrative{line-height:1.8}
@@ -7983,6 +7983,10 @@ function updateAdvisorBubble(route){
   typeAdvisor(msg);
 }
 function typeAdvisor(msg){
+  // Respect reduced-motion: show the full prompt at once, no typewriter.
+  if(window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches){
+    var e0=byId('ab-text'); if(e0){ e0.textContent=msg; } return;
+  }
   var i=0;
   (function step(){ var e2=byId('ab-text'); if(!e2){ advisorTypeTimer=null; return; } e2.textContent=msg.slice(0,i); i++; if(i<=msg.length){ advisorTypeTimer=setTimeout(step,30); } })();
 }
