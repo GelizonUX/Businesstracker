@@ -149,7 +149,7 @@ a{color:var(--accent);text-decoration:none}
 }
 .nav-item:not(.active){color:#eef1fb}
 .nav-item:hover{background:var(--sidebar-hover);color:#fff}
-.nav-item.active{background:var(--sidebar-active);color:var(--sidebar-text-active);font-weight:600}
+/* .nav-item.active is defined once, later, as a single source of truth */
 .nav-item.active::before{content:'';position:absolute;left:-12px;top:20%;bottom:20%;width:3px;border-radius:0 3px 3px 0;background:var(--accent-grad)}
 .nav-item svg{width:17px;height:17px;flex-shrink:0;opacity:.85}
 .nav-badge{margin-left:auto;background:var(--risk);color:#fff;font-size:.64rem;font-weight:700;padding:1px 7px;border-radius:99px;min-width:18px;text-align:center}
@@ -212,12 +212,11 @@ a{color:var(--accent);text-decoration:none}
   transition:box-shadow .25s var(--ease),transform .25s var(--ease),border-color .25s;
   animation:fadeUp .4s var(--ease) backwards;
 }
-.card:hover{box-shadow:var(--shadow)}
 /* ONE consistent interactive state for every card surface: the hover stroke uses the
    customizable page/brand colour (--page-color, set from Settings), with the same lift,
    shadow and press everywhere. Per-card overrides below were removed so nothing drifts. */
-.card:hover,.kpi:hover,.kb-card:hover{border-color:var(--page-color,var(--accent));box-shadow:var(--shadow);transform:translateY(-2px)}
-.card:active,.kpi:active,.kb-card:active{transform:translateY(0);box-shadow:var(--shadow-sm)}
+.card:hover,.kb-card:hover{border-color:var(--page-color,var(--accent));box-shadow:var(--shadow);transform:translateY(-2px)}
+.card:active,.kb-card:active{transform:translateY(0);box-shadow:var(--shadow-sm)}
 .card-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
 .card-head h3{font-size:1rem;font-weight:700;letter-spacing:-.01em}
 .card-head .sub{font-size:.8rem;color:var(--text-3)}
@@ -540,7 +539,7 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .kb-col{background:var(--bg-sunken);border-radius:14px;padding:10px;min-height:120px}
 .kb-col.drag-over{outline:2px dashed var(--accent);outline-offset:-2px}
 .kb-col h4{font-size:.74rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--text-2);padding:2px 6px 8px;display:flex;justify-content:space-between}
-.kb-card{background:var(--bg-card);border:1px solid var(--border);border-radius:11px;padding:10px 12px;margin-bottom:8px;cursor:grab;box-shadow:var(--shadow-sm);transition:transform .15s,box-shadow .15s,border-color .15s}
+.kb-card{background:var(--bg-card);border:1px solid var(--border);border-radius:11px;padding:10px 12px;margin-bottom:8px;cursor:grab;box-shadow:var(--shadow-sm);transition:box-shadow .25s var(--ease),transform .25s var(--ease),border-color .25s}
 /* kb-card inherits the unified .card hover */
 .kb-card.dragging{opacity:.5}
 @media (max-width:900px){.kb-board{grid-template-columns:repeat(2,1fr)}}
@@ -689,7 +688,7 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 @keyframes sheen{0%{background-position:-180% 0}100%{background-position:180% 0}}
 @keyframes ringPulse{0%{box-shadow:0 0 0 0 rgba(99,102,241,.5)}70%{box-shadow:0 0 0 12px rgba(99,102,241,0)}100%{box-shadow:0 0 0 0 rgba(99,102,241,0)}}
 .hero{transition:box-shadow .4s var(--ease)}
-.hero:hover{box-shadow:var(--shadow)}
+.hero:hover{border-color:var(--page-color,var(--accent));box-shadow:var(--shadow)}/* stroke matches cards; no lift on a full-width banner */
 .hero::after{animation:floatGlow 7s ease-in-out infinite}
 .hero h2{background:linear-gradient(90deg,var(--text),var(--accent) 60%,var(--accent-2));-webkit-background-clip:text;background-clip:text}
 .brand-logo{transition:transform .35s var(--ease),box-shadow .35s var(--ease)}
@@ -699,8 +698,8 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .nav-item.active::before{animation:ringPulse 2s ease-out 1}
 .btn-primary{background-size:140% 140%;transition:all .2s var(--ease),background-position .5s var(--ease)}
 .btn-primary:hover{background-position:100% 50%}
-.stat-card,.kpi{transition:box-shadow .25s var(--ease),transform .25s var(--ease),border-color .25s}
-/* stat-card & kpi inherit the unified .card / .kpi hover */
+.stat-card{transition:box-shadow .25s var(--ease),transform .25s var(--ease),border-color .25s}
+/* stat-card inherits the unified .card hover */
 .badge{transition:transform .15s var(--ease)}
 .badge:hover{transform:translateY(-1px)}
 .theme-toggle:active{transform:rotate(180deg) scale(.92)}
@@ -743,9 +742,9 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .nav-item svg{color:#fff}
 .nav-item:hover{color:var(--sidebar-text-active)}
 /* active item uses ONE consistent brand background regardless of section (no per-section tint) */
-.nav-item.active{background:var(--sidebar-active);color:#fff}
+.nav-item.active{background:var(--sidebar-active);color:#fff;font-weight:600}
 .nav-item.active svg{color:#fff}
-.nav-item.active::before{background:var(--accent-grad)}
+/* .nav-item.active::before is defined once near the top (accent-grad bar) */
 .nav-section{transition:color .15s}
 
 /* color-coded page accents (driven by --page-color set on .main per route) */
@@ -796,7 +795,7 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 @media (max-width:860px){.app.nav-collapsed .sidebar{width:232px;padding:18px 12px}.app.nav-collapsed .main{margin-left:0}}
 
 /* per-card draggable dashboard grid */
-.dash-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr));gap:14px;align-items:stretch}
+.dash-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr));gap:13px;align-items:stretch}
 .dash-widget{position:relative;display:flex;min-width:0;border-radius:var(--r-lg);transition:opacity .18s var(--ease),transform .18s var(--ease),box-shadow .18s var(--ease)}
 .dash-widget[data-span="2"]{grid-column:span 2}
 @media (max-width:680px){.dash-widget[data-span="2"]{grid-column:span 1}}
@@ -1962,7 +1961,6 @@ function renderSidebar(){
   sections.forEach(function(sec){
     var hasActive=sec.items.some(function(r){return r.id===route;});
     var isCollapsed=collapsed.indexOf(sec.name)>=0&&!hasActive;
-    var col=sectionColorOf(sec.name);
     // Section headers are white by default; honor a user's custom color only if they set one.
     var secOverride=(state.settings.sectionColors||{})[sec.name];
     var hdrCol=secOverride?safeColor(secOverride,'#fff'):'#ffffff';
@@ -1970,24 +1968,22 @@ function renderSidebar(){
       '<span class="nav-chev'+(isCollapsed?' closed':'')+'">'+icon('down-chev',10)+'</span></div>';
     if(isCollapsed) return;
     sec.items.forEach(function(r){
-      var nv='--ni:'+col+';--ni-soft:'+hexA(col,.2);
       var rlbl=labels[r.id]||tr(r.label);
-      html+='<button class="nav-item'+(route===r.id?' active':'')+'" data-action="nav" data-route="'+r.id+'" title="'+esc(rlbl)+'" style="'+nv+'">'+icon(r.icon)+'<span>'+esc(rlbl)+'</span>'+
+      html+='<button class="nav-item'+(route===r.id?' active':'')+'" data-action="nav" data-route="'+r.id+'" title="'+esc(rlbl)+'">'+icon(r.icon)+'<span>'+esc(rlbl)+'</span>'+
         (r.id==='tasks'&&openTasks>0?'<span class="nav-badge">'+openTasks+'</span>':'')+'</button>';
     });
   });
   var modsActive=route.indexOf('custom-')===0;
   var modsCollapsed=collapsed.indexOf('My Modules')>=0&&!modsActive;
-  var modCol=sectionColorOf('My Modules');
   var modOverride=(state.settings.sectionColors||{})['My Modules'];
   var modHdrCol=modOverride?safeColor(modOverride,'#fff'):'#ffffff';
   html+='<div class="nav-section nav-sec-toggle" data-action="nav-sec-toggle" data-sec="My Modules" role="button" style="color:'+modHdrCol+'">'+esc(sectionLabelOf('My Modules'))+
     '<span class="nav-chev'+(modsCollapsed?' closed':'')+'">'+icon('down-chev',10)+'</span></div>';
   if(!modsCollapsed){
     (state.customModules||[]).forEach(function(m){
-      html+='<button class="nav-item'+(route==='custom-'+m.id?' active':'')+'" data-action="nav" data-route="custom-'+m.id+'" title="'+esc(m.name)+'" style="--ni:'+modCol+';--ni-soft:'+hexA(modCol,.2)+'">'+icon(m.icon||'notes')+'<span>'+esc(m.name)+'</span></button>';
+      html+='<button class="nav-item'+(route==='custom-'+m.id?' active':'')+'" data-action="nav" data-route="custom-'+m.id+'" title="'+esc(m.name)+'">'+icon(m.icon||'notes')+'<span>'+esc(m.name)+'</span></button>';
     });
-    html+='<button class="nav-item" data-action="custom-module-new" style="--ni:'+modCol+';opacity:.75">'+icon('plus')+'<span>'+esc(tr('New module…'))+'</span></button>';
+    html+='<button class="nav-item" data-action="custom-module-new" style="opacity:.75">'+icon('plus')+'<span>'+esc(tr('New module…'))+'</span></button>';
   }
   html+='</nav><div class="sidebar-foot"><div class="biz-chip">'+
     (bl?'<img src="'+esc(bl)+'" alt="" style="width:30px;height:30px;border-radius:8px;object-fit:cover;flex-shrink:0">'
