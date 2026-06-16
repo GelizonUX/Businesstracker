@@ -213,9 +213,10 @@ a{color:var(--accent);text-decoration:none}
   animation:fadeUp .4s var(--ease) backwards;
 }
 /* ONE consistent interactive state for every card surface: the hover stroke uses the
-   customizable page/brand colour (--page-color, set from Settings), with the same lift,
-   shadow and press everywhere. Per-card overrides below were removed so nothing drifts. */
-.card:hover,.kb-card:hover{border-color:var(--page-color,var(--accent));box-shadow:var(--shadow);transform:translateY(-2px)}
+   single brand accent (--accent, set in Settings → Accent color) — the SAME colour on every
+   section, never a per-section tint — with the same lift, shadow and press everywhere.
+   Per-card overrides below were removed so nothing drifts. */
+.card:hover,.kb-card:hover{border-color:var(--accent);box-shadow:var(--shadow);transform:translateY(-2px)}
 .card:active,.kb-card:active{transform:translateY(0);box-shadow:var(--shadow-sm)}
 .card-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
 .card-head h3{font-size:1rem;font-weight:700;letter-spacing:-.01em}
@@ -688,7 +689,7 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 @keyframes sheen{0%{background-position:-180% 0}100%{background-position:180% 0}}
 @keyframes ringPulse{0%{box-shadow:0 0 0 0 rgba(99,102,241,.5)}70%{box-shadow:0 0 0 12px rgba(99,102,241,0)}100%{box-shadow:0 0 0 0 rgba(99,102,241,0)}}
 .hero{transition:box-shadow .4s var(--ease)}
-.hero:hover{border-color:var(--page-color,var(--accent));box-shadow:var(--shadow)}/* stroke matches cards; no lift on a full-width banner */
+.hero:hover{border-color:var(--accent);box-shadow:var(--shadow)}/* stroke matches cards; no lift on a full-width banner */
 .hero::after{animation:floatGlow 7s ease-in-out infinite}
 .hero h2{background:linear-gradient(90deg,var(--text),var(--accent) 60%,var(--accent-2));-webkit-background-clip:text;background-clip:text}
 .brand-logo{transition:transform .35s var(--ease),box-shadow .35s var(--ease)}
@@ -747,10 +748,10 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 /* .nav-item.active::before is defined once near the top (accent-grad bar) */
 .nav-section{transition:color .15s}
 
-/* color-coded page accents (driven by --page-color set on .main per route) */
-.page-title{border-left:3px solid var(--page-color,var(--accent));padding-left:12px}
-.stat-accent{background:linear-gradient(90deg,var(--page-color,var(--accent)),var(--accent-2))}
-/* stat-card hover stroke comes from the unified .card rule (--page-color) */
+/* page accents use the single brand accent (--accent) — consistent across every section */
+.page-title{border-left:3px solid var(--accent);padding-left:12px}
+.stat-accent{background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+/* stat-card hover stroke comes from the unified .card rule (--accent) */
 
 /* roadmap color swatches + chip dots */
 .swatch-row{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
@@ -1927,10 +1928,8 @@ function render(){
   else main.innerHTML=(views[route]||viewDashboard)();
   // gentle cross-fade when the section actually changes, so switching views never hard-cuts/blinks
   if(route!==lastRenderRoute){ main.classList.remove('view-enter'); void main.offsetWidth; main.classList.add('view-enter'); lastRenderRoute=route; }
-  // color-code the page: section color, or the roadmap's own color on the roadmap view
-  var pc=routeColor(route);
-  if(route==='roadmap'){ var crm=currentRoadmap(); if(crm&&crm.color) pc=crm.color; }
-  main.style.setProperty('--page-color',safeColor(pc,'#6366f1'));
+  // NOTE: card strokes & accents intentionally use the single brand accent (--accent, set in
+  // Settings → Accent color) for ONE consistent colour across every section — no per-section tint.
   applyNavCollapse();
   if(typeof updateAdvisorBubble==='function') updateAdvisorBubble(route);
   main.scrollTop=0;
