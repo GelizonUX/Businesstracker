@@ -810,9 +810,12 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .dash-handle:hover{color:var(--accent);border-color:var(--accent)}
 .dash-handle:active{cursor:grabbing}
 .dash-handle svg{width:12px;height:12px}
-.dash-widget.dragging{opacity:.4}
-.dash-widget.dragging .card{box-shadow:var(--shadow-lg)}
-.dash-widget.drop-target>.card{box-shadow:0 0 0 2px var(--accent),0 0 0 6px var(--accent-soft)}
+/* while dragging, the picked-up card collapses into a dashed "drop here" placeholder
+   that follows the cursor's insertion point; the other cards smoothly make room (FLIP). */
+.dash-widget.dragging{opacity:1}
+.dash-widget.dragging>.card{border:2px dashed var(--accent);box-shadow:none;opacity:.5}
+.dash-widget.dragging .dash-handle{opacity:0}
+.dash-grid.is-dragging .dash-widget:not(.dragging){cursor:grab}
 
 /* getting-started checklist */
 .start-card{background:linear-gradient(135deg,var(--accent-soft),transparent 70%),var(--bg-card);border-color:var(--accent-soft);margin-bottom:13px}
@@ -8462,32 +8465,62 @@ function commitCsvImport(){
   toast('Imported '+n+' '+noun+(dupes?' · '+dupes+' duplicate'+(dupes>1?'s':'')+' skipped':'')+(invalid?' · '+invalid+' invalid skipped':''),'ok',{undo:true});
 }
 
-/* dashboard widgets: drag to reorder (handle-initiated) */
+/* dashboard widgets: live drag-to-reorder — the picked-up card becomes a placeholder gap
+   that follows the cursor while the others smoothly make room (FLIP); order saves on drop. */
 var dashDragId=null;
+function dashGridEl(){ return document.querySelector('.dash-grid'); }
+function dashWidgetEls(g){ return (g||dashGridEl())? Array.prototype.slice.call((g||dashGridEl()).querySelectorAll('.dash-widget')) : []; }
+function dashFlipRecord(g){ var m={}; dashWidgetEls(g).forEach(function(w){ m[w.getAttribute('data-widget')]=w.getBoundingClientRect(); }); return m; }
+function dashFlipPlay(g,prev,skip){
+  dashWidgetEls(g).forEach(function(w){
+    if(w===skip) return;
+    var b=prev[w.getAttribute('data-widget')]; if(!b) return;
+    var a=w.getBoundingClientRect(), dx=b.left-a.left, dy=b.top-a.top;
+    if(!dx&&!dy) return;
+    w.style.transition='none'; w.style.transform='translate('+dx+'px,'+dy+'px)';
+    if(w._flipRaf) cancelAnimationFrame(w._flipRaf);
+    w._flipRaf=requestAnimationFrame(function(){ w._flipRaf=null; w.style.transition='transform .2s var(--ease)'; w.style.transform=''; });
+  });
+}
+function dashPersistOrder(){
+  var g=dashGridEl(); if(!g) return;
+  var ids=dashWidgetEls(g).map(function(w){ return w.getAttribute('data-widget'); }); if(!ids.length) return;
+  state.settings.dashOrder=ids.concat(dashOrder().filter(function(id){ return ids.indexOf(id)<0; })); save();
+}
+function dashDragCleanup(){
+  var g=dashGridEl();
+  if(g){ g.classList.remove('is-dragging');
+    dashWidgetEls(g).forEach(function(w){ if(w._flipRaf){ cancelAnimationFrame(w._flipRaf); w._flipRaf=null; } w.classList.remove('dragging'); w.style.transition=''; w.style.transform=''; }); }
+  dashDragId=null;
+}
 document.addEventListener('dragstart',function(e){
   var h=e.target.closest&&e.target.closest('[data-dh]'); if(!h) return;
   dashDragId=h.getAttribute('data-dh');
   if(e.dataTransfer){ try{ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',dashDragId); }catch(_){ } }
-  var w=h.closest('.dash-widget'); if(w) w.classList.add('dragging');
+  var g=dashGridEl(), w=h.closest('.dash-widget');
+  if(g) g.classList.add('is-dragging');
+  if(w) w.classList.add('dragging');
 });
 document.addEventListener('dragover',function(e){
   if(!dashDragId) return;
-  var w=e.target.closest&&e.target.closest('.dash-widget'); if(!w) return;
+  var g=dashGridEl(); if(!g||!g.contains(e.target)) return;
+  var dragEl=g.querySelector('.dash-widget.dragging'); if(!dragEl) return;
   e.preventDefault(); if(e.dataTransfer) e.dataTransfer.dropEffect='move';
-  var marked=document.querySelectorAll('.dash-widget.drop-target');
-  for(var i=0;i<marked.length;i++) if(marked[i]!==w) marked[i].classList.remove('drop-target');
-  if(w.getAttribute('data-widget')!==dashDragId) w.classList.add('drop-target');
+  var over=e.target.closest('.dash-widget');
+  if(!over||over===dragEl||over.parentNode!==g) return;
+  var b=over.getBoundingClientRect();
+  var before=(b.width>=b.height) ? (e.clientX < b.left+b.width/2) : (e.clientY < b.top+b.height/2);
+  var ref=before?over:over.nextElementSibling;
+  if(ref===dragEl||ref===dragEl.nextElementSibling) return; // already in place
+  var prev=dashFlipRecord(g);
+  g.insertBefore(dragEl,ref);
+  dashFlipPlay(g,prev,dragEl);
 });
-document.addEventListener('drop',function(e){
-  if(!dashDragId) return;
-  var w=e.target.closest&&e.target.closest('.dash-widget'); var from=dashDragId; dashDragId=null;
-  if(!w) return; e.preventDefault();
-  reorderDash(from,w.getAttribute('data-widget'));
-});
+document.addEventListener('drop',function(e){ if(dashDragId){ e.preventDefault(); } });
 document.addEventListener('dragend',function(){
-  dashDragId=null;
-  var d=document.querySelectorAll('.dash-widget.dragging,.dash-widget.drop-target');
-  for(var i=0;i<d.length;i++){ d[i].classList.remove('dragging'); d[i].classList.remove('drop-target'); }
+  if(!dashDragId && !(dashGridEl()&&dashGridEl().querySelector('.dash-widget.dragging'))) return;
+  dashPersistOrder();
+  dashDragCleanup();
 });
 
 window.addEventListener('hashchange',render);
