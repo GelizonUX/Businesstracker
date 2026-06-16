@@ -116,8 +116,14 @@ async function main() {
     ok('carousel renders all slides with mockups + dots', onbErr === null, onbErr);
     window.showOnboard(0);
     ok('first slide has Skip not Back', /Skip/.test(d.querySelector('.onb-card').textContent));
+    // blink fix: advancing must NOT rebuild the overlay/card — only swap the inner stage
+    const overlayRef = d.querySelector('.onb-overlay');
+    const cardRef = d.querySelector('.onb-card');
     click(d.querySelector('.onb-card [data-action="onb-go"][data-i="1"]'));
     ok('Next advances the carousel', /2 of /.test(d.querySelector('.onb-card').textContent));
+    ok('advancing reuses the same overlay+card (no blink rebuild)',
+       d.querySelector('.onb-overlay') === overlayRef && d.querySelector('.onb-card') === cardRef);
+    ok('slide gets a directional transition class', /onb-in-(l|r)/.test(d.querySelector('.onb-stage').className));
     window.showOnboard(window.ONBOARD_SLIDES.length - 1);
     ok('last slide shows Get started', /Get started/.test(d.querySelector('.onb-card').textContent));
     click(d.querySelector('.onb-card [data-action="onb-finish"]'));
@@ -142,11 +148,14 @@ async function main() {
     await waitFor(() => !!d.getElementById('ab-text'));
     await waitFor(() => d.getElementById('ab-text') && d.getElementById('ab-text').textContent.length > 5);
     ok('bubble types its prompt', d.getElementById('ab-text').textContent.length > 5);
+    // bubble should have a small set of lines to cycle (feels like it is talking)
+    ok('bubble has 3-5 messages to cycle', (() => { const p = window.advisorPrompts(); return Array.isArray(p) && p.length >= 3 && p.length <= 5; })());
     click(d.querySelector('[data-action="advisor-bubble-dismiss"]'));
     ok('dismissing hides the bubble + persists', window.state.settings.advisorBubbleOff === true && d.getElementById('advisor-bubble').innerHTML === '');
 
-    // ---------- sidebar default white text ----------
+    // ---------- sidebar default white text + white icons ----------
     ok('sidebar nav text is white by default', html.indexOf('color:#fff;font-size:.9rem') > -1 || /\.nav-item\{[^}]*color:#fff/.test(html));
+    ok('sidebar nav icons are white by default', /\.nav-item svg\{color:#fff\}/.test(html));
 
     // ---------- recurring invoices: generate + idempotent + catch-up ----------
     window.state.invoices = []; window.state.recurringInvoices = [{ id: 'r1', client: 'Lumina', desc: 'Retainer', amount: 9000, currency: 'PHP', day: 1, netDays: 14, active: true, lastGenerated: null, startMonth: window.thisMonthKey() }];

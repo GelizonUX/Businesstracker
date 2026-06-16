@@ -730,7 +730,7 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .nav-item>span:not(.nav-badge){flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* color-coded navigation (per section) */
-.nav-item svg{color:var(--ni,inherit)}
+.nav-item svg{color:#fff}
 .nav-item:hover{color:var(--sidebar-text-active)}
 .nav-item.active{background:var(--ni-soft,var(--sidebar-active));color:#fff}
 .nav-item.active svg{color:#fff}
@@ -860,20 +860,30 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 .onb-eyebrow{display:inline-flex;align-items:center;gap:6px;font-size:.66rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);margin-bottom:7px}
 .onb-eyebrow svg{width:14px;height:14px}
 .onb-title{font-size:1.4rem;font-weight:800;letter-spacing:-.02em;line-height:1.15}
-.onb-desc{font-size:.92rem;color:var(--text-2);line-height:1.6;margin-top:8px;min-height:76px;animation:fadeUp .3s var(--ease)}
+.onb-desc{font-size:.92rem;color:var(--text-2);line-height:1.6;margin-top:8px;min-height:100px}
+.onb-stage{display:block}
+@keyframes onbInR{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
+@keyframes onbInL{from{opacity:0;transform:translateX(-26px)}to{opacity:1;transform:none}}
+.onb-stage.onb-in-r{animation:onbInR .26s var(--ease) both}
+.onb-stage.onb-in-l{animation:onbInL .26s var(--ease) both}
+@media (prefers-reduced-motion:reduce){.onb-stage.onb-in-r,.onb-stage.onb-in-l{animation:none}}
 .onb-dots{display:flex;gap:7px;justify-content:center;margin:16px 0}
 .onb-dot{width:8px;height:8px;border-radius:99px;background:var(--border-2);padding:0;border:none;transition:width .25s var(--ease),background .25s;cursor:pointer}
 .onb-dot.on{width:22px;background:var(--accent-grad)}
 .onb-foot{display:flex;align-items:center;gap:8px}
 @media(max-width:480px){.onb-card{max-width:none}.onb-title{font-size:1.25rem}}
 
+/* smooth section change — opacity only (keeps sticky topbars intact) */
+@keyframes viewEnter{from{opacity:0}to{opacity:1}}
+#main.view-enter{animation:viewEnter .2s var(--ease)}
+
 /* ===== floating Advisor bubble ===== */
-#advisor-bubble{position:fixed;right:20px;bottom:20px;z-index:90;max-width:min(340px,calc(100vw - 40px))}
-.advisor-bubble{display:inline-flex;align-items:center;gap:10px;padding:11px 14px 11px 11px;border-radius:18px 18px 18px 6px;background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--shadow-lg);cursor:pointer;text-align:left;animation:abPop .4s var(--ease) both;transition:transform .15s var(--ease),box-shadow .2s}
+#advisor-bubble{position:fixed;right:20px;bottom:20px;z-index:90;width:min(320px,calc(100vw - 40px))}
+.advisor-bubble{display:flex;width:100%;box-sizing:border-box;align-items:center;gap:10px;padding:11px 14px 11px 11px;border-radius:18px 18px 18px 6px;background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--shadow-lg);cursor:pointer;text-align:left;animation:abPop .4s var(--ease) both;transition:transform .15s var(--ease),box-shadow .2s}
 .advisor-bubble:hover{transform:translateY(-2px);box-shadow:0 16px 40px rgba(20,24,50,.22)}
 .ab-avatar{width:32px;height:32px;border-radius:10px;background:var(--accent-grad);color:#fff;display:grid;place-items:center;flex-shrink:0;box-shadow:0 4px 12px rgba(99,102,241,.45);animation:abFloat 3s ease-in-out infinite}
 .ab-avatar svg{width:17px;height:17px}
-.ab-text{font-size:.84rem;font-weight:600;color:var(--text);line-height:1.35;min-width:0}
+.ab-text{font-size:.84rem;font-weight:600;color:var(--text);line-height:1.35;min-width:0;flex:1;min-height:2.4em;display:flex;align-items:center}
 .ab-caret{font-weight:700;color:var(--accent);animation:abBlink 1s step-end infinite;margin-left:-6px}
 .ab-x{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;color:var(--text-3);flex-shrink:0;align-self:flex-start}
 .ab-x:hover{background:var(--bg-hover);color:var(--text)}
@@ -891,7 +901,7 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 .ab-x{width:24px;height:24px;background:var(--bg-sunken)}
 @media(max-width:480px){
   .onb-mock{padding:16px 16px 0}.onb-body{padding:16px 18px 20px}
-  #advisor-bubble{right:10px;bottom:10px;max-width:calc(100vw - 24px)}
+  #advisor-bubble{right:10px;bottom:10px;width:calc(100vw - 24px)}
   .advisor-bubble{padding:9px 11px 9px 9px}.ab-text{font-size:.8rem}
   .onb-dots{gap:12px}.onb-dot{width:10px;height:10px}.onb-dot.on{width:26px}
 }
@@ -1890,6 +1900,7 @@ var ui={
   financeTab:'entries'
 };
 
+var lastRenderRoute=null;
 function render(){
   renderSidebar();
   var route=currentRoute();
@@ -1903,6 +1914,8 @@ function render(){
   };
   if(route.indexOf('custom-')===0) main.innerHTML=viewCustomModule(route.slice(7));
   else main.innerHTML=(views[route]||viewDashboard)();
+  // gentle cross-fade when the section actually changes, so switching views never hard-cuts/blinks
+  if(route!==lastRenderRoute){ main.classList.remove('view-enter'); void main.offsetWidth; main.classList.add('view-enter'); lastRenderRoute=route; }
   // color-code the page: section color, or the roadmap's own color on the roadmap view
   var pc=routeColor(route);
   if(route==='roadmap'){ var crm=currentRoadmap(); if(crm&&crm.color) pc=crm.color; }
@@ -7926,22 +7939,36 @@ function onbMockup(kind){
   return '<svg viewBox="0 0 320 180" class="onb-mock-svg" role="img" aria-label="section preview">'+f+b+'</svg>';
 }
 var onboardIdx=0;
-function showOnboard(idx){
-  onboardIdx=clamp(idx||0,0,ONBOARD_SLIDES.length-1);
-  state.settings.tourDone=true; save();
+function onbStageHTML(){
   var s=ONBOARD_SLIDES[onboardIdx], last=onboardIdx===ONBOARD_SLIDES.length-1;
-  byId('lightbox-root').innerHTML=
-    '<div class="onb-overlay" data-action="onb-skip-bg"><div class="onb-card" role="dialog" aria-modal="true" aria-label="Welcome to Trakora">'+
+  return '<div class="onb-mock">'+onbMockup(s.mock)+'</div>'+
+    '<div class="onb-body"><div class="onb-eyebrow">'+icon(s.ico,14)+'<span>'+(onboardIdx+1)+' of '+ONBOARD_SLIDES.length+'</span></div>'+
+      '<h2 class="onb-title">'+esc(s.title)+'</h2><p class="onb-desc">'+esc(s.desc)+'</p>'+
+      '<div class="onb-dots">'+ONBOARD_SLIDES.map(function(_,i){return '<button class="onb-dot'+(i===onboardIdx?' on':'')+'" data-action="onb-go" data-i="'+i+'" aria-label="Go to slide '+(i+1)+'"></button>';}).join('')+'</div>'+
+      '<div class="onb-foot">'+
+        (onboardIdx>0?'<button class="btn btn-ghost" data-action="onb-go" data-i="'+(onboardIdx-1)+'">← Back</button>':'<button class="btn btn-ghost" data-action="onb-skip">Skip</button>')+
+        '<span class="spacer"></span>'+
+        (last?'<button class="btn btn-primary" data-action="onb-finish">Get started →</button>':'<button class="btn btn-primary" data-action="onb-go" data-i="'+(onboardIdx+1)+'">Next →</button>')+
+      '</div></div>';
+}
+function showOnboard(idx){
+  var next=clamp(idx||0,0,ONBOARD_SLIDES.length-1);
+  var dir=next>onboardIdx?1:(next<onboardIdx?-1:0);
+  onboardIdx=next;
+  state.settings.tourDone=true; save();
+  var root=byId('lightbox-root'), stage=root.querySelector('.onb-stage');
+  if(!stage){
+    // first open: build the stable shell once (overlay + card animate in only this time)
+    root.innerHTML='<div class="onb-overlay" data-action="onb-skip-bg"><div class="onb-card" role="dialog" aria-modal="true" aria-label="Welcome to Trakora">'+
       '<button class="onb-x" data-action="onb-skip" aria-label="Skip intro">'+icon('x')+'</button>'+
-      '<div class="onb-mock">'+onbMockup(s.mock)+'</div>'+
-      '<div class="onb-body"><div class="onb-eyebrow">'+icon(s.ico,14)+'<span>'+(onboardIdx+1)+' of '+ONBOARD_SLIDES.length+'</span></div>'+
-        '<h2 class="onb-title">'+esc(s.title)+'</h2><p class="onb-desc">'+esc(s.desc)+'</p>'+
-        '<div class="onb-dots">'+ONBOARD_SLIDES.map(function(_,i){return '<button class="onb-dot'+(i===onboardIdx?' on':'')+'" data-action="onb-go" data-i="'+i+'" aria-label="Go to slide '+(i+1)+'"></button>';}).join('')+'</div>'+
-        '<div class="onb-foot">'+
-          (onboardIdx>0?'<button class="btn btn-ghost" data-action="onb-go" data-i="'+(onboardIdx-1)+'">← Back</button>':'<button class="btn btn-ghost" data-action="onb-skip">Skip</button>')+
-          '<span class="spacer"></span>'+
-          (last?'<button class="btn btn-primary" data-action="onb-finish">Get started →</button>':'<button class="btn btn-primary" data-action="onb-go" data-i="'+(onboardIdx+1)+'">Next →</button>')+
-        '</div></div></div></div>';
+      '<div class="onb-stage">'+onbStageHTML()+'</div></div></div>';
+    return;
+  }
+  // subsequent slides: swap only the inner content with a directional slide — the card never blinks
+  stage.innerHTML=onbStageHTML();
+  stage.classList.remove('onb-in-l','onb-in-r');
+  void stage.offsetWidth; // restart the animation
+  stage.classList.add(dir<0?'onb-in-l':'onb-in-r');
 }
 function endOnboard(){
   byId('lightbox-root').innerHTML='';
@@ -7955,17 +7982,22 @@ function endOnboard(){
 
 /* floating Advisor bubble with typing prompt — shows everywhere except the Advisor/Settings page */
 var advisorTypeTimer=null, lastBubbleState='';
-var ADVISOR_GENERIC=['Want to know what is happening with your money this month?','Curious how your business is really doing?','Your numbers have a story — want the quick read?'];
-/* a context-aware prompt so it does not feel like the same frozen line every day */
-function advisorPrompt(){
+var ADVISOR_GENERIC=['Want to know what is happening with your money this month?','Curious how your business is really doing?','Your numbers have a story — want the quick read?','Tap me for a plain-English take on your budget.'];
+/* a small set of context-aware lines so the bubble feels like it is talking, not frozen on one line */
+function advisorPrompts(){
+  var out=[];
   try{
     var recv=receivablesSummary();
-    if(recv&&recv.overdueTotal>0) return 'You have '+fmtMoney(recv.overdueTotal)+' overdue — want the quick plan?';
+    if(recv&&recv.overdueTotal>0) out.push('You have '+fmtMoney(recv.overdueTotal)+' overdue — want the quick plan?');
     var cur=monthlyMap()[thisMonthKey()]||{revenue:0,expenses:0};
-    if(cur.expenses>cur.revenue&&(cur.revenue||cur.expenses)) return 'Spending is ahead of income this month — see what to do?';
-    if(state.settings.monthlyTarget>0&&cur.revenue<state.settings.monthlyTarget) return 'Want to see how close you are to your target?';
+    if(cur.revenue>0) out.push('You have brought in '+fmtMoney(cur.revenue)+' this month so far.');
+    if(cur.expenses>cur.revenue&&(cur.revenue||cur.expenses)) out.push('Spending is ahead of income this month — see what to do?');
+    if(state.settings.monthlyTarget>0&&cur.revenue<state.settings.monthlyTarget) out.push('Want to see how close you are to your target?');
   }catch(_){ }
-  return ADVISOR_GENERIC[Math.floor(Math.random()*ADVISOR_GENERIC.length)];
+  ADVISOR_GENERIC.forEach(function(g){ out.push(g); });
+  var seen={},res=[]; out.forEach(function(m){ if(m&&!seen[m]){ seen[m]=1; res.push(m); } });
+  // keep it conversational: at least 3, at most 5 lines, context first
+  return res.slice(0,5);
 }
 function updateAdvisorBubble(route){
   var root=byId('advisor-bubble'); if(!root) return;
@@ -7976,19 +8008,41 @@ function updateAdvisorBubble(route){
   lastBubbleState=key;
   if(advisorTypeTimer){ clearTimeout(advisorTypeTimer); advisorTypeTimer=null; }
   if(blocked){ root.innerHTML=''; return; }
-  var msg=advisorPrompt();
-  root.innerHTML='<button class="advisor-bubble" data-action="open-advisor" aria-label="Open your Advisor — '+esc(msg)+'">'+
+  var msgs=advisorPrompts();
+  root.innerHTML='<button class="advisor-bubble" data-action="open-advisor" aria-label="Open your Advisor">'+
     '<span class="ab-avatar">'+icon('spark')+'</span><span class="ab-text" id="ab-text"></span><span class="ab-caret" aria-hidden="true">|</span>'+
     '<span class="ab-x" data-action="advisor-bubble-dismiss" role="button" tabindex="0" aria-label="Hide advisor bubble">'+icon('x')+'</span></button>';
-  typeAdvisor(msg);
+  typeAdvisor(msgs);
 }
-function typeAdvisor(msg){
-  // Respect reduced-motion: show the full prompt at once, no typewriter.
-  if(window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches){
-    var e0=byId('ab-text'); if(e0){ e0.textContent=msg; } return;
+// Types each line, holds, erases, and moves on — cycles through the set ~twice
+// then rests on the last line, so it feels like it is talking without nagging forever.
+function typeAdvisor(msgs){
+  if(!Array.isArray(msgs)) msgs=[msgs];
+  if(!msgs.length) return;
+  var mi=0, shown=0, MAX=msgs.length*2;
+  function setText(t){ var e=byId('ab-text'); if(e){ e.textContent=t; return true; } advisorTypeTimer=null; return false; }
+  var reduce=window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  if(reduce){
+    if(!setText(msgs[0]) || msgs.length<2) return;
+    var r=0;
+    (function rotate(){ advisorTypeTimer=setTimeout(function(){ r++; mi=(mi+1)%msgs.length; if(setText(msgs[mi]) && r<MAX-1) rotate(); },4500); })();
+    return;
   }
-  var i=0;
-  (function step(){ var e2=byId('ab-text'); if(!e2){ advisorTypeTimer=null; return; } e2.textContent=msg.slice(0,i); i++; if(i<=msg.length){ advisorTypeTimer=setTimeout(step,30); } })();
+  function typeOne(){
+    var msg=msgs[mi], i=0;
+    (function type(){ if(!setText(msg.slice(0,i))) return; i++;
+      if(i<=msg.length){ advisorTypeTimer=setTimeout(type,32); }
+      else { shown++; if(msgs.length>1 && shown<MAX){ advisorTypeTimer=setTimeout(eraseOne,2600); } /* else rest on this line */ }
+    })();
+  }
+  function eraseOne(){
+    var msg=msgs[mi], i=msg.length;
+    (function erase(){ if(!setText(msg.slice(0,i))) return; i--;
+      if(i>=0){ advisorTypeTimer=setTimeout(erase,16); }
+      else { mi=(mi+1)%msgs.length; advisorTypeTimer=setTimeout(typeOne,280); }
+    })();
+  }
+  typeOne();
 }
 
 document.addEventListener('click',function(e){
