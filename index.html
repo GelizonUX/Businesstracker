@@ -1852,7 +1852,6 @@ function routeSection(routeId){
   var r=ROUTES.filter(function(x){ return x.id===routeId; })[0];
   return r?r.section:'Overview';
 }
-function routeColor(routeId){ return sectionColorOf(routeSection(routeId)); }
 function hexA(hex,a){
   var h=String(hex||'').replace('#',''); if(h.length===3) h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
   var n=parseInt(h,16); if(isNaN(n)) return 'rgba(99,102,241,'+a+')';
