@@ -149,7 +149,7 @@ a{color:var(--accent);text-decoration:none}
 }
 .nav-item:not(.active){color:#eef1fb}
 .nav-item:hover{background:var(--sidebar-hover);color:#fff}
-.nav-item.active{background:var(--sidebar-active);color:var(--sidebar-text-active);font-weight:600}
+/* .nav-item.active is defined once, later, as a single source of truth */
 .nav-item.active::before{content:'';position:absolute;left:-12px;top:20%;bottom:20%;width:3px;border-radius:0 3px 3px 0;background:var(--accent-grad)}
 .nav-item svg{width:17px;height:17px;flex-shrink:0;opacity:.85}
 .nav-badge{margin-left:auto;background:var(--risk);color:#fff;font-size:.64rem;font-weight:700;padding:1px 7px;border-radius:99px;min-width:18px;text-align:center}
@@ -212,7 +212,12 @@ a{color:var(--accent);text-decoration:none}
   transition:box-shadow .25s var(--ease),transform .25s var(--ease),border-color .25s;
   animation:fadeUp .4s var(--ease) backwards;
 }
-.card:hover{box-shadow:var(--shadow)}
+/* ONE consistent interactive state for every card surface: the hover stroke uses the
+   single brand accent (--accent, set in Settings → Accent color) — the SAME colour on every
+   section, never a per-section tint — with the same lift, shadow and press everywhere.
+   Per-card overrides below were removed so nothing drifts. */
+.card:hover,.kb-card:hover{border-color:var(--accent);box-shadow:var(--shadow);transform:translateY(-2px)}
+.card:active,.kb-card:active{transform:translateY(0);box-shadow:var(--shadow-sm)}
 .card-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
 .card-head h3{font-size:1rem;font-weight:700;letter-spacing:-.01em}
 .card-head .sub{font-size:.8rem;color:var(--text-3)}
@@ -404,7 +409,7 @@ tr:hover .row-actions{opacity:1}
 
 /* notes */
 .note-card{display:flex;flex-direction:column;gap:8px;cursor:pointer;position:relative}
-.note-card:hover{transform:translateY(-3px);border-color:var(--accent)}
+/* note-card inherits the unified .card hover */
 .note-card h4{font-size:.97rem;font-weight:700;padding-right:24px}
 .note-card .note-body{font-size:.84rem;color:var(--text-2);display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-wrap}
 .note-card .pin{position:absolute;top:14px;right:14px;color:var(--text-3)}
@@ -436,7 +441,7 @@ details.calc summary::before{content:'▸';transition:transform .2s;font-size:.7
 details.calc[open] summary::before{transform:rotate(90deg)}
 details.calc .calc-body{margin-top:10px}
 .calc-card{transition:border-color .2s}
-.calc-card:hover{border-color:var(--accent)}
+/* calc-card inherits the unified .card hover */
 .calc-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:9px;margin-top:8px}
 .calc-fields .field{margin-bottom:0}
 .calc-fields label{font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3)}
@@ -454,7 +459,7 @@ details.calc .calc-body{margin-top:10px}
 .hero{
   background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(139,92,246,.07) 55%,transparent);
   border:1px solid var(--border);border-radius:var(--r-xl);
-  padding:36px 32px;position:relative;overflow:hidden;animation:fadeUp .45s var(--ease);
+  padding:36px 32px;position:relative;overflow:hidden;animation:fadeUp .45s var(--ease);margin-bottom:13px;
 }
 .hero::after{content:'';position:absolute;top:-70px;right:-70px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.18),transparent 65%)}
 .hero h2{font-size:1.45rem;font-weight:800;letter-spacing:-.025em}
@@ -510,8 +515,9 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .stat-icon{width:29px;height:29px;border-radius:9px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);flex-shrink:0}
 .stat-icon svg{width:16px;height:16px}
 .stat-card .stat-value{margin-top:10px}
-.card:hover{transform:translateY(-2px)}
+/* .card hover unified above */
 .acct-card{position:relative;overflow:hidden;border-top:3px solid var(--acct-color,var(--accent))}
+.acct-card:hover{border-top-color:var(--acct-color,var(--accent))}/* keep the account's identity colour on hover */
 .acct-logo{width:34px;height:34px;border-radius:9px;object-fit:cover;border:1px solid var(--border);cursor:zoom-in}
 .acct-chip{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex-shrink:0}
 .acct-chip svg{width:16px;height:16px}
@@ -534,8 +540,8 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .kb-col{background:var(--bg-sunken);border-radius:14px;padding:10px;min-height:120px}
 .kb-col.drag-over{outline:2px dashed var(--accent);outline-offset:-2px}
 .kb-col h4{font-size:.74rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--text-2);padding:2px 6px 8px;display:flex;justify-content:space-between}
-.kb-card{background:var(--bg-card);border:1px solid var(--border);border-radius:11px;padding:10px 12px;margin-bottom:8px;cursor:grab;box-shadow:var(--shadow-sm);transition:transform .15s,box-shadow .15s}
-.kb-card:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.kb-card{background:var(--bg-card);border:1px solid var(--border);border-radius:11px;padding:10px 12px;margin-bottom:8px;cursor:grab;box-shadow:var(--shadow-sm);transition:box-shadow .25s var(--ease),transform .25s var(--ease),border-color .25s}
+/* kb-card inherits the unified .card hover */
 .kb-card.dragging{opacity:.5}
 @media (max-width:900px){.kb-board{grid-template-columns:repeat(2,1fr)}}
 /* bulk bar */
@@ -586,8 +592,12 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
   /* zero page margin removes the browser's own URL/date header & footer;
      the document supplies its own padding instead */
   @page{margin:0;size:auto}
-  body.printing > .app,body.printing > .toast-root,body.printing > #modal-root{display:none !important}
-  body.printing #print-area{display:block !important}
+  /* Default-hide EVERY body-level element while printing, then reveal only the
+     print document. This is leak-proof: any current or future floating/overlay
+     element (advisor bubble, toasts, storage banner, saved chip, modals, lock/
+     gate screens) can never bleed into a printed invoice/report. */
+  body.printing > *{display:none !important}
+  body.printing > #print-area{display:block !important}
   #print-area{color:#000;background:#fff;font-family:Helvetica,Arial,sans-serif}
   #print-area .pr-qr{position:absolute;width:108px;height:108px;object-fit:contain;border:1px solid #ccc;border-radius:8px;background:#fff}
   #print-area .pr-qr-ur{top:0;right:0} #print-area .pr-qr-ul{top:0;left:0}
@@ -679,7 +689,7 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 @keyframes sheen{0%{background-position:-180% 0}100%{background-position:180% 0}}
 @keyframes ringPulse{0%{box-shadow:0 0 0 0 rgba(99,102,241,.5)}70%{box-shadow:0 0 0 12px rgba(99,102,241,0)}100%{box-shadow:0 0 0 0 rgba(99,102,241,0)}}
 .hero{transition:box-shadow .4s var(--ease)}
-.hero:hover{box-shadow:var(--shadow)}
+.hero:hover{border-color:var(--accent);box-shadow:var(--shadow)}/* stroke matches cards; no lift on a full-width banner */
 .hero::after{animation:floatGlow 7s ease-in-out infinite}
 .hero h2{background:linear-gradient(90deg,var(--text),var(--accent) 60%,var(--accent-2));-webkit-background-clip:text;background-clip:text}
 .brand-logo{transition:transform .35s var(--ease),box-shadow .35s var(--ease)}
@@ -689,8 +699,8 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .nav-item.active::before{animation:ringPulse 2s ease-out 1}
 .btn-primary{background-size:140% 140%;transition:all .2s var(--ease),background-position .5s var(--ease)}
 .btn-primary:hover{background-position:100% 50%}
-.stat-card,.kpi{transition:box-shadow .25s var(--ease),transform .25s var(--ease),border-color .25s}
-.stat-card:hover,.kpi:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+.stat-card{transition:box-shadow .25s var(--ease),transform .25s var(--ease),border-color .25s}
+/* stat-card inherits the unified .card hover */
 .badge{transition:transform .15s var(--ease)}
 .badge:hover{transform:translateY(-1px)}
 .theme-toggle:active{transform:rotate(180deg) scale(.92)}
@@ -732,15 +742,16 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 /* color-coded navigation (per section) */
 .nav-item svg{color:#fff}
 .nav-item:hover{color:var(--sidebar-text-active)}
-.nav-item.active{background:var(--ni-soft,var(--sidebar-active));color:#fff}
+/* active item uses ONE consistent brand background regardless of section (no per-section tint) */
+.nav-item.active{background:var(--sidebar-active);color:#fff;font-weight:600}
 .nav-item.active svg{color:#fff}
-.nav-item.active::before{background:var(--ni,var(--accent))}
+/* .nav-item.active::before is defined once near the top (accent-grad bar) */
 .nav-section{transition:color .15s}
 
-/* color-coded page accents (driven by --page-color set on .main per route) */
-.page-title{border-left:3px solid var(--page-color,var(--accent));padding-left:12px}
-.stat-accent{background:linear-gradient(90deg,var(--page-color,var(--accent)),var(--accent-2))}
-.stat-card:hover{border-color:var(--page-color,var(--border))}
+/* page accents use the single brand accent (--accent) — consistent across every section */
+.page-title{border-left:3px solid var(--accent);padding-left:12px}
+.stat-accent{background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+/* stat-card hover stroke comes from the unified .card rule (--accent) */
 
 /* roadmap color swatches + chip dots */
 .swatch-row{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
@@ -785,7 +796,7 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 @media (max-width:860px){.app.nav-collapsed .sidebar{width:232px;padding:18px 12px}.app.nav-collapsed .main{margin-left:0}}
 
 /* per-card draggable dashboard grid */
-.dash-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr));gap:14px;align-items:stretch}
+.dash-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr));gap:13px;align-items:stretch}
 .dash-widget{position:relative;display:flex;min-width:0;border-radius:var(--r-lg);transition:opacity .18s var(--ease),transform .18s var(--ease),box-shadow .18s var(--ease)}
 .dash-widget[data-span="2"]{grid-column:span 2}
 @media (max-width:680px){.dash-widget[data-span="2"]{grid-column:span 1}}
@@ -804,7 +815,7 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .dash-widget.drop-target>.card{box-shadow:0 0 0 2px var(--accent),0 0 0 6px var(--accent-soft)}
 
 /* getting-started checklist */
-.start-card{background:linear-gradient(135deg,var(--accent-soft),transparent 70%),var(--bg-card);border-color:var(--accent-soft)}
+.start-card{background:linear-gradient(135deg,var(--accent-soft),transparent 70%),var(--bg-card);border-color:var(--accent-soft);margin-bottom:13px}
 .start-list{display:flex;flex-direction:column;gap:2px}
 .start-item{display:flex;align-items:center;gap:11px;padding:9px 2px;border-bottom:1px solid var(--border);font-size:.9rem}
 .start-item:last-child{border-bottom:none}
@@ -878,7 +889,7 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 #main.view-enter{animation:viewEnter .2s var(--ease)}
 
 /* ===== floating Advisor bubble ===== */
-#advisor-bubble{position:fixed;right:20px;bottom:20px;z-index:90;width:min(320px,calc(100vw - 40px))}
+#advisor-bubble{position:fixed;right:20px;bottom:84px;z-index:90;width:min(320px,calc(100vw - 40px))}
 .advisor-bubble{display:flex;width:100%;box-sizing:border-box;align-items:center;gap:10px;padding:11px 14px 11px 11px;border-radius:18px 18px 18px 6px;background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--shadow-lg);cursor:pointer;text-align:left;animation:abPop .4s var(--ease) both;transition:transform .15s var(--ease),box-shadow .2s}
 .advisor-bubble:hover{transform:translateY(-2px);box-shadow:0 16px 40px rgba(20,24,50,.22)}
 .ab-avatar{width:32px;height:32px;border-radius:10px;background:var(--accent-grad);color:#fff;display:grid;place-items:center;flex-shrink:0;box-shadow:0 4px 12px rgba(99,102,241,.45);animation:abFloat 3s ease-in-out infinite}
@@ -891,7 +902,7 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 @keyframes abPop{from{opacity:0;transform:translateY(14px) scale(.9)}to{opacity:1;transform:none}}
 @keyframes abBlink{50%{opacity:0}}
 @keyframes abFloat{50%{transform:translateY(-3px)}}
-@media(max-width:560px){#advisor-bubble{right:12px;bottom:12px}}
+@media(max-width:560px){#advisor-bubble{right:12px;bottom:76px}}
 @media (prefers-reduced-motion:reduce){.ab-avatar,.ab-caret,.advisor-bubble{animation:none}.advisor-bubble:hover{transform:none}}
 /* review polish */
 .t-risk{color:var(--risk)}.t-good{color:var(--good)}
@@ -901,7 +912,7 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 .ab-x{width:24px;height:24px;background:var(--bg-sunken)}
 @media(max-width:480px){
   .onb-mock{padding:16px 16px 0}.onb-body{padding:16px 18px 20px}
-  #advisor-bubble{right:10px;bottom:10px;width:calc(100vw - 24px)}
+  #advisor-bubble{right:10px;bottom:74px;width:calc(100vw - 24px)}
   .advisor-bubble{padding:9px 11px 9px 9px}.ab-text{font-size:.8rem}
   .onb-dots{gap:12px}.onb-dot{width:10px;height:10px}.onb-dot.on{width:26px}
 }
@@ -1438,6 +1449,7 @@ function openModal(title,bodyHTML,opts){
   modalReturnFocus=document.activeElement;
   var first=root.querySelector('input,select,textarea')||root.querySelector('.modal button');
   if(first) setTimeout(function(){ try{ first.focus(); }catch(_){ } },60);
+  if(typeof updateAdvisorBubble==='function') updateAdvisorBubble(currentRoute());
 }
 var modalReturnFocus=null;
 /* keep keyboard focus inside the open modal (WCAG focus trap) */
@@ -1452,7 +1464,7 @@ document.addEventListener('keydown',function(e){
   else if(!e.shiftKey&&document.activeElement===lastEl){ e.preventDefault(); firstEl.focus(); }
   else if(!modal.contains(document.activeElement)){ e.preventDefault(); firstEl.focus(); }
 });
-function closeModal(){ byId('modal-root').innerHTML=''; modalSubmitHandler=null; if(modalReturnFocus&&modalReturnFocus.focus){ try{ modalReturnFocus.focus(); }catch(_){ } } modalReturnFocus=null; }
+function closeModal(){ byId('modal-root').innerHTML=''; modalSubmitHandler=null; if(modalReturnFocus&&modalReturnFocus.focus){ try{ modalReturnFocus.focus(); }catch(_){ } } modalReturnFocus=null; if(typeof updateAdvisorBubble==='function') updateAdvisorBubble(currentRoute()); }
 function fv(form,name){ var el=form.elements[name]; return el?el.value.trim():''; }
 
 /* ---------- finance computations ---------- */
@@ -1840,7 +1852,6 @@ function routeSection(routeId){
   var r=ROUTES.filter(function(x){ return x.id===routeId; })[0];
   return r?r.section:'Overview';
 }
-function routeColor(routeId){ return sectionColorOf(routeSection(routeId)); }
 function hexA(hex,a){
   var h=String(hex||'').replace('#',''); if(h.length===3) h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
   var n=parseInt(h,16); if(isNaN(n)) return 'rgba(99,102,241,'+a+')';
@@ -1916,10 +1927,8 @@ function render(){
   else main.innerHTML=(views[route]||viewDashboard)();
   // gentle cross-fade when the section actually changes, so switching views never hard-cuts/blinks
   if(route!==lastRenderRoute){ main.classList.remove('view-enter'); void main.offsetWidth; main.classList.add('view-enter'); lastRenderRoute=route; }
-  // color-code the page: section color, or the roadmap's own color on the roadmap view
-  var pc=routeColor(route);
-  if(route==='roadmap'){ var crm=currentRoadmap(); if(crm&&crm.color) pc=crm.color; }
-  main.style.setProperty('--page-color',safeColor(pc,'#6366f1'));
+  // NOTE: card strokes & accents intentionally use the single brand accent (--accent, set in
+  // Settings → Accent color) for ONE consistent colour across every section — no per-section tint.
   applyNavCollapse();
   if(typeof updateAdvisorBubble==='function') updateAdvisorBubble(route);
   main.scrollTop=0;
@@ -1950,7 +1959,6 @@ function renderSidebar(){
   sections.forEach(function(sec){
     var hasActive=sec.items.some(function(r){return r.id===route;});
     var isCollapsed=collapsed.indexOf(sec.name)>=0&&!hasActive;
-    var col=sectionColorOf(sec.name);
     // Section headers are white by default; honor a user's custom color only if they set one.
     var secOverride=(state.settings.sectionColors||{})[sec.name];
     var hdrCol=secOverride?safeColor(secOverride,'#fff'):'#ffffff';
@@ -1958,24 +1966,22 @@ function renderSidebar(){
       '<span class="nav-chev'+(isCollapsed?' closed':'')+'">'+icon('down-chev',10)+'</span></div>';
     if(isCollapsed) return;
     sec.items.forEach(function(r){
-      var nv='--ni:'+col+';--ni-soft:'+hexA(col,.2);
       var rlbl=labels[r.id]||tr(r.label);
-      html+='<button class="nav-item'+(route===r.id?' active':'')+'" data-action="nav" data-route="'+r.id+'" title="'+esc(rlbl)+'" style="'+nv+'">'+icon(r.icon)+'<span>'+esc(rlbl)+'</span>'+
+      html+='<button class="nav-item'+(route===r.id?' active':'')+'" data-action="nav" data-route="'+r.id+'" title="'+esc(rlbl)+'">'+icon(r.icon)+'<span>'+esc(rlbl)+'</span>'+
         (r.id==='tasks'&&openTasks>0?'<span class="nav-badge">'+openTasks+'</span>':'')+'</button>';
     });
   });
   var modsActive=route.indexOf('custom-')===0;
   var modsCollapsed=collapsed.indexOf('My Modules')>=0&&!modsActive;
-  var modCol=sectionColorOf('My Modules');
   var modOverride=(state.settings.sectionColors||{})['My Modules'];
   var modHdrCol=modOverride?safeColor(modOverride,'#fff'):'#ffffff';
   html+='<div class="nav-section nav-sec-toggle" data-action="nav-sec-toggle" data-sec="My Modules" role="button" style="color:'+modHdrCol+'">'+esc(sectionLabelOf('My Modules'))+
     '<span class="nav-chev'+(modsCollapsed?' closed':'')+'">'+icon('down-chev',10)+'</span></div>';
   if(!modsCollapsed){
     (state.customModules||[]).forEach(function(m){
-      html+='<button class="nav-item'+(route==='custom-'+m.id?' active':'')+'" data-action="nav" data-route="custom-'+m.id+'" title="'+esc(m.name)+'" style="--ni:'+modCol+';--ni-soft:'+hexA(modCol,.2)+'">'+icon(m.icon||'notes')+'<span>'+esc(m.name)+'</span></button>';
+      html+='<button class="nav-item'+(route==='custom-'+m.id?' active':'')+'" data-action="nav" data-route="custom-'+m.id+'" title="'+esc(m.name)+'">'+icon(m.icon||'notes')+'<span>'+esc(m.name)+'</span></button>';
     });
-    html+='<button class="nav-item" data-action="custom-module-new" style="--ni:'+modCol+';opacity:.75">'+icon('plus')+'<span>'+esc(tr('New module…'))+'</span></button>';
+    html+='<button class="nav-item" data-action="custom-module-new" style="opacity:.75">'+icon('plus')+'<span>'+esc(tr('New module…'))+'</span></button>';
   }
   html+='</nav><div class="sidebar-foot"><div class="biz-chip">'+
     (bl?'<img src="'+esc(bl)+'" alt="" style="width:30px;height:30px;border-radius:8px;object-fit:cover;flex-shrink:0">'
@@ -7967,6 +7973,7 @@ function showOnboard(idx){
     root.innerHTML='<div class="onb-overlay" data-action="onb-skip-bg"><div class="onb-card" role="dialog" aria-modal="true" aria-label="Welcome to Trakora">'+
       '<button class="onb-x" data-action="onb-skip" aria-label="Skip intro">'+icon('x')+'</button>'+
       '<div class="onb-stage">'+onbStageHTML()+'</div></div></div>';
+    if(typeof updateAdvisorBubble==='function') updateAdvisorBubble(currentRoute());
     return;
   }
   // subsequent slides: swap only the inner content with a directional slide — the card never blinks
@@ -7977,6 +7984,7 @@ function showOnboard(idx){
 }
 function endOnboard(){
   byId('lightbox-root').innerHTML='';
+  if(typeof updateAdvisorBubble==='function') updateAdvisorBubble(currentRoute());
   if(!state.settings.wizardDone&&!(state.finance.length||state.products.length)){ setTimeout(openSetupWizard,250); }
   else { state.settings.wizardDone=true; save(); }
 }
@@ -8006,7 +8014,12 @@ function advisorPrompts(){
 }
 function updateAdvisorBubble(route){
   var root=byId('advisor-bubble'); if(!root) return;
+  // "blocked" controls whether the bubble CONTENT exists (route/settings/lock/gate/empty app).
   var blocked=route==='insights'||route==='settings'||(state.settings&&state.settings.advisorBubbleOff)||(byId('lock-root')&&byId('lock-root').innerHTML)||(byId('gate-root')&&byId('gate-root').innerHTML)||!state.finance||!state.finance.length;
+  // "suppressed" is a transient overlay (modal / onboarding carousel) — hide the bubble
+  // WITHOUT rebuilding so it never re-pops or re-types just because a dialog opened/closed.
+  var suppressed=(byId('modal-root')&&byId('modal-root').innerHTML)||(byId('lightbox-root')&&byId('lightbox-root').querySelector('.onb-card'));
+  root.style.display=suppressed?'none':'';
   // only rebuild (and re-type) when the visible/hidden state actually changes — not on every render
   var key=blocked?'hidden':'shown';
   if(key===lastBubbleState && (blocked? root.innerHTML==='' : root.querySelector('.advisor-bubble'))) return;
