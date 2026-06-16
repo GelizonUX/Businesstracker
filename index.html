@@ -8478,7 +8478,8 @@ function dashFlipPlay(g,prev,skip){
     var a=w.getBoundingClientRect(), dx=b.left-a.left, dy=b.top-a.top;
     if(!dx&&!dy) return;
     w.style.transition='none'; w.style.transform='translate('+dx+'px,'+dy+'px)';
-    requestAnimationFrame(function(){ w.style.transition='transform .2s var(--ease)'; w.style.transform=''; });
+    if(w._flipRaf) cancelAnimationFrame(w._flipRaf);
+    w._flipRaf=requestAnimationFrame(function(){ w._flipRaf=null; w.style.transition='transform .2s var(--ease)'; w.style.transform=''; });
   });
 }
 function dashPersistOrder(){
@@ -8489,7 +8490,7 @@ function dashPersistOrder(){
 function dashDragCleanup(){
   var g=dashGridEl();
   if(g){ g.classList.remove('is-dragging');
-    dashWidgetEls(g).forEach(function(w){ w.classList.remove('dragging'); w.style.transition=''; w.style.transform=''; }); }
+    dashWidgetEls(g).forEach(function(w){ if(w._flipRaf){ cancelAnimationFrame(w._flipRaf); w._flipRaf=null; } w.classList.remove('dragging'); w.style.transition=''; w.style.transform=''; }); }
   dashDragId=null;
 }
 document.addEventListener('dragstart',function(e){
