@@ -105,6 +105,24 @@ async function main() {
     window.reorderDash('miles', 'rev'); await wait(20);
     ok('single-card reorder persists', d.querySelectorAll('.dash-widget')[0].getAttribute('data-widget') === 'miles');
 
+    // ---------- dashboard: live drag-to-reorder (placeholder gap + persist) ----------
+    window.state.settings.dashOrder = null; window.location.hash = '#/dashboard'; window.render(); await wait(20);
+    const dgrid = d.querySelector('.dash-grid');
+    const dws = Array.from(dgrid.querySelectorAll('.dash-widget'));
+    const dragId = dws[0].getAttribute('data-widget');
+    const dHandle = dws[0].querySelector('[data-dh]');
+    const fireEv = (el, type) => { const ev = new window.Event(type, { bubbles: true, cancelable: true }); el.dispatchEvent(ev); return ev; };
+    fireEv(dHandle, 'dragstart');
+    ok('drag start collapses the card to a placeholder + flags the grid',
+       dws[0].classList.contains('dragging') && dgrid.classList.contains('is-dragging'));
+    fireEv(dws[2], 'dragover');
+    const liveOrder = Array.from(dgrid.querySelectorAll('.dash-widget')).map((w) => w.getAttribute('data-widget'));
+    ok('dragging over another card live-reorders the DOM (gap follows cursor)', liveOrder[0] !== dragId && liveOrder.indexOf(dragId) > 0);
+    fireEv(dHandle, 'dragend');
+    const domOrder = Array.from(dgrid.querySelectorAll('.dash-widget')).map((w) => w.getAttribute('data-widget'));
+    ok('drag end clears the placeholder state', !dgrid.querySelector('.dash-widget.dragging') && !dgrid.classList.contains('is-dragging'));
+    ok('drag end persists the new order', JSON.stringify((window.state.settings.dashOrder || []).slice(0, domOrder.length)) === JSON.stringify(domOrder));
+
     // ---------- onboarding carousel (replaces the old spotlight tour) ----------
     let onbErr = null;
     for (let st = 0; st < window.ONBOARD_SLIDES.length; st++) {
