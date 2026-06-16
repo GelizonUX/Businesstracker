@@ -22,7 +22,8 @@ npm test
    - **activation gate** diagnostics (locked-rules vs valid key, mocked fetch);
    - **App Lock (PIN)**: PBKDF2 set/verify, boot-gate, unlock;
    - **dashboard**: 13 per-card widgets + single-card reorder;
-   - **welcome tour**: all 6 steps position on-screen (guards the NaN bug);
+   - **onboarding carousel**: all 6 slides render with mockups + dots, advancing reuses the same card (no blink rebuild) and applies a directional slide;
+   - **Advisor page + floating bubble**: narrative read, prioritized actions, and the bubble that cycles 3–5 typed prompts off the Advisor page;
    - **recurring invoices**: generate / idempotent / 3-month catch-up;
    - **getting-started checklist** shows for a new account.
 
