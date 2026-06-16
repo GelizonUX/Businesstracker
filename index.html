@@ -213,6 +213,11 @@ a{color:var(--accent);text-decoration:none}
   animation:fadeUp .4s var(--ease) backwards;
 }
 .card:hover{box-shadow:var(--shadow)}
+/* ONE consistent interactive state for every card surface: the hover stroke uses the
+   customizable page/brand colour (--page-color, set from Settings), with the same lift,
+   shadow and press everywhere. Per-card overrides below were removed so nothing drifts. */
+.card:hover,.kpi:hover,.kb-card:hover{border-color:var(--page-color,var(--accent));box-shadow:var(--shadow);transform:translateY(-2px)}
+.card:active,.kpi:active,.kb-card:active{transform:translateY(0);box-shadow:var(--shadow-sm)}
 .card-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
 .card-head h3{font-size:1rem;font-weight:700;letter-spacing:-.01em}
 .card-head .sub{font-size:.8rem;color:var(--text-3)}
@@ -404,7 +409,7 @@ tr:hover .row-actions{opacity:1}
 
 /* notes */
 .note-card{display:flex;flex-direction:column;gap:8px;cursor:pointer;position:relative}
-.note-card:hover{transform:translateY(-3px);border-color:var(--accent)}
+/* note-card inherits the unified .card hover */
 .note-card h4{font-size:.97rem;font-weight:700;padding-right:24px}
 .note-card .note-body{font-size:.84rem;color:var(--text-2);display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-wrap}
 .note-card .pin{position:absolute;top:14px;right:14px;color:var(--text-3)}
@@ -436,7 +441,7 @@ details.calc summary::before{content:'▸';transition:transform .2s;font-size:.7
 details.calc[open] summary::before{transform:rotate(90deg)}
 details.calc .calc-body{margin-top:10px}
 .calc-card{transition:border-color .2s}
-.calc-card:hover{border-color:var(--accent)}
+/* calc-card inherits the unified .card hover */
 .calc-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:9px;margin-top:8px}
 .calc-fields .field{margin-bottom:0}
 .calc-fields label{font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3)}
@@ -454,7 +459,7 @@ details.calc .calc-body{margin-top:10px}
 .hero{
   background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(139,92,246,.07) 55%,transparent);
   border:1px solid var(--border);border-radius:var(--r-xl);
-  padding:36px 32px;position:relative;overflow:hidden;animation:fadeUp .45s var(--ease);
+  padding:36px 32px;position:relative;overflow:hidden;animation:fadeUp .45s var(--ease);margin-bottom:13px;
 }
 .hero::after{content:'';position:absolute;top:-70px;right:-70px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.18),transparent 65%)}
 .hero h2{font-size:1.45rem;font-weight:800;letter-spacing:-.025em}
@@ -510,8 +515,9 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .stat-icon{width:29px;height:29px;border-radius:9px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);flex-shrink:0}
 .stat-icon svg{width:16px;height:16px}
 .stat-card .stat-value{margin-top:10px}
-.card:hover{transform:translateY(-2px)}
+/* .card hover unified above */
 .acct-card{position:relative;overflow:hidden;border-top:3px solid var(--acct-color,var(--accent))}
+.acct-card:hover{border-top-color:var(--acct-color,var(--accent))}/* keep the account's identity colour on hover */
 .acct-logo{width:34px;height:34px;border-radius:9px;object-fit:cover;border:1px solid var(--border);cursor:zoom-in}
 .acct-chip{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex-shrink:0}
 .acct-chip svg{width:16px;height:16px}
@@ -534,8 +540,8 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .kb-col{background:var(--bg-sunken);border-radius:14px;padding:10px;min-height:120px}
 .kb-col.drag-over{outline:2px dashed var(--accent);outline-offset:-2px}
 .kb-col h4{font-size:.74rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--text-2);padding:2px 6px 8px;display:flex;justify-content:space-between}
-.kb-card{background:var(--bg-card);border:1px solid var(--border);border-radius:11px;padding:10px 12px;margin-bottom:8px;cursor:grab;box-shadow:var(--shadow-sm);transition:transform .15s,box-shadow .15s}
-.kb-card:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.kb-card{background:var(--bg-card);border:1px solid var(--border);border-radius:11px;padding:10px 12px;margin-bottom:8px;cursor:grab;box-shadow:var(--shadow-sm);transition:transform .15s,box-shadow .15s,border-color .15s}
+/* kb-card inherits the unified .card hover */
 .kb-card.dragging{opacity:.5}
 @media (max-width:900px){.kb-board{grid-template-columns:repeat(2,1fr)}}
 /* bulk bar */
@@ -694,7 +700,7 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .btn-primary{background-size:140% 140%;transition:all .2s var(--ease),background-position .5s var(--ease)}
 .btn-primary:hover{background-position:100% 50%}
 .stat-card,.kpi{transition:box-shadow .25s var(--ease),transform .25s var(--ease),border-color .25s}
-.stat-card:hover,.kpi:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+/* stat-card & kpi inherit the unified .card / .kpi hover */
 .badge{transition:transform .15s var(--ease)}
 .badge:hover{transform:translateY(-1px)}
 .theme-toggle:active{transform:rotate(180deg) scale(.92)}
@@ -736,15 +742,16 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 /* color-coded navigation (per section) */
 .nav-item svg{color:#fff}
 .nav-item:hover{color:var(--sidebar-text-active)}
-.nav-item.active{background:var(--ni-soft,var(--sidebar-active));color:#fff}
+/* active item uses ONE consistent brand background regardless of section (no per-section tint) */
+.nav-item.active{background:var(--sidebar-active);color:#fff}
 .nav-item.active svg{color:#fff}
-.nav-item.active::before{background:var(--ni,var(--accent))}
+.nav-item.active::before{background:var(--accent-grad)}
 .nav-section{transition:color .15s}
 
 /* color-coded page accents (driven by --page-color set on .main per route) */
 .page-title{border-left:3px solid var(--page-color,var(--accent));padding-left:12px}
 .stat-accent{background:linear-gradient(90deg,var(--page-color,var(--accent)),var(--accent-2))}
-.stat-card:hover{border-color:var(--page-color,var(--border))}
+/* stat-card hover stroke comes from the unified .card rule (--page-color) */
 
 /* roadmap color swatches + chip dots */
 .swatch-row{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
@@ -808,7 +815,7 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .dash-widget.drop-target>.card{box-shadow:0 0 0 2px var(--accent),0 0 0 6px var(--accent-soft)}
 
 /* getting-started checklist */
-.start-card{background:linear-gradient(135deg,var(--accent-soft),transparent 70%),var(--bg-card);border-color:var(--accent-soft)}
+.start-card{background:linear-gradient(135deg,var(--accent-soft),transparent 70%),var(--bg-card);border-color:var(--accent-soft);margin-bottom:13px}
 .start-list{display:flex;flex-direction:column;gap:2px}
 .start-item{display:flex;align-items:center;gap:11px;padding:9px 2px;border-bottom:1px solid var(--border);font-size:.9rem}
 .start-item:last-child{border-bottom:none}
