@@ -155,6 +155,7 @@ td.k{font-family:var(--mono);font-size:.8rem;white-space:nowrap}
 
   <div class="foot">
     Keys validate against the same formula built into your Trakora app. Keep this file private — anyone with it can mint keys.<br>
+    <b>Privacy:</b> the cloud now stores only a one-way <b>hash</b> of each buyer's key+email (no plaintext name or email) — so even a readable record leaks no PII. The buyer's name/email are kept only in <b>this tool's local ledger</b> on your machine. Issuing requires your admin secret (it bypasses the rules); buyers can only claim a device slot.<br>
     Recommended <b>hardened anti-piracy</b> rules (Firebase → Realtime Database → Rules): <code>{ "rules": { "licenses": { ".read": false, ".write": false, "$key": { ".read": true, "devices": { ".write": true, "$device": { ".validate": "newData.hasChild('at') &amp;&amp; newData.child('at').isNumber() &amp;&amp; (!newData.hasChild('ua') || (newData.child('ua').isString() &amp;&amp; newData.child('ua').val().length &lt;= 200))" } } } } } }</code><br>
     What this does: the <code>licenses</code> root denies read/write (no one can list or enumerate all keys); each key is readable only if you know it (needed for activation); buyers may claim a device slot but the write is <b>validated</b> (must be a real timestamped record, UA capped at 200 chars) so the path can't be abused for arbitrary storage; and buyers <b>cannot create license records</b> — only you can, using your database admin secret (Advanced settings), which bypasses rules. This stops self-issued keys and garbage writes. After pasting, click “Test connection” above to confirm read+write still work.
   </div>
@@ -170,6 +171,14 @@ function licenseKeyFor(name,email){
   while(s.length<12) s+='X';
   return s.slice(0,4)+'-'+s.slice(4,8)+'-'+s.slice(8,12);
 }
+/* ===== privacy: the cloud record stores only a SHA-256 hash of (key|email), never plaintext PII.
+   MUST stay identical to licEmailHash() inside the Trakora app. ===== */
+function normKey(k){ return String(k||'').toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/(.{4})(.{4})(.{4}).*/,'$1-$2-$3'); }
+function sha256Hex(str){
+  var data=new TextEncoder().encode(str);
+  return crypto.subtle.digest('SHA-256',data).then(function(buf){ return Array.prototype.map.call(new Uint8Array(buf),function(b){return ('0'+b.toString(16)).slice(-2);}).join(''); });
+}
+function licEmailHash(key,email){ return sha256Hex(normKey(key)+'|'+String(email||'').trim().toLowerCase()); }
 
 var $=function(id){return document.getElementById(id);};
 var LS='trakora.keygen.';
@@ -245,12 +254,16 @@ $('go').addEventListener('click',function(){
   if(!name||!email){ showMsg('issue-msg','warn','Enter the buyer’s name and email.'); return; }
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ showMsg('issue-msg','warn','That email doesn’t look right.'); return; }
   var key=licenseKeyFor(name,email);
-  var rec={name:name,email:email,status:'active',deviceLimit:limit,issued:new Date().toISOString().slice(0,10),devices:{}};
+  var issued=new Date().toISOString().slice(0,10);
+  var localRec={name:name,email:email,status:'active',deviceLimit:limit,issued:issued,devices:{}}; // full info kept LOCALLY only
   btn.disabled=true; btn.innerHTML='<span class="spin"></span> Saving…'; hideMsg('issue-msg');
-  fetch(epKey(key),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(rec)})
+  licEmailHash(key,email).then(function(emailHash){
+    var cloudRec={emailHash:emailHash,status:'active',deviceLimit:limit,issued:issued,devices:{}}; // PII-free record stored in the cloud
+    return fetch(epKey(key),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(cloudRec)});
+  })
     .then(function(r){ return r.text().then(function(b){ if(!r.ok) throw new Error((/permission denied/i.test(b)?'Rules deny write — open the licenses path for writing.':'HTTP '+r.status)); return b; }); })
     .then(function(){
-      recordLocal(key,rec);
+      recordLocal(key,localRec);
       $('rkey').textContent=key; $('result').classList.add('show');
       $('result').setAttribute('data-key',key); $('result').setAttribute('data-email',email); $('result').setAttribute('data-name',name);
       showMsg('issue-msg','ok','Saved to cloud ✓ — buyer can now activate with this key and <b>'+email+'</b>.');

@@ -1145,34 +1145,51 @@ function gateReadLicense(key,attempt){
   });
 }
 /* verify a key+email against Firebase, claim a device slot, store activation locally */
+/* Privacy-preserving email proof: the license DB stores only a SHA-256 hash of
+   (key|email), never the plaintext email — so even a readable record leaks no PII.
+   Canonical input must match the keygen exactly. */
+function licEmailHash(key,email){
+  var msg=normKey(key)+'|'+String(email||'').trim().toLowerCase();
+  var data=new TextEncoder().encode(msg);
+  return window.crypto.subtle.digest('SHA-256',data).then(function(buf){
+    return Array.prototype.map.call(new Uint8Array(buf),function(b){return ('0'+b.toString(16)).slice(-2);}).join('');
+  });
+}
+function licEmailMatches(key,email,lic){
+  // prefer the hashed proof; fall back to legacy plaintext email for records issued before hashing
+  if(lic&&lic.emailHash) return licEmailHash(key,email).then(function(h){ return h===lic.emailHash; });
+  return Promise.resolve(((lic&&lic.email)||'').trim().toLowerCase()===String(email||'').trim().toLowerCase());
+}
 function verifyActivation(key,email){
   key=normKey(key); email=String(email||'').trim().toLowerCase();
   return gateReadLicense(key,0).then(function(lic){
     if(!lic||typeof lic!=='object') throw {code:'nokey',msg:'That license key wasn’t found. Double-check the key from your purchase email — and that it was issued on the current activation database.'};
     if(lic.status&&lic.status!=='active') throw {code:'revoked',msg:'This license has been disabled. Please contact '+esc(GATE.sellerContact)+'.'};
-    if((lic.email||'').trim().toLowerCase()!==email) throw {code:'email',msg:'This key is registered to a different email address. Use the email from your purchase.'};
-    var devices=lic.devices||{};
-    var limit=lic.deviceLimit||GATE.deviceLimit;
-    var mine=DEVICE_ID;
-    if(!devices[mine] && Object.keys(devices).length>=limit){
-      throw {code:'limit',msg:'This license is already active on its maximum of '+limit+' device'+(limit>1?'s':'')+'. Contact '+esc(GATE.sellerContact)+' to move it.'};
-    }
-    // claim this device (create-only write under devices)
-    return gateFetch(gateEndpoint(key).replace('.json','/devices/'+encodeURIComponent(mine)+'.json'),{
-      method:'PUT',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({at:Date.now(),ua:String(navigator.userAgent||'').slice(0,120)})
-    }).then(function(r){
-      // a non-OK PUT (write denied by rules) is not a real claim — mark it so we don't free a slot we never took
-      var act={key:key,email:email,name:lic.name||email,activatedAt:Date.now(),device:mine};
-      if(!(r&&r.ok)) act.unclaimed=true;
-      setActivation(act);
-      return act;
-    }).catch(function(){
-      // device-claim write failed (network) — still let them in; the key & email are verified
-      var act={key:key,email:email,name:lic.name||email,activatedAt:Date.now(),device:mine,unclaimed:true};
-      setActivation(act);
-      return act;
+    return licEmailMatches(key,email,lic).then(function(okEmail){
+      if(!okEmail) throw {code:'email',msg:'This key is registered to a different email address. Use the email from your purchase.'};
+      var devices=lic.devices||{};
+      var limit=lic.deviceLimit||GATE.deviceLimit;
+      var mine=DEVICE_ID;
+      if(!devices[mine] && Object.keys(devices).length>=limit){
+        throw {code:'limit',msg:'This license is already active on its maximum of '+limit+' device'+(limit>1?'s':'')+'. Contact '+esc(GATE.sellerContact)+' to move it.'};
+      }
+      // claim this device (create-only write under devices)
+      return gateFetch(gateEndpoint(key).replace('.json','/devices/'+encodeURIComponent(mine)+'.json'),{
+        method:'PUT',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({at:Date.now(),ua:String(navigator.userAgent||'').slice(0,120)})
+      }).then(function(r){
+        // a non-OK PUT (write denied by rules) is not a real claim — mark it so we don't free a slot we never took
+        var act={key:key,email:email,name:lic.name||email,activatedAt:Date.now(),device:mine};
+        if(!(r&&r.ok)) act.unclaimed=true;
+        setActivation(act);
+        return act;
+      }).catch(function(){
+        // device-claim write failed (network) — still let them in; the key & email are verified
+        var act={key:key,email:email,name:lic.name||email,activatedAt:Date.now(),device:mine,unclaimed:true};
+        setActivation(act);
+        return act;
+      });
     });
   });
 }
