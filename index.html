@@ -8469,7 +8469,7 @@ function commitCsvImport(){
 
 /* dashboard widgets: live drag-to-reorder — the picked-up card becomes a placeholder gap
    that follows the cursor while the others smoothly make room (FLIP); order saves on drop. */
-var dashDragId=null;
+var dashDragId=null, dashPhTimer=null;
 function dashGridEl(){ return document.querySelector('.dash-grid'); }
 function dashWidgetEls(g){ return (g||dashGridEl())? Array.prototype.slice.call((g||dashGridEl()).querySelectorAll('.dash-widget')) : []; }
 function dashFlipRecord(g){ var m={}; dashWidgetEls(g).forEach(function(w){ m[w.getAttribute('data-widget')]=w.getBoundingClientRect(); }); return m; }
@@ -8490,6 +8490,7 @@ function dashPersistOrder(){
   state.settings.dashOrder=ids.concat(dashOrder().filter(function(id){ return ids.indexOf(id)<0; })); save();
 }
 function dashDragCleanup(){
+  if(dashPhTimer){ clearTimeout(dashPhTimer); dashPhTimer=null; }
   var g=dashGridEl();
   if(g){ g.classList.remove('is-dragging');
     dashWidgetEls(g).forEach(function(w){ if(w._flipRaf){ cancelAnimationFrame(w._flipRaf); w._flipRaf=null; } w.classList.remove('dragging'); w.style.transition=''; w.style.transform=''; }); }
@@ -8521,7 +8522,7 @@ document.addEventListener('dragstart',function(e){
   }catch(_){ } }
   if(g) g.classList.add('is-dragging');
   // collapse the slot to a placeholder on the NEXT tick so the drag image is the full card
-  if(w) setTimeout(function(){ if(dashDragId) w.classList.add('dragging'); },0);
+  if(w) dashPhTimer=setTimeout(function(){ dashPhTimer=null; if(dashDragId) w.classList.add('dragging'); },0);
 });
 document.addEventListener('dragover',function(e){
   if(!dashDragId) return;
