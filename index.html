@@ -5439,7 +5439,8 @@ function cmFormatCell(f,v){
   if(f.type==='image'){
     if(typeof v==='object'&&v&&v.data){
       if((v.data||'').indexOf('data:image')===0) return '<img class="img-thumb" src="'+esc(v.data)+'" alt="">';
-      return '<a href="'+v.data+'" download="'+esc(v.name||'file')+'" class="badge accent">📎 '+esc(v.name||'file')+'</a>';
+      var safeHref=/^(data:|https?:|blob:)/i.test(v.data||'')?esc(v.data):'#';
+      return '<a href="'+safeHref+'" download="'+esc(v.name||'file')+'" class="badge accent">📎 '+esc(v.name||'file')+'</a>';
     }
     if(String(v).indexOf('data:image')===0) return '<img class="img-thumb" src="'+esc(v)+'" alt="">';
     return '—';

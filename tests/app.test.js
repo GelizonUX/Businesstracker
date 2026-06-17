@@ -67,6 +67,8 @@ async function main() {
     ok('account color sanitized at source', /var col=safeColor\(a\.color/.test(html));
     ok('task table color sanitized', html.indexOf("'box-shadow:inset 3px 0 0 '+safeColor(t.color)") > -1);
     ok('calendar task color sanitized', /tcol=\s*t\.color\?safeColor\(t\.color\)/.test(html));
+    // file-attachment href is scheme-allowlisted (no javascript: / attribute breakout)
+    ok('attachment href is scheme-allowlisted', html.indexOf('/^(data:|https?:|blob:)/i.test(v.data') > -1);
     // behavioral: a malicious account color cannot break out of the style attribute
     window.state.accounts = [{ id: 'secT', name: 'Sec', type: 'Cash', color: 'red"></span><img src=x onerror="alert(1)">', opening: 0 }];
     window.location.hash = '#/accounts'; window.render();
