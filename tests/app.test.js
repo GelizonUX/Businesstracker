@@ -124,6 +124,18 @@ async function main() {
     ok('drag end clears the placeholder state', !dgrid.querySelector('.dash-widget.dragging') && !dgrid.classList.contains('is-dragging'));
     ok('drag end persists the new order', JSON.stringify((window.state.settings.dashOrder || []).slice(0, domOrder.length)) === JSON.stringify(domOrder));
 
+    // ---------- delight: KPI count-up is non-destructive (settles to the EXACT figure) ----------
+    window.state.finance = [{ id: 'f2', type: 'income', amount: 123456, date: '2026-06-02', category: 'Sales' }];
+    window.location.hash = '#/dashboard'; window.render(); await wait(900); // let the entrance count-up finish
+    ok('animateCounts helper exists', typeof window.animateCounts === 'function');
+    const svEl = d.querySelector('.stat-value');
+    const finalStat = svEl ? svEl.textContent : '';
+    ok('a stat value is present and non-empty', !!finalStat);
+    window.animateCounts(d.getElementById('main')); // re-trigger
+    ok('count-up does not corrupt the value synchronously', d.querySelector('.stat-value').textContent === finalStat);
+    await wait(900);
+    ok('count-up settles back to the exact figure', d.querySelector('.stat-value').textContent === finalStat);
+
     // ---------- onboarding carousel (replaces the old spotlight tour) ----------
     let onbErr = null;
     for (let st = 0; st < window.ONBOARD_SLIDES.length; st++) {

@@ -19,7 +19,7 @@
   --bg:#f4f5fb;
   --bg-card:#ffffff;
   --bg-card-glass:rgba(255,255,255,.78);
-  --bg-sunken:#eef0f8;
+  --bg-sunken:#e9ebf5;
   --bg-hover:rgba(99,102,241,.06);
   --bg-input:#ffffff;
   --bg-sidebar:#0f1222;
@@ -28,8 +28,8 @@
   --sidebar-hover:rgba(255,255,255,.07);
   --sidebar-active:linear-gradient(90deg,rgba(99,102,241,.28),rgba(139,92,246,.14));
 
-  --text:#1c2033;
-  --text-2:#5b6178;
+  --text:#191c2e;
+  --text-2:#565d75;
   --text-3:#646b82;
 
   --border:#e4e7f2;
@@ -48,9 +48,9 @@
   --income:#10b981; --expense:#ef4444;
 
   --r-sm:8px; --r:12px; --r-lg:16px; --r-xl:20px;
-  --shadow-sm:0 1px 2px rgba(20,24,50,.05),0 1px 6px rgba(20,24,50,.04);
-  --shadow:0 2px 6px rgba(20,24,50,.05),0 10px 28px rgba(20,24,50,.07);
-  --shadow-lg:0 8px 16px rgba(20,24,50,.08),0 24px 56px rgba(20,24,50,.14);
+  --shadow-sm:0 1px 1px rgba(20,24,50,.04),0 2px 6px rgba(20,24,50,.05);
+  --shadow:0 1px 2px rgba(20,24,50,.04),0 4px 10px rgba(20,24,50,.05),0 12px 30px rgba(20,24,50,.08);
+  --shadow-lg:0 2px 4px rgba(20,24,50,.06),0 12px 24px rgba(20,24,50,.10),0 28px 60px rgba(20,24,50,.16);
   --ease:cubic-bezier(.4,0,.2,1);
   --ease-snappy:cubic-bezier(.25,.46,.45,.94);
   --chart-grid:#eceef6;
@@ -67,8 +67,8 @@ html[data-theme="dark"]{
   --sidebar-text-active:#ffffff;
   --sidebar-hover:rgba(255,255,255,.06);
 
-  --text:#e8eaf6;
-  --text-2:#a4aac6;
+  --text:#edeefb;
+  --text-2:#a8aecb;
   --text-3:#828bac;
 
   --border:#252a44;
@@ -100,6 +100,9 @@ body{
   color:var(--text);
   line-height:1.55;
   -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility;
+  font-feature-settings:"kern","liga","calt";
   transition:background .3s var(--ease),color .3s var(--ease);
   overflow-x:hidden;
 }
@@ -107,7 +110,8 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 input,select,textarea{font-family:inherit;font-size:.95rem;color:var(--text)}
 a{color:var(--accent);text-decoration:none}
 ::placeholder{color:var(--text-3)}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px;box-shadow:0 0 0 4px var(--accent-soft);border-radius:6px}
+::selection{background:var(--accent-soft);color:var(--text)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;box-shadow:0 0 0 4px var(--accent-soft)}
 .chip:focus-visible,.seg button:focus-visible,.nav-sec-toggle:focus-visible,.nav-item:focus-visible,[role="button"]:focus-visible,.btn-icon:focus-visible,.dash-handle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .btn-icon:active{transform:scale(.92)}
 
@@ -178,7 +182,7 @@ a{color:var(--accent);text-decoration:none}
   padding:7px 14px;border-radius:10px;
   font-size:.88rem;font-weight:600;
   border:1px solid transparent;
-  transition:all .18s var(--ease);
+  transition:transform .12s var(--ease-snappy),box-shadow .18s var(--ease),background .18s var(--ease),border-color .18s var(--ease),color .18s var(--ease);
   white-space:nowrap;
 }
 .btn svg{width:15px;height:15px}
@@ -212,6 +216,8 @@ a{color:var(--accent);text-decoration:none}
   transition:box-shadow .25s var(--ease),transform .25s var(--ease),border-color .25s;
   animation:fadeUp .4s var(--ease) backwards;
 }
+/* dark cards get a faint top inner highlight so they read as lit from above */
+html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--shadow-sm),inset 0 1px 0 rgba(255,255,255,.045)}
 /* ONE consistent interactive state for every card surface: the hover stroke uses the
    single brand accent (--accent, set in Settings → Accent color) — the SAME colour on every
    section, never a per-section tint — with the same lift, shadow and press everywhere.
@@ -276,6 +282,7 @@ a{color:var(--accent);text-decoration:none}
   border:1.5px solid var(--border);background:var(--bg-input);
   transition:border-color .18s,box-shadow .18s;
 }
+.input:hover:not(:focus){border-color:var(--border-2)}
 .input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 textarea.input{resize:vertical;min-height:80px}
 select.input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238e94ab' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:34px}
@@ -331,11 +338,12 @@ tr:hover .row-actions{opacity:1}
   display:flex;align-items:flex-start;gap:10px;
   background:var(--bg-card);border:1px solid var(--border);border-radius:14px;
   padding:12px 16px;box-shadow:var(--shadow-lg);font-size:.87rem;
-  animation:toastIn .35s var(--ease);border-left:4px solid var(--accent);
+  animation:toastIn .35s var(--ease);
+  box-shadow:var(--shadow-lg),inset 3px 0 0 var(--accent);
 }
-.toast.good{border-left-color:var(--good)}
-.toast.error{border-left-color:var(--risk)}
-.toast.warn{border-left-color:var(--warn)}
+.toast.good{box-shadow:var(--shadow-lg),inset 3px 0 0 var(--good)}
+.toast.error{box-shadow:var(--shadow-lg),inset 3px 0 0 var(--risk)}
+.toast.warn{box-shadow:var(--shadow-lg),inset 3px 0 0 var(--warn)}
 .toast .t-icon{flex-shrink:0;width:18px;height:18px;margin-top:1px}
 .toast.good .t-icon{color:var(--good)}
 .toast.error .t-icon{color:var(--risk)}
@@ -349,10 +357,10 @@ tr:hover .row-actions{opacity:1}
   text-align:center;padding:44px 20px;color:var(--text-3);
   display:flex;flex-direction:column;align-items:center;gap:10px;
 }
-.empty .e-icon{width:58px;height:58px;border-radius:18px;background:var(--accent-soft);display:grid;place-items:center;color:var(--accent);margin-bottom:4px}
+.empty .e-icon{width:58px;height:58px;border-radius:18px;background:linear-gradient(135deg,var(--accent-soft),transparent);box-shadow:inset 0 0 0 1px var(--border);display:grid;place-items:center;color:var(--accent);margin-bottom:4px}
 .empty .e-icon svg{width:26px;height:26px}
 .empty h4{color:var(--text);font-size:1rem;font-weight:700}
-.empty p{font-size:.86rem;max-width:340px}
+.empty p{font-size:.86rem;max-width:340px;line-height:1.6}
 
 .insight{display:flex;gap:12px;padding:13px 15px;border-radius:13px;border:1px solid var(--border);background:var(--bg-card);align-items:flex-start;animation:fadeUp .4s var(--ease) backwards}
 .insight .i-icon{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;flex-shrink:0}
@@ -363,6 +371,16 @@ tr:hover .row-actions{opacity:1}
 .insight.info .i-icon{background:var(--info-soft);color:var(--info)}
 .insight b{font-size:.88rem;display:block}
 .insight p{font-size:.82rem;color:var(--text-2);margin-top:1px}
+/* lead-icon card head — the in-house alternative to the colored left-stripe motif */
+.lead-card .card-head{flex-wrap:nowrap;align-items:flex-start}
+.lead-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex-shrink:0;background:var(--accent-soft);color:var(--accent)}
+.lead-icon svg{width:17px;height:17px}
+.lead-copy{min-width:0}
+.lead-copy h3{font-size:1rem;font-weight:700;letter-spacing:-.01em}
+.lead-info .lead-icon{background:var(--info-soft);color:var(--info)}
+.lead-good .lead-icon{background:var(--good-soft);color:var(--good)}
+.lead-warn .lead-icon{background:var(--warn-soft);color:var(--warn)}
+.lead-risk .lead-icon{background:var(--risk-soft);color:var(--risk)}
 
 .list-row{display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid var(--border)}
 .list-row:last-child{border-bottom:none}
@@ -447,7 +465,7 @@ details.calc .calc-body{margin-top:10px}
 .calc-fields label{font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3)}
 .calc-fields .input{padding:6px 9px;font-size:.88rem}
 .calc-desc{font-size:.74rem;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.calc-result{margin-top:11px;padding:11px 14px;border-radius:10px;background:var(--accent-soft);border-left:3px solid var(--accent);font-size:.92rem;font-weight:600;color:var(--text);display:none}
+.calc-result{margin-top:11px;padding:11px 14px;border-radius:10px;background:var(--accent-soft);font-size:.92rem;font-weight:600;color:var(--text);display:none}
 .calc-result b{color:var(--accent)}
 .calc-result.show{display:block;animation:fadeUp .3s var(--ease)}
 .calc-result small{display:block;font-weight:500;color:var(--text-2);margin-top:3px;font-size:.78rem}
@@ -457,7 +475,7 @@ details.calc .calc-body{margin-top:10px}
 
 /* onboarding hero */
 .hero{
-  background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(139,92,246,.07) 55%,transparent);
+  background:linear-gradient(135deg,rgba(99,102,241,.14),rgba(139,92,246,.08) 45%,rgba(139,92,246,.02) 75%,transparent);
   border:1px solid var(--border);border-radius:var(--r-xl);
   padding:36px 32px;position:relative;overflow:hidden;animation:fadeUp .45s var(--ease);margin-bottom:13px;
 }
@@ -749,7 +767,8 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .nav-section{transition:color .15s}
 
 /* page accents use the single brand accent (--accent) — consistent across every section */
-.page-title{border-left:3px solid var(--accent);padding-left:12px}
+.page-title{position:relative;padding-left:14px}
+.page-title::before{content:'';position:absolute;left:0;top:.22rem;width:3px;height:1.05rem;border-radius:99px;background:var(--accent-grad)}
 .stat-accent{background:linear-gradient(90deg,var(--accent),var(--accent-2))}
 /* stat-card hover stroke comes from the unified .card rule (--accent) */
 
@@ -847,15 +866,17 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 /* ===== Advisor page ===== */
 .advisor-hero{background:linear-gradient(135deg,var(--accent-soft),transparent 70%),var(--bg-card)}
 .adv-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
-.adv-avatar{width:40px;height:40px;border-radius:12px;background:var(--accent-grad);color:#fff;display:grid;place-items:center;flex-shrink:0;box-shadow:0 4px 14px rgba(99,102,241,.4)}
+.adv-avatar{width:40px;height:40px;border-radius:12px;background:var(--accent-grad);color:#fff;display:grid;place-items:center;flex-shrink:0;box-shadow:0 4px 14px var(--accent-soft)}
 .adv-avatar svg{width:21px;height:21px}
 .adv-head h3{font-size:1.05rem;font-weight:800}
 .adv-sub{font-size:.74rem;color:var(--text-3)}
 .adv-narrative{font-size:1rem;line-height:1.7;color:var(--text)}
 .adv-actions{list-style:none;display:flex;flex-direction:column;gap:10px}
-.adv-act{display:flex;gap:11px;align-items:flex-start;padding:11px 12px;border-radius:12px;background:var(--bg-sunken);border-left:3px solid var(--border-2)}
-.adv-act.risk{border-left-color:var(--risk);background:var(--risk-soft)}
-.adv-act.warn{border-left-color:var(--warn);background:var(--warn-soft)}
+.adv-act{display:flex;gap:11px;align-items:flex-start;padding:11px 12px;border-radius:12px;background:var(--bg-sunken)}
+.adv-act.risk{background:var(--risk-soft)}
+.adv-act.warn{background:var(--warn-soft)}
+.adv-act.risk .adv-num{color:var(--risk)}
+.adv-act.warn .adv-num{color:var(--warn)}
 .adv-num{width:24px;height:24px;border-radius:50%;background:var(--bg-card);color:var(--text-2);font-weight:800;font-size:.78rem;display:grid;place-items:center;flex-shrink:0;box-shadow:var(--shadow-sm)}
 .adv-act b{font-size:.9rem;display:block}
 .adv-act p{font-size:.82rem;color:var(--text-2);line-height:1.5;margin-top:2px}
@@ -1931,7 +1952,10 @@ function render(){
   if(route.indexOf('custom-')===0) main.innerHTML=viewCustomModule(route.slice(7));
   else main.innerHTML=(views[route]||viewDashboard)();
   // gentle cross-fade when the section actually changes, so switching views never hard-cuts/blinks
-  if(route!==lastRenderRoute){ main.classList.remove('view-enter'); void main.offsetWidth; main.classList.add('view-enter'); lastRenderRoute=route; }
+  var routeChanged=route!==lastRenderRoute;
+  if(routeChanged){ main.classList.remove('view-enter'); void main.offsetWidth; main.classList.add('view-enter'); lastRenderRoute=route; }
+  // delight: count key figures up on a fresh page entrance (not on in-page re-renders)
+  if(routeChanged && typeof animateCounts==='function') animateCounts(main);
   // NOTE: card strokes & accents intentionally use the single brand accent (--accent, set in
   // Settings → Accent color) for ONE consistent colour across every section — no per-section tint.
   applyNavCollapse();
@@ -2033,7 +2057,7 @@ function getStartedHTML(){
   var steps=getStartedSteps();
   var done=steps.filter(function(x){return x.done;}).length, total=steps.length;
   if(done>=total){
-    return '<div class="card start-card"><div class="card-head"><h3>🎉 You’re all set up!</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="start-dismiss">Dismiss</button></div>'+
+    return '<div class="card start-card"><div class="card-head"><h3>'+icon('check',16)+' You’re all set up!</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="start-dismiss">Dismiss</button></div>'+
       '<p style="font-size:.85rem;color:var(--text-2)">Every starter step is done. Your dashboard is ready — keep your numbers current, drag the cards to suit you, and let Trakora do the math.</p></div>';
   }
   return '<div class="card start-card"><div class="card-head"><h3>'+icon('spark',16)+' Get started · '+done+' of '+total+'</h3><span class="spacer"></span><button class="btn-icon" data-action="start-dismiss" title="Hide this checklist" aria-label="Hide">'+icon('x')+'</button></div>'+
@@ -2819,7 +2843,7 @@ function viewTasks(){
     var doneList=state.tasks.filter(function(t){return t.done;})
       .sort(function(a,b){ return (b.completedAt||'').localeCompare(a.completedAt||''); }).slice(0,8);
     if(doneList.length){
-      html+='<div class="card mt"><div class="card-head"><h3>✅ Completed recently</h3><span class="sub">still editable — untick to reopen</span><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="task-filter-status" data-val="done">All completed</button></div>'+
+      html+='<div class="card mt"><div class="card-head"><h3>'+icon('check',16)+' Completed recently</h3><span class="sub">still editable — untick to reopen</span><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="task-filter-status" data-val="done">All completed</button></div>'+
         doneList.map(taskRowHTML).join('')+'</div>';
     }
   }
@@ -3164,8 +3188,8 @@ function viewSettings(){
     '<p style="font-size:.84rem;color:var(--text-2)">Trakora is a single-file, local-first business command center. No accounts, no servers, no tracking — your numbers never leave this device unless you enable cloud sync. Works offline once loaded.</p>'+
     (function(){ var l=licenseInfo(); if(!l) return '';
       var act=getActivation();
-      return '<div style="margin-top:12px;padding:11px 14px;border-radius:11px;background:var(--accent-soft);border-left:3px solid var(--accent)">'+
-        '<b style="font-size:.84rem">🔑 Licensed to '+esc(l.name)+'</b>'+
+      return '<div style="margin-top:12px;padding:11px 14px;border-radius:11px;background:var(--accent-soft)">'+
+        '<b style="font-size:.84rem">'+icon('shield',13)+' Licensed to '+esc(l.name)+'</b>'+
         '<div style="font-size:.74rem;color:var(--text-2);margin-top:2px">'+esc(l.email)+' · key <span class="mono">'+esc(l.key)+'</span> '+(l.valid?'<span class="badge good" style="font-size:.6rem">valid</span>':'<span class="badge risk" style="font-size:.6rem">invalid key</span>')+'</div>'+
         (act?'<div style="font-size:.7rem;color:var(--good);margin-top:4px">✓ Activated on this device'+(act.activatedAt?' · '+fmtDate(new Date(act.activatedAt).toISOString().slice(0,10)):'')+'</div>':'')+
         '<div style="font-size:.7rem;color:var(--text-3);margin-top:4px">This copy is registered to the name above — it appears on all printed documents.</div>'+
@@ -6259,7 +6283,7 @@ function unpaidFollowUps(){
 function followUpCardHTML(){
   var list=unpaidFollowUps();
   if(!list.length) return '';
-  var html='<div class="card mt" style="border-left:4px solid var(--warn)"><div class="card-head" style="margin-bottom:8px"><h3>💬 Needs a follow-up</h3><span class="sub">unpaid 3+ days — one friendly nudge usually collects it</span></div>';
+  var html='<div class="card mt lead-card lead-warn"><div class="card-head" style="margin-bottom:8px"><span class="lead-icon">'+icon('clock')+'</span><div class="lead-copy"><h3>Needs a follow-up</h3><span class="sub">unpaid 3+ days — one friendly nudge usually collects it</span></div></div>';
   list.slice(0,5).forEach(function(x){
     html+='<div class="list-row"><div style="flex:1;min-width:0"><b style="font-size:.88rem">'+esc(x.o.clientName)+'</b> <span class="badge warn">unpaid '+x.days+'d</span>'+
       '<div style="font-size:.74rem;color:var(--text-3)">'+esc(x.o.number)+' · '+fmtMoney(orderTotal(x.o))+(x.o.contact?' · '+esc(x.o.contact):'')+'</div></div>'+
@@ -6307,7 +6331,7 @@ function winBackList(){
 function winBackCardHTML(){
   var list=winBackList();
   if(!list.length) return '';
-  var html='<div class="card mt-lg" style="border-left:4px solid var(--info)"><div class="card-head" style="margin-bottom:8px"><h3>🔁 Win-back opportunities</h3><span class="sub">bought before, quiet for 45+ days — a message to them is 5× cheaper than a new customer</span></div>';
+  var html='<div class="card mt-lg lead-card lead-info"><div class="card-head" style="margin-bottom:8px"><span class="lead-icon">'+icon('refresh')+'</span><div class="lead-copy"><h3>Win-back opportunities</h3><span class="sub">bought before, quiet for 45+ days — a message to them is 5× cheaper than a new customer</span></div></div>';
   list.slice(0,6).forEach(function(w){
     html+='<div class="list-row"><div style="flex:1;min-width:0"><b style="font-size:.88rem">'+esc(w.name)+'</b><div style="font-size:.74rem;color:var(--text-3)">last purchase '+fmtDate(w.lastDate)+(w.contact?' · '+esc(w.contact):'')+'</div></div><span class="badge info">'+w.days+' days quiet</span></div>';
   });
@@ -6692,7 +6716,7 @@ function viewAccounts(){
   // unassigned entries notice
   var unassigned=state.finance.filter(function(e){ return !e.account; }).length;
   if(unassigned>0){
-    html+='<div class="card mt" style="border-left:4px solid var(--info)"><p style="font-size:.84rem;color:var(--text-2)">ℹ️ <b>'+unassigned+'</b> finance entr'+(unassigned===1?'y has':'ies have')+' no account assigned — they count toward revenue and profit, but not toward any account balance. Edit an entry in Finance to assign it. New order payments are auto-assigned by payment method.</p></div>';
+    html+='<div class="card mt" style="background:var(--info-soft);border-color:transparent"><p style="font-size:.84rem;color:var(--text-2)"><b>'+unassigned+'</b> finance entr'+(unassigned===1?'y has':'ies have')+' no account assigned — they count toward revenue and profit, but not toward any account balance. Edit an entry in Finance to assign it. New order payments are auto-assigned by payment method.</p></div>';
   }
   // transfers history
   var tr=(state.transfers||[]).slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
@@ -8465,6 +8489,34 @@ function commitCsvImport(){
   closeCsvImport();
   commit();
   toast('Imported '+n+' '+noun+(dupes?' · '+dupes+' duplicate'+(dupes>1?'s':'')+' skipped':'')+(invalid?' · '+invalid+' invalid skipped':''),'ok',{undo:true});
+}
+
+/* delight: animate key figures counting up on page entrance. Non-destructive — the final
+   frame restores the EXACT rendered text, so values are always pixel-correct afterwards. */
+function animateCounts(scope){
+  if(!scope||typeof requestAnimationFrame!=='function') return;
+  if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+  var els=scope.querySelectorAll('.stat-value,.m-val,.acct-balance');
+  Array.prototype.forEach.call(els,function(el){
+    var finalText=el.textContent;
+    var m=finalText.match(/-?[0-9][0-9,]*(\.[0-9]+)?/);
+    if(!m) return;                                   // no number (e.g. "—") → leave as is
+    var target=parseFloat(m[0].replace(/,/g,''));
+    if(!isFinite(target)||Math.abs(target)<10) return; // skip tiny/zero — nothing to count
+    var prefix=finalText.slice(0,m.index), suffix=finalText.slice(m.index+m[0].length);
+    var dec=m[1]?m[1].length-1:0, neg=target<0?'-':'', abs=Math.abs(target);
+    var dur=560, start=null;
+    function step(ts){
+      if(el.isConnected===false) return;              // view navigated away — stop
+      if(start===null) start=ts;
+      var p=(ts-start)/dur;
+      if(p>=1){ el.textContent=finalText; return; }   // exact, canonical value
+      var v=abs*(1-Math.pow(1-p,3));                   // easeOutCubic
+      el.textContent=prefix+neg+v.toLocaleString(undefined,{minimumFractionDigits:dec,maximumFractionDigits:dec})+suffix;
+      requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  });
 }
 
 /* dashboard widgets: live drag-to-reorder — the picked-up card becomes a placeholder gap
