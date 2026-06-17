@@ -19,7 +19,7 @@
   --bg:#f4f5fb;
   --bg-card:#ffffff;
   --bg-card-glass:rgba(255,255,255,.78);
-  --bg-sunken:#eef0f8;
+  --bg-sunken:#e9ebf5;
   --bg-hover:rgba(99,102,241,.06);
   --bg-input:#ffffff;
   --bg-sidebar:#0f1222;
@@ -28,8 +28,8 @@
   --sidebar-hover:rgba(255,255,255,.07);
   --sidebar-active:linear-gradient(90deg,rgba(99,102,241,.28),rgba(139,92,246,.14));
 
-  --text:#1c2033;
-  --text-2:#5b6178;
+  --text:#191c2e;
+  --text-2:#565d75;
   --text-3:#646b82;
 
   --border:#e4e7f2;
@@ -48,9 +48,9 @@
   --income:#10b981; --expense:#ef4444;
 
   --r-sm:8px; --r:12px; --r-lg:16px; --r-xl:20px;
-  --shadow-sm:0 1px 2px rgba(20,24,50,.05),0 1px 6px rgba(20,24,50,.04);
-  --shadow:0 2px 6px rgba(20,24,50,.05),0 10px 28px rgba(20,24,50,.07);
-  --shadow-lg:0 8px 16px rgba(20,24,50,.08),0 24px 56px rgba(20,24,50,.14);
+  --shadow-sm:0 1px 1px rgba(20,24,50,.04),0 2px 6px rgba(20,24,50,.05);
+  --shadow:0 1px 2px rgba(20,24,50,.04),0 4px 10px rgba(20,24,50,.05),0 12px 30px rgba(20,24,50,.08);
+  --shadow-lg:0 2px 4px rgba(20,24,50,.06),0 12px 24px rgba(20,24,50,.10),0 28px 60px rgba(20,24,50,.16);
   --ease:cubic-bezier(.4,0,.2,1);
   --ease-snappy:cubic-bezier(.25,.46,.45,.94);
   --chart-grid:#eceef6;
@@ -67,8 +67,8 @@ html[data-theme="dark"]{
   --sidebar-text-active:#ffffff;
   --sidebar-hover:rgba(255,255,255,.06);
 
-  --text:#e8eaf6;
-  --text-2:#a4aac6;
+  --text:#edeefb;
+  --text-2:#a8aecb;
   --text-3:#828bac;
 
   --border:#252a44;
@@ -100,6 +100,9 @@ body{
   color:var(--text);
   line-height:1.55;
   -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility;
+  font-feature-settings:"kern","liga","calt";
   transition:background .3s var(--ease),color .3s var(--ease);
   overflow-x:hidden;
 }
@@ -107,7 +110,8 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 input,select,textarea{font-family:inherit;font-size:.95rem;color:var(--text)}
 a{color:var(--accent);text-decoration:none}
 ::placeholder{color:var(--text-3)}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px;box-shadow:0 0 0 4px var(--accent-soft);border-radius:6px}
+::selection{background:var(--accent-soft);color:var(--text)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;box-shadow:0 0 0 4px var(--accent-soft)}
 .chip:focus-visible,.seg button:focus-visible,.nav-sec-toggle:focus-visible,.nav-item:focus-visible,[role="button"]:focus-visible,.btn-icon:focus-visible,.dash-handle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .btn-icon:active{transform:scale(.92)}
 
@@ -178,7 +182,7 @@ a{color:var(--accent);text-decoration:none}
   padding:7px 14px;border-radius:10px;
   font-size:.88rem;font-weight:600;
   border:1px solid transparent;
-  transition:all .18s var(--ease);
+  transition:transform .12s var(--ease-snappy),box-shadow .18s var(--ease),background .18s var(--ease),border-color .18s var(--ease),color .18s var(--ease);
   white-space:nowrap;
 }
 .btn svg{width:15px;height:15px}
@@ -212,6 +216,8 @@ a{color:var(--accent);text-decoration:none}
   transition:box-shadow .25s var(--ease),transform .25s var(--ease),border-color .25s;
   animation:fadeUp .4s var(--ease) backwards;
 }
+/* dark cards get a faint top inner highlight so they read as lit from above */
+html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--shadow-sm),inset 0 1px 0 rgba(255,255,255,.045)}
 /* ONE consistent interactive state for every card surface: the hover stroke uses the
    single brand accent (--accent, set in Settings → Accent color) — the SAME colour on every
    section, never a per-section tint — with the same lift, shadow and press everywhere.
@@ -349,10 +355,10 @@ tr:hover .row-actions{opacity:1}
   text-align:center;padding:44px 20px;color:var(--text-3);
   display:flex;flex-direction:column;align-items:center;gap:10px;
 }
-.empty .e-icon{width:58px;height:58px;border-radius:18px;background:var(--accent-soft);display:grid;place-items:center;color:var(--accent);margin-bottom:4px}
+.empty .e-icon{width:58px;height:58px;border-radius:18px;background:linear-gradient(135deg,var(--accent-soft),transparent);box-shadow:inset 0 0 0 1px var(--border);display:grid;place-items:center;color:var(--accent);margin-bottom:4px}
 .empty .e-icon svg{width:26px;height:26px}
 .empty h4{color:var(--text);font-size:1rem;font-weight:700}
-.empty p{font-size:.86rem;max-width:340px}
+.empty p{font-size:.86rem;max-width:340px;line-height:1.6}
 
 .insight{display:flex;gap:12px;padding:13px 15px;border-radius:13px;border:1px solid var(--border);background:var(--bg-card);align-items:flex-start;animation:fadeUp .4s var(--ease) backwards}
 .insight .i-icon{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;flex-shrink:0}
@@ -457,7 +463,7 @@ details.calc .calc-body{margin-top:10px}
 
 /* onboarding hero */
 .hero{
-  background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(139,92,246,.07) 55%,transparent);
+  background:linear-gradient(135deg,rgba(99,102,241,.14),rgba(139,92,246,.08) 45%,rgba(139,92,246,.02) 75%,transparent);
   border:1px solid var(--border);border-radius:var(--r-xl);
   padding:36px 32px;position:relative;overflow:hidden;animation:fadeUp .45s var(--ease);margin-bottom:13px;
 }
