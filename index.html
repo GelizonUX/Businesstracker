@@ -338,11 +338,12 @@ tr:hover .row-actions{opacity:1}
   display:flex;align-items:flex-start;gap:10px;
   background:var(--bg-card);border:1px solid var(--border);border-radius:14px;
   padding:12px 16px;box-shadow:var(--shadow-lg);font-size:.87rem;
-  animation:toastIn .35s var(--ease);border-left:4px solid var(--accent);
+  animation:toastIn .35s var(--ease);
+  box-shadow:var(--shadow-lg),inset 3px 0 0 var(--accent);
 }
-.toast.good{border-left-color:var(--good)}
-.toast.error{border-left-color:var(--risk)}
-.toast.warn{border-left-color:var(--warn)}
+.toast.good{box-shadow:var(--shadow-lg),inset 3px 0 0 var(--good)}
+.toast.error{box-shadow:var(--shadow-lg),inset 3px 0 0 var(--risk)}
+.toast.warn{box-shadow:var(--shadow-lg),inset 3px 0 0 var(--warn)}
 .toast .t-icon{flex-shrink:0;width:18px;height:18px;margin-top:1px}
 .toast.good .t-icon{color:var(--good)}
 .toast.error .t-icon{color:var(--risk)}
@@ -370,6 +371,16 @@ tr:hover .row-actions{opacity:1}
 .insight.info .i-icon{background:var(--info-soft);color:var(--info)}
 .insight b{font-size:.88rem;display:block}
 .insight p{font-size:.82rem;color:var(--text-2);margin-top:1px}
+/* lead-icon card head — the in-house alternative to the colored left-stripe motif */
+.lead-card .card-head{flex-wrap:nowrap;align-items:flex-start}
+.lead-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex-shrink:0;background:var(--accent-soft);color:var(--accent)}
+.lead-icon svg{width:17px;height:17px}
+.lead-copy{min-width:0}
+.lead-copy h3{font-size:1rem;font-weight:700;letter-spacing:-.01em}
+.lead-info .lead-icon{background:var(--info-soft);color:var(--info)}
+.lead-good .lead-icon{background:var(--good-soft);color:var(--good)}
+.lead-warn .lead-icon{background:var(--warn-soft);color:var(--warn)}
+.lead-risk .lead-icon{background:var(--risk-soft);color:var(--risk)}
 
 .list-row{display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid var(--border)}
 .list-row:last-child{border-bottom:none}
@@ -454,7 +465,7 @@ details.calc .calc-body{margin-top:10px}
 .calc-fields label{font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3)}
 .calc-fields .input{padding:6px 9px;font-size:.88rem}
 .calc-desc{font-size:.74rem;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.calc-result{margin-top:11px;padding:11px 14px;border-radius:10px;background:var(--accent-soft);border-left:3px solid var(--accent);font-size:.92rem;font-weight:600;color:var(--text);display:none}
+.calc-result{margin-top:11px;padding:11px 14px;border-radius:10px;background:var(--accent-soft);font-size:.92rem;font-weight:600;color:var(--text);display:none}
 .calc-result b{color:var(--accent)}
 .calc-result.show{display:block;animation:fadeUp .3s var(--ease)}
 .calc-result small{display:block;font-weight:500;color:var(--text-2);margin-top:3px;font-size:.78rem}
@@ -756,7 +767,8 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .nav-section{transition:color .15s}
 
 /* page accents use the single brand accent (--accent) — consistent across every section */
-.page-title{border-left:3px solid var(--accent);padding-left:12px}
+.page-title{position:relative;padding-left:14px}
+.page-title::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:1em;border-radius:99px;background:var(--accent-grad)}
 .stat-accent{background:linear-gradient(90deg,var(--accent),var(--accent-2))}
 /* stat-card hover stroke comes from the unified .card rule (--accent) */
 
@@ -854,15 +866,17 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 /* ===== Advisor page ===== */
 .advisor-hero{background:linear-gradient(135deg,var(--accent-soft),transparent 70%),var(--bg-card)}
 .adv-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
-.adv-avatar{width:40px;height:40px;border-radius:12px;background:var(--accent-grad);color:#fff;display:grid;place-items:center;flex-shrink:0;box-shadow:0 4px 14px rgba(99,102,241,.4)}
+.adv-avatar{width:40px;height:40px;border-radius:12px;background:var(--accent-grad);color:#fff;display:grid;place-items:center;flex-shrink:0;box-shadow:0 4px 14px var(--accent-soft)}
 .adv-avatar svg{width:21px;height:21px}
 .adv-head h3{font-size:1.05rem;font-weight:800}
 .adv-sub{font-size:.74rem;color:var(--text-3)}
 .adv-narrative{font-size:1rem;line-height:1.7;color:var(--text)}
 .adv-actions{list-style:none;display:flex;flex-direction:column;gap:10px}
-.adv-act{display:flex;gap:11px;align-items:flex-start;padding:11px 12px;border-radius:12px;background:var(--bg-sunken);border-left:3px solid var(--border-2)}
-.adv-act.risk{border-left-color:var(--risk);background:var(--risk-soft)}
-.adv-act.warn{border-left-color:var(--warn);background:var(--warn-soft)}
+.adv-act{display:flex;gap:11px;align-items:flex-start;padding:11px 12px;border-radius:12px;background:var(--bg-sunken)}
+.adv-act.risk{background:var(--risk-soft)}
+.adv-act.warn{background:var(--warn-soft)}
+.adv-act.risk .adv-num{color:var(--risk)}
+.adv-act.warn .adv-num{color:var(--warn)}
 .adv-num{width:24px;height:24px;border-radius:50%;background:var(--bg-card);color:var(--text-2);font-weight:800;font-size:.78rem;display:grid;place-items:center;flex-shrink:0;box-shadow:var(--shadow-sm)}
 .adv-act b{font-size:.9rem;display:block}
 .adv-act p{font-size:.82rem;color:var(--text-2);line-height:1.5;margin-top:2px}
@@ -3174,7 +3188,7 @@ function viewSettings(){
     '<p style="font-size:.84rem;color:var(--text-2)">Trakora is a single-file, local-first business command center. No accounts, no servers, no tracking — your numbers never leave this device unless you enable cloud sync. Works offline once loaded.</p>'+
     (function(){ var l=licenseInfo(); if(!l) return '';
       var act=getActivation();
-      return '<div style="margin-top:12px;padding:11px 14px;border-radius:11px;background:var(--accent-soft);border-left:3px solid var(--accent)">'+
+      return '<div style="margin-top:12px;padding:11px 14px;border-radius:11px;background:var(--accent-soft)">'+
         '<b style="font-size:.84rem">🔑 Licensed to '+esc(l.name)+'</b>'+
         '<div style="font-size:.74rem;color:var(--text-2);margin-top:2px">'+esc(l.email)+' · key <span class="mono">'+esc(l.key)+'</span> '+(l.valid?'<span class="badge good" style="font-size:.6rem">valid</span>':'<span class="badge risk" style="font-size:.6rem">invalid key</span>')+'</div>'+
         (act?'<div style="font-size:.7rem;color:var(--good);margin-top:4px">✓ Activated on this device'+(act.activatedAt?' · '+fmtDate(new Date(act.activatedAt).toISOString().slice(0,10)):'')+'</div>':'')+
@@ -6269,7 +6283,7 @@ function unpaidFollowUps(){
 function followUpCardHTML(){
   var list=unpaidFollowUps();
   if(!list.length) return '';
-  var html='<div class="card mt" style="border-left:4px solid var(--warn)"><div class="card-head" style="margin-bottom:8px"><h3>💬 Needs a follow-up</h3><span class="sub">unpaid 3+ days — one friendly nudge usually collects it</span></div>';
+  var html='<div class="card mt lead-card lead-warn"><div class="card-head" style="margin-bottom:8px"><span class="lead-icon">'+icon('clock')+'</span><div class="lead-copy"><h3>Needs a follow-up</h3><span class="sub">unpaid 3+ days — one friendly nudge usually collects it</span></div></div>';
   list.slice(0,5).forEach(function(x){
     html+='<div class="list-row"><div style="flex:1;min-width:0"><b style="font-size:.88rem">'+esc(x.o.clientName)+'</b> <span class="badge warn">unpaid '+x.days+'d</span>'+
       '<div style="font-size:.74rem;color:var(--text-3)">'+esc(x.o.number)+' · '+fmtMoney(orderTotal(x.o))+(x.o.contact?' · '+esc(x.o.contact):'')+'</div></div>'+
@@ -6317,7 +6331,7 @@ function winBackList(){
 function winBackCardHTML(){
   var list=winBackList();
   if(!list.length) return '';
-  var html='<div class="card mt-lg" style="border-left:4px solid var(--info)"><div class="card-head" style="margin-bottom:8px"><h3>🔁 Win-back opportunities</h3><span class="sub">bought before, quiet for 45+ days — a message to them is 5× cheaper than a new customer</span></div>';
+  var html='<div class="card mt-lg lead-card lead-info"><div class="card-head" style="margin-bottom:8px"><span class="lead-icon">'+icon('refresh')+'</span><div class="lead-copy"><h3>Win-back opportunities</h3><span class="sub">bought before, quiet for 45+ days — a message to them is 5× cheaper than a new customer</span></div></div>';
   list.slice(0,6).forEach(function(w){
     html+='<div class="list-row"><div style="flex:1;min-width:0"><b style="font-size:.88rem">'+esc(w.name)+'</b><div style="font-size:.74rem;color:var(--text-3)">last purchase '+fmtDate(w.lastDate)+(w.contact?' · '+esc(w.contact):'')+'</div></div><span class="badge info">'+w.days+' days quiet</span></div>';
   });
@@ -6702,7 +6716,7 @@ function viewAccounts(){
   // unassigned entries notice
   var unassigned=state.finance.filter(function(e){ return !e.account; }).length;
   if(unassigned>0){
-    html+='<div class="card mt" style="border-left:4px solid var(--info)"><p style="font-size:.84rem;color:var(--text-2)">ℹ️ <b>'+unassigned+'</b> finance entr'+(unassigned===1?'y has':'ies have')+' no account assigned — they count toward revenue and profit, but not toward any account balance. Edit an entry in Finance to assign it. New order payments are auto-assigned by payment method.</p></div>';
+    html+='<div class="card mt" style="background:var(--info-soft);border-color:transparent"><p style="font-size:.84rem;color:var(--text-2)">ℹ️ <b>'+unassigned+'</b> finance entr'+(unassigned===1?'y has':'ies have')+' no account assigned — they count toward revenue and profit, but not toward any account balance. Edit an entry in Finance to assign it. New order payments are auto-assigned by payment method.</p></div>';
   }
   // transfers history
   var tr=(state.transfers||[]).slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
