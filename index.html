@@ -5439,7 +5439,8 @@ function cmFormatCell(f,v){
   if(f.type==='image'){
     if(typeof v==='object'&&v&&v.data){
       if((v.data||'').indexOf('data:image')===0) return '<img class="img-thumb" src="'+esc(v.data)+'" alt="">';
-      return '<a href="'+v.data+'" download="'+esc(v.name||'file')+'" class="badge accent">📎 '+esc(v.name||'file')+'</a>';
+      var safeHref=/^(data:|https?:|blob:)/i.test(v.data||'')?esc(v.data):'#';
+      return '<a href="'+safeHref+'" download="'+esc(v.name||'file')+'" class="badge accent">📎 '+esc(v.name||'file')+'</a>';
     }
     if(String(v).indexOf('data:image')===0) return '<img class="img-thumb" src="'+esc(v)+'" alt="">';
     return '—';
@@ -6692,7 +6693,7 @@ function viewAccounts(){
   accts.forEach(function(a){
     var bal=accountBalance(a);
     var flow=accountMonthFlow(a,mk);
-    var col=a.color||brandColorFor(a.name);
+    var col=safeColor(a.color||brandColorFor(a.name));
     html+='<div class="card acct-card" style="--acct-color:'+col+';--acct-fill:'+hexA(col,.10)+';--acct-glow:'+hexA(col,.22)+'">'+
       '<div style="display:flex;align-items:flex-start;gap:9px">'+
       (a.logo?'<img class="acct-logo" src="'+esc(a.logo)+'" alt="">':'<span class="acct-chip" style="background:'+col+'22;color:'+col+'">'+icon(a.type==='Cash'?'cash':'bank')+'</span>')+
@@ -7761,7 +7762,7 @@ function taskTableHTML(){
   list.forEach(function(t){
     var d=daysUntil(t.deadline);
     var late=!t.done&&d!=null&&d<0;
-    html+='<tr style="'+(t.color?'box-shadow:inset 3px 0 0 '+t.color:'')+'">'+
+    html+='<tr style="'+(t.color?'box-shadow:inset 3px 0 0 '+safeColor(t.color):'')+'">'+
       '<td><button class="task-check'+(t.done?' checked':'')+'" data-action="toggle-task" data-id="'+t.id+'">'+icon('check')+'</button></td>'+
       '<td style="font-weight:600;'+(t.done?'text-decoration:line-through;color:var(--text-3)':'')+'">'+esc(t.title)+'</td>'+
       '<td><select class="input" style="width:auto;padding:3px 26px 3px 8px;font-size:.74rem;font-weight:600" data-action-change="task-status" data-id="'+t.id+'">'+
@@ -7798,7 +7799,8 @@ function taskCalendarHTML(){
     var tasks=byDay[day]||[];
     html+='<div class="cal-cell'+(isToday?' cal-today':'')+'" data-action="cal-day-add" data-date="'+iso+'" style="cursor:pointer" title="Add a task on '+iso+'"><div class="cal-num">'+day+'</div>'+
       tasks.slice(0,3).map(function(t){
-        return '<button class="cal-chip" data-action="edit-task" data-id="'+t.id+'" style="background:'+(t.color||'var(--accent)')+'22;color:'+(t.color||'var(--accent)')+';'+(t.done?'text-decoration:line-through;opacity:.55':'')+'" title="'+esc(t.title)+'">'+esc(t.title)+'</button>';
+        var tcol=t.color?safeColor(t.color):'var(--accent)';
+        return '<button class="cal-chip" data-action="edit-task" data-id="'+t.id+'" style="background:'+tcol+'22;color:'+tcol+';'+(t.done?'text-decoration:line-through;opacity:.55':'')+'" title="'+esc(t.title)+'">'+esc(t.title)+'</button>';
       }).join('')+
       (tasks.length>3?'<div style="font-size:.62rem;color:var(--text-3)">+'+(tasks.length-3)+' more</div>':'')+'</div>';
   }
@@ -7806,7 +7808,7 @@ function taskCalendarHTML(){
   var noDeadline=state.tasks.filter(function(t){return !t.deadline&&!t.done;});
   if(noDeadline.length){
     html+='<div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)"><b style="font-size:.8rem">No deadline ('+noDeadline.length+')</b><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">'+
-      noDeadline.slice(0,10).map(function(t){return '<button class="cal-chip" data-action="edit-task" data-id="'+t.id+'" style="background:'+(t.color||'var(--accent)')+'22;color:'+(t.color||'var(--accent)')+'">'+esc(t.title)+'</button>';}).join('')+'</div></div>';
+      noDeadline.slice(0,10).map(function(t){var tcol=t.color?safeColor(t.color):'var(--accent)';return '<button class="cal-chip" data-action="edit-task" data-id="'+t.id+'" style="background:'+tcol+'22;color:'+tcol+'">'+esc(t.title)+'</button>';}).join('')+'</div></div>';
   }
   html+='</div>';
   return html;
