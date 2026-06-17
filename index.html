@@ -534,8 +534,8 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .stat-icon svg{width:16px;height:16px}
 .stat-card .stat-value{margin-top:10px}
 /* .card hover unified above */
-.acct-card{position:relative;overflow:hidden;border-top:3px solid var(--acct-color,var(--accent))}
-.acct-card:hover{border-top-color:var(--acct-color,var(--accent))}/* keep the account's identity colour on hover */
+/* account cards are FILLED with the user's chosen colour (soft tint), not striped */
+.acct-card{position:relative;overflow:hidden;background:linear-gradient(var(--acct-fill,transparent),var(--acct-fill,transparent)),var(--bg-card)}
 .acct-logo{width:34px;height:34px;border-radius:9px;object-fit:cover;border:1px solid var(--border);cursor:zoom-in}
 .acct-chip{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex-shrink:0}
 .acct-chip svg{width:16px;height:16px}
@@ -543,7 +543,7 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .color-dot:hover{transform:scale(1.18)}
 .color-dot.active{border-color:var(--text);transform:scale(1.12)}
 .color-dot.active::after{content:'✓';color:#fff;font-size:.7rem;font-weight:900;text-shadow:0 1px 2px rgba(0,0,0,.55)}
-.acct-card::after{content:'';position:absolute;top:-40px;right:-40px;width:130px;height:130px;border-radius:50%;background:radial-gradient(circle,var(--accent-soft),transparent 70%)}
+.acct-card::after{content:'';position:absolute;top:-40px;right:-40px;width:130px;height:130px;border-radius:50%;background:radial-gradient(circle,var(--acct-glow,var(--accent-soft)),transparent 70%)}
 .acct-balance{font-size:1.42rem;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
 /* inline modal errors */
 .modal-error{background:var(--risk-soft);color:var(--risk);border:1.5px solid var(--risk);border-radius:10px;padding:10px 14px;font-size:.86rem;font-weight:600;margin-bottom:14px;animation:fadeUp .25s var(--ease)}
@@ -6693,7 +6693,7 @@ function viewAccounts(){
     var bal=accountBalance(a);
     var flow=accountMonthFlow(a,mk);
     var col=a.color||brandColorFor(a.name);
-    html+='<div class="card acct-card" style="--acct-color:'+col+'">'+
+    html+='<div class="card acct-card" style="--acct-color:'+col+';--acct-fill:'+hexA(col,.10)+';--acct-glow:'+hexA(col,.22)+'">'+
       '<div style="display:flex;align-items:flex-start;gap:9px">'+
       (a.logo?'<img class="acct-logo" src="'+esc(a.logo)+'" alt="">':'<span class="acct-chip" style="background:'+col+'22;color:'+col+'">'+icon(a.type==='Cash'?'cash':'bank')+'</span>')+
       '<div style="flex:1;min-width:0"><b style="font-size:.95rem;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(a.name)+'</b><span class="badge" style="background:'+col+'1d;color:'+col+'">'+esc(a.type)+'</span></div></div>'+
@@ -7715,7 +7715,7 @@ function setTaskStatus(t,status){
   if(t.done&&!wasDone) t.completedAt=todayISO();
   if(!t.done) t.completedAt=null;
 }
-function taskColorStyle(t){ return t.color?'border-left:3px solid '+t.color+';padding-left:9px;':''; }
+function taskColorStyle(t){ return t.color?'background:linear-gradient('+hexA(t.color,.12)+','+hexA(t.color,.12)+'),var(--bg-card);':''; }
 function taskViewSwitcherHTML(){
   var v=ui.taskView||'list';
   return '<div class="seg">'+[['list','List'],['board','Board'],['table','Table'],['calendar','Calendar']].map(function(x){
