@@ -2057,7 +2057,7 @@ function getStartedHTML(){
   var steps=getStartedSteps();
   var done=steps.filter(function(x){return x.done;}).length, total=steps.length;
   if(done>=total){
-    return '<div class="card start-card"><div class="card-head"><h3>🎉 You’re all set up!</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="start-dismiss">Dismiss</button></div>'+
+    return '<div class="card start-card"><div class="card-head"><h3>'+icon('check',16)+' You’re all set up!</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="start-dismiss">Dismiss</button></div>'+
       '<p style="font-size:.85rem;color:var(--text-2)">Every starter step is done. Your dashboard is ready — keep your numbers current, drag the cards to suit you, and let Trakora do the math.</p></div>';
   }
   return '<div class="card start-card"><div class="card-head"><h3>'+icon('spark',16)+' Get started · '+done+' of '+total+'</h3><span class="spacer"></span><button class="btn-icon" data-action="start-dismiss" title="Hide this checklist" aria-label="Hide">'+icon('x')+'</button></div>'+
@@ -2843,7 +2843,7 @@ function viewTasks(){
     var doneList=state.tasks.filter(function(t){return t.done;})
       .sort(function(a,b){ return (b.completedAt||'').localeCompare(a.completedAt||''); }).slice(0,8);
     if(doneList.length){
-      html+='<div class="card mt"><div class="card-head"><h3>✅ Completed recently</h3><span class="sub">still editable — untick to reopen</span><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="task-filter-status" data-val="done">All completed</button></div>'+
+      html+='<div class="card mt"><div class="card-head"><h3>'+icon('check',16)+' Completed recently</h3><span class="sub">still editable — untick to reopen</span><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="task-filter-status" data-val="done">All completed</button></div>'+
         doneList.map(taskRowHTML).join('')+'</div>';
     }
   }
@@ -3189,7 +3189,7 @@ function viewSettings(){
     (function(){ var l=licenseInfo(); if(!l) return '';
       var act=getActivation();
       return '<div style="margin-top:12px;padding:11px 14px;border-radius:11px;background:var(--accent-soft)">'+
-        '<b style="font-size:.84rem">🔑 Licensed to '+esc(l.name)+'</b>'+
+        '<b style="font-size:.84rem">'+icon('shield',13)+' Licensed to '+esc(l.name)+'</b>'+
         '<div style="font-size:.74rem;color:var(--text-2);margin-top:2px">'+esc(l.email)+' · key <span class="mono">'+esc(l.key)+'</span> '+(l.valid?'<span class="badge good" style="font-size:.6rem">valid</span>':'<span class="badge risk" style="font-size:.6rem">invalid key</span>')+'</div>'+
         (act?'<div style="font-size:.7rem;color:var(--good);margin-top:4px">✓ Activated on this device'+(act.activatedAt?' · '+fmtDate(new Date(act.activatedAt).toISOString().slice(0,10)):'')+'</div>':'')+
         '<div style="font-size:.7rem;color:var(--text-3);margin-top:4px">This copy is registered to the name above — it appears on all printed documents.</div>'+
@@ -6716,7 +6716,7 @@ function viewAccounts(){
   // unassigned entries notice
   var unassigned=state.finance.filter(function(e){ return !e.account; }).length;
   if(unassigned>0){
-    html+='<div class="card mt" style="background:var(--info-soft);border-color:transparent"><p style="font-size:.84rem;color:var(--text-2)">ℹ️ <b>'+unassigned+'</b> finance entr'+(unassigned===1?'y has':'ies have')+' no account assigned — they count toward revenue and profit, but not toward any account balance. Edit an entry in Finance to assign it. New order payments are auto-assigned by payment method.</p></div>';
+    html+='<div class="card mt" style="background:var(--info-soft);border-color:transparent"><p style="font-size:.84rem;color:var(--text-2)"><b>'+unassigned+'</b> finance entr'+(unassigned===1?'y has':'ies have')+' no account assigned — they count toward revenue and profit, but not toward any account balance. Edit an entry in Finance to assign it. New order payments are auto-assigned by payment method.</p></div>';
   }
   // transfers history
   var tr=(state.transfers||[]).slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
