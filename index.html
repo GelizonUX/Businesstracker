@@ -1938,7 +1938,10 @@ function render(){
   if(route.indexOf('custom-')===0) main.innerHTML=viewCustomModule(route.slice(7));
   else main.innerHTML=(views[route]||viewDashboard)();
   // gentle cross-fade when the section actually changes, so switching views never hard-cuts/blinks
-  if(route!==lastRenderRoute){ main.classList.remove('view-enter'); void main.offsetWidth; main.classList.add('view-enter'); lastRenderRoute=route; }
+  var routeChanged=route!==lastRenderRoute;
+  if(routeChanged){ main.classList.remove('view-enter'); void main.offsetWidth; main.classList.add('view-enter'); lastRenderRoute=route; }
+  // delight: count key figures up on a fresh page entrance (not on in-page re-renders)
+  if(routeChanged && typeof animateCounts==='function') animateCounts(main);
   // NOTE: card strokes & accents intentionally use the single brand accent (--accent, set in
   // Settings → Accent color) for ONE consistent colour across every section — no per-section tint.
   applyNavCollapse();
@@ -8472,6 +8475,34 @@ function commitCsvImport(){
   closeCsvImport();
   commit();
   toast('Imported '+n+' '+noun+(dupes?' · '+dupes+' duplicate'+(dupes>1?'s':'')+' skipped':'')+(invalid?' · '+invalid+' invalid skipped':''),'ok',{undo:true});
+}
+
+/* delight: animate key figures counting up on page entrance. Non-destructive — the final
+   frame restores the EXACT rendered text, so values are always pixel-correct afterwards. */
+function animateCounts(scope){
+  if(!scope||typeof requestAnimationFrame!=='function') return;
+  if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+  var els=scope.querySelectorAll('.stat-value,.m-val,.acct-balance');
+  Array.prototype.forEach.call(els,function(el){
+    var finalText=el.textContent;
+    var m=finalText.match(/-?[0-9][0-9,]*(\.[0-9]+)?/);
+    if(!m) return;                                   // no number (e.g. "—") → leave as is
+    var target=parseFloat(m[0].replace(/,/g,''));
+    if(!isFinite(target)||Math.abs(target)<10) return; // skip tiny/zero — nothing to count
+    var prefix=finalText.slice(0,m.index), suffix=finalText.slice(m.index+m[0].length);
+    var dec=m[1]?m[1].length-1:0, neg=target<0?'-':'', abs=Math.abs(target);
+    var dur=560, start=null;
+    function step(ts){
+      if(el.isConnected===false) return;              // view navigated away — stop
+      if(start===null) start=ts;
+      var p=(ts-start)/dur;
+      if(p>=1){ el.textContent=finalText; return; }   // exact, canonical value
+      var v=abs*(1-Math.pow(1-p,3));                   // easeOutCubic
+      el.textContent=prefix+neg+v.toLocaleString(undefined,{minimumFractionDigits:dec,maximumFractionDigits:dec})+suffix;
+      requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  });
 }
 
 /* dashboard widgets: live drag-to-reorder — the picked-up card becomes a placeholder gap
