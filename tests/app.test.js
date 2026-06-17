@@ -93,6 +93,12 @@ async function main() {
     await window.verifyActivation(K, E).then(() => ok('locked rules rejected', false)).catch((e) => ok('locked rules -> rules code', e.code === 'rules', e));
     window.fetch = (u, o) => { const m = (o && o.method) || 'GET'; if (m === 'PUT') return resp(200, '{}'); return resp(200, JSON.stringify({ email: E, name: 'Buyer', devices: {} })); };
     await window.verifyActivation(K, E).then((a) => ok('valid key activates', a && a.key === K)).catch((e) => ok('valid key activates', false, e));
+    // privacy: a PII-free record (emailHash only, no plaintext email) still activates, and rejects a wrong email
+    const eh = await window.licEmailHash(K, E);
+    window.fetch = (u, o) => { const m = (o && o.method) || 'GET'; if (m === 'PUT') return resp(200, '{}'); return resp(200, JSON.stringify({ emailHash: eh, devices: {} })); };
+    await window.verifyActivation(K, E).then((a) => ok('hashed-email license activates (no PII in DB)', a && a.key === K)).catch((e) => ok('hashed-email license activates', false, e));
+    window.fetch = () => resp(200, JSON.stringify({ emailHash: eh, devices: {} }));
+    await window.verifyActivation(K, 'attacker@evil.com').then(() => ok('hashed-email rejects wrong email', false)).catch((e) => ok('hashed-email rejects wrong email', e.code === 'email', e));
 
     // ---------- PIN lock (PBKDF2) ----------
     ok('no lock initially', window.hasLock() === false);
