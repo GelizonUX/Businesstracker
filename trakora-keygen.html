@@ -155,8 +155,8 @@ td.k{font-family:var(--mono);font-size:.8rem;white-space:nowrap}
 
   <div class="foot">
     Keys validate against the same formula built into your Trakora app. Keep this file private — anyone with it can mint keys.<br>
-    Recommended <b>anti-piracy</b> rules (Firebase → Realtime Database → Rules): <code>{ "rules": { "licenses": { "$key": { ".read": true, "devices": { ".write": true } } } } }</code><br>
-    Buyers can verify a key and claim a device slot, but <b>cannot create license records</b> — only you can, using your database admin secret (set it in Advanced settings above). This stops self-issued keys.
+    Recommended <b>hardened anti-piracy</b> rules (Firebase → Realtime Database → Rules): <code>{ "rules": { "licenses": { ".read": false, ".write": false, "$key": { ".read": true, "devices": { ".write": true, "$device": { ".validate": "newData.hasChild('at') &amp;&amp; newData.child('at').isNumber() &amp;&amp; (!newData.hasChild('ua') || (newData.child('ua').isString() &amp;&amp; newData.child('ua').val().length &lt;= 200))" } } } } } }</code><br>
+    What this does: the <code>licenses</code> root denies read/write (no one can list or enumerate all keys); each key is readable only if you know it (needed for activation); buyers may claim a device slot but the write is <b>validated</b> (must be a real timestamped record, UA capped at 200 chars) so the path can't be abused for arbitrary storage; and buyers <b>cannot create license records</b> — only you can, using your database admin secret (Advanced settings), which bypasses rules. This stops self-issued keys and garbage writes. After pasting, click “Test connection” above to confirm read+write still work.
   </div>
 </div>
 
@@ -221,7 +221,7 @@ $('test').addEventListener('click',function(){
     showMsg('conn-msg',allGood?'ok':'warn',
       '<b>'+detail.join(' · ')+'</b><br>'+
       (allGood?'Your database is ready to issue and verify licenses.'
-              :'Activation needs <b>read</b> on the licenses path. For issuing, use your admin secret (Advanced) with these <b>anti-piracy</b> rules: <code>{ "rules": { "licenses": { "$key": { ".read": true, "devices": { ".write": true } } } } }</code>'));
+              :'Activation needs <b>read</b> on the licenses path. For issuing, use your admin secret (Advanced settings). Paste the <b>hardened anti-piracy rules</b> shown at the bottom of this page into Firebase → Realtime Database → Rules.'));
   }).catch(function(){
     dot.className='statusdot bad'; $('conn').textContent='Could not reach the database';
     showMsg('conn-msg','err','Could not reach <b>'+cfg().url+'</b>. Check the URL/region and your internet connection.');
