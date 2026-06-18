@@ -8540,19 +8540,23 @@ function animateCounts(scope){
 
 /* dashboard widgets: live drag-to-reorder — the picked-up card becomes a placeholder gap
    that follows the cursor while the others smoothly make room (FLIP); order saves on drop. */
-var dashDragId=null, dashPhTimer=null;
+var dashDragId=null, dashPhTimer=null, dashRaf=0, dashPtrX=0, dashPtrY=0;
 function dashGridEl(){ return document.querySelector('.dash-grid'); }
 function dashWidgetEls(g){ return (g||dashGridEl())? Array.prototype.slice.call((g||dashGridEl()).querySelectorAll('.dash-widget')) : []; }
 function dashFlipRecord(g){ var m={}; dashWidgetEls(g).forEach(function(w){ m[w.getAttribute('data-widget')]=w.getBoundingClientRect(); }); return m; }
-function dashFlipPlay(g,prev,skip){
+// smooth "make room": animate each card from its previous position to its new one with the Web
+// Animations API. cancel+replace captures the card's CURRENT visual position, so rapid re-triggers
+// glide instead of snapping/jittering (the old inline-FLIP re-read mid-animation rects and stuttered).
+function dashFlip(g,prev,skip){
   dashWidgetEls(g).forEach(function(w){
     if(w===skip) return;
     var b=prev[w.getAttribute('data-widget')]; if(!b) return;
     var a=w.getBoundingClientRect(), dx=b.left-a.left, dy=b.top-a.top;
     if(!dx&&!dy) return;
-    w.style.transition='none'; w.style.transform='translate('+dx+'px,'+dy+'px)';
-    if(w._flipRaf) cancelAnimationFrame(w._flipRaf);
-    w._flipRaf=requestAnimationFrame(function(){ w._flipRaf=null; w.style.transition='transform .2s var(--ease)'; w.style.transform=''; });
+    if(!w.animate) return; // graceful no-op where WAAPI is unavailable (e.g. test DOM)
+    if(w._anim){ try{ w._anim.cancel(); }catch(_){ } }
+    w._anim=w.animate([{transform:'translate('+dx+'px,'+dy+'px)'},{transform:'translate(0,0)'}],{duration:230,easing:'cubic-bezier(.2,.85,.25,1)'});
+    w._anim.onfinish=function(){ w._anim=null; };
   });
 }
 function dashPersistOrder(){
@@ -8562,9 +8566,10 @@ function dashPersistOrder(){
 }
 function dashDragCleanup(){
   if(dashPhTimer){ clearTimeout(dashPhTimer); dashPhTimer=null; }
+  if(dashRaf){ cancelAnimationFrame(dashRaf); dashRaf=0; }
   var g=dashGridEl();
   if(g){ g.classList.remove('is-dragging');
-    dashWidgetEls(g).forEach(function(w){ if(w._flipRaf){ cancelAnimationFrame(w._flipRaf); w._flipRaf=null; } w.classList.remove('dragging'); w.style.transition=''; w.style.transform=''; }); }
+    dashWidgetEls(g).forEach(function(w){ if(w._anim){ try{ w._anim.cancel(); }catch(_){ } w._anim=null; } w.classList.remove('dragging'); w.style.transition=''; w.style.transform=''; }); }
   dashDragId=null;
 }
 // where should the dragged card land for a pointer at (x,y)? works anywhere in the grid —
@@ -8577,10 +8582,22 @@ function dashInsertRef(g,x,y,dragEl){
     var r=el.getBoundingClientRect(); var cx=r.left+r.width/2, cy=r.top+r.height/2;
     var d=(x-cx)*(x-cx)+(y-cy)*(y-cy);
     if(d<bestD){ bestD=d; best=el;
-      after=(y>cy+r.height*0.25)||(Math.abs(y-cy)<=r.height*0.5&&x>cx); }
+      after=(y>cy+r.height*0.3)||(Math.abs(y-cy)<=r.height*0.5&&x>cx); }
   });
   if(!best) return null;
   return after?best.nextElementSibling:best;
+}
+// run at most once per frame (dragover fires far faster) → no thrash, buttery reordering
+function dashProcessReorder(){
+  dashRaf=0;
+  if(!dashDragId) return;
+  var g=dashGridEl(); if(!g) return;
+  var dragEl=g.querySelector('.dash-widget.dragging'); if(!dragEl) return;
+  var ref=dashInsertRef(g,dashPtrX,dashPtrY,dragEl);
+  if(ref===dragEl||ref===dragEl.nextElementSibling) return; // already in place
+  var prev=dashFlipRecord(g);
+  g.insertBefore(dragEl,ref);
+  dashFlip(g,prev,dragEl);
 }
 document.addEventListener('dragstart',function(e){
   var h=e.target.closest&&e.target.closest('[data-dh]'); if(!h) return;
@@ -8597,14 +8614,13 @@ document.addEventListener('dragstart',function(e){
 });
 document.addEventListener('dragover',function(e){
   if(!dashDragId) return;
-  var g=dashGridEl(); if(!g||!g.contains(e.target)) return;
-  var dragEl=g.querySelector('.dash-widget.dragging'); if(!dragEl) return;
+  var g=dashGridEl(); if(!g) return;
+  var gr=g.getBoundingClientRect();
+  // accept hovering anywhere over (or near) the grid — including gaps and trailing white space
+  if(e.clientX<gr.left-60||e.clientX>gr.right+60||e.clientY<gr.top-80||e.clientY>gr.bottom+80) return;
   e.preventDefault(); if(e.dataTransfer) e.dataTransfer.dropEffect='move';
-  var ref=dashInsertRef(g,e.clientX,e.clientY,dragEl);
-  if(ref===dragEl||ref===dragEl.nextElementSibling) return; // already in place
-  var prev=dashFlipRecord(g);
-  g.insertBefore(dragEl,ref);
-  dashFlipPlay(g,prev,dragEl);
+  dashPtrX=e.clientX; dashPtrY=e.clientY;
+  if(!dashRaf) dashRaf=requestAnimationFrame(dashProcessReorder);
 });
 document.addEventListener('drop',function(e){ if(dashDragId){ e.preventDefault(); } });
 document.addEventListener('dragend',function(){

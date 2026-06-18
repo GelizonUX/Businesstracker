@@ -133,6 +133,7 @@ async function main() {
     await wait(10); // placeholder is applied on the next tick (so the drag image is the full card)
     ok('the dragged slot becomes a placeholder', dws[0].classList.contains('dragging'));
     fireEv(dws[2], 'dragover');
+    await wait(25); // reorder is throttled to one animation frame (smooth, no thrash)
     const liveOrder = Array.from(dgrid.querySelectorAll('.dash-widget')).map((w) => w.getAttribute('data-widget'));
     ok('dragging over another card live-reorders the DOM (gap follows cursor)', liveOrder[0] !== dragId && liveOrder.indexOf(dragId) > 0);
     fireEv(dHandle, 'dragend');
