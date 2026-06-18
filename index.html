@@ -3127,13 +3127,12 @@ function hrPayoutModal(empId){
     '<div class="form-row"><div class="field"><label>'+(e.payBasis==='Hourly'?'Hours':'Days')+' worked</label><input class="input" type="number" step="any" min="0" name="days" value="'+(suggestDays||'')+'" placeholder="'+(e.payBasis==='Monthly'?'—':'e.g. 13')+'"></div>'+
       '<div class="field"><label>Bonus / OT ('+esc(state.settings.currency)+')</label><input class="input" type="number" step="any" min="0" name="bonus" value=""></div></div>'+
     '<div class="form-row"><div class="field"><label>Deductions ('+esc(state.settings.currency)+')</label><input class="input" type="number" step="any" min="0" name="deductions" value="" placeholder="SSS/PH/tax (optional)"></div>'+
-      '<div class="field"><label>Vale repaid ('+esc(state.settings.currency)+')</label><input class="input" type="number" step="any" min="0" name="valeRepaid" value="'+(bal>0?Math.min(bal,0):'')+'" placeholder="'+(bal>0?'up to '+fmtMoney(bal):'0')+'"></div></div>'+
+      '<div class="field"><label>Vale repaid ('+esc(state.settings.currency)+')</label><input class="input" type="number" step="any" min="0" name="valeRepaid" value="" placeholder="'+(bal>0?'up to '+fmtMoney(bal):'0')+'"></div></div>'+
     '<p class="sub">Net = (rate × days) + bonus − deductions − vale repaid. Adjust as needed.</p>';
   openModal('Record payout',body,{onSubmit:function(form){
     var days=num(fv(form,'days')), bonus=num(fv(form,'bonus')), ded=num(fv(form,'deductions')), valeRep=num(fv(form,'valeRepaid'));
     var rate=num(e.payRate);
-    var gross=e.payBasis==='Monthly'?rate:(e.payBasis==='Hourly'?rate*days:rate*days);
-    if(!gross && bonus) gross=0;
+    var gross=e.payBasis==='Monthly'?rate:rate*days; // daily: rate×days · hourly: rate×hours · monthly: flat
     var net=gross+bonus-ded-valeRep;
     state.hrPayouts.push({id:uid(),employeeId:empId,date:todayISO(),periodLabel:fv(form,'periodLabel'),daysWorked:days,gross:gross,deductions:ded,valeRepaid:valeRep,bonus:bonus,net:net});
     // apply vale repayment across outstanding advances (oldest first)
