@@ -141,6 +141,18 @@ async function main() {
     ok('drag end clears the placeholder state', !dgrid.querySelector('.dash-widget.dragging') && !dgrid.classList.contains('is-dragging'));
     ok('drag end persists the new order', JSON.stringify((window.state.settings.dashOrder || []).slice(0, domOrder.length)) === JSON.stringify(domOrder));
 
+    // ---------- first-open greeting (name setup → time-based hello → dismiss) ----------
+    window.state.settings.displayName = '';
+    window.showGreeting();
+    const greetRoot = d.getElementById('greet-root');
+    ok('greeting shows name-setup when no display name', !!greetRoot.querySelector('[data-greet="setup"]') && !!greetRoot.querySelector('#greet-name'));
+    d.getElementById('greet-name').value = 'Ira'; window.greetSaveName();
+    ok('saving a name persists displayName + switches to a personalised hello', window.state.settings.displayName === 'Ira' && !!greetRoot.querySelector('[data-greet="hello"]') && /Ira/.test(greetRoot.innerHTML));
+    ok('greeting is time-based', /Good (morning|afternoon|evening)/.test(greetRoot.innerHTML));
+    window.dismissGreeting();
+    ok('dismiss clears the greeting state (unblurs)', !d.body.classList.contains('greeting-on'));
+    window.state.settings.displayName = '';
+
     // ---------- delight: KPI count-up is non-destructive (settles to the EXACT figure) ----------
     window.state.finance = [{ id: 'f2', type: 'income', amount: 123456, date: '2026-06-02', category: 'Sales' }];
     window.location.hash = '#/dashboard'; window.render(); await wait(900); // let the entrance count-up finish

@@ -887,6 +887,36 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 .adv-wins p{font-size:.8rem;color:var(--text-3);margin-top:1px}
 
 /* ===== onboarding carousel ===== */
+/* ---- first-open greeting (time-based, animated, blurred backdrop) ---- */
+.greet-overlay{position:fixed;inset:0;z-index:520;display:grid;place-items:center;padding:20px;background:rgba(10,12,24,.46);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);animation:greetIn .45s var(--ease) both;cursor:pointer}
+.greet-overlay.greet-out{animation:greetOut .32s var(--ease) forwards}
+.greet-card{text-align:center;max-width:440px;width:100%;cursor:default;animation:greetUp .55s var(--ease) .08s both}
+.greet-ico{position:relative;width:96px;height:96px;margin:0 auto 22px;border-radius:50%;display:grid;place-items:center;color:#fff;background:var(--accent-grad);box-shadow:0 14px 44px var(--accent-soft);animation:greetFloat 3.4s ease-in-out infinite}
+.greet-ico svg{width:46px;height:46px;position:relative;z-index:2;animation:greetPop .6s var(--ease) .15s both}
+/* sun rays / glow ring behind the tile */
+.greet-ico::before{content:'';position:absolute;inset:-14px;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 18deg,var(--accent-soft) 18deg 30deg,transparent 30deg 48deg,var(--accent-soft) 48deg 60deg,transparent 60deg);opacity:.0;animation:greetRays 9s linear infinite}
+.greet-morning .greet-ico::before,.greet-afternoon .greet-ico::before{opacity:.9}
+.greet-ico::after{content:'';position:absolute;inset:-22px;border-radius:50%;background:radial-gradient(circle,var(--accent-soft),transparent 68%);animation:greetPulse 3s ease-in-out infinite}
+.greet-evening .greet-ico{background:linear-gradient(135deg,#3b3f7a,#6d4aa6)}
+.greet-hello{font-size:2rem;font-weight:800;letter-spacing:-.03em;line-height:1.15;color:#fff;text-shadow:0 2px 24px rgba(0,0,0,.3)}
+.greet-name{background:linear-gradient(120deg,#fff,var(--accent-soft));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.greet-sub{color:rgba(255,255,255,.82);margin-top:8px;font-size:1rem}
+.greet-form{display:flex;gap:9px;margin:20px auto 0;max-width:360px}
+.greet-form .input{flex:1;text-align:center;font-size:1rem;background:rgba(255,255,255,.95)}
+.greet-skip{margin-top:14px;background:none;color:rgba(255,255,255,.7);font-size:.82rem;font-weight:600;padding:6px 10px;border-radius:8px}
+.greet-skip:hover{color:#fff}
+.greet-tap{margin-top:22px;color:rgba(255,255,255,.6);font-size:.76rem;font-weight:600;text-transform:uppercase;letter-spacing:.12em;animation:greetBlink 2.2s ease-in-out infinite}
+.greet-wave{display:inline-block;transform-origin:70% 70%;animation:greetWave 2.4s ease-in-out infinite}
+@keyframes greetIn{from{opacity:0}to{opacity:1}}
+@keyframes greetOut{to{opacity:0}}
+@keyframes greetUp{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes greetFloat{50%{transform:translateY(-7px)}}
+@keyframes greetPulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:.9;transform:scale(1.08)}}
+@keyframes greetRays{to{transform:rotate(360deg)}}
+@keyframes greetPop{from{opacity:0;transform:scale(.4) rotate(-25deg)}to{opacity:1;transform:none}}
+@keyframes greetBlink{0%,100%{opacity:.45}50%{opacity:.9}}
+@keyframes greetWave{0%,60%,100%{transform:rotate(0)}10%,30%{transform:rotate(16deg)}20%{transform:rotate(-8deg)}}
+@media (max-width:480px){.greet-hello{font-size:1.6rem}.greet-form{flex-direction:column}}
 .onb-overlay{position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(8,10,22,.66);backdrop-filter:blur(5px);animation:fadeIn .2s}
 .onb-card{position:relative;width:100%;max-width:440px;background:var(--bg-card);border:1px solid var(--border);border-radius:22px;overflow:hidden;box-shadow:var(--shadow-lg);animation:popIn .32s var(--ease)}
 .onb-x{position:absolute;top:12px;right:12px;z-index:3;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:#fff;background:rgba(0,0,0,.28)}
@@ -957,6 +987,7 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 <div id="lightbox-root"></div>
 <div id="gate-root"></div>
 <div id="lock-root"></div>
+<div id="greet-root"></div>
 <input type="file" id="import-file" accept=".json,application/json" style="display:none">
 <input type="file" id="csv-file" accept=".csv,text/csv,text/plain" style="display:none">
 <script>
@@ -3171,6 +3202,7 @@ function viewSettings(){
   html+='<div class="card"><div class="card-head"><h3>Business profile</h3></div>'+
     '<form data-form="settings">'+
     '<div class="field"><label>Business name</label><input class="input" name="businessName" value="'+esc(s.businessName)+'" required></div>'+
+    '<div class="field"><label>What should we call you?</label><input class="input" name="displayName" value="'+esc(s.displayName||'')+'" maxlength="40" placeholder="e.g. Ira — used in your daily greeting"><p style="font-size:.72rem;color:var(--text-3);margin-top:3px">Your name for the time-based greeting when you open the app.</p></div>'+
     '<div class="field"><label>Country / region</label><select class="input" name="country" data-action-change="apply-country">'+
       '<option value=""'+(!s.country?' selected':'')+'>— Select to auto-set currency & tax —</option>'+
       Object.keys(COUNTRIES).map(function(k){ var c=COUNTRIES[k]; return '<option value="'+k+'"'+(s.country===k?' selected':'')+'>'+c.flag+' '+esc(c.name)+'</option>'; }).join('')+
@@ -4144,6 +4176,7 @@ document.addEventListener('submit',function(e){
   }
   if(kind==='settings'){
     state.settings.businessName=fv(form,'businessName')||'My Business';
+    state.settings.displayName=(fv(form,'displayName')||'').slice(0,40);
     if(form.elements['country']) state.settings.country=fv(form,'country');
     state.settings.currency=fv(form,'currency')||'₱';
     state.settings.taxRate=clamp(num(fv(form,'taxRate')),0,60);
@@ -8035,6 +8068,7 @@ function endOnboard(){
   if(typeof updateAdvisorBubble==='function') updateAdvisorBubble(currentRoute());
   if(!state.settings.wizardDone&&!(state.finance.length||state.products.length)){ setTimeout(openSetupWizard,250); }
   else { state.settings.wizardDone=true; save(); }
+  if(typeof maybeGreet==='function') setTimeout(maybeGreet,400); // greet after the intro carousel
 }
 (function(){ var x0=null;
   document.addEventListener('touchstart',function(e){ if(byId('lightbox-root').querySelector('.onb-card')&&e.touches[0]) x0=e.touches[0].clientX; },{passive:true});
@@ -8794,6 +8828,71 @@ function privacyLockCardHTML(){
     '</div></div>';
 }
 
+/* ---------- first-open greeting (time-based, animated) ---------- */
+var greetShownThisSession=false;
+function greetingTime(){
+  var h=new Date().getHours();
+  if(h<12) return {label:'Good morning',ico:'sun',part:'morning'};
+  if(h<18) return {label:'Good afternoon',ico:'sun',part:'afternoon'};
+  return {label:'Good evening',ico:'moon',part:'evening'};
+}
+function greetSubline(part){
+  var m={morning:'A fresh day for your business — let’s make it count.',afternoon:'Hope the day’s going well. Here’s your business.',evening:'Winding down? Let’s see how today went.'};
+  return m[part]||'Welcome back.';
+}
+function showGreeting(){
+  var root=byId('greet-root'); if(!root) return;
+  var nm=String((state.settings&&state.settings.displayName)||'').trim();
+  var g=greetingTime();
+  if(!nm){
+    root.innerHTML='<div class="greet-overlay greet-'+g.part+'" data-greet="setup">'+
+      '<div class="greet-card">'+
+        '<div class="greet-ico">'+icon(g.ico)+'</div>'+
+        '<h2 class="greet-hello">Hi there! <span class="greet-wave">👋</span></h2>'+
+        '<p class="greet-sub">How would you like me to call you?</p>'+
+        '<form id="greet-form" autocomplete="off"><input id="greet-name" class="input" maxlength="40" placeholder="e.g. Ira" aria-label="Your name">'+
+        '<button class="btn btn-primary" type="submit">'+icon('check')+' That’s me</button></form>'+
+        '<button class="greet-skip" data-greet-skip type="button">Maybe later</button>'+
+      '</div></div>';
+    var inp=byId('greet-name'); if(inp) setTimeout(function(){ try{ inp.focus(); }catch(_){ } },90);
+  } else {
+    root.innerHTML='<div class="greet-overlay greet-'+g.part+'" data-greet="hello" data-greet-dismiss>'+
+      '<div class="greet-card">'+
+        '<div class="greet-ico">'+icon(g.ico)+'</div>'+
+        '<h2 class="greet-hello">'+esc(g.label)+', <span class="greet-name">'+esc(nm)+'</span>!</h2>'+
+        '<p class="greet-sub">'+esc(greetSubline(g.part))+'</p>'+
+        '<div class="greet-tap">tap anywhere to continue</div>'+
+      '</div></div>';
+  }
+  document.body.classList.add('greeting-on');
+}
+function dismissGreeting(){
+  var root=byId('greet-root'); document.body.classList.remove('greeting-on');
+  if(!root) return; var ov=root.querySelector('.greet-overlay');
+  if(ov){ ov.classList.add('greet-out'); setTimeout(function(){ if(byId('greet-root')) byId('greet-root').innerHTML=''; },300); }
+  else root.innerHTML='';
+}
+function greetSaveName(){
+  var inp=byId('greet-name'); var nm=inp?String(inp.value||'').trim().slice(0,40):'';
+  state.settings.displayName=nm; state.settings.greetDone=true; save();
+  if(nm) showGreeting(); else dismissGreeting(); // re-show as a personalised hello, or just close
+}
+function maybeGreet(){
+  if(greetShownThisSession) return;
+  if(typeof isActivated==='function' && !isActivated()) return;
+  if(byId('lock-root')&&byId('lock-root').innerHTML) return;
+  if(byId('gate-root')&&byId('gate-root').innerHTML) return;
+  if(byId('modal-root')&&byId('modal-root').innerHTML) return;
+  if(byId('lightbox-root')&&byId('lightbox-root').querySelector('.onb-card')) return; // onboarding is up — greet after
+  greetShownThisSession=true;
+  setTimeout(showGreeting,450);
+}
+document.addEventListener('submit',function(e){ if(e.target&&e.target.id==='greet-form'){ e.preventDefault(); greetSaveName(); } });
+document.addEventListener('click',function(e){
+  if(!document.body.classList.contains('greeting-on')) return;
+  if(e.target.closest&&e.target.closest('[data-greet-skip]')){ state.settings.greetDone=true; save(); dismissGreeting(); return; }
+  if(e.target.closest&&e.target.closest('[data-greet-dismiss]')){ dismissGreeting(); return; }
+},true);
 function bootApp(){
   if(hasLock() && !sessionUnlocked){ applyTheme(); renderLockScreen(); return; }
   processRecurring();
@@ -8804,6 +8903,7 @@ function bootApp(){
   probeStorage();
   autoBackupCheck();
   maybeOnboard();
+  maybeGreet();
   storageWarnOnBoot();
   fxAutoUpdateCheck();
   backupReminder();
