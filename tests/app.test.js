@@ -46,13 +46,13 @@ async function main() {
     ok('app boots (state present)', !!window.state);
     window.loadSampleData();
     await wait(40);
-    const routes = ['dashboard','insights','accounts','finance','invoices','report','calculators','metrics','products','orders','utang','goals','roadmap','tasks','clients','notes','reviews','settings'];
+    const routes = ['dashboard','insights','accounts','finance','invoices','report','calculators','metrics','products','orders','utang','manpower','goals','roadmap','tasks','clients','notes','reviews','settings'];
     const viewErrors = [];
     for (const rt of routes) {
       try { window.location.hash = '#/' + rt; window.render(); if (d.getElementById('main').innerHTML.length < 50) viewErrors.push(rt + '(empty)'); }
       catch (e) { viewErrors.push(rt + ': ' + e.message); }
     }
-    ok('every one of the 18 views renders without error', viewErrors.length === 0, viewErrors);
+    ok('every one of the 19 views renders without error', viewErrors.length === 0, viewErrors);
 
     // ---------- security: escaping + CSP + safeColor ----------
     ok('no unescaped image src in source', html.match(/src="'\+(?!esc\()/g) === null);
@@ -152,6 +152,24 @@ async function main() {
     window.dismissGreeting();
     ok('dismiss clears the greeting state (unblurs)', !d.body.classList.contains('greeting-on'));
     window.state.settings.displayName = '';
+
+    // ---------- Manpower (employees): stats, payroll math, vale, custom card ----------
+    window.state.employees = [
+      { id: 'e1', name: 'Maria', role: 'Tindera', employmentType: 'Regular', payBasis: 'Daily', payRate: 500, status: 'Active', colorTag: '#10b981', customFields: [] },
+      { id: 'e2', name: 'Jose', role: 'Helper', employmentType: 'Part-time', payBasis: 'Monthly', payRate: 12000, status: 'Inactive', colorTag: '#f59e0b', customFields: [] },
+    ];
+    window.state.hrAdvances = [{ id: 'v1', employeeId: 'e1', date: '2026-06-01', amount: 800, reason: 'load', repaid: 300 }];
+    window.state.hrPayouts = [];
+    window.location.hash = '#/manpower'; window.render(); await wait(10);
+    ok('Manpower lists employees', /Maria/.test(d.getElementById('main').innerHTML) && /Jose/.test(d.getElementById('main').innerHTML));
+    ok('daily pay normalizes to monthly (×26)', window.hrMonthlyPay(window.state.employees[0]) === 13000);
+    ok('vale balance nets repayments', window.hrValeBalance('e1') === 500 && window.hrValeOutstanding() === 500);
+    ok('employee colors are sanitized in render', d.getElementById('main').innerHTML.indexOf('onerror') === -1);
+    // custom stat card composes safely (no eval)
+    window.state.settings.hrCustomCards = [{ id: 'c1', label: 'Riders', metric: 'count', field: 'payRate', filter: 'Active', fmt: '' }];
+    window.render();
+    ok('custom Manpower stat card renders', /Riders/.test(d.getElementById('main').innerHTML));
+    window.state.employees = []; window.state.hrAdvances = []; window.state.hrPayouts = []; window.state.settings.hrCustomCards = [];
 
     // ---------- delight: KPI count-up is non-destructive (settles to the EXACT figure) ----------
     window.state.finance = [{ id: 'f2', type: 'income', amount: 123456, date: '2026-06-02', category: 'Sales' }];

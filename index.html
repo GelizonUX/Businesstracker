@@ -775,6 +775,11 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 /* roadmap color swatches + chip dots */
 .swatch-row{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
 .swatch{width:24px;height:24px;border-radius:7px;border:2px solid transparent;cursor:pointer;transition:transform .12s var(--ease);padding:0}
+.hr-avatar{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;font-weight:800;font-size:.74rem;flex-shrink:0}
+.hr-more{margin:8px 0}
+.hr-more>summary{cursor:pointer;font-size:.82rem;font-weight:700;color:var(--accent);padding:4px 0;list-style:none}
+.hr-more>summary::-webkit-details-marker{display:none}
+.hr-more[open]>summary{margin-bottom:8px}
 .swatch:hover{transform:scale(1.12)}
 .swatch.on{box-shadow:0 0 0 2px var(--bg-card),0 0 0 4px currentColor}
 .chip-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle;flex-shrink:0}
@@ -1309,6 +1314,9 @@ var DEFAULT_STATE={
   tasks:[],     // {id,title,deadline,priority,bucket,done,createdAt,completedAt}
   notes:[],     // {id,title,body,category,tags:[],pinned,updatedAt}
   clients:[],   // {id,name,status,contact,value,note,createdAt}
+  employees:[], // {id,name,role,employmentType,payBasis,payRate,dateHired,status,contact,colorTag,notes,payCycle,govIDs:{},customFields:[{id,label,type,value}]}
+  hrAdvances:[],// vale/cash advance: {id,employeeId,date,amount,reason,repaid}
+  hrPayouts:[], // {id,employeeId,date,periodLabel,daysWorked,gross,deductions,valeRepaid,bonus,net}
   metrics:{},   // {key:{value,updatedAt}}
   reviews:{ monthly:{}, weekly:{ week:null, items:{} }, decisions:[], swot:{s:'',w:'',o:'',t:''} },
   meta:{ createdAt:null }
@@ -1887,6 +1895,7 @@ var ROUTES=[
   {id:'roadmap',label:'Roadmap',icon:'roadmap',section:'Execution'},
   {id:'tasks',label:'Tasks',icon:'tasks',section:'Execution'},
   {id:'clients',label:'Clients',icon:'clients',section:'Workspace'},
+  {id:'manpower',label:'Manpower',icon:'clients',section:'Workspace'},
   {id:'notes',label:'Notes',icon:'notes',section:'Workspace'},
   {id:'reviews',label:'Reviews & Strategy',icon:'reviews',section:'Workspace'},
   {id:'settings',label:'Settings & Data',icon:'settings',section:'System'}
@@ -1994,7 +2003,7 @@ function render(){
     dashboard:viewDashboard, insights:viewInsights, finance:viewFinance,
     invoices:viewInvoices, report:viewReport, products:viewProducts, orders:viewOrders, accounts:viewAccounts, utang:viewUtang,
     calculators:viewCalculators, metrics:viewMetrics, goals:viewGoals,
-    roadmap:viewRoadmap, tasks:viewTasks, clients:viewClients,
+    roadmap:viewRoadmap, tasks:viewTasks, clients:viewClients, manpower:viewManpower,
     notes:viewNotes, reviews:viewReviews, settings:viewSettings
   };
   if(route.indexOf('custom-')===0) main.innerHTML=viewCustomModule(route.slice(7));
@@ -2960,6 +2969,193 @@ function viewNotes(){
    view: clients (mini-CRM)
    ============================================================ */
 var CLIENT_STATUSES=['Lead','Active','Inactive','Churned'];
+/* ===================== Manpower (employees) ===================== */
+var HR_TYPES=['Regular','Part-time','Contractual','Probationary'];
+var HR_BASIS=['Daily','Monthly','Hourly'];
+var HR_CYCLES=['Daily','Weekly','Semi-monthly','Monthly'];
+var HR_FIELD_TYPES=['text','number','money','date'];
+function hrEmp(id){ return (state.employees||[]).find(function(e){return e.id===id;}); }
+function hrMonthlyPay(e){ var r=num(e.payRate); if(e.payBasis==='Daily') return r*26; if(e.payBasis==='Hourly') return r*8*26; return r; }
+function hrValeBalance(id){ return (state.hrAdvances||[]).filter(function(a){return a.employeeId===id;}).reduce(function(s,a){ return s+Math.max(0,num(a.amount)-num(a.repaid)); },0); }
+function hrValeOutstanding(){ return (state.employees||[]).reduce(function(s,e){ return s+hrValeBalance(e.id); },0); }
+function hrThirteenth(e){
+  var yr=new Date().getFullYear();
+  var paid=(state.hrPayouts||[]).filter(function(p){ return p.employeeId===e.id && String(p.date).slice(0,4)===String(yr); }).reduce(function(s,p){return s+num(p.gross);},0);
+  if(paid>0) return paid/12;
+  var now=new Date(), startM=0; if(e.dateHired){ var dh=new Date(e.dateHired); if(dh.getFullYear()===yr) startM=dh.getMonth(); }
+  var months=Math.max(0,(now.getMonth()-startM)+now.getDate()/30);
+  return hrMonthlyPay(e)*months/12;
+}
+function hrFieldNum(e,field){
+  if(field==='payRate') return num(e.payRate);
+  if(field==='monthly') return hrMonthlyPay(e);
+  if(field==='vale') return hrValeBalance(e.id);
+  var cf=(e.customFields||[]).find(function(f){return f.label===field;});
+  return cf?num(cf.value):0;
+}
+function hrCustomValue(c){
+  var emps=(state.employees||[]).filter(function(e){
+    if(c.filter&&c.filter!=='all'){
+      if(c.filter==='Active'||c.filter==='Inactive') return (e.status||'Active')===c.filter;
+      if(HR_TYPES.indexOf(c.filter)>=0) return e.employmentType===c.filter;
+    }
+    return true;
+  });
+  if(c.metric==='count') return String(emps.length);
+  var vals=emps.map(function(e){ return hrFieldNum(e,c.field); });
+  var sum=vals.reduce(function(s,v){return s+v;},0);
+  if(c.metric==='avg'){ var a=vals.length?sum/vals.length:0; return c.fmt==='money'?fmtMoney(a):String(Math.round(a)); }
+  return c.fmt==='money'?fmtMoney(sum):String(sum);
+}
+function viewManpower(){
+  var emps=state.employees||[];
+  var active=emps.filter(function(e){return (e.status||'Active')==='Active';});
+  var inactive=emps.length-active.length;
+  var payroll=active.reduce(function(s,e){return s+hrMonthlyPay(e);},0);
+  var vale=hrValeOutstanding();
+  var th=emps.reduce(function(s,e){return s+hrThirteenth(e);},0);
+  var hidden=state.settings.hrHidden||[];
+  var html=topbar('Manpower','Your team at a glance — pay, time, advances, bonuses & 13th-month. Every card and field is yours to customize.',
+    '<button class="btn btn-ghost" data-action="hr-customize" title="Show, hide & add stat cards">'+icon('palette')+'<span class="btn-txt">Cards</span></button>'+
+    '<button class="btn btn-primary" data-action="hr-add">'+icon('plus')+'<span class="btn-txt">Add employee</span></button>');
+  var cards=[];
+  if(hidden.indexOf('headcount')<0) cards.push(statCard('Headcount',String(active.length),'<span class="stat-delta flat">'+active.length+' active · '+inactive+' inactive</span>','','clients'));
+  if(hidden.indexOf('payroll')<0) cards.push(statCard('Est. monthly payroll',fmtMoney(payroll),'<span class="stat-delta flat">active staff · estimate</span>','','cash'));
+  if(hidden.indexOf('vale')<0) cards.push(statCard('Advances out (vale)',fmtMoney(vale),'<span class="stat-delta flat">unpaid balances</span>','','wallet'));
+  if(hidden.indexOf('thirteenth')<0) cards.push(statCard('13th-month accrued',fmtMoney(th),'<span class="stat-delta flat">YTD basic ÷ 12</span>','','flag'));
+  (state.settings.hrCustomCards||[]).forEach(function(c){ cards.push(statCard(c.label||'Custom',hrCustomValue(c),'<span class="stat-delta flat">custom</span>','','metrics')); });
+  if(cards.length) html+='<div class="grid grid-4">'+cards.join('')+'</div>';
+  if(!emps.length){
+    html+='<div class="card mt">'+emptyState('clients','No employees yet','Add your team to track salaries, days worked, cash advances (vale), bonuses and 13th-month pay — and add your own custom fields and cards.','<button class="btn btn-sm btn-primary" data-action="hr-add">'+icon('plus')+' Add first employee</button>')+'</div>';
+    return html;
+  }
+  html+='<div class="card mt"><div class="table-wrap"><table><thead><tr><th>Employee</th><th>Role</th><th>Type</th><th style="text-align:right">Pay</th><th style="text-align:right">Vale</th><th>Status</th><th></th></tr></thead><tbody>';
+  emps.slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'');}).forEach(function(e){
+    var col=safeColor(e.colorTag||'#6366f1'), bal=hrValeBalance(e.id);
+    html+='<tr>'+
+      '<td><button style="display:flex;align-items:center;gap:9px;text-align:left;font-weight:700;color:var(--accent)" data-action="hr-view" data-id="'+e.id+'"><span class="hr-avatar" style="background:'+hexA(col,.18)+';color:'+col+'">'+esc((e.name||'?').charAt(0).toUpperCase())+'</span>'+esc(e.name)+'</button></td>'+
+      '<td>'+esc(e.role||'—')+'</td>'+
+      '<td><span class="badge neutral">'+esc(e.employmentType||'—')+'</span></td>'+
+      '<td class="num" style="text-align:right">'+(e.payRate?fmtMoney(num(e.payRate))+'<span style="color:var(--text-3);font-size:.7rem">/'+esc(String(e.payBasis||'mo').toLowerCase().slice(0,3))+'</span>':'—')+'</td>'+
+      '<td class="num" style="text-align:right;color:'+(bal>0?'var(--warn)':'var(--text-3)')+'">'+(bal>0?fmtMoney(bal):'—')+'</td>'+
+      '<td><select class="input" style="width:auto;padding:3px 26px 3px 8px;font-size:.74rem;font-weight:600" data-action-change="hr-status" data-id="'+e.id+'"><option'+((e.status||'Active')==='Active'?' selected':'')+'>Active</option><option'+(e.status==='Inactive'?' selected':'')+'>Inactive</option></select></td>'+
+      '<td><div class="row-actions"><button class="btn-icon" data-action="hr-edit" data-id="'+e.id+'">'+icon('edit')+'</button><button class="btn-icon danger" data-action="hr-del" data-id="'+e.id+'">'+icon('trash')+'</button></div></td></tr>';
+  });
+  html+='</tbody></table></div></div>';
+  return html;
+}
+function hrCfRow(f){ f=f||{}; return '<div class="hr-cf-row" data-id="'+(f.id||'')+'" style="display:flex;gap:6px;align-items:center;margin-bottom:6px">'+
+  '<input class="input" data-cf="label" style="flex:1.3" value="'+esc(f.label||'')+'" placeholder="Field name">'+
+  '<select class="input" data-cf="type" style="width:auto">'+HR_FIELD_TYPES.map(function(t){return '<option'+(f.type===t?' selected':'')+'>'+t+'</option>';}).join('')+'</select>'+
+  '<input class="input" data-cf="value" style="flex:1.3" value="'+esc(f.value||'')+'" placeholder="Value">'+
+  '<button type="button" class="btn-icon danger" data-action="hr-cf-del" aria-label="Remove field">'+icon('x')+'</button></div>'; }
+function employeeModal(emp){
+  var isEdit=!!emp; emp=emp||{status:'Active',payBasis:'Daily',employmentType:'Regular',payCycle:'Semi-monthly'};
+  var col=safeColor(emp.colorTag||ACCENTS[(state.employees||[]).length%ACCENTS.length]);
+  var g=emp.govIDs||{};
+  var body='<input type="hidden" name="id" value="'+(emp.id||'')+'">'+
+    '<div class="field"><label>Full name *</label><input class="input" name="name" required value="'+esc(emp.name||'')+'" placeholder="e.g. Maria Santos"></div>'+
+    '<div class="form-row"><div class="field"><label>Role</label><input class="input" name="role" value="'+esc(emp.role||'')+'" placeholder="Tindera, Helper, Rider…"></div>'+
+      '<div class="field"><label>Type</label><select class="input" name="employmentType">'+HR_TYPES.map(function(t){return '<option'+(emp.employmentType===t?' selected':'')+'>'+t+'</option>';}).join('')+'</select></div></div>'+
+    '<div class="form-row"><div class="field"><label>Pay basis</label><select class="input" name="payBasis">'+HR_BASIS.map(function(t){return '<option'+(emp.payBasis===t?' selected':'')+'>'+t+'</option>';}).join('')+'</select></div>'+
+      '<div class="field"><label>Pay rate ('+esc(state.settings.currency)+')</label><input class="input" type="number" step="any" min="0" name="payRate" value="'+esc(emp.payRate||'')+'" placeholder="e.g. 450"></div></div>'+
+    '<div class="form-row"><div class="field"><label>Date hired</label><input class="input" type="date" name="dateHired" value="'+esc(emp.dateHired||'')+'"></div>'+
+      '<div class="field"><label>Status</label><select class="input" name="status"><option'+((emp.status||'Active')==='Active'?' selected':'')+'>Active</option><option'+(emp.status==='Inactive'?' selected':'')+'>Inactive</option></select></div></div>'+
+    '<div class="field"><label>Color tag</label><div class="swatch-row">'+ACCENTS.map(function(c){return '<button type="button" class="swatch'+(col===c?' on':'')+'" style="background:'+c+';color:'+c+'" data-action="hr-color" data-color="'+c+'" aria-label="'+c+'"></button>';}).join('')+'<input type="hidden" name="colorTag" value="'+esc(col)+'"></div></div>'+
+    '<details class="hr-more"><summary>More details (optional)</summary>'+
+      '<div class="form-row"><div class="field"><label>Contact</label><input class="input" name="contact" value="'+esc(emp.contact||'')+'" placeholder="Mobile number"></div>'+
+        '<div class="field"><label>Pay cycle</label><select class="input" name="payCycle">'+HR_CYCLES.map(function(t){return '<option'+(emp.payCycle===t?' selected':'')+'>'+t+'</option>';}).join('')+'</select></div></div>'+
+      '<div class="form-row"><div class="field"><label>SSS #</label><input class="input" name="sss" value="'+esc(g.sss||'')+'"></div><div class="field"><label>PhilHealth #</label><input class="input" name="philhealth" value="'+esc(g.philhealth||'')+'"></div></div>'+
+      '<div class="form-row"><div class="field"><label>Pag-IBIG #</label><input class="input" name="pagibig" value="'+esc(g.pagibig||'')+'"></div><div class="field"><label>TIN</label><input class="input" name="tin" value="'+esc(g.tin||'')+'"></div></div>'+
+      '<div class="field"><label>Notes</label><textarea class="input" name="notes" rows="2" placeholder="Schedule, reminders, anything…">'+esc(emp.notes||'')+'</textarea></div>'+
+    '</details>'+
+    '<div class="field"><label>Custom fields</label><div id="hr-cf">'+(emp.customFields||[]).map(hrCfRow).join('')+'</div>'+
+      '<button type="button" class="btn btn-sm btn-ghost" data-action="hr-cf-add" style="margin-top:2px">'+icon('plus')+' Add field</button>'+
+      '<p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Add anything: “Uniform size”, “Shift”, “Plate no.”, a custom allowance…</p></div>';
+  openModal(isEdit?'Edit employee':'Add employee',body,{onSubmit:function(form){
+    var name=fv(form,'name'); if(!name){ toast('Enter the employee name.','error'); return false; }
+    var cfs=[], root=byId('hr-cf');
+    if(root) Array.prototype.forEach.call(root.querySelectorAll('.hr-cf-row'),function(r){ var lbl=r.querySelector('[data-cf="label"]').value.trim(); if(!lbl) return; cfs.push({id:r.getAttribute('data-id')||uid(),label:lbl,type:r.querySelector('[data-cf="type"]').value,value:r.querySelector('[data-cf="value"]').value.trim()}); });
+    var data={name:name,role:fv(form,'role'),employmentType:fv(form,'employmentType'),payBasis:fv(form,'payBasis'),payRate:num(fv(form,'payRate')),dateHired:fv(form,'dateHired'),status:fv(form,'status'),colorTag:safeColor(fv(form,'colorTag')),contact:fv(form,'contact'),payCycle:fv(form,'payCycle'),notes:form.elements['notes']?form.elements['notes'].value:'',govIDs:{sss:fv(form,'sss'),philhealth:fv(form,'philhealth'),pagibig:fv(form,'pagibig'),tin:fv(form,'tin')},customFields:cfs};
+    var id=fv(form,'id');
+    if(id){ var e=hrEmp(id); if(e) Object.assign(e,data); toast('Employee updated.'); }
+    else { data.id=uid(); data.createdAt=todayISO(); state.employees.push(data); toast('Employee added.'); }
+    return true;
+  }});
+}
+function employeeDetail(emp){
+  if(!emp) return;
+  var col=safeColor(emp.colorTag||'#6366f1'), bal=hrValeBalance(emp.id);
+  var advs=(state.hrAdvances||[]).filter(function(a){return a.employeeId===emp.id;}).slice().reverse();
+  var pays=(state.hrPayouts||[]).filter(function(p){return p.employeeId===emp.id;}).slice().reverse();
+  var body='<div class="lead-card" style="padding:0;border:none;box-shadow:none"><div class="card-head" style="margin-bottom:12px"><span class="hr-avatar" style="width:40px;height:40px;border-radius:11px;font-size:1rem;background:'+hexA(col,.18)+';color:'+col+'">'+esc((emp.name||'?').charAt(0).toUpperCase())+'</span><div class="lead-copy"><h3 style="margin:0">'+esc(emp.name)+'</h3><span class="sub">'+esc(emp.role||'—')+' · '+esc(emp.employmentType||'')+'</span></div></div></div>'+
+    '<div class="grid grid-2" style="gap:9px">'+
+      '<div class="card" style="padding:11px 13px"><div class="sub">Pay</div><b>'+(emp.payRate?fmtMoney(num(emp.payRate))+' / '+esc(String(emp.payBasis||'').toLowerCase()):'—')+'</b><div class="sub" style="margin-top:2px">≈ '+fmtMoney(hrMonthlyPay(emp))+'/mo</div></div>'+
+      '<div class="card" style="padding:11px 13px"><div class="sub">13th-month accrued</div><b>'+fmtMoney(hrThirteenth(emp))+'</b><div class="sub" style="margin-top:2px">YTD basic ÷ 12</div></div>'+
+    '</div>'+
+    '<div class="card mt" style="padding:12px 14px"><div class="card-head" style="margin-bottom:8px"><h3 style="font-size:.92rem">Cash advances (vale)</h3><span class="spacer"></span><b style="color:'+(bal>0?'var(--warn)':'var(--text-3)')+'">'+fmtMoney(bal)+' out</b></div>'+
+      (advs.length?advs.map(function(a){var ab=Math.max(0,num(a.amount)-num(a.repaid));return '<div class="list-row"><div style="flex:1"><b style="font-size:.86rem">'+fmtMoney(num(a.amount))+'</b> <span class="sub">'+esc(a.reason||'advance')+' · '+fmtDate(a.date)+'</span></div>'+(ab>0?'<button class="btn btn-sm btn-ghost" data-action="hr-vale-repay" data-id="'+a.id+'">Repay</button><span class="badge warn">'+fmtMoney(ab)+' left</span>':'<span class="badge good">paid</span>')+'</div>';}).join(''):'<p class="sub">No advances recorded.</p>')+
+      '<button class="btn btn-sm btn-ghost" data-action="hr-vale-add" data-id="'+emp.id+'" style="margin-top:8px">'+icon('plus')+' Add vale</button></div>'+
+    '<div class="card mt" style="padding:12px 14px"><div class="card-head" style="margin-bottom:8px"><h3 style="font-size:.92rem">Payout history</h3><span class="spacer"></span><button class="btn btn-sm btn-primary" data-action="hr-payout" data-id="'+emp.id+'">'+icon('cash')+' Record payout</button></div>'+
+      (pays.length?'<div class="table-wrap"><table><thead><tr><th>Period</th><th style="text-align:right">Gross</th><th style="text-align:right">Net</th><th>Date</th></tr></thead><tbody>'+pays.map(function(p){return '<tr><td>'+esc(p.periodLabel||'—')+'</td><td class="num" style="text-align:right">'+fmtMoney(num(p.gross))+'</td><td class="num" style="text-align:right;color:var(--income)">'+fmtMoney(num(p.net))+'</td><td>'+fmtDate(p.date)+'</td></tr>';}).join('')+'</tbody></table></div>':'<p class="sub">No payouts yet.</p>')+'</div>'+
+    ((emp.customFields||[]).length?'<div class="card mt" style="padding:12px 14px"><div class="card-head" style="margin-bottom:6px"><h3 style="font-size:.92rem">Details</h3></div>'+emp.customFields.map(function(f){return '<div class="list-row"><span class="sub" style="flex:1">'+esc(f.label)+'</span><b style="font-size:.86rem">'+esc(f.type==='money'&&f.value?fmtMoney(num(f.value)):(f.value||'—'))+'</b></div>';}).join('')+'</div>':'')+
+    '<div style="display:flex;gap:8px;margin-top:14px"><button class="btn btn-ghost" data-action="hr-edit" data-id="'+emp.id+'">'+icon('edit')+' Edit</button></div>';
+  openModal(esc(emp.name),body,{wide:true});
+}
+function hrValeAddModal(empId){
+  var body='<input type="hidden" name="employeeId" value="'+empId+'">'+
+    '<div class="form-row"><div class="field"><label>Amount ('+esc(state.settings.currency)+') *</label><input class="input" type="number" step="any" min="0" name="amount" required placeholder="e.g. 500"></div>'+
+      '<div class="field"><label>Date</label><input class="input" type="date" name="date" value="'+todayISO()+'"></div></div>'+
+    '<div class="field"><label>Reason</label><input class="input" name="reason" placeholder="e.g. emergency, load, groceries"></div>';
+  openModal('Add cash advance (vale)',body,{onSubmit:function(form){
+    var amt=num(fv(form,'amount')); if(amt<=0){ toast('Enter an amount.','error'); return false; }
+    state.hrAdvances.push({id:uid(),employeeId:fv(form,'employeeId'),date:fv(form,'date')||todayISO(),amount:amt,reason:fv(form,'reason'),repaid:0});
+    toast('Vale recorded.'); return true;
+  }});
+}
+function hrValeRepayModal(advId){
+  var a=(state.hrAdvances||[]).find(function(x){return x.id===advId;}); if(!a) return;
+  var left=Math.max(0,num(a.amount)-num(a.repaid));
+  var body='<p class="sub" style="margin-bottom:10px">Outstanding: <b>'+fmtMoney(left)+'</b></p><div class="field"><label>Repay amount ('+esc(state.settings.currency)+')</label><input class="input" type="number" step="any" min="0" name="amt" value="'+left+'"></div>';
+  openModal('Repay vale',body,{onSubmit:function(form){ var amt=num(fv(form,'amt')); a.repaid=Math.min(num(a.amount),num(a.repaid)+Math.max(0,amt)); toast('Repayment recorded.'); return true; }});
+}
+function hrPayoutModal(empId){
+  var e=hrEmp(empId); if(!e) return;
+  var bal=hrValeBalance(empId), suggestDays=e.payBasis==='Daily'?13:0;
+  var body='<input type="hidden" name="employeeId" value="'+empId+'">'+
+    '<div class="field"><label>Period label</label><input class="input" name="periodLabel" placeholder="e.g. Jun 1–15" value=""></div>'+
+    '<div class="form-row"><div class="field"><label>'+(e.payBasis==='Hourly'?'Hours':'Days')+' worked</label><input class="input" type="number" step="any" min="0" name="days" value="'+(suggestDays||'')+'" placeholder="'+(e.payBasis==='Monthly'?'—':'e.g. 13')+'"></div>'+
+      '<div class="field"><label>Bonus / OT ('+esc(state.settings.currency)+')</label><input class="input" type="number" step="any" min="0" name="bonus" value=""></div></div>'+
+    '<div class="form-row"><div class="field"><label>Deductions ('+esc(state.settings.currency)+')</label><input class="input" type="number" step="any" min="0" name="deductions" value="" placeholder="SSS/PH/tax (optional)"></div>'+
+      '<div class="field"><label>Vale repaid ('+esc(state.settings.currency)+')</label><input class="input" type="number" step="any" min="0" name="valeRepaid" value="'+(bal>0?Math.min(bal,0):'')+'" placeholder="'+(bal>0?'up to '+fmtMoney(bal):'0')+'"></div></div>'+
+    '<p class="sub">Net = (rate × days) + bonus − deductions − vale repaid. Adjust as needed.</p>';
+  openModal('Record payout',body,{onSubmit:function(form){
+    var days=num(fv(form,'days')), bonus=num(fv(form,'bonus')), ded=num(fv(form,'deductions')), valeRep=num(fv(form,'valeRepaid'));
+    var rate=num(e.payRate);
+    var gross=e.payBasis==='Monthly'?rate:(e.payBasis==='Hourly'?rate*days:rate*days);
+    if(!gross && bonus) gross=0;
+    var net=gross+bonus-ded-valeRep;
+    state.hrPayouts.push({id:uid(),employeeId:empId,date:todayISO(),periodLabel:fv(form,'periodLabel'),daysWorked:days,gross:gross,deductions:ded,valeRepaid:valeRep,bonus:bonus,net:net});
+    // apply vale repayment across outstanding advances (oldest first)
+    if(valeRep>0){ var rem=valeRep; (state.hrAdvances||[]).filter(function(a){return a.employeeId===empId;}).forEach(function(a){ if(rem<=0) return; var lo=Math.max(0,num(a.amount)-num(a.repaid)); var pay=Math.min(lo,rem); a.repaid=num(a.repaid)+pay; rem-=pay; }); }
+    toast('Payout recorded — net '+fmtMoney(net)+'.'); return true;
+  }});
+}
+function hrCustomizeModal(){
+  var hidden=state.settings.hrHidden||[];
+  var defs=[['headcount','Headcount'],['payroll','Est. monthly payroll'],['vale','Advances out (vale)'],['thirteenth','13th-month accrued']];
+  var custom=state.settings.hrCustomCards||[];
+  var body='<p class="sub" style="margin-bottom:10px">Show, hide and build your own stat cards.</p>'+
+    '<div class="field"><label>Default cards</label>'+defs.map(function(d){return '<label class="checkrow" style="font-size:.86rem"><input type="checkbox" data-action-change="hr-card-toggle" data-id="'+d[0]+'"'+(hidden.indexOf(d[0])<0?' checked':'')+'> '+d[1]+'</label>';}).join('')+'</div>'+
+    (custom.length?'<div class="field"><label>Your custom cards</label>'+custom.map(function(c){return '<div class="list-row"><span style="flex:1;font-size:.86rem">'+esc(c.label)+' <span class="sub">('+esc(c.metric)+(c.field?' '+esc(c.field):'')+')</span></span><button class="btn-icon danger" data-action="hr-card-del" data-id="'+esc(c.id)+'">'+icon('trash')+'</button></div>';}).join('')+'</div>':'')+
+    '<div class="field" style="border-top:1px solid var(--border);padding-top:12px"><label>Add a custom card</label>'+
+      '<input class="input" id="hrc-label" placeholder="Card title (e.g. Riders, Total allowances)" style="margin-bottom:6px">'+
+      '<div class="form-row"><select class="input" id="hrc-metric"><option value="count">Count</option><option value="sum">Sum</option><option value="avg">Average</option></select>'+
+        '<select class="input" id="hrc-field"><option value="payRate">Pay rate</option><option value="monthly">Monthly pay</option><option value="vale">Vale balance</option></select>'+
+        '<select class="input" id="hrc-filter"><option value="all">All</option><option>Active</option><option>Inactive</option>'+HR_TYPES.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select></div>'+
+      '<button class="btn btn-sm btn-primary" data-action="hr-card-add" style="margin-top:8px">'+icon('plus')+' Add card</button></div>';
+  openModal('Customize Manpower cards',body,{});
+}
 function viewClients(){
   var html=topbar('Clients','A lightweight CRM — know who pays you and where your pipeline stands.',
     '<button class="btn btn-ghost" data-action="export-csv" data-what="clients">'+icon('download')+'<span class="btn-txt">CSV</span></button>'+
@@ -4058,6 +4254,20 @@ document.addEventListener('click',function(e){
     } return;
   }
   if(action==='client-filter'){ ui.clientFilter=el.getAttribute('data-val'); render(); return; }
+  /* ---- Manpower ---- */
+  if(action==='hr-add'){ employeeModal(); return; }
+  if(action==='hr-edit'){ closeModal(); var he=hrEmp(id); if(he) employeeModal(he); return; }
+  if(action==='hr-view'){ var hv=hrEmp(id); if(hv) employeeDetail(hv); return; }
+  if(action==='hr-del'){ var hd=hrEmp(id); if(hd&&confirm('Delete employee "'+hd.name+'"? Their advances and payouts are removed too.')){ snapshotForUndo(); state.employees=state.employees.filter(function(x){return x.id!==id;}); state.hrAdvances=(state.hrAdvances||[]).filter(function(a){return a.employeeId!==id;}); state.hrPayouts=(state.hrPayouts||[]).filter(function(p){return p.employeeId!==id;}); commit(); toast('Employee deleted.','warn',{undo:true}); } return; }
+  if(action==='hr-color'){ var hf=byId('modal-form'); if(hf&&hf.elements['colorTag']){ hf.elements['colorTag'].value=el.getAttribute('data-color'); hf.querySelectorAll('.swatch').forEach(function(s){ s.classList.toggle('on',s===el); }); } return; }
+  if(action==='hr-cf-add'){ var cfr=byId('hr-cf'); if(cfr) cfr.insertAdjacentHTML('beforeend',hrCfRow({id:uid()})); return; }
+  if(action==='hr-cf-del'){ var hrow=el.closest('.hr-cf-row'); if(hrow) hrow.remove(); return; }
+  if(action==='hr-vale-add'){ closeModal(); hrValeAddModal(id); return; }
+  if(action==='hr-vale-repay'){ closeModal(); hrValeRepayModal(id); return; }
+  if(action==='hr-payout'){ closeModal(); hrPayoutModal(id); return; }
+  if(action==='hr-customize'){ hrCustomizeModal(); return; }
+  if(action==='hr-card-del'){ state.settings.hrCustomCards=(state.settings.hrCustomCards||[]).filter(function(c){return c.id!==id;}); save(); closeModal(); hrCustomizeModal(); return; }
+  if(action==='hr-card-add'){ var hlbl=String(((byId('hrc-label')||{}).value)||'').trim().slice(0,30); if(!hlbl){ toast('Give the card a title.','error'); return; } var hmetric=(byId('hrc-metric')||{}).value||'count'; var hfield=(byId('hrc-field')||{}).value||'payRate'; var hfilter=(byId('hrc-filter')||{}).value||'all'; var hfmt=(hmetric!=='count')?'money':''; state.settings.hrCustomCards=(state.settings.hrCustomCards||[]); state.settings.hrCustomCards.push({id:uid(),label:hlbl,metric:hmetric,field:hfield,filter:hfilter,fmt:hfmt}); save(); closeModal(); toast('Card added.'); render(); return; }
 
   /* reviews */
   if(action==='toggle-weekly'){
@@ -7747,6 +7957,8 @@ document.addEventListener('change',function(e){
     if(c){ c.status=el.value; commit(); toast(c.name+' → '+c.status+'.'); }
     return;
   }
+  if(act==='hr-status'){ var hse=hrEmp(el.getAttribute('data-id')); if(hse){ hse.status=el.value; commit(); } return; }
+  if(act==='hr-card-toggle'){ var hcid=el.getAttribute('data-id'); var hh=state.settings.hrHidden=state.settings.hrHidden||[]; if(el.checked){ state.settings.hrHidden=hh.filter(function(x){return x!==hcid;}); } else if(hh.indexOf(hcid)<0){ hh.push(hcid); } save(); render(); return; }
   /* invoice modal: amount symbol follows the chosen currency */
   if(el.name==='currency'&&el.closest('#modal-form')){
     var sym=byId('inv-amt-sym');
