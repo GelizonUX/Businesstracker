@@ -635,7 +635,7 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
   #print-area .pr-foot{margin-top:26px;font-size:.75rem;color:#666;border-top:1px solid #ccc;padding-top:8px}
 }
 @media (prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;scroll-behavior:auto !important}
+  *,*::before,*::after{animation-duration:.01ms !important;animation-delay:0s !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;scroll-behavior:auto !important}
   td .row-actions,.dash-handle{opacity:1 !important}
 }
 
@@ -902,9 +902,9 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 .greet-ico::before{content:'';position:absolute;inset:-14px;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 18deg,var(--accent-soft) 18deg 30deg,transparent 30deg 48deg,var(--accent-soft) 48deg 60deg,transparent 60deg);opacity:.0;animation:greetRays 9s linear infinite}
 .greet-morning .greet-ico::before,.greet-afternoon .greet-ico::before{opacity:.9}
 .greet-ico::after{content:'';position:absolute;inset:-22px;border-radius:50%;background:radial-gradient(circle,var(--accent-soft),transparent 68%);animation:greetPulse 3s ease-in-out infinite}
-.greet-evening .greet-ico{background:linear-gradient(135deg,#3b3f7a,#6d4aa6)}
+.greet-evening .greet-ico{background:linear-gradient(135deg,var(--accent-2),var(--accent))}
 .greet-hello{font-size:2rem;font-weight:800;letter-spacing:-.03em;line-height:1.15;color:#fff;text-shadow:0 2px 24px rgba(0,0,0,.3)}
-.greet-name{background:linear-gradient(120deg,#fff,var(--accent-soft));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.greet-name{color:#fff;text-shadow:0 2px 22px var(--accent)}
 .greet-sub{color:rgba(255,255,255,.82);margin-top:8px;font-size:1rem}
 .greet-form{display:flex;gap:9px;margin:20px auto 0;max-width:360px}
 .greet-form .input{flex:1;text-align:center;font-size:1rem;background:rgba(255,255,255,.95)}
@@ -1057,6 +1057,7 @@ var ICONS = {
   tasks:'<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>',
   notes:'<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>',
   clients:'<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>',
+  idcard:'<rect x="2.5" y="4.5" width="19" height="15" rx="2.2"/><circle cx="8" cy="10.5" r="2.2"/><path d="M4.6 16a3.6 3.6 0 0 1 6.8 0"/><path d="M14.5 9.5h4.5M14.5 13h4.5"/>',
   metrics:'<path d="M3 3v18h18"/><path d="M7 14l4-5 4 3 5-7"/>',
   insights:'<path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7c.6.5 1 1.3 1 2.1v.2h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0012 2z"/>',
   reviews:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M9 16l2 2 4-4"/>',
@@ -1895,7 +1896,7 @@ var ROUTES=[
   {id:'roadmap',label:'Roadmap',icon:'roadmap',section:'Execution'},
   {id:'tasks',label:'Tasks',icon:'tasks',section:'Execution'},
   {id:'clients',label:'Clients',icon:'clients',section:'Workspace'},
-  {id:'manpower',label:'Manpower',icon:'clients',section:'Workspace'},
+  {id:'manpower',label:'Manpower',icon:'idcard',section:'Workspace'},
   {id:'notes',label:'Notes',icon:'notes',section:'Workspace'},
   {id:'reviews',label:'Reviews & Strategy',icon:'reviews',section:'Workspace'},
   {id:'settings',label:'Settings & Data',icon:'settings',section:'System'}
@@ -3019,14 +3020,14 @@ function viewManpower(){
     '<button class="btn btn-ghost" data-action="hr-customize" title="Show, hide & add stat cards">'+icon('palette')+'<span class="btn-txt">Cards</span></button>'+
     '<button class="btn btn-primary" data-action="hr-add">'+icon('plus')+'<span class="btn-txt">Add employee</span></button>');
   var cards=[];
-  if(hidden.indexOf('headcount')<0) cards.push(statCard('Headcount',String(active.length),'<span class="stat-delta flat">'+active.length+' active · '+inactive+' inactive</span>','','clients'));
+  if(hidden.indexOf('headcount')<0) cards.push(statCard('Headcount',String(active.length),'<span class="stat-delta flat">'+active.length+' active · '+inactive+' inactive</span>','','idcard'));
   if(hidden.indexOf('payroll')<0) cards.push(statCard('Est. monthly payroll',fmtMoney(payroll),'<span class="stat-delta flat">active staff · estimate</span>','','cash'));
   if(hidden.indexOf('vale')<0) cards.push(statCard('Advances out (vale)',fmtMoney(vale),'<span class="stat-delta flat">unpaid balances</span>','','wallet'));
   if(hidden.indexOf('thirteenth')<0) cards.push(statCard('13th-month accrued',fmtMoney(th),'<span class="stat-delta flat">YTD basic ÷ 12</span>','','flag'));
   (state.settings.hrCustomCards||[]).forEach(function(c){ cards.push(statCard(c.label||'Custom',hrCustomValue(c),'<span class="stat-delta flat">custom</span>','','metrics')); });
   if(cards.length) html+='<div class="grid grid-4">'+cards.join('')+'</div>';
   if(!emps.length){
-    html+='<div class="card mt">'+emptyState('clients','No employees yet','Add your team to track salaries, days worked, cash advances (vale), bonuses and 13th-month pay — and add your own custom fields and cards.','<button class="btn btn-sm btn-primary" data-action="hr-add">'+icon('plus')+' Add first employee</button>')+'</div>';
+    html+='<div class="card mt">'+emptyState('idcard','No employees yet','Add your team to track salaries, days worked, cash advances (vale), bonuses and 13th-month pay — and add your own custom fields and cards.','<button class="btn btn-sm btn-primary" data-action="hr-add">'+icon('plus')+' Add first employee</button>')+'</div>';
     return html;
   }
   html+='<div class="card mt"><div class="table-wrap"><table><thead><tr><th>Employee</th><th>Role</th><th>Type</th><th style="text-align:right">Pay</th><th style="text-align:right">Vale</th><th>Status</th><th></th></tr></thead><tbody>';
