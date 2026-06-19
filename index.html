@@ -203,7 +203,7 @@ a{color:var(--accent);text-decoration:none}
 .btn-block{width:100%;justify-content:center}
 
 /* theme toggle */
-.theme-toggle{width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);display:inline-flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm);transition:all .2s}
+.theme-toggle{width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);display:inline-flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm);transition:background .2s var(--ease),border-color .2s var(--ease),color .2s var(--ease),transform .2s var(--ease-snappy)}
 .theme-toggle:hover{border-color:var(--accent);color:var(--accent);transform:rotate(15deg)}
 .theme-toggle svg{width:17px;height:17px}
 
@@ -322,7 +322,7 @@ tr:hover .row-actions{opacity:1}
 .modal{
   background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-xl);
   width:100%;max-width:520px;box-shadow:var(--shadow-lg);
-  animation:popIn .28s var(--ease);
+  animation:popInSpring .34s var(--ease-snappy) both;
 }
 .modal.wide{max-width:680px}
 .modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px 0}
@@ -706,6 +706,27 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 @keyframes floatGlow{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
 @keyframes sheen{0%{background-position:-180% 0}100%{background-position:180% 0}}
 @keyframes ringPulse{0%{box-shadow:0 0 0 0 rgba(99,102,241,.5)}70%{box-shadow:0 0 0 12px rgba(99,102,241,0)}100%{box-shadow:0 0 0 0 rgba(99,102,241,0)}}
+/* ---- motion polish: additive, token-based, transform/opacity only, reduced-motion-safe ---- */
+@keyframes popInSpring{0%{opacity:0;transform:scale(.92) translateY(14px)}60%{opacity:1;transform:scale(1.008) translateY(0)}100%{transform:scale(1) translateY(0)}}
+@keyframes rowIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.chip:active{transform:scale(.95)}
+.chip.active{transform:translateY(-1px)}
+.input:focus,select.input:focus,textarea.input:focus{animation:ringPulse 1.4s ease-out 1}
+.hr-avatar{transition:transform .18s var(--ease-snappy)}
+tbody tr:hover .hr-avatar{transform:scale(1.08)}
+.stat-icon{transition:transform .25s var(--ease)}
+.stat-card:hover .stat-icon{transform:scale(1.06) rotate(-3deg)}
+.empty .e-icon{animation:floatGlow 6s ease-in-out infinite}
+.table-wrap tbody tr{animation:rowIn .3s var(--ease) backwards}
+.table-wrap tbody tr:nth-child(1){animation-delay:.02s}
+.table-wrap tbody tr:nth-child(2){animation-delay:.04s}
+.table-wrap tbody tr:nth-child(3){animation-delay:.06s}
+.table-wrap tbody tr:nth-child(4){animation-delay:.08s}
+.table-wrap tbody tr:nth-child(5){animation-delay:.10s}
+.table-wrap tbody tr:nth-child(n+6){animation-delay:.12s}
+.card:hover,.kb-card:hover{will-change:transform}
+.dash-widget.dragging{will-change:transform}
+.modal{will-change:transform,opacity}
 .hero{transition:box-shadow .4s var(--ease)}
 .hero:hover{border-color:var(--accent);box-shadow:var(--shadow)}/* stroke matches cards; no lift on a full-width banner */
 .hero::after{animation:floatGlow 7s ease-in-out infinite}
@@ -896,18 +917,25 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 .greet-overlay{position:fixed;inset:0;z-index:520;display:grid;place-items:center;padding:20px;background:rgba(10,12,24,.46);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);animation:greetIn .45s var(--ease) both;cursor:pointer}
 .greet-overlay.greet-out{animation:greetOut .32s var(--ease) forwards}
 .greet-card{text-align:center;max-width:440px;width:100%;cursor:default;animation:greetUp .55s var(--ease) .08s both}
-.greet-ico{position:relative;width:96px;height:96px;margin:0 auto 22px;border-radius:50%;display:grid;place-items:center;color:#fff;background:var(--accent-grad);box-shadow:0 14px 44px var(--accent-soft);animation:greetFloat 3.4s ease-in-out infinite}
-.greet-ico svg{width:46px;height:46px;position:relative;z-index:2;animation:greetPop .6s var(--ease) .15s both}
+.greet-ico{position:relative;width:96px;height:96px;margin:0 auto 24px;border-radius:50%;display:grid;place-items:center;color:#fff;background:var(--accent-grad);box-shadow:0 14px 44px var(--accent-soft);cursor:pointer;overflow:visible;transition:transform .3s var(--ease),box-shadow .3s var(--ease)}
+.greet-ico:hover{transform:scale(1.06) rotate(-2deg);box-shadow:0 18px 56px var(--accent)}
+.greet-ico:active{transform:scale(.97)}
+.greet-logo{width:100%;height:100%;object-fit:cover;border-radius:50%;position:relative;z-index:2;animation:greetPop .55s var(--ease) .12s both}
+.greet-initial{font-size:2.5rem;font-weight:800;color:#fff;position:relative;z-index:2;animation:greetPop .55s var(--ease) .12s both}
+/* small time-of-day badge that gently bobs */
+.greet-time{position:absolute;bottom:-3px;right:-3px;width:34px;height:34px;border-radius:50%;background:var(--bg-card);color:var(--accent);display:grid;place-items:center;box-shadow:var(--shadow);z-index:4;animation:greetFloat 3.2s ease-in-out infinite}
+.greet-time svg{width:18px;height:18px}
 /* sun rays / glow ring behind the tile */
-.greet-ico::before{content:'';position:absolute;inset:-14px;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 18deg,var(--accent-soft) 18deg 30deg,transparent 30deg 48deg,var(--accent-soft) 48deg 60deg,transparent 60deg);opacity:.0;animation:greetRays 9s linear infinite}
+.greet-ico::before{content:'';position:absolute;inset:-14px;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 18deg,var(--accent-soft) 18deg 30deg,transparent 30deg 48deg,var(--accent-soft) 48deg 60deg,transparent 60deg);opacity:.0;animation:greetRays 9s linear infinite;z-index:0}
 .greet-morning .greet-ico::before,.greet-afternoon .greet-ico::before{opacity:.9}
-.greet-ico::after{content:'';position:absolute;inset:-22px;border-radius:50%;background:radial-gradient(circle,var(--accent-soft),transparent 68%);animation:greetPulse 3s ease-in-out infinite}
+.greet-ico::after{content:'';position:absolute;inset:-22px;border-radius:50%;background:radial-gradient(circle,var(--accent-soft),transparent 68%);animation:greetPulse 3s ease-in-out infinite;z-index:0}
 .greet-evening .greet-ico{background:linear-gradient(135deg,var(--accent-2),var(--accent))}
 .greet-hello{font-size:2rem;font-weight:800;letter-spacing:-.03em;line-height:1.15;color:#fff;text-shadow:0 2px 24px rgba(0,0,0,.3)}
 .greet-name{color:#fff;text-shadow:0 2px 22px var(--accent)}
 .greet-sub{color:rgba(255,255,255,.82);margin-top:8px;font-size:1rem}
-.greet-form{display:flex;gap:9px;margin:20px auto 0;max-width:360px}
-.greet-form .input{flex:1;text-align:center;font-size:1rem;background:rgba(255,255,255,.95)}
+.greet-form{display:flex;flex-direction:column;gap:14px;margin:26px auto 0;max-width:300px}
+.greet-form .input{text-align:center;font-size:1rem;background:rgba(255,255,255,.96);padding:11px 14px}
+.greet-form .btn{justify-content:center;padding:11px 14px}
 .greet-skip{margin-top:14px;background:none;color:rgba(255,255,255,.7);font-size:.82rem;font-weight:600;padding:6px 10px;border-radius:8px}
 .greet-skip:hover{color:#fff}
 .greet-tap{margin-top:22px;color:rgba(255,255,255,.6);font-size:.76rem;font-weight:600;text-transform:uppercase;letter-spacing:.12em;animation:greetBlink 2.2s ease-in-out infinite}
@@ -1896,7 +1924,7 @@ var ROUTES=[
   {id:'roadmap',label:'Roadmap',icon:'roadmap',section:'Execution'},
   {id:'tasks',label:'Tasks',icon:'tasks',section:'Execution'},
   {id:'clients',label:'Clients',icon:'clients',section:'Workspace'},
-  {id:'manpower',label:'Manpower',icon:'idcard',section:'Workspace'},
+  {id:'manpower',label:'Manpower — Employees',icon:'idcard',section:'Workspace'},
   {id:'notes',label:'Notes',icon:'notes',section:'Workspace'},
   {id:'reviews',label:'Reviews & Strategy',icon:'reviews',section:'Workspace'},
   {id:'settings',label:'Settings & Data',icon:'settings',section:'System'}
@@ -9056,10 +9084,15 @@ function showGreeting(){
   var root=byId('greet-root'); if(!root) return;
   var nm=String((state.settings&&state.settings.displayName)||'').trim();
   var g=greetingTime();
+  function greetAvatar(){
+    var bl=state.settings&&state.settings.bizLogo;
+    var inner=bl?'<img class="greet-logo" src="'+esc(bl)+'" alt="">':'<span class="greet-initial">'+esc(String(state.settings.businessName||'B').charAt(0).toUpperCase())+'</span>';
+    return inner+'<span class="greet-time">'+icon(g.ico)+'</span>';
+  }
   if(!nm){
     root.innerHTML='<div class="greet-overlay greet-'+g.part+'" data-greet="setup">'+
       '<div class="greet-card">'+
-        '<div class="greet-ico">'+icon(g.ico)+'</div>'+
+        '<div class="greet-ico">'+greetAvatar()+'</div>'+
         '<h2 class="greet-hello">Hi there! <span class="greet-wave">👋</span></h2>'+
         '<p class="greet-sub">How would you like me to call you?</p>'+
         '<form id="greet-form" autocomplete="off"><input id="greet-name" class="input" maxlength="40" placeholder="e.g. Ira" aria-label="Your name">'+
@@ -9070,7 +9103,7 @@ function showGreeting(){
   } else {
     root.innerHTML='<div class="greet-overlay greet-'+g.part+'" data-greet="hello" data-greet-dismiss>'+
       '<div class="greet-card">'+
-        '<div class="greet-ico">'+icon(g.ico)+'</div>'+
+        '<div class="greet-ico">'+greetAvatar()+'</div>'+
         '<h2 class="greet-hello">'+esc(g.label)+', <span class="greet-name">'+esc(nm)+'</span>!</h2>'+
         '<p class="greet-sub">'+esc(greetSubline(g.part))+'</p>'+
         '<div class="greet-tap">tap anywhere to continue</div>'+
