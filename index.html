@@ -203,7 +203,7 @@ a{color:var(--accent);text-decoration:none}
 .btn-block{width:100%;justify-content:center}
 
 /* theme toggle */
-.theme-toggle{width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);display:inline-flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm);transition:all .2s}
+.theme-toggle{width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);display:inline-flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm);transition:background .2s var(--ease),border-color .2s var(--ease),color .2s var(--ease),transform .2s var(--ease-snappy)}
 .theme-toggle:hover{border-color:var(--accent);color:var(--accent);transform:rotate(15deg)}
 .theme-toggle svg{width:17px;height:17px}
 
@@ -322,7 +322,7 @@ tr:hover .row-actions{opacity:1}
 .modal{
   background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-xl);
   width:100%;max-width:520px;box-shadow:var(--shadow-lg);
-  animation:popIn .28s var(--ease);
+  animation:popInSpring .34s var(--ease-snappy);
 }
 .modal.wide{max-width:680px}
 .modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px 0}
@@ -706,6 +706,27 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 @keyframes floatGlow{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
 @keyframes sheen{0%{background-position:-180% 0}100%{background-position:180% 0}}
 @keyframes ringPulse{0%{box-shadow:0 0 0 0 rgba(99,102,241,.5)}70%{box-shadow:0 0 0 12px rgba(99,102,241,0)}100%{box-shadow:0 0 0 0 rgba(99,102,241,0)}}
+/* ---- motion polish: additive, token-based, transform/opacity only, reduced-motion-safe ---- */
+@keyframes popInSpring{0%{opacity:0;transform:scale(.92) translateY(14px)}60%{opacity:1;transform:scale(1.008) translateY(0)}100%{transform:scale(1) translateY(0)}}
+@keyframes rowIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.chip:active{transform:scale(.95)}
+.chip.active{transform:translateY(-1px)}
+.input:focus,select.input:focus,textarea.input:focus{animation:ringPulse 1.4s ease-out 1}
+.hr-avatar{transition:transform .18s var(--ease-snappy)}
+tbody tr:hover .hr-avatar{transform:scale(1.08)}
+.stat-icon{transition:transform .25s var(--ease)}
+.stat-card:hover .stat-icon{transform:scale(1.06) rotate(-3deg)}
+.empty .e-icon{animation:floatGlow 6s ease-in-out infinite}
+.table-wrap tbody tr{animation:rowIn .3s var(--ease) backwards}
+.table-wrap tbody tr:nth-child(1){animation-delay:.02s}
+.table-wrap tbody tr:nth-child(2){animation-delay:.04s}
+.table-wrap tbody tr:nth-child(3){animation-delay:.06s}
+.table-wrap tbody tr:nth-child(4){animation-delay:.08s}
+.table-wrap tbody tr:nth-child(5){animation-delay:.10s}
+.table-wrap tbody tr:nth-child(n+6){animation-delay:.12s}
+.card:hover,.kb-card:hover{will-change:transform}
+.dash-widget.dragging{will-change:transform}
+.modal{will-change:transform,opacity}
 .hero{transition:box-shadow .4s var(--ease)}
 .hero:hover{border-color:var(--accent);box-shadow:var(--shadow)}/* stroke matches cards; no lift on a full-width banner */
 .hero::after{animation:floatGlow 7s ease-in-out infinite}
