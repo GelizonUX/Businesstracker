@@ -149,6 +149,7 @@ async function main() {
     d.getElementById('greet-name').value = 'Ira'; window.greetSaveName();
     ok('saving a name persists displayName + switches to a personalised hello', window.state.settings.displayName === 'Ira' && !!greetRoot.querySelector('[data-greet="hello"]') && /Ira/.test(greetRoot.innerHTML));
     ok('greeting is time-based', /Good (morning|afternoon|evening)/.test(greetRoot.innerHTML));
+    ok('greeting shows the business avatar + time badge (not a bare emoji)', /greet-initial|greet-logo/.test(greetRoot.innerHTML) && /greet-time/.test(greetRoot.innerHTML));
     window.dismissGreeting();
     ok('dismiss clears the greeting state (unblurs)', !d.body.classList.contains('greeting-on'));
     window.state.settings.displayName = '';
