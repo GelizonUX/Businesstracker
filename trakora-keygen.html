@@ -156,7 +156,7 @@ td.k{font-family:var(--mono);font-size:.8rem;white-space:nowrap}
   <div class="foot">
     Keys validate against the same formula built into your Trakora app. Keep this file private — anyone with it can mint keys.<br>
     <b>Privacy:</b> the cloud stores only a one-way <b>hash</b> of each buyer's key+email — no plaintext name or email, so even a readable record leaks no PII. Buyer details stay only in <b>this tool's local ledger</b> on your machine.<br><br>
-    <b>① Simple rules — paste these to start issuing right away</b> (Firebase → Realtime Database → Rules → Publish): <code>{ "rules": { "licenses": { "$key": { ".read": true, ".write": true } } } }</code><br>
+    <b>① Simple rules — paste these to start issuing right away</b> (Firebase → Realtime Database → Rules → Publish): <code id="simple-rules">{ "rules": { "licenses": { "$key": { ".read": true, ".write": true } } } }</code> <button type="button" style="font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:7px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:inherit;cursor:pointer" data-copy-simple>Copy rules</button><br>
     This lets you (and buyers' device activation) read &amp; write the licenses path. It's the quickest way to get selling. Trade-off: in theory someone could write their own license record (self-issue) — but no PII is exposed (it's all hashed), so the only risk is piracy, which is inherent to any client-side license. Fine for getting started.<br><br>
     <b>② Hardened rules — advanced, needs a Firebase admin secret</b>: <code>{ "rules": { "licenses": { ".read": false, ".write": false, "$key": { ".read": true, "devices": { ".write": true, "$device": { ".validate": "newData.hasChild('at') &amp;&amp; newData.child('at').isNumber() &amp;&amp; (!newData.hasChild('ua') || (newData.child('ua').isString() &amp;&amp; newData.child('ua').val().length &lt;= 200))" } } } } } }</code><br>
     These deny key-creation to the public (stops self-issued keys) — so <b>you must add your Firebase Database admin secret in Advanced settings</b> to issue (it bypasses the rules). Note: newer Firebase projects have database secrets disabled by default; if you don't have one, use the Simple rules above. After pasting either set, click “Test connection”.
@@ -283,6 +283,7 @@ function buyerMsg(){
   return 'Hi '+name+',\n\nThanks for your purchase! Here is your Trakora license key:\n\n'+key+'\n\nTo activate: open Trakora, enter this key and your email ('+email+'), and you are in.\n\n— '+cfg().seller;
 }
 function copy(text,okEl){ (navigator.clipboard?navigator.clipboard.writeText(text):Promise.reject()).then(function(){ if(okEl){var t=okEl.textContent;okEl.textContent='Copied ✓';setTimeout(function(){okEl.textContent=t;},1400);} },function(){ window.prompt('Copy:',text); }); }
+(function(){ var b=document.querySelector('[data-copy-simple]'); if(b) b.addEventListener('click',function(){ var c=document.getElementById('simple-rules'); copy(c?c.textContent:'',b); }); })();
 $('copykey').addEventListener('click',function(){ copy($('result').getAttribute('data-key'),this); });
 $('copymsg').addEventListener('click',function(){ copy(buyerMsg(),this); });
 $('mailbtn').addEventListener('click',function(){
