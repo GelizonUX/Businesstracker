@@ -126,7 +126,7 @@ a{color:var(--accent);text-decoration:none}
    ============================================================ */
 .app{display:flex;min-height:100vh}
 .sidebar{
-  position:fixed;inset:0 auto 0 0;width:232px;z-index:60;
+  position:fixed;inset:0 auto 0 0;width:calc(248px*var(--nav-scale,1));z-index:60;
   background:var(--bg-sidebar);
   display:flex;flex-direction:column;
   padding:18px 12px;
@@ -139,7 +139,7 @@ a{color:var(--accent);text-decoration:none}
 .brand-sub{font-size:.66rem;color:var(--sidebar-text);text-transform:uppercase;letter-spacing:.14em;font-weight:600}
 
 .nav{flex:1;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:2px}
-.nav-section{font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--sidebar-text);opacity:.85;padding:14px 12px 5px}
+.nav-section{font-size:calc(.64rem*var(--nav-scale,1));font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--sidebar-text);opacity:.85;padding:14px 12px 5px}
 .nav-sec-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;border-radius:7px;transition:opacity .15s}
 .nav-sec-toggle:hover{opacity:1}
 .nav-chev{transition:transform .2s var(--ease);display:inline-flex}
@@ -147,7 +147,7 @@ a{color:var(--accent);text-decoration:none}
 .nav-item{
   display:flex;align-items:center;gap:10px;
   padding:6.5px 11px;border-radius:9px;
-  color:#fff;font-size:.9rem;font-weight:500;
+  color:#fff;font-size:calc(.9rem*var(--nav-scale,1));font-weight:500;
   transition:background .15s,color .15s,transform .1s;
   width:100%;text-align:left;position:relative;
 }
@@ -162,7 +162,7 @@ a{color:var(--accent);text-decoration:none}
 .nav-item:hover{background:var(--sidebar-hover);color:#fff}
 /* .nav-item.active is defined once, later, as a single source of truth */
 .nav-item.active::before{content:'';position:absolute;left:-12px;top:20%;bottom:20%;width:3px;border-radius:0 3px 3px 0;background:var(--accent-grad)}
-.nav-item svg{width:17px;height:17px;flex-shrink:0;opacity:.85}
+.nav-item svg{width:calc(17px*var(--nav-scale,1));height:calc(17px*var(--nav-scale,1));flex-shrink:0;opacity:.85}
 .nav-badge{margin-left:auto;background:var(--risk);color:#fff;font-size:.64rem;font-weight:700;padding:1px 7px;border-radius:99px;min-width:18px;text-align:center}
 
 .sidebar-foot{padding:12px 10px 2px;border-top:1px solid rgba(255,255,255,.08);margin-top:10px}
@@ -170,7 +170,7 @@ a{color:var(--accent);text-decoration:none}
 .biz-chip .avatar{width:30px;height:30px;border-radius:8px;background:var(--accent-grad);display:grid;place-items:center;color:#fff;font-weight:700;font-size:.8rem;flex-shrink:0}
 .biz-chip b{color:#fff;display:block;font-size:.84rem;line-height:1.2;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-.main{flex:1;margin-left:232px;min-width:0;padding:20px 26px 60px;animation:fadeIn .35s var(--ease)}
+.main{flex:1;margin-left:calc(248px*var(--nav-scale,1));min-width:0;padding:20px 26px 60px;animation:fadeIn .35s var(--ease)}
 
 /* topbar */
 .topbar{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
@@ -577,7 +577,12 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .kb-col h4{font-size:.74rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--text-2);padding:2px 6px 8px;display:flex;justify-content:space-between}
 .kb-card{background:var(--bg-card);border:1px solid var(--border);border-radius:11px;padding:10px 12px;margin-bottom:8px;cursor:grab;box-shadow:var(--shadow-sm);transition:box-shadow .25s var(--ease),transform .25s var(--ease),border-color .25s}
 /* kb-card inherits the unified .card hover */
-.kb-card.dragging{opacity:.5}
+.kb-card.dragging{opacity:.5;cursor:grabbing}
+.kb-card:active{cursor:grabbing}
+/* while ANY drag is in progress: kill text-selection + suppress hover lift so nothing jitters under the pointer */
+body.dragging-active{cursor:grabbing;-webkit-user-select:none;user-select:none}
+body.dragging-active .card:hover,body.dragging-active .kb-card:hover{transform:none;box-shadow:var(--shadow-sm);border-color:var(--border)}
+body.dragging-active .kb-col{transition:outline-color .12s var(--ease)}
 @media (max-width:900px){.kb-board{grid-template-columns:repeat(2,1fr)}}
 /* bulk bar */
 .bulk-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--accent-soft);border:1px solid var(--accent);border-radius:12px;padding:9px 14px;margin-bottom:14px;animation:fadeUp .25s var(--ease)}
@@ -791,11 +796,31 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .sidebar-cta svg{width:16px;height:16px;flex-shrink:0}
 .sidebar-cta>span:first-of-type{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
 .cta-beta{font-size:.58rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,.26);padding:1px 6px;border-radius:99px;flex-shrink:0}
+/* sidebar edit mode: text-size + reorder */
+.nav-edit-open{display:flex;align-items:center;gap:8px;width:100%;margin:0 0 8px;padding:7px 11px;border-radius:9px;background:transparent;border:1px dashed var(--sidebar-border,rgba(255,255,255,.16));color:var(--sidebar-text);font-size:.78rem;font-weight:600;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+.nav-edit-open:hover{background:rgba(255,255,255,.06);color:#fff;border-color:rgba(255,255,255,.32)}
+.nav-edit-open svg{width:14px;height:14px;flex-shrink:0}
+.nav-edit-bar{margin:0 0 8px;padding:10px;border-radius:11px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+.nav-edit-size{display:flex;align-items:center;gap:8px}
+.nav-edit-lbl{flex:1;font-size:.74rem;font-weight:600;color:var(--sidebar-text);text-transform:uppercase;letter-spacing:.06em}
+.nav-edit-val{font-size:.74rem;font-weight:700;color:#fff;min-width:34px;text-align:center;font-variant-numeric:tabular-nums}
+.nav-edit-step{width:26px;height:26px;border-radius:7px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#fff;font-weight:700;font-size:.82rem;cursor:pointer;display:grid;place-items:center;transition:background .12s}
+.nav-edit-step:hover{background:rgba(255,255,255,.16)}
+.nav-edit-done{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:9px;padding:7px;border-radius:8px;background:var(--accent);color:#fff;font-weight:700;font-size:.78rem;cursor:pointer;transition:filter .12s}
+.nav-edit-done:hover{filter:brightness(1.08)}
+.nav-edit-done svg{width:13px;height:13px}
+.nav-edit-hint{margin:9px 0 0;font-size:.68rem;line-height:1.4;color:var(--sidebar-text);opacity:.85}
+.nav-sec-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-sec-edit{background:rgba(255,255,255,.05);border-radius:7px}
+.nav-sec-move{display:inline-flex;gap:3px;flex-shrink:0}
+.nav-move-btn{width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff;cursor:pointer;display:grid;place-items:center;transition:background .12s}
+.nav-move-btn:hover{background:rgba(255,255,255,.2)}
+.nav-move-btn svg{width:12px;height:12px;opacity:.9}
 
 /* sidebar: kill horizontal scroll + truncate long labels */
 .nav{overflow-x:hidden}
 .nav-item{min-width:0}
-.nav-item>span:not(.nav-badge){flex:1;min-width:0;white-space:normal;line-height:1.25;overflow-wrap:break-word;word-break:break-word}
+.nav-item>span:not(.nav-badge):not(.nav-fav){flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
 
 /* color-coded navigation (per section) */
 .nav-item svg{color:#fff}
@@ -1429,7 +1454,7 @@ var DEFAULT_STATE={
     productCats:['Candle','Keychain','Gift Box'], productAttrs:['Scent','Color'],
     moduleLabels:{}, bizAddress:'', bizPhone:'', onboarded:false, lang:'en', payQR:'', payQRLabel:'',
     collapsedNav:[], taskLanes:['To do','Doing','Done'], bizLogo:'', tourDone:false, favorites:[], sectionOrder:[],
-    country:'', taxLabel:'', locale:'', sectionColors:{}, sectionLabels:{},
+    country:'', taxLabel:'', locale:'', sectionColors:{}, sectionLabels:{}, navScale:1,
     fx:{ auto:true, updated:null, phpPer:{USD:58.5,EUR:63.5,GBP:74,AUD:38,CAD:42.5,SGD:43.5,AED:16,JPY:0.39} } },
   invoices:[],  // {id,number,client,desc,amount,issueDate,dueDate,status,paidDate,createdAt}
   recurring:[], // {id,type,amount,category,note,client,day,active,lastPosted,startMonth}
@@ -2030,7 +2055,7 @@ var ROUTES=[
   {id:'roadmap',label:'Roadmap',icon:'roadmap',section:'Execution'},
   {id:'tasks',label:'Tasks',icon:'tasks',section:'Execution'},
   {id:'clients',label:'Clients',icon:'clients',section:'Workspace'},
-  {id:'Employees',icon:'idcard',section:'Workspace'},
+  {id:'manpower',label:'Manpower',icon:'idcard',section:'Workspace'},
   {id:'notes',label:'Notes',icon:'notes',section:'Workspace'},
   {id:'reviews',label:'Reviews & Strategy',icon:'reviews',section:'Workspace'},
   {id:'settings',label:'Settings & Data',icon:'settings',section:'System'}
@@ -2126,7 +2151,8 @@ var ui={
   clientFilter:'all',
   goalFilter:'open',
   entryFormType:'income',
-  financeTab:'entries'
+  financeTab:'entries',
+  navEdit:false
 };
 
 var lastRenderRoute=null;
@@ -2164,6 +2190,12 @@ function sidebarSectionOrder(){
   base.forEach(function(n){ if(order.indexOf(n)<0) order.push(n); });
   return order;
 }
+function clampNavScale(v){ v=parseFloat(v); if(!isFinite(v)) v=1; return Math.max(0.8,Math.min(1.3,Math.round(v*100)/100)); }
+function setNavScale(dir){
+  var cur=clampNavScale(state.settings.navScale);
+  state.settings.navScale=clampNavScale(cur+(dir>0?0.1:-0.1));
+  save(); renderSidebar();
+}
 function moveSidebarSection(name,dir){
   var order=sidebarSectionOrder();
   var i=order.indexOf(name); if(i<0) return;
@@ -2173,6 +2205,8 @@ function moveSidebarSection(name,dir){
 }
 function renderSidebar(){
   var route=currentRoute();
+  document.documentElement.style.setProperty('--nav-scale',String(clampNavScale(state.settings.navScale)));
+  var editing=!!ui.navEdit;
   var openTasks=state.tasks.filter(function(t){ var d=daysUntil(t.deadline); return !t.done&&d!=null&&d<0; }).length;
   var bl=state.settings.bizLogo;
   var html='<div class="brand">'+
@@ -2180,12 +2214,20 @@ function renderSidebar(){
        :'<div class="brand-logo">'+icon('logo')+'</div>')+
     '<div><div class="brand-name" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(state.settings.businessName||'Trakora')+'</div><div class="brand-sub">Command Center</div></div></div>'+
     '<button class="sidebar-cta" data-action="go-import" title="Import a spreadsheet — opens Data & Sync">'+icon('upload')+'<span>Smart CSV import</span><span class="cta-beta">Beta</span></button>'+
-    '<nav class="nav">';
+    (editing
+      ? '<div class="nav-edit-bar"><div class="nav-edit-size"><span class="nav-edit-lbl">Menu size</span>'+
+          '<button class="nav-edit-step" data-action="nav-size" data-dir="-1" title="Smaller" aria-label="Smaller text">A&minus;</button>'+
+          '<span class="nav-edit-val">'+Math.round(clampNavScale(state.settings.navScale)*100)+'%</span>'+
+          '<button class="nav-edit-step" data-action="nav-size" data-dir="1" title="Larger" aria-label="Larger text">A+</button></div>'+
+          '<button class="nav-edit-done" data-action="nav-edit-toggle">'+icon('check',13)+' Done</button>'+
+          '<p class="nav-edit-hint">Use the arrows on each section to reorder. Pin items with the ★ that appears on hover.</p></div>'
+      : '<button class="nav-edit-open" data-action="nav-edit-toggle" title="Resize text & reorder the menu">'+icon('edit',13)+'<span>Edit menu</span></button>')+
+    '<nav class="nav'+(editing?' nav-editing':'')+'">';
   var labels=state.settings.moduleLabels||{};
   var collapsed=state.settings.collapsedNav||[];
   var allVis=visibleRoutes();
   function navItemHTML(r){
-    var rlbl=labels[r.id]||tr(r.label);
+    var rlbl=labels[r.id]||tr(r.label)||r.label||r.id;
     var fav=(state.settings.favorites||[]).indexOf(r.id)>=0;
     return '<button class="nav-item'+(route===r.id?' active':'')+'" data-action="nav" data-route="'+r.id+'" title="'+esc(rlbl)+'">'+icon(r.icon)+'<span>'+esc(rlbl)+'</span>'+
       (r.id==='tasks'&&openTasks>0?'<span class="nav-badge">'+openTasks+'</span>':'')+
@@ -2214,18 +2256,21 @@ function renderSidebar(){
     // Section headers are white by default; honor a user's custom color only if they set one.
     var secOverride=(state.settings.sectionColors||{})[sec.name];
     var hdrCol=secOverride?safeColor(secOverride,'#fff'):'#ffffff';
-    html+='<div class="nav-section nav-sec-toggle" data-action="nav-sec-toggle" data-sec="'+esc(sec.name)+'" role="button" style="color:'+hdrCol+'">'+esc(sectionLabelOf(sec.name))+
-      '<span class="nav-chev'+(isCollapsed?' closed':'')+'">'+icon('down-chev',10)+'</span></div>';
-    if(isCollapsed) return;
+    html+='<div class="nav-section nav-sec-toggle'+(editing?' nav-sec-edit':'')+'" '+(editing?'':'data-action="nav-sec-toggle" ')+'data-sec="'+esc(sec.name)+'" role="button" style="color:'+hdrCol+'"><span class="nav-sec-name">'+esc(sectionLabelOf(sec.name))+'</span>'+
+      (editing
+        ? '<span class="nav-sec-move"><button class="nav-move-btn" data-action="sec-move" data-sec="'+esc(sec.name)+'" data-dir="up" title="Move up" aria-label="Move section up">'+icon('up',12)+'</button>'+
+            '<button class="nav-move-btn" data-action="sec-move" data-sec="'+esc(sec.name)+'" data-dir="down" title="Move down" aria-label="Move section down">'+icon('down',12)+'</button></span>'
+        : '<span class="nav-chev'+(isCollapsed?' closed':'')+'">'+icon('down-chev',10)+'</span>')+'</div>';
+    if(isCollapsed&&!editing) return;
     sec.items.forEach(function(r){ html+=navItemHTML(r); });
   });
   var modsActive=route.indexOf('custom-')===0;
   var modsCollapsed=collapsed.indexOf('My Modules')>=0&&!modsActive;
   var modOverride=(state.settings.sectionColors||{})['My Modules'];
   var modHdrCol=modOverride?safeColor(modOverride,'#fff'):'#ffffff';
-  html+='<div class="nav-section nav-sec-toggle" data-action="nav-sec-toggle" data-sec="My Modules" role="button" style="color:'+modHdrCol+'">'+esc(sectionLabelOf('My Modules'))+
-    '<span class="nav-chev'+(modsCollapsed?' closed':'')+'">'+icon('down-chev',10)+'</span></div>';
-  if(!modsCollapsed){
+  html+='<div class="nav-section nav-sec-toggle" '+(editing?'':'data-action="nav-sec-toggle" ')+'data-sec="My Modules" role="button" style="color:'+modHdrCol+'"><span class="nav-sec-name">'+esc(sectionLabelOf('My Modules'))+'</span>'+
+    (editing?'':'<span class="nav-chev'+(modsCollapsed?' closed':'')+'">'+icon('down-chev',10)+'</span>')+'</div>';
+  if(!modsCollapsed||editing){
     (state.customModules||[]).forEach(function(m){
       html+='<button class="nav-item'+(route==='custom-'+m.id?' active':'')+'" data-action="nav" data-route="custom-'+m.id+'" title="'+esc(m.name)+'">'+icon(m.icon||'notes')+'<span>'+esc(m.name)+'</span></button>';
     });
@@ -4477,6 +4522,8 @@ document.addEventListener('click',function(e){
   if(action==='nav'){ nav(el.getAttribute('data-route')); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); return; }
   if(action==='fav-toggle'){ e.stopPropagation(); var fid=el.getAttribute('data-route'); var f=state.settings.favorites=state.settings.favorites||[]; var ix=f.indexOf(fid); if(ix>=0){ f.splice(ix,1); toast('Removed from Favorites.'); } else { f.push(fid); toast('Pinned to Favorites ★'); } save(); renderSidebar(); return; }
   if(action==='sec-move'){ var sn=el.getAttribute('data-sec'), dir=el.getAttribute('data-dir')==='up'?-1:1; moveSidebarSection(sn,dir); return; }
+  if(action==='nav-edit-toggle'){ ui.navEdit=!ui.navEdit; renderSidebar(); return; }
+  if(action==='nav-size'){ setNavScale(el.getAttribute('data-dir')==='1'?1:-1); return; }
   if(action==='go-import'){ ui.settingsTab='data'; nav('settings'); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); setTimeout(function(){ var c=document.querySelector('[data-action="csv-import"]'); if(c&&c.scrollIntoView) c.scrollIntoView({behavior:'smooth',block:'center'}); },120); return; }
   if(action==='open-sidebar'){ byId('sidebar').classList.add('open'); byId('scrim').classList.add('show'); return; }
   if(action==='toggle-nav-collapse'){ state.settings.navCollapsed=!state.settings.navCollapsed; save(); applyNavCollapse(); render(); return; }
@@ -7078,7 +7125,9 @@ document.addEventListener('dragover',function(e){
 });
 document.addEventListener('dragleave',function(e){
   var col=e.target.closest&&e.target.closest('[data-drop-status]');
-  if(col) col.classList.remove('drag-over');
+  // only un-highlight when the pointer actually leaves the column — not when it
+  // crosses onto a child element (which would otherwise flicker the outline)
+  if(col && !col.contains(e.relatedTarget)) col.classList.remove('drag-over');
 });
 document.addEventListener('drop',function(e){
   var col=e.target.closest&&e.target.closest('[data-drop-status]');
@@ -8526,7 +8575,7 @@ document.addEventListener('dragover',function(e){
 });
 document.addEventListener('dragleave',function(e){
   var col=e.target.closest&&e.target.closest('[data-task-drop]');
-  if(col) col.classList.remove('drag-over');
+  if(col && !col.contains(e.relatedTarget)) col.classList.remove('drag-over');
 });
 document.addEventListener('drop',function(e){
   var col=e.target.closest&&e.target.closest('[data-task-drop]');
@@ -8540,6 +8589,14 @@ document.addEventListener('drop',function(e){
     if(t.done) toast('Nice — task done.');
   }
 });
+/* ---- global drag polish: no text-selection, no hover jiggle, no leftover highlights ---- */
+document.addEventListener('dragstart',function(){ document.body.classList.add('dragging-active'); });
+function clearDragPolish(){
+  document.body.classList.remove('dragging-active');
+  Array.prototype.forEach.call(document.querySelectorAll('.drag-over'),function(c){ c.classList.remove('drag-over'); });
+}
+document.addEventListener('dragend',clearDragPolish);
+document.addEventListener('drop',clearDragPolish);
 /* task view wiring */
 document.addEventListener('click',function(e){
   var el=e.target.closest('[data-action]');

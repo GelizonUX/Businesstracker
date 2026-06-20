@@ -198,10 +198,27 @@ async function main() {
     // foundation polish: independent sidebar scroll, full-readable labels, no licensee watermark
     ok('sidebar scrolls independently (overscroll contained)', /\.nav\{[^}]*overscroll-behavior:contain/.test(html));
     (function () {
-      const m = html.match(/\.nav-item>span:not\(\.nav-badge\)\{([^}]*)\}/);
+      const m = html.match(/\.nav-item>span:not\(\.nav-badge\):not\(\.nav-fav\)\{([^}]*)\}/);
       const rule = m ? m[1] : '';
-      ok('sidebar labels wrap fully with no truncation (no clamp/ellipsis)', /white-space:normal/.test(rule) && /overflow-wrap:break-word/.test(rule) && !/-webkit-line-clamp/.test(rule) && !/text-overflow:ellipsis/.test(rule));
+      ok('sidebar labels render on one line (nowrap + ellipsis, no wrap)', /white-space:nowrap/.test(rule) && /text-overflow:ellipsis/.test(rule) && !/-webkit-line-clamp/.test(rule) && !/white-space:normal/.test(rule));
     })();
+    // adjustable menu size scales both text and icon via --nav-scale, and the sidebar width tracks it
+    ok('sidebar font + icon + width scale with --nav-scale', /font-size:calc\(\.9rem\*var\(--nav-scale/.test(html) && /\.nav-item svg\{width:calc\(17px\*var\(--nav-scale/.test(html) && /\.sidebar\{[^}]*width:calc\(248px\*var\(--nav-scale/.test(html));
+    (function () {
+      window.state.settings.navScale = 1;
+      window.setNavScale(1);
+      ok('menu size control increases the scale (clamped)', window.state.settings.navScale === 1.1);
+      for (let i = 0; i < 10; i++) window.setNavScale(1);
+      ok('menu size is clamped to a sane maximum', window.state.settings.navScale <= 1.3);
+      window.state.settings.navScale = 1;
+      window.ui.navEdit = true; window.renderSidebar();
+      const sbEdit = d.getElementById('sidebar').innerHTML;
+      ok('edit mode shows size control + section reorder arrows', /data-action="nav-size"/.test(sbEdit) && /data-action="sec-move"/.test(sbEdit) && /nav-edit-bar/.test(sbEdit));
+      window.ui.navEdit = false; window.renderSidebar();
+      ok('non-edit mode shows the Edit menu button below the CSV import', /data-action="nav-edit-toggle"/.test(d.getElementById('sidebar').innerHTML));
+    })();
+    // Manpower must be present and routable (regression: it was blanked to id:Employees with no label)
+    ok('Manpower nav item is restored (labelled + routes to manpower view)', window.ROUTES.some((r) => r.id === 'manpower' && r.label === 'Manpower') && !window.ROUTES.some((r) => r.id === 'Employees'));
     ok('documents carry no "Licensed to" watermark', window.licTag() === '' && !/· Licensed to /.test((function(){ try { return document.getElementById('sidebar').innerHTML; } catch(_) { return ''; } })()));
     window.dismissGreeting();
     ok('dismiss clears the greeting state (unblurs)', !d.body.classList.contains('greeting-on'));
