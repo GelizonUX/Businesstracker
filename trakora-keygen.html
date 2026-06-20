@@ -92,10 +92,16 @@ td.k{font-family:var(--mono);font-size:.8rem;white-space:nowrap}
     <span class="seller-tag">Seller tool</span>
   </div>
 
-  <!-- connection -->
+  <!-- offline-first banner -->
+  <div class="card" style="border:1px solid rgba(124,108,255,.45);background:linear-gradient(135deg,rgba(124,108,255,.12),transparent)">
+    <h2 style="margin-bottom:4px">⚡ Recommended: Offline keys — no Firebase needed</h2>
+    <div class="hint">Use <b>“Generate key (offline)”</b> in step ② below. It signs the key on this device and the buyer’s app verifies it offline — <b>no database, no rules, no “Test connection”.</b> The Firebase section below is <b>optional</b>, only for cloud device-tracking; if you see “rules deny write” there, you can ignore it and use offline keys.</div>
+  </div>
+
+  <!-- connection (OPTIONAL — cloud path only) -->
   <div class="card">
-    <h2>① Connection</h2>
-    <div class="hint">Confirm the tool can reach your Firebase database and that the rules allow read + write on the licenses path.</div>
+    <h2>① Connection <span style="font-size:.7rem;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.06em">· optional (cloud only)</span></h2>
+    <div class="hint">Only needed if you want cloud device-tracking. For offline keys you can skip this entirely. Confirm the tool can reach your Firebase database and that the rules allow read + write on the licenses path.</div>
     <div class="actions">
       <button class="btn btn-ghost" id="test"><span class="statusdot" id="dot"></span>Test connection</button>
       <span id="conn" style="align-self:center;font-size:.82rem;color:var(--txt2)"></span>
