@@ -138,7 +138,7 @@ a{color:var(--accent);text-decoration:none}
 .brand-name{font-weight:800;font-size:1.06rem;color:#fff;letter-spacing:-.02em}
 .brand-sub{font-size:.66rem;color:var(--sidebar-text);text-transform:uppercase;letter-spacing:.14em;font-weight:600}
 
-.nav{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.nav{flex:1;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:2px}
 .nav-section{font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--sidebar-text);opacity:.85;padding:14px 12px 5px}
 .nav-sec-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;border-radius:7px;transition:opacity .15s}
 .nav-sec-toggle:hover{opacity:1}
@@ -785,7 +785,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 /* sidebar: kill horizontal scroll + truncate long labels */
 .nav{overflow-x:hidden}
 .nav-item{min-width:0}
-.nav-item>span:not(.nav-badge){flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-item>span:not(.nav-badge){flex:1;min-width:0;overflow:hidden;white-space:normal;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 
 /* color-coded navigation (per section) */
 .nav-item svg{color:#fff}
@@ -1183,7 +1183,7 @@ function licenseInfo(){
   var l=EMBEDDED_LICENSE;
   return {name:l.name,email:l.email||'',key:l.key||'',valid:!!(l.key&&l.name)};
 }
-function licTag(){ var l=licenseInfo(); return l?' · Licensed to '+esc(l.name):''; }
+function licTag(){ return ''; } /* documents carry no ownership/licensee watermark */
 
 /* ---------- activation gate (Firebase-verified paid key) ----------
    Only keys the seller registers in Firebase can unlock the app.
@@ -2197,7 +2197,7 @@ function renderSidebar(){
   html+='</nav><div class="sidebar-foot"><div class="biz-chip">'+
     (bl?'<img src="'+esc(bl)+'" alt="" style="width:30px;height:30px;border-radius:8px;object-fit:cover;flex-shrink:0">'
        :'<div class="avatar">'+esc((state.settings.businessName||'B').charAt(0).toUpperCase())+'</div>')+
-    '<div><b>'+esc(state.settings.businessName||'My Business')+'</b><span>'+(licenseInfo()?'Licensed to '+esc(licenseInfo().name):'Local data · private')+'</span></div></div></div>';
+    '<div><b>'+esc(state.settings.businessName||'My Business')+'</b><span>Local · private</span></div></div></div>';
   var sb=byId('sidebar');
   var navEl=sb.querySelector('.nav');
   var keepScroll=navEl?navEl.scrollTop:0;
@@ -3360,6 +3360,9 @@ function hrContractPrint(empId,cid){
   var sig=c.signedAt?'<div style="margin-top:40px">'+(c.signatureImg?'<img src="'+esc(c.signatureImg)+'" style="height:70px">':'<div style="font-family:cursive;font-size:1.6rem">'+esc(c.signedBy||'')+'</div>')+'<div style="border-top:1px solid #000;width:240px;padding-top:4px;font-size:.8rem">'+esc(c.signedBy||'')+' · '+fmtDate(c.signedAt)+'</div></div>':'';
   printDoc('<div class="pr-doc"><div style="max-width:720px;margin:0 auto">'+sanitizeContractHTML(c.html||'')+sig+'</div></div>');
 }
+/* after an in-record action, save + refresh the page behind, and RE-OPEN the employee record
+   so the user stays exactly where they were working (no drop back to the directory). */
+function hrStay(empId){ save(); if(typeof render==='function') render(); var e=hrEmp(empId); if(e) employeeDetail(e); return false; }
 function hrValeAddModal(empId){
   var body='<input type="hidden" name="employeeId" value="'+empId+'">'+
     '<div class="form-row"><div class="field"><label>Amount ('+esc(state.settings.currency)+') *</label><input class="input" type="number" step="any" min="0" name="amount" required placeholder="e.g. 500"></div>'+
@@ -3368,14 +3371,14 @@ function hrValeAddModal(empId){
   openModal('Add cash advance (vale)',body,{onSubmit:function(form){
     var amt=num(fv(form,'amount')); if(amt<=0){ toast('Enter an amount.','error'); return false; }
     state.hrAdvances.push({id:uid(),employeeId:fv(form,'employeeId'),date:fv(form,'date')||todayISO(),amount:amt,reason:fv(form,'reason'),repaid:0});
-    toast('Vale recorded.'); return true;
+    toast('Vale recorded.'); return hrStay(fv(form,'employeeId'));
   }});
 }
 function hrValeRepayModal(advId){
   var a=(state.hrAdvances||[]).find(function(x){return x.id===advId;}); if(!a) return;
   var left=Math.max(0,num(a.amount)-num(a.repaid));
   var body='<p class="sub" style="margin-bottom:10px">Outstanding: <b>'+fmtMoney(left)+'</b></p><div class="field"><label>Repay amount ('+esc(state.settings.currency)+')</label><input class="input" type="number" step="any" min="0" name="amt" value="'+left+'"></div>';
-  openModal('Repay vale',body,{onSubmit:function(form){ var amt=num(fv(form,'amt')); a.repaid=Math.min(num(a.amount),num(a.repaid)+Math.max(0,amt)); toast('Repayment recorded.'); return true; }});
+  openModal('Repay vale',body,{onSubmit:function(form){ var amt=num(fv(form,'amt')); a.repaid=Math.min(num(a.amount),num(a.repaid)+Math.max(0,amt)); toast('Repayment recorded.'); return hrStay(a.employeeId); }});
 }
 function hrPayoutModal(empId){
   var e=hrEmp(empId); if(!e) return;
@@ -3395,7 +3398,7 @@ function hrPayoutModal(empId){
     state.hrPayouts.push({id:uid(),employeeId:empId,date:todayISO(),periodLabel:fv(form,'periodLabel'),daysWorked:days,gross:gross,deductions:ded,valeRepaid:valeRep,bonus:bonus,net:net});
     // apply vale repayment across outstanding advances (oldest first)
     if(valeRep>0){ var rem=valeRep; (state.hrAdvances||[]).filter(function(a){return a.employeeId===empId;}).forEach(function(a){ if(rem<=0) return; var lo=Math.max(0,num(a.amount)-num(a.repaid)); var pay=Math.min(lo,rem); a.repaid=num(a.repaid)+pay; rem-=pay; }); }
-    toast('Payout recorded — net '+fmtMoney(net)+'.'); return true;
+    toast('Payout recorded — net '+fmtMoney(net)+'.'); return hrStay(empId);
   }});
 }
 function hrCustomizeModal(){

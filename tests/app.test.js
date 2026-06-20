@@ -184,6 +184,10 @@ async function main() {
     window.state.settings.sectionOrder = []; window.moveSidebarSection('Shop', -1);
     ok('moving a section persists a custom order', Array.isArray(window.state.settings.sectionOrder) && window.state.settings.sectionOrder.length > 0 && window.state.settings.sectionOrder.indexOf('Shop') < window.state.settings.sectionOrder.indexOf('Money'));
     window.state.settings.favorites = []; window.state.settings.sectionOrder = [];
+    // foundation polish: independent sidebar scroll, full-readable labels, no licensee watermark
+    ok('sidebar scrolls independently (overscroll contained)', /\.nav\{[^}]*overscroll-behavior:contain/.test(html));
+    ok('sidebar labels wrap instead of hard-truncating', /\.nav-item>span:not\(\.nav-badge\)\{[^}]*-webkit-line-clamp:2/.test(html));
+    ok('documents carry no "Licensed to" watermark', window.licTag() === '' && !/· Licensed to /.test((function(){ try { return document.getElementById('sidebar').innerHTML; } catch(_) { return ''; } })()));
     window.dismissGreeting();
     ok('dismiss clears the greeting state (unblurs)', !d.body.classList.contains('greeting-on'));
     window.state.settings.displayName = '';
