@@ -3275,7 +3275,7 @@ function employeeDetail(emp){
   var pays=(state.hrPayouts||[]).filter(function(p){return p.employeeId===emp.id;}).slice().reverse();
   var dHead=emp.photo?'<img class="hr-detail-photo" src="'+esc(emp.photo)+'" alt="">':'<span class="hr-avatar" style="width:44px;height:44px;border-radius:50%;font-size:1.05rem;background:'+hexA(col,.18)+';color:'+col+'">'+esc((emp.name||'?').charAt(0).toUpperCase())+'</span>';
   var metaBits=[]; if(emp.contact) metaBits.push(esc(emp.contact)); if(emp.address) metaBits.push(esc(emp.address));
-  var body='<div class="lead-card" style="padding:0;border:none;box-shadow:none"><div class="card-head" style="margin-bottom:12px">'+dHead+'<div class="lead-copy"><h3 style="margin:0">'+esc(emp.name)+'</h3><span class="sub">'+esc(emp.role||'—')+' · '+esc(emp.employmentType||'')+'</span>'+(metaBits.length?'<span class="sub" style="display:block;margin-top:1px">'+metaBits.join(' · ')+'</span>':'')+'</div></div></div>'+
+  var body='<div class="lead-card" style="padding:0;border:none;box-shadow:none"><div class="card-head" style="margin-bottom:12px">'+dHead+'<div class="lead-copy"><h3 style="margin:0">'+esc(emp.name)+'</h3><span class="sub">'+esc(emp.role||'—')+(emp.employmentType?' · '+esc(emp.employmentType):'')+'</span>'+(metaBits.length?'<span class="sub" style="display:block;margin-top:1px">'+metaBits.join(' · ')+'</span>':'')+'</div></div></div>'+
     '<div class="grid grid-2" style="gap:9px">'+
       '<div class="card" style="padding:11px 13px"><div class="sub">Pay</div><b>'+(emp.payRate?fmtMoney(num(emp.payRate))+' / '+esc(String(emp.payBasis||'').toLowerCase()):'—')+'</b><div class="sub" style="margin-top:2px">≈ '+fmtMoney(hrMonthlyPay(emp))+'/mo</div></div>'+
       '<div class="card" style="padding:11px 13px"><div class="sub">13th-month accrued</div><b>'+fmtMoney(hrThirteenth(emp))+'</b><div class="sub" style="margin-top:2px">YTD basic ÷ 12</div></div>'+
@@ -3287,7 +3287,7 @@ function employeeDetail(emp){
       (pays.length?'<div class="table-wrap"><table><thead><tr><th>Period</th><th style="text-align:right">Gross</th><th style="text-align:right">Net</th><th>Date</th></tr></thead><tbody>'+pays.map(function(p){return '<tr><td>'+esc(p.periodLabel||'—')+'</td><td class="num" style="text-align:right">'+fmtMoney(num(p.gross))+'</td><td class="num" style="text-align:right;color:var(--income)">'+fmtMoney(num(p.net))+'</td><td>'+fmtDate(p.date)+'</td></tr>';}).join('')+'</tbody></table></div>':'<p class="sub">No payouts yet.</p>')+'</div>'+
     ((emp.customFields||[]).length?'<div class="card mt" style="padding:12px 14px"><div class="card-head" style="margin-bottom:6px"><h3 style="font-size:.92rem">Details</h3></div>'+emp.customFields.map(function(f){return '<div class="list-row"><span class="sub" style="flex:1">'+esc(f.label)+'</span><b style="font-size:.86rem">'+esc(f.type==='money'&&f.value?fmtMoney(num(f.value)):(f.value||'—'))+'</b></div>';}).join('')+'</div>':'')+
     hrBankHTML(emp)+hrDocsHTML(emp)+hrContractsHTML(emp)+
-    '<div style="display:flex;gap:8px;margin-top:14px"><button class="btn btn-ghost" data-action="hr-edit" data-id="'+emp.id+'">'+icon('edit')+' Edit</button></div>';
+    '<div style="display:flex;gap:8px;margin-top:14px"><button class="btn btn-ghost" data-action="hr-edit" data-id="'+emp.id+'">'+icon('edit')+' Edit</button><span class="spacer"></span><button class="btn btn-ghost danger" data-action="hr-del" data-id="'+emp.id+'">'+icon('trash')+' Delete</button></div>';
   openModal(esc(emp.name),body,{wide:true});
 }
 function hrFileSize(n){ n=num(n); if(n<1024) return n+' B'; if(n<1048576) return (n/1024).toFixed(0)+' KB'; return (n/1048576).toFixed(1)+' MB'; }
@@ -3307,17 +3307,33 @@ function hrContractsHTML(emp){
   return '<div class="card mt" style="padding:12px 14px"><div class="card-head" style="margin-bottom:8px"><h3 style="font-size:.92rem">'+icon('pen',15)+' Contracts</h3><span class="spacer"></span><button class="btn btn-sm btn-primary" data-action="hr-contract-new" data-id="'+emp.id+'">'+icon('plus')+' New contract</button></div>'+
     (cs.length?cs.map(function(c){return '<div class="list-row"><div style="flex:1;min-width:0"><b style="font-size:.86rem">'+esc(c.title||'Untitled contract')+'</b> '+(c.signedAt?'<span class="badge good">signed</span>':'<span class="badge neutral">draft</span>')+'<div class="sub">'+(c.signedAt?'Signed by '+esc(c.signedBy||'—')+' · '+fmtDate(c.signedAt):'Updated '+fmtDate(c.updatedAt||c.createdAt))+'</div></div><button class="btn btn-sm btn-ghost" data-action="hr-contract-open" data-id="'+emp.id+'" data-c="'+c.id+'">Open</button><button class="btn-icon danger" data-action="hr-contract-del" data-id="'+emp.id+'" data-c="'+c.id+'">'+icon('trash')+'</button></div>';}).join(''):'<p class="sub">No contracts yet. Create an employment contract, NDA or agreement — then e-sign it.</p>')+'</div>';
 }
+function hrPhotoSet(dataUrl){
+  var pf=byId('modal-form'); if(!pf) return;
+  if(pf.elements['photo']) pf.elements['photo'].value=dataUrl;
+  var pv=byId('hr-photo-prev'); if(pv) pv.innerHTML='<img src="'+esc(dataUrl)+'" alt="">';
+  var cl=pf.querySelector('.hr-photo-clear'); if(cl) cl.classList.remove('is-hidden');
+}
 function hrPhotoPick(){
   var inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
   inp.onchange=function(){
     var f=(inp.files||[])[0]; if(!f) return;
     if(f.size>2*1024*1024){ toast('Photo too large — keep it under 2 MB.','error'); return; }
     var r=new FileReader();
+    r.onerror=function(){ toast('Could not read that image.','error'); };
     r.onload=function(){
-      var pf=byId('modal-form'); if(!pf) return;
-      if(pf.elements['photo']) pf.elements['photo'].value=r.result;
-      var pv=byId('hr-photo-prev'); if(pv) pv.innerHTML='<img src="'+esc(r.result)+'" alt="">';
-      var cl=pf.querySelector('.hr-photo-clear'); if(cl) cl.classList.remove('is-hidden');
+      // Downscale to a small square so localStorage stays light (avatars never need full res).
+      var img=new Image();
+      img.onload=function(){
+        try{
+          var max=320, w=img.width, h=img.height, s=Math.min(1,max/Math.max(w,h));
+          var cw=Math.round(w*s), ch=Math.round(h*s);
+          var c=document.createElement('canvas'); c.width=cw; c.height=ch;
+          c.getContext('2d').drawImage(img,0,0,cw,ch);
+          hrPhotoSet(c.toDataURL('image/jpeg',0.85));
+        }catch(e){ hrPhotoSet(r.result); } // tainted/odd format — fall back to original
+      };
+      img.onerror=function(){ hrPhotoSet(r.result); };
+      img.src=r.result;
     };
     r.readAsDataURL(f);
   };
@@ -4590,12 +4606,12 @@ document.addEventListener('click',function(e){
     } return;
   }
   if(action==='client-filter'){ ui.clientFilter=el.getAttribute('data-val'); render(); return; }
-  if(action==='calc-jump'){ var ck=el.getAttribute('data-key'); var si=byId('calc-search'); if(si) si.value=''; filterCalculators(''); var card=document.querySelector('[data-calc-key="'+ck+'"]'); if(card){ card.scrollIntoView({behavior:'smooth',block:'center'}); card.classList.add('calc-flash'); setTimeout(function(){ if(card) card.classList.remove('calc-flash'); },1000); } return; }
+  if(action==='calc-jump'){ var ck=el.getAttribute('data-key'); var si=byId('calc-search'); if(si) si.value=''; filterCalculators(''); var card=document.querySelector('[data-calc-key="'+ck+'"]'); if(card&&card.firstElementChild&&getComputedStyle(card).display==='contents') card=card.firstElementChild; if(card){ card.scrollIntoView({behavior:'smooth',block:'center'}); card.classList.add('calc-flash'); setTimeout(function(){ if(card) card.classList.remove('calc-flash'); },1000); } return; }
   /* ---- Manpower ---- */
   if(action==='hr-add'){ employeeModal(); return; }
   if(action==='hr-edit'){ closeModal(); var he=hrEmp(id); if(he) employeeModal(he); return; }
   if(action==='hr-view'){ var hv=hrEmp(id); if(hv) employeeDetail(hv); return; }
-  if(action==='hr-del'){ var hd=hrEmp(id); if(hd&&confirm('Delete employee "'+hd.name+'"? Their advances and payouts are removed too.')){ snapshotForUndo(); state.employees=state.employees.filter(function(x){return x.id!==id;}); state.hrAdvances=(state.hrAdvances||[]).filter(function(a){return a.employeeId!==id;}); state.hrPayouts=(state.hrPayouts||[]).filter(function(p){return p.employeeId!==id;}); commit(); toast('Employee deleted.','warn',{undo:true}); } return; }
+  if(action==='hr-del'){ var hd=hrEmp(id); if(hd&&confirm('Delete employee "'+hd.name+'"? Their advances and payouts are removed too.')){ snapshotForUndo(); state.employees=state.employees.filter(function(x){return x.id!==id;}); state.hrAdvances=(state.hrAdvances||[]).filter(function(a){return a.employeeId!==id;}); state.hrPayouts=(state.hrPayouts||[]).filter(function(p){return p.employeeId!==id;}); closeModal(); commit(); toast('Employee deleted.','warn',{undo:true}); } return; }
   if(action==='hr-color'){ var hf=byId('modal-form'); if(hf&&hf.elements['colorTag']){ hf.elements['colorTag'].value=el.getAttribute('data-color'); hf.querySelectorAll('.swatch').forEach(function(s){ s.classList.toggle('on',s===el); }); } return; }
   if(action==='hr-cf-add'){ var cfr=byId('hr-cf'); if(cfr) cfr.insertAdjacentHTML('beforeend',hrCfRow({id:uid()})); return; }
   if(action==='hr-photo-pick'){ hrPhotoPick(); return; }
@@ -8317,7 +8333,6 @@ document.addEventListener('change',function(e){
     if(c){ c.status=el.value; commit(); toast(c.name+' → '+c.status+'.'); }
     return;
   }
-  if(act==='hr-status'){ var hse=hrEmp(el.getAttribute('data-id')); if(hse){ hse.status=el.value; commit(); } return; }
   if(act==='hr-card-toggle'){ var hcid=el.getAttribute('data-id'); var hh=state.settings.hrHidden=state.settings.hrHidden||[]; if(el.checked){ state.settings.hrHidden=hh.filter(function(x){return x!==hcid;}); } else if(hh.indexOf(hcid)<0){ hh.push(hcid); } save(); render(); return; }
   /* invoice modal: amount symbol follows the chosen currency */
   if(el.name==='currency'&&el.closest('#modal-form')){
@@ -9478,11 +9493,15 @@ function filterCalculators(q){
   var rec=byId('calc-recents'); if(rec) rec.style.display=q?'none':'';
 }
 document.addEventListener('input',function(e){ if(e.target&&e.target.id==='calc-search') filterCalculators(e.target.value); });
-document.addEventListener('change',function(e){
-  var f=e.target&&e.target.closest&&e.target.closest('form[data-calc]'); if(!f) return;
-  var k=f.getAttribute('data-calc'); if(!k||!CALC_TITLES[k]) return;
+function recordCalcRecent(k){
+  if(!k||!CALC_TITLES[k]) return;
   var r=state.settings.calcRecents=state.settings.calcRecents||[];
   var ix=r.indexOf(k); if(ix>=0) r.splice(ix,1); r.unshift(k); state.settings.calcRecents=r.slice(0,8); save();
+}
+document.addEventListener('change',function(e){
+  if(!e.target||!e.target.closest) return;
+  var f=e.target.closest('form[data-calc]'); if(f){ recordCalcRecent(f.getAttribute('data-calc')); return; }
+  var fx=e.target.closest('[data-calc-key="fx"]'); if(fx) recordCalcRecent('fx'); // FX uses a non-form card
 });
 /* keep the contract editor's text selection when a formatting button is pressed */
 document.addEventListener('mousedown',function(e){ if(e.target.closest&&e.target.closest('.doc-tool')) e.preventDefault(); });

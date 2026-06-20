@@ -222,6 +222,11 @@ async function main() {
     window.employeeDetail(empX);
     const det = d.getElementById('modal-root').innerHTML;
     ok('employee detail shows Bank, Documents & Contracts sections', /Bank \/ payout/.test(det) && /Documents/.test(det) && /Contracts/.test(det));
+    ok('employee detail exposes a delete action (regression: grid removed the table delete)', /data-action="hr-del"/.test(det));
+    window.closeModal();
+    // header has no dangling separator when employmentType is blank
+    window.employeeDetail({ id:'eT', name:'Noemi', role:'Helper', employmentType:'', colorTag:'#6366f1', customFields:[] });
+    (function () { const h = d.getElementById('modal-root').innerHTML; ok('detail header has no trailing " · " when type is empty', h.indexOf('Helper · </span>') === -1 && /Helper<\/span>/.test(h)); })();
     window.closeModal();
     // employee photo + address: form fields exist, detail surfaces them, directory grid shows photo
     window.employeeModal(empX);
