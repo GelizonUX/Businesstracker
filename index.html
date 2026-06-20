@@ -810,6 +810,24 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .hr-more>summary{cursor:pointer;font-size:.82rem;font-weight:700;color:var(--accent);padding:4px 0;list-style:none}
 .hr-more>summary::-webkit-details-marker{display:none}
 .hr-more[open]>summary{margin-bottom:8px}
+.hr-sub-h{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--text-3);margin:10px 0 4px}
+.doc-ico{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);flex-shrink:0}
+.doc-ico svg{width:15px;height:15px}
+/* Google-Docs-style contract editor */
+.doc-toolbar{display:flex;align-items:center;gap:3px;flex-wrap:wrap;padding:6px;border:1px solid var(--border);border-bottom:none;border-radius:10px 10px 0 0;background:var(--bg-sunken);position:sticky;top:0;z-index:2}
+.doc-tool{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;font-size:.9rem;color:var(--text-2);background:transparent;border:1px solid transparent;cursor:pointer;transition:background .12s,color .12s}
+.doc-tool:hover{background:var(--bg-hover);color:var(--accent)}
+.doc-div{width:1px;height:18px;background:var(--border);margin:0 3px}
+.doc-page{border:1px solid var(--border);border-radius:0 0 10px 10px;background:#fff;color:#1c2033;padding:30px 34px;min-height:340px;max-height:46vh;overflow-y:auto;font-size:.92rem;line-height:1.7;outline:none}
+html[data-theme="dark"] .doc-page{background:#f7f8fc}
+.doc-page:focus{box-shadow:inset 0 0 0 2px var(--accent-soft)}
+.doc-page h2{font-size:1.3rem;font-weight:800;margin:0 0 12px;color:#111}
+.doc-page p{margin:0 0 10px}
+.doc-page ul,.doc-page ol{margin:0 0 10px 22px}
+.doc-signed{margin-top:14px;padding:14px;border:1px dashed var(--good);border-radius:12px;background:var(--good-soft);text-align:center}
+.sign-img{max-height:80px;max-width:100%}
+.sign-text{font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:1.7rem;color:var(--text)}
+.sign-pad{width:100%;height:170px;border:1.5px dashed var(--border-2);border-radius:12px;background:repeating-linear-gradient(var(--bg-input),var(--bg-input));cursor:crosshair;touch-action:none}
 .swatch:hover{transform:scale(1.12)}
 .swatch.on{box-shadow:0 0 0 2px var(--bg-card),0 0 0 4px currentColor}
 .chip-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle;flex-shrink:0}
@@ -3173,6 +3191,10 @@ function employeeModal(emp){
         '<div class="field"><label>Pay cycle</label><select class="input" name="payCycle">'+HR_CYCLES.map(function(t){return '<option'+(emp.payCycle===t?' selected':'')+'>'+t+'</option>';}).join('')+'</select></div></div>'+
       '<div class="form-row"><div class="field"><label>SSS #</label><input class="input" name="sss" value="'+esc(g.sss||'')+'"></div><div class="field"><label>PhilHealth #</label><input class="input" name="philhealth" value="'+esc(g.philhealth||'')+'"></div></div>'+
       '<div class="form-row"><div class="field"><label>Pag-IBIG #</label><input class="input" name="pagibig" value="'+esc(g.pagibig||'')+'"></div><div class="field"><label>TIN</label><input class="input" name="tin" value="'+esc(g.tin||'')+'"></div></div>'+
+      '<div class="hr-sub-h">Bank / payout account</div>'+
+      '<div class="form-row"><div class="field"><label>Bank / e-wallet</label><input class="input" name="bankName" value="'+esc((emp.bank||{}).name||'')+'" placeholder="BPI, GCash, Maya…"></div>'+
+        '<div class="field"><label>Account number</label><input class="input" name="bankAcct" value="'+esc((emp.bank||{}).acct||'')+'" placeholder="0000-0000-00"></div></div>'+
+      '<div class="field"><label>Account name</label><input class="input" name="bankHolder" value="'+esc((emp.bank||{}).holder||'')+'" placeholder="Name on the account"></div>'+
       '<div class="field"><label>Notes</label><textarea class="input" name="notes" rows="2" placeholder="Schedule, reminders, anything…">'+esc(emp.notes||'')+'</textarea></div>'+
     '</details>'+
     '<div class="field"><label>Custom fields</label><div id="hr-cf">'+(emp.customFields||[]).map(hrCfRow).join('')+'</div>'+
@@ -3182,9 +3204,9 @@ function employeeModal(emp){
     var name=fv(form,'name'); if(!name){ toast('Enter the employee name.','error'); return false; }
     var cfs=[], root=byId('hr-cf');
     if(root) Array.prototype.forEach.call(root.querySelectorAll('.hr-cf-row'),function(r){ var lbl=r.querySelector('[data-cf="label"]').value.trim(); if(!lbl) return; cfs.push({id:r.getAttribute('data-id')||uid(),label:lbl,type:r.querySelector('[data-cf="type"]').value,value:r.querySelector('[data-cf="value"]').value.trim()}); });
-    var data={name:name,role:fv(form,'role'),employmentType:fv(form,'employmentType'),payBasis:fv(form,'payBasis'),payRate:num(fv(form,'payRate')),dateHired:fv(form,'dateHired'),status:fv(form,'status'),colorTag:safeColor(fv(form,'colorTag')),contact:fv(form,'contact'),payCycle:fv(form,'payCycle'),notes:form.elements['notes']?form.elements['notes'].value:'',govIDs:{sss:fv(form,'sss'),philhealth:fv(form,'philhealth'),pagibig:fv(form,'pagibig'),tin:fv(form,'tin')},customFields:cfs};
+    var data={name:name,role:fv(form,'role'),employmentType:fv(form,'employmentType'),payBasis:fv(form,'payBasis'),payRate:num(fv(form,'payRate')),dateHired:fv(form,'dateHired'),status:fv(form,'status'),colorTag:safeColor(fv(form,'colorTag')),contact:fv(form,'contact'),payCycle:fv(form,'payCycle'),notes:form.elements['notes']?form.elements['notes'].value:'',govIDs:{sss:fv(form,'sss'),philhealth:fv(form,'philhealth'),pagibig:fv(form,'pagibig'),tin:fv(form,'tin')},bank:{name:fv(form,'bankName'),acct:fv(form,'bankAcct'),holder:fv(form,'bankHolder')},customFields:cfs};
     var id=fv(form,'id');
-    if(id){ var e=hrEmp(id); if(e) Object.assign(e,data); toast('Employee updated.'); }
+    if(id){ var e=hrEmp(id); if(e){ data.documents=e.documents||[]; data.contracts=e.contracts||[]; Object.assign(e,data); } toast('Employee updated.'); }
     else { data.id=uid(); data.createdAt=todayISO(); state.employees.push(data); toast('Employee added.'); }
     return true;
   }});
@@ -3205,8 +3227,132 @@ function employeeDetail(emp){
     '<div class="card mt" style="padding:12px 14px"><div class="card-head" style="margin-bottom:8px"><h3 style="font-size:.92rem">Payout history</h3><span class="spacer"></span><button class="btn btn-sm btn-primary" data-action="hr-payout" data-id="'+emp.id+'">'+icon('cash')+' Record payout</button></div>'+
       (pays.length?'<div class="table-wrap"><table><thead><tr><th>Period</th><th style="text-align:right">Gross</th><th style="text-align:right">Net</th><th>Date</th></tr></thead><tbody>'+pays.map(function(p){return '<tr><td>'+esc(p.periodLabel||'—')+'</td><td class="num" style="text-align:right">'+fmtMoney(num(p.gross))+'</td><td class="num" style="text-align:right;color:var(--income)">'+fmtMoney(num(p.net))+'</td><td>'+fmtDate(p.date)+'</td></tr>';}).join('')+'</tbody></table></div>':'<p class="sub">No payouts yet.</p>')+'</div>'+
     ((emp.customFields||[]).length?'<div class="card mt" style="padding:12px 14px"><div class="card-head" style="margin-bottom:6px"><h3 style="font-size:.92rem">Details</h3></div>'+emp.customFields.map(function(f){return '<div class="list-row"><span class="sub" style="flex:1">'+esc(f.label)+'</span><b style="font-size:.86rem">'+esc(f.type==='money'&&f.value?fmtMoney(num(f.value)):(f.value||'—'))+'</b></div>';}).join('')+'</div>':'')+
+    hrBankHTML(emp)+hrDocsHTML(emp)+hrContractsHTML(emp)+
     '<div style="display:flex;gap:8px;margin-top:14px"><button class="btn btn-ghost" data-action="hr-edit" data-id="'+emp.id+'">'+icon('edit')+' Edit</button></div>';
   openModal(esc(emp.name),body,{wide:true});
+}
+function hrFileSize(n){ n=num(n); if(n<1024) return n+' B'; if(n<1048576) return (n/1024).toFixed(0)+' KB'; return (n/1048576).toFixed(1)+' MB'; }
+function hrBankHTML(emp){
+  var b=emp.bank||{}; if(!b.name&&!b.acct&&!b.holder) return '';
+  return '<div class="card mt" style="padding:12px 14px"><div class="card-head" style="margin-bottom:6px"><h3 style="font-size:.92rem">'+icon('bank',15)+' Bank / payout account</h3></div>'+
+    '<div class="list-row"><span class="sub" style="flex:1">'+esc(b.name||'Account')+'</span><b style="font-size:.86rem;font-variant-numeric:tabular-nums">'+esc(b.acct||'—')+'</b></div>'+
+    (b.holder?'<div class="sub" style="margin-top:2px">Account name: '+esc(b.holder)+'</div>':'')+'</div>';
+}
+function hrDocsHTML(emp){
+  var docs=emp.documents||[];
+  return '<div class="card mt" style="padding:12px 14px"><div class="card-head" style="margin-bottom:8px"><h3 style="font-size:.92rem">'+icon('doc',15)+' Documents</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="hr-doc-add" data-id="'+emp.id+'">'+icon('upload')+' Upload</button></div>'+
+    (docs.length?docs.map(function(dd){return '<div class="list-row"><span class="doc-ico">'+icon('doc')+'</span><div style="flex:1;min-width:0"><b style="font-size:.84rem;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(dd.name)+'</b><span class="sub">'+esc(hrFileSize(dd.size))+' · '+fmtDate(dd.addedAt)+'</span></div><button class="btn-icon" data-action="hr-doc-view" data-id="'+emp.id+'" data-doc="'+dd.id+'" title="Open / download">'+icon('download')+'</button><button class="btn-icon danger" data-action="hr-doc-del" data-id="'+emp.id+'" data-doc="'+dd.id+'" title="Delete">'+icon('trash')+'</button></div>';}).join(''):'<p class="sub">No documents yet — upload IDs, certificates, signed forms, payslips… (max 4 MB each).</p>')+'</div>';
+}
+function hrContractsHTML(emp){
+  var cs=emp.contracts||[];
+  return '<div class="card mt" style="padding:12px 14px"><div class="card-head" style="margin-bottom:8px"><h3 style="font-size:.92rem">'+icon('pen',15)+' Contracts</h3><span class="spacer"></span><button class="btn btn-sm btn-primary" data-action="hr-contract-new" data-id="'+emp.id+'">'+icon('plus')+' New contract</button></div>'+
+    (cs.length?cs.map(function(c){return '<div class="list-row"><div style="flex:1;min-width:0"><b style="font-size:.86rem">'+esc(c.title||'Untitled contract')+'</b> '+(c.signedAt?'<span class="badge good">signed</span>':'<span class="badge neutral">draft</span>')+'<div class="sub">'+(c.signedAt?'Signed by '+esc(c.signedBy||'—')+' · '+fmtDate(c.signedAt):'Updated '+fmtDate(c.updatedAt||c.createdAt))+'</div></div><button class="btn btn-sm btn-ghost" data-action="hr-contract-open" data-id="'+emp.id+'" data-c="'+c.id+'">Open</button><button class="btn-icon danger" data-action="hr-contract-del" data-id="'+emp.id+'" data-c="'+c.id+'">'+icon('trash')+'</button></div>';}).join(''):'<p class="sub">No contracts yet. Create an employment contract, NDA or agreement — then e-sign it.</p>')+'</div>';
+}
+function hrDocUpload(empId){
+  var inp=document.createElement('input'); inp.type='file'; inp.multiple=true; inp.accept='image/*,application/pdf,.pdf,.doc,.docx,.txt';
+  inp.onchange=function(){
+    var emp=hrEmp(empId); if(!emp) return; emp.documents=emp.documents||[];
+    var files=Array.prototype.slice.call(inp.files||[]); if(!files.length) return;
+    var pending=files.length, tooBig=0;
+    function done(){ if(--pending>0) return; save(); toast(tooBig?(tooBig+' file(s) skipped — keep each under 4 MB.'):'Document(s) uploaded.',tooBig?'warn':undefined); employeeDetail(emp); }
+    files.forEach(function(f){
+      if(f.size>4*1024*1024){ tooBig++; done(); return; }
+      var r=new FileReader();
+      r.onload=function(){ emp.documents.push({id:uid(),name:f.name,type:f.type,size:f.size,data:r.result,addedAt:todayISO()}); done(); };
+      r.onerror=function(){ done(); };
+      r.readAsDataURL(f);
+    });
+  };
+  inp.click();
+}
+function hrDocView(empId,docId){
+  var emp=hrEmp(empId); if(!emp) return; var dd=(emp.documents||[]).find(function(x){return x.id===docId;}); if(!dd) return;
+  var a=document.createElement('a'); a.href=dd.data; a.download=dd.name||'document'; a.target='_blank'; a.rel='noopener'; document.body.appendChild(a); a.click(); a.remove();
+}
+function contractTemplate(emp){
+  return '<h2>Employment Contract</h2>'+
+    '<p>This Employment Contract is made between <b>'+esc(state.settings.businessName||'the Employer')+'</b> ("Employer") and <b>'+esc(emp.name||'')+'</b> ("Employee").</p>'+
+    '<p><b>Position:</b> '+esc(emp.role||'__________')+'<br><b>Employment type:</b> '+esc(emp.employmentType||'__________')+'<br><b>Compensation:</b> '+(emp.payRate?esc(fmtMoney(num(emp.payRate))+' per '+String(emp.payBasis||'').toLowerCase()):'__________')+'<br><b>Start date:</b> '+esc(emp.dateHired||'__________')+'</p>'+
+    '<p>The Employee agrees to perform their duties diligently and in accordance with the lawful policies of the Employer. This agreement may be amended only in writing by mutual consent of both parties.</p>'+
+    '<p style="margin-top:24px">Signed on ____________________.</p>';
+}
+function sanitizeContractHTML(html){
+  try{
+    var doc=new DOMParser().parseFromString('<div id="r">'+String(html||'')+'</div>','text/html');
+    var root=doc.getElementById('r');
+    (function walk(node){
+      Array.prototype.slice.call(node.children||[]).forEach(function(el){
+        if(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','LINK','META'].indexOf(el.tagName)>=0){ el.remove(); return; }
+        Array.prototype.slice.call(el.attributes).forEach(function(at){ if(/^on/i.test(at.name)||(/^(href|src)$/i.test(at.name)&&/^\s*javascript:/i.test(at.value))) el.removeAttribute(at.name); });
+        walk(el);
+      });
+    })(root);
+    return root.innerHTML;
+  }catch(_){ return ''; }
+}
+function contractEditorModal(empId,cid){
+  var emp=hrEmp(empId); if(!emp) return; emp.contracts=emp.contracts||[];
+  var c=cid?emp.contracts.find(function(x){return x.id===cid;}):null, isNew=!c;
+  if(!c){ c={id:uid(),title:'Employment Contract',html:contractTemplate(emp),createdAt:todayISO()}; emp.contracts.push(c); save(); }
+  var body='<input type="hidden" id="contract-emp" value="'+empId+'"><input type="hidden" id="contract-id" value="'+esc(c.id)+'">'+
+    '<input class="input" id="contract-title" value="'+esc(c.title||'')+'" placeholder="Contract title" style="font-weight:700;margin-bottom:10px">'+
+    '<div class="doc-toolbar">'+
+      '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="bold" title="Bold"><b>B</b></button>'+
+      '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="italic" title="Italic"><i>I</i></button>'+
+      '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="underline" title="Underline"><u>U</u></button>'+
+      '<span class="doc-div"></span>'+
+      '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="formatBlock" data-val="h2" title="Heading">H</button>'+
+      '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="formatBlock" data-val="p" title="Normal text">¶</button>'+
+      '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="insertUnorderedList" title="Bullets">•</button>'+
+      '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="insertOrderedList" title="Numbered">1.</button>'+
+    '</div>'+
+    '<div class="doc-page" id="contract-body" contenteditable="true">'+sanitizeContractHTML(c.html||'')+'</div>'+
+    (c.signedAt?'<div class="doc-signed">'+(c.signatureImg?'<img src="'+esc(c.signatureImg)+'" alt="signature" class="sign-img">':'<span class="sign-text">'+esc(c.signedBy)+'</span>')+'<div class="sub">Signed by <b>'+esc(c.signedBy||'')+'</b> · '+fmtDate(c.signedAt)+'</div></div>':'')+
+    '<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button type="button" class="btn btn-primary" data-action="hr-contract-save">'+icon('check')+' Save</button>'+
+      '<button type="button" class="btn btn-ghost" data-action="hr-contract-sign" data-id="'+empId+'" data-c="'+c.id+'">'+icon('pen')+' '+(c.signedAt?'Re-sign':'E-sign')+'</button>'+
+      '<button type="button" class="btn btn-ghost" data-action="hr-contract-print" data-id="'+empId+'" data-c="'+c.id+'">'+icon('print')+' Print / PDF</button></div>';
+  openModal('Contract — '+esc(emp.name),body,{wide:true});
+}
+function hrContractSave(){
+  var empId=(byId('contract-emp')||{}).value, cid=(byId('contract-id')||{}).value;
+  var emp=hrEmp(empId); if(!emp) return; var c=(emp.contracts||[]).find(function(x){return x.id===cid;}); if(!c) return;
+  c.title=String((byId('contract-title')||{}).value||'Untitled contract').slice(0,120);
+  c.html=sanitizeContractHTML((byId('contract-body')||{}).innerHTML||''); c.updatedAt=todayISO();
+  save(); toast('Contract saved.');
+}
+var _signDrew=false;
+function initSignPad(){
+  var cv=byId('sign-pad'); if(!cv||!cv.getContext) return; var ctx=cv.getContext('2d'); _signDrew=false;
+  ctx.clearRect(0,0,cv.width,cv.height); ctx.lineWidth=2.6; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle='#16182a';
+  var drawing=false,last=null;
+  function pos(e){ var r=cv.getBoundingClientRect(),t=e.touches?e.touches[0]:e; return {x:(t.clientX-r.left)*(cv.width/r.width),y:(t.clientY-r.top)*(cv.height/r.height)}; }
+  function start(e){ drawing=true; last=pos(e); if(e.cancelable)e.preventDefault(); }
+  function move(e){ if(!drawing)return; var p=pos(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; _signDrew=true; if(e.cancelable)e.preventDefault(); }
+  function end(){ drawing=false; }
+  cv.addEventListener('mousedown',start); cv.addEventListener('mousemove',move); window.addEventListener('mouseup',end);
+  cv.addEventListener('touchstart',start,{passive:false}); cv.addEventListener('touchmove',move,{passive:false}); cv.addEventListener('touchend',end);
+}
+function contractSignModal(empId,cid){
+  var body='<input type="hidden" id="sign-emp" value="'+empId+'"><input type="hidden" id="sign-cid" value="'+esc(cid)+'">'+
+    '<div class="field"><label>Signer’s full name *</label><input class="input" id="sign-name" placeholder="Type the name of who is signing"></div>'+
+    '<div class="field"><label>Signature</label><canvas id="sign-pad" class="sign-pad" width="520" height="170"></canvas>'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><span class="sub">Draw with your mouse or finger (optional — name alone also works)</span><button type="button" class="btn btn-sm btn-ghost" data-action="hr-sign-clear">Clear</button></div></div>'+
+    '<div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="btn btn-primary" data-action="hr-sign-save">'+icon('check')+' Apply signature</button></div>';
+  openModal('E-sign contract',body,{});
+  setTimeout(initSignPad,70);
+}
+function hrSignSave(){
+  var empId=(byId('sign-emp')||{}).value, cid=(byId('sign-cid')||{}).value;
+  var nm=String((byId('sign-name')||{}).value||'').trim(); if(!nm){ toast('Type the signer’s name.','error'); return; }
+  var emp=hrEmp(empId); if(!emp) return; var c=(emp.contracts||[]).find(function(x){return x.id===cid;}); if(!c) return;
+  var cv=byId('sign-pad'); c.signatureImg=(_signDrew&&cv&&cv.toDataURL)?cv.toDataURL('image/png'):'';
+  c.signedBy=nm.slice(0,80); c.signedAt=todayISO(); save();
+  closeModal(); contractEditorModal(empId,cid); toast('Contract signed ✓');
+}
+function hrContractPrint(empId,cid){
+  var emp=hrEmp(empId); if(!emp) return; var c=(emp.contracts||[]).find(function(x){return x.id===cid;}); if(!c) return;
+  var sig=c.signedAt?'<div style="margin-top:40px">'+(c.signatureImg?'<img src="'+esc(c.signatureImg)+'" style="height:70px">':'<div style="font-family:cursive;font-size:1.6rem">'+esc(c.signedBy||'')+'</div>')+'<div style="border-top:1px solid #000;width:240px;padding-top:4px;font-size:.8rem">'+esc(c.signedBy||'')+' · '+fmtDate(c.signedAt)+'</div></div>':'';
+  printDoc('<div class="pr-doc"><div style="max-width:720px;margin:0 auto">'+sanitizeContractHTML(c.html||'')+sig+'</div></div>');
 }
 function hrValeAddModal(empId){
   var body='<input type="hidden" name="employeeId" value="'+empId+'">'+
@@ -4375,6 +4521,19 @@ document.addEventListener('click',function(e){
   if(action==='hr-customize'){ hrCustomizeModal(); return; }
   if(action==='hr-card-del'){ state.settings.hrCustomCards=(state.settings.hrCustomCards||[]).filter(function(c){return c.id!==id;}); save(); closeModal(); hrCustomizeModal(); return; }
   if(action==='hr-card-add'){ var hlbl=String(((byId('hrc-label')||{}).value)||'').trim().slice(0,30); if(!hlbl){ toast('Give the card a title.','error'); return; } var hmetric=(byId('hrc-metric')||{}).value||'count'; var hfield=(byId('hrc-field')||{}).value||'payRate'; var hfilter=(byId('hrc-filter')||{}).value||'all'; var hfmt=(hmetric!=='count')?'money':''; state.settings.hrCustomCards=(state.settings.hrCustomCards||[]); state.settings.hrCustomCards.push({id:uid(),label:hlbl,metric:hmetric,field:hfield,filter:hfilter,fmt:hfmt}); save(); closeModal(); toast('Card added.'); render(); return; }
+  /* ---- Manpower: documents + contracts + e-sign ---- */
+  if(action==='hr-doc-add'){ hrDocUpload(id); return; }
+  if(action==='hr-doc-view'){ hrDocView(id,el.getAttribute('data-doc')); return; }
+  if(action==='hr-doc-del'){ var hde=hrEmp(id); if(hde){ hde.documents=(hde.documents||[]).filter(function(x){return x.id!==el.getAttribute('data-doc');}); save(); employeeDetail(hde); } return; }
+  if(action==='hr-contract-new'){ contractEditorModal(id); return; }
+  if(action==='hr-contract-open'){ contractEditorModal(id,el.getAttribute('data-c')); return; }
+  if(action==='hr-contract-del'){ var hce=hrEmp(id); if(hce&&confirm('Delete this contract?')){ hce.contracts=(hce.contracts||[]).filter(function(x){return x.id!==el.getAttribute('data-c');}); save(); employeeDetail(hce); } return; }
+  if(action==='hr-contract-save'){ hrContractSave(); return; }
+  if(action==='hr-contract-sign'){ hrContractSave(); contractSignModal(id,el.getAttribute('data-c')); return; }
+  if(action==='hr-contract-print'){ hrContractSave(); hrContractPrint(id,el.getAttribute('data-c')); return; }
+  if(action==='hr-fmt'){ var cmd=el.getAttribute('data-cmd'),val=el.getAttribute('data-val')||null; var cb=byId('contract-body'); if(cb){ cb.focus(); try{ document.execCommand(cmd,false,val); }catch(_){ } } return; }
+  if(action==='hr-sign-clear'){ initSignPad(); return; }
+  if(action==='hr-sign-save'){ hrSignSave(); return; }
 
   /* reviews */
   if(action==='toggle-weekly'){
@@ -9219,6 +9378,8 @@ function maybeGreet(){
   setTimeout(showGreeting,450);
 }
 document.addEventListener('submit',function(e){ if(e.target&&e.target.id==='greet-form'){ e.preventDefault(); greetSaveName(); } });
+/* keep the contract editor's text selection when a formatting button is pressed */
+document.addEventListener('mousedown',function(e){ if(e.target.closest&&e.target.closest('.doc-tool')) e.preventDefault(); });
 document.addEventListener('click',function(e){
   if(!document.body.classList.contains('greeting-on')) return;
   if(e.target.closest&&e.target.closest('[data-greet-skip]')){ state.settings.greetDone=true; save(); dismissGreeting(); return; }

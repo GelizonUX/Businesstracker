@@ -198,6 +198,23 @@ async function main() {
     window.state.settings.hrCustomCards = [{ id: 'c1', label: 'Riders', metric: 'count', field: 'payRate', filter: 'Active', fmt: '' }];
     window.render();
     ok('custom Manpower stat card renders', /Riders/.test(d.getElementById('main').innerHTML));
+
+    // ---------- Manpower upgrade: bank, documents, contracts, e-sign, sanitizer ----------
+    ok('contract HTML sanitizer strips scripts + on* handlers', !/onerror|<script/i.test(window.sanitizeContractHTML('<p onerror="x()">hi<script>bad()</script><img src=x onerror="alert(1)"></p>')));
+    const empX = { id:'eX', name:'Ana', role:'Cashier', payBasis:'Daily', payRate:500, status:'Active', colorTag:'#10b981', customFields:[], bank:{name:'GCash',acct:'0917 555',holder:'Ana'}, documents:[], contracts:[] };
+    window.state.employees = [empX];
+    const tpl = window.contractTemplate(empX);
+    ok('contract template includes the employee + employer', /Ana/.test(tpl) && /Employment Contract/.test(tpl));
+    window.employeeDetail(empX);
+    const det = d.getElementById('modal-root').innerHTML;
+    ok('employee detail shows Bank, Documents & Contracts sections', /Bank \/ payout/.test(det) && /Documents/.test(det) && /Contracts/.test(det));
+    window.closeModal();
+    window.contractEditorModal('eX'); await wait(10);
+    ok('contract editor opens a contenteditable doc page + toolbar', !!d.getElementById('contract-body') && /doc-toolbar/.test(d.getElementById('modal-root').innerHTML) && empX.contracts.length === 1);
+    empX.contracts[0].signedBy = 'Ana Cruz'; empX.contracts[0].signedAt = '2026-06-19';
+    window.employeeDetail(empX);
+    ok('a signed contract shows as signed', /signed</.test(d.getElementById('modal-root').innerHTML));
+    window.closeModal();
     window.state.employees = []; window.state.hrAdvances = []; window.state.hrPayouts = []; window.state.settings.hrCustomCards = [];
 
     // ---------- delight: KPI count-up is non-destructive (settles to the EXACT figure) ----------
