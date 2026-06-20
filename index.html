@@ -530,7 +530,8 @@ details.calc .calc-body{margin-top:10px}
   .grid-3{grid-template-columns:repeat(2,1fr)}
 }
 @media (max-width:860px){
-  .sidebar{transform:translateX(-100%)}
+  /* off-canvas overlay: keep at least ~14vw of scrim tappable even at max menu size */
+  .sidebar{transform:translateX(-100%);width:min(calc(248px*var(--nav-scale,1)),86vw)}
   .sidebar.open{transform:translateX(0);box-shadow:var(--shadow-lg)}
   .scrim.show{display:block}
   .main{margin-left:0;padding:16px 14px 56px}
@@ -816,6 +817,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .nav-move-btn{width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff;cursor:pointer;display:grid;place-items:center;transition:background .12s}
 .nav-move-btn:hover{background:rgba(255,255,255,.2)}
 .nav-move-btn svg{width:12px;height:12px;opacity:.9}
+.nav-move-up svg{transform:rotate(180deg)}
 
 /* sidebar: kill horizontal scroll + truncate long labels */
 .nav{overflow-x:hidden}
@@ -2258,8 +2260,8 @@ function renderSidebar(){
     var hdrCol=secOverride?safeColor(secOverride,'#fff'):'#ffffff';
     html+='<div class="nav-section nav-sec-toggle'+(editing?' nav-sec-edit':'')+'" '+(editing?'':'data-action="nav-sec-toggle" ')+'data-sec="'+esc(sec.name)+'" role="button" style="color:'+hdrCol+'"><span class="nav-sec-name">'+esc(sectionLabelOf(sec.name))+'</span>'+
       (editing
-        ? '<span class="nav-sec-move"><button class="nav-move-btn" data-action="sec-move" data-sec="'+esc(sec.name)+'" data-dir="up" title="Move up" aria-label="Move section up">'+icon('up',12)+'</button>'+
-            '<button class="nav-move-btn" data-action="sec-move" data-sec="'+esc(sec.name)+'" data-dir="down" title="Move down" aria-label="Move section down">'+icon('down',12)+'</button></span>'
+        ? '<span class="nav-sec-move"><button class="nav-move-btn nav-move-up" data-action="sec-move" data-sec="'+esc(sec.name)+'" data-dir="up" title="Move up" aria-label="Move section up">'+icon('down-chev',12)+'</button>'+
+            '<button class="nav-move-btn" data-action="sec-move" data-sec="'+esc(sec.name)+'" data-dir="down" title="Move down" aria-label="Move section down">'+icon('down-chev',12)+'</button></span>'
         : '<span class="nav-chev'+(isCollapsed?' closed':'')+'">'+icon('down-chev',10)+'</span>')+'</div>';
     if(isCollapsed&&!editing) return;
     sec.items.forEach(function(r){ html+=navItemHTML(r); });
