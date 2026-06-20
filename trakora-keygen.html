@@ -125,9 +125,11 @@ td.k{font-family:var(--mono);font-size:.8rem;white-space:nowrap}
     </div>
     <div class="field" style="max-width:200px"><label>Device limit</label><input class="input" id="blimit" type="number" min="1" max="20" value="2"></div>
     <div class="actions">
-      <button class="btn btn-primary" id="go">Generate &amp; save key →</button>
-      <button class="btn btn-ghost" id="preview">Preview key only</button>
+      <button class="btn btn-primary" id="gooffline">⚡ Generate key (offline — works instantly) →</button>
+      <button class="btn btn-ghost" id="go">Save to cloud instead</button>
+      <button class="btn btn-ghost" id="preview">Preview short key</button>
     </div>
+    <p style="font-size:.74rem;color:var(--txt2);margin-top:6px">Offline keys need <b>no Firebase and no rules</b> — they're signed here and verified inside the app. Recommended.</p>
     <div class="msg" id="issue-msg"></div>
     <div class="result" id="result">
       <div style="font-size:.78rem;color:var(--txt2);text-align:center;text-transform:uppercase;letter-spacing:.08em;font-weight:700">License key</div>
@@ -181,6 +183,19 @@ function sha256Hex(str){
   return crypto.subtle.digest('SHA-256',data).then(function(buf){ return Array.prototype.map.call(new Uint8Array(buf),function(b){return ('0'+b.toString(16)).slice(-2);}).join(''); });
 }
 function licEmailHash(key,email){ return sha256Hex(normKey(key)+'|'+String(email||'').trim().toLowerCase()); }
+
+/* ===== OFFLINE signed licenses (no Firebase needed) — sign with the private key; the Trakora
+   app verifies with the matching PUBLIC key embedded in it. Keep this file private. ===== */
+var LICENSE_PRIVKEY={"kty":"EC","crv":"P-256","x":"ehXZYwQBYbP8HhHKZ6_hvK1Yp3e2fgQyzqJTXCqdXBc","y":"tyv_vdWFYP84K8O3gYfpLR5RIYQx_s0rm6jmySyysFg","d":"6mksRId8vn1ZRhc4O34WgWVroFsWm9JFPhKaTq9apjg"};
+function b64u(bytes){ var bin=''; for(var i=0;i<bytes.length;i++) bin+=String.fromCharCode(bytes[i]); return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function signLicense(email,limit){
+  return crypto.subtle.importKey('jwk',LICENSE_PRIVKEY,{name:'ECDSA',namedCurve:'P-256'},false,['sign']).then(function(pk){
+    return sha256Hex(String(email||'').trim().toLowerCase()).then(function(eh){
+      var pb=new TextEncoder().encode(JSON.stringify({eh:eh,d:limit,i:new Date().toISOString().slice(0,10)}));
+      return crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},pk,pb).then(function(sig){ return b64u(pb)+'.'+b64u(new Uint8Array(sig)); });
+    });
+  });
+}
 
 var $=function(id){return document.getElementById(id);};
 var LS='trakora.keygen.';
@@ -239,6 +254,22 @@ $('test').addEventListener('click',function(){
     dot.className='statusdot bad'; $('conn').textContent='Could not reach the database';
     showMsg('conn-msg','err','Could not reach <b>'+cfg().url+'</b>. Check the URL/region and your internet connection.');
   }).then(function(){ btn.disabled=false; });
+});
+
+/* ---- offline signed key (no database, no rules) ---- */
+$('gooffline').addEventListener('click',function(){
+  var name=$('bname').value.trim(), email=$('bemail').value.trim().toLowerCase();
+  var limit=Math.max(1,parseInt($('blimit').value,10)||2);
+  if(!name||!email){ showMsg('issue-msg','warn','Enter the buyer’s name and email.'); return; }
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ showMsg('issue-msg','warn','That email doesn’t look right.'); return; }
+  var btn=this; btn.disabled=true; hideMsg('issue-msg');
+  signLicense(email,limit).then(function(token){
+    recordLocal(token,{name:name,email:email,status:'active',deviceLimit:limit,issued:new Date().toISOString().slice(0,10),devices:{},offline:true});
+    $('rkey').textContent=token; $('result').classList.add('show');
+    $('result').setAttribute('data-key',token); $('result').setAttribute('data-email',email); $('result').setAttribute('data-name',name);
+    renderLedger();
+    showMsg('issue-msg','ok','Offline key generated ✓ — <b>no database needed</b>. Send it to <b>'+email+'</b> with their email; it activates instantly inside Trakora.');
+  }).catch(function(e){ showMsg('issue-msg','err','Could not generate the key: '+((e&&e.message)||e)); }).then(function(){ btn.disabled=false; });
 });
 
 /* ---- preview key (no save) ---- */

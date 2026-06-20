@@ -657,6 +657,8 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .gate-input::placeholder{color:#6a7095}
 .gate-input:focus{outline:none;border-color:#8b8cf6;box-shadow:0 0 0 3px rgba(124,124,246,.22)}
 .gate-input.key{font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;text-align:center;font-size:1.05rem}
+/* the license key field accepts long signed tokens too — don't upper-case / space them */
+#gate-key{text-transform:none;letter-spacing:normal;text-align:left;font-size:.85rem}
 .gate-btn{width:100%;margin-top:8px;padding:13px;border:none;border-radius:11px;cursor:pointer;
   background:#6366f1;color:#fff;font-size:.98rem;font-weight:700;font-family:var(--font);
   letter-spacing:.01em;transition:background .15s,transform .12s}
@@ -1225,8 +1227,38 @@ function licEmailMatches(key,email,lic){
   if(lic&&lic.emailHash) return licEmailHash(key,email).then(function(h){ return h===lic.emailHash; });
   return Promise.resolve(((lic&&lic.email)||'').trim().toLowerCase()===String(email||'').trim().toLowerCase());
 }
+/* ---- offline signed licenses (ZERO backend) ----
+   The keygen signs {eh:emailHash, d:deviceLimit, i:issued} with an ECDSA P-256 private key
+   held only in the seller's private keygen. The app verifies it with this PUBLIC key — fully
+   offline: no database, no Firebase rules, no network. A signed key is a long
+   "payloadBase64url.signatureBase64url" token. Short XXXX-XXXX-XXXX keys still use the cloud path. */
+var LICENSE_PUBKEY={"kty":"EC","crv":"P-256","x":"ehXZYwQBYbP8HhHKZ6_hvK1Yp3e2fgQyzqJTXCqdXBc","y":"tyv_vdWFYP84K8O3gYfpLR5RIYQx_s0rm6jmySyysFg"};
+var _licPubKey=null;
+function importLicensePub(){ if(_licPubKey) return Promise.resolve(_licPubKey); return window.crypto.subtle.importKey('jwk',LICENSE_PUBKEY,{name:'ECDSA',namedCurve:'P-256'},false,['verify']).then(function(k){ _licPubKey=k; return k; }); }
+function b64uToBytes(s){ s=String(s||'').replace(/-/g,'+').replace(/_/g,'/'); while(s.length%4) s+='='; var bin=atob(s),a=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++) a[i]=bin.charCodeAt(i); return a; }
+function sha256Hex(str){ var d=new TextEncoder().encode(String(str||'')); return window.crypto.subtle.digest('SHA-256',d).then(function(buf){ return Array.prototype.map.call(new Uint8Array(buf),function(b){return ('0'+b.toString(16)).slice(-2);}).join(''); }); }
+function isSignedKey(raw){ raw=String(raw||'').trim(); return raw.length>=60 && /^[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+$/.test(raw); }
+function keyShow(t){ t=String(t||''); return t.length>18?t.slice(0,10)+'…'+t.slice(-4):t; }
+function verifySignedKey(token,email){
+  token=String(token||'').trim(); email=String(email||'').trim().toLowerCase();
+  var parts=token.split('.'), payloadBytes, sig;
+  if(parts.length!==2) return Promise.reject({code:'nokey',msg:'That license key wasn’t recognized. Paste the full key exactly as it appears in your purchase email.'});
+  try{ payloadBytes=b64uToBytes(parts[0]); sig=b64uToBytes(parts[1]); }catch(_){ return Promise.reject({code:'nokey',msg:'That license key looks corrupted. Copy it again from your email.'}); }
+  return importLicensePub().then(function(pk){ return window.crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},pk,sig,payloadBytes); }).then(function(okSig){
+    if(!okSig) throw {code:'nokey',msg:'This license key is invalid or was altered. Use the exact key from your purchase.'};
+    var payload; try{ payload=JSON.parse(new TextDecoder().decode(payloadBytes)); }catch(_){ throw {code:'nokey',msg:'This license key is invalid.'}; }
+    if(payload.exp && Date.now()>payload.exp) throw {code:'revoked',msg:'This license has expired. Please contact '+GATE.sellerContact+'.'};
+    return sha256Hex(email).then(function(eh){
+      if(payload.eh && payload.eh!==eh) throw {code:'email',msg:'This key is registered to a different email address. Use the email from your purchase.'};
+      var act={key:keyShow(token),fullKey:token,email:email,name:email,activatedAt:Date.now(),device:DEVICE_ID,offline:true};
+      setActivation(act); return act;
+    });
+  });
+}
 function verifyActivation(key,email){
-  key=normKey(key); email=String(email||'').trim().toLowerCase();
+  var raw=String(key||'').trim();
+  if(isSignedKey(raw)) return verifySignedKey(raw,email);   // offline signed token — no network
+  key=normKey(raw); email=String(email||'').trim().toLowerCase();
   return gateReadLicense(key,0).then(function(lic){
     if(!lic||typeof lic!=='object') throw {code:'nokey',msg:'That license key wasn’t found. Double-check the key from your purchase email — and that it was issued on the current activation database.'};
     if(lic.status&&lic.status!=='active') throw {code:'revoked',msg:'This license has been disabled. Please contact '+esc(GATE.sellerContact)+'.'};
@@ -1268,7 +1300,7 @@ function renderGate(){
       '<div class="gate-steps"><span><i class="dot"></i>Enter key</span><span><i class="dot"></i>Verify</span><span><i class="dot"></i>You’re in</span></div>'+
       '<form id="gate-form" autocomplete="off">'+
         '<div class="gate-field"><label>License key</label>'+
-          '<input class="gate-input key" id="gate-key" placeholder="XXXX-XXXX-XXXX" maxlength="14" autocomplete="off" spellcheck="false"></div>'+
+          '<input class="gate-input key" id="gate-key" placeholder="Paste your license key" maxlength="800" autocomplete="off" spellcheck="false"></div>'+
         '<div class="gate-field"><label>Email used at purchase</label>'+
           '<input class="gate-input" id="gate-email" type="email" placeholder="you@email.com" autocomplete="off"></div>'+
         '<button class="gate-btn" id="gate-go" type="submit">Activate &amp; open →</button>'+

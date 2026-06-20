@@ -100,6 +100,25 @@ async function main() {
     window.fetch = () => resp(200, JSON.stringify({ emailHash: eh, devices: {} }));
     await window.verifyActivation(K, 'attacker@evil.com').then(() => ok('hashed-email rejects wrong email', false)).catch((e) => ok('hashed-email rejects wrong email', e.code === 'email', e));
 
+    // ---------- OFFLINE signed license: verifies with ZERO network (no Firebase) ----------
+    const PRIV = { kty:'EC', crv:'P-256', x:'ehXZYwQBYbP8HhHKZ6_hvK1Yp3e2fgQyzqJTXCqdXBc', y:'tyv_vdWFYP84K8O3gYfpLR5RIYQx_s0rm6jmySyysFg', d:'6mksRId8vn1ZRhc4O34WgWVroFsWm9JFPhKaTq9apjg' };
+    const b64u = (a) => Buffer.from(a).toString('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    async function makeToken(email, limit) {
+      const pk = await webcrypto.subtle.importKey('jwk', PRIV, { name:'ECDSA', namedCurve:'P-256' }, false, ['sign']);
+      const ehBuf = await webcrypto.subtle.digest('SHA-256', new TextEncoder().encode(email.toLowerCase()));
+      const eh = [...new Uint8Array(ehBuf)].map((b) => ('0'+b.toString(16)).slice(-2)).join('');
+      const pb = new TextEncoder().encode(JSON.stringify({ eh, d: limit, i: '2026-06-19' }));
+      const sig = await webcrypto.subtle.sign({ name:'ECDSA', hash:'SHA-256' }, pk, pb);
+      return b64u(pb) + '.' + b64u(new Uint8Array(sig));
+    }
+    const tok = await makeToken('buyer@x.com', 2);
+    let netHit = false; window.fetch = () => { netHit = true; return resp(500, '{}'); };
+    await window.verifyActivation(tok, 'buyer@x.com')
+      .then((a) => ok('offline signed key activates with NO network', a && a.offline === true && netHit === false, { netHit }))
+      .catch((e) => ok('offline signed key activates with NO network', false, e));
+    await window.verifyActivation(tok, 'someone@else.com').then(() => ok('offline key rejects wrong email', false)).catch((e) => ok('offline key rejects wrong email', e.code === 'email'));
+    await window.verifyActivation(tok.slice(0, -4) + 'AAAA', 'buyer@x.com').then(() => ok('tampered offline key rejected', false)).catch((e) => ok('tampered offline key rejected', !!e));
+
     // ---------- PIN lock (PBKDF2) ----------
     ok('no lock initially', window.hasLock() === false);
     await window.setPin('1357');
