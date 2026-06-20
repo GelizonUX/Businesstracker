@@ -207,6 +207,10 @@ async function main() {
 
     // ---------- Manpower upgrade: bank, documents, contracts, e-sign, sanitizer ----------
     ok('contract HTML sanitizer strips scripts + on* handlers', !/onerror|<script/i.test(window.sanitizeContractHTML('<p onerror="x()">hi<script>bad()</script><img src=x onerror="alert(1)"></p>')));
+    (function () {
+      const s = window.sanitizeContractHTML('<svg><script>x()</script></svg><a xlink:href="javascript:alert(1)">a</a><button formaction="javascript:x()">b</button><p style="x:y">t</p>');
+      ok('sanitizer also blocks SVG/MathML scripts, javascript: URLs (xlink/formaction) + style', !/<svg|<script|javascript:|formaction|style=/i.test(s));
+    })();
     const empX = { id:'eX', name:'Ana', role:'Cashier', payBasis:'Daily', payRate:500, status:'Active', colorTag:'#10b981', customFields:[], bank:{name:'GCash',acct:'0917 555',holder:'Ana'}, documents:[], contracts:[] };
     window.state.employees = [empX];
     const tpl = window.contractTemplate(empX);
@@ -215,6 +219,13 @@ async function main() {
     const det = d.getElementById('modal-root').innerHTML;
     ok('employee detail shows Bank, Documents & Contracts sections', /Bank \/ payout/.test(det) && /Documents/.test(det) && /Contracts/.test(det));
     window.closeModal();
+    // malicious bank/doc/contract fields render escaped — no LIVE (unescaped) tags injected
+    const empM = { id: 'eM', name: 'Z', bank: { name: '<img src=x onerror="alert(1)">', acct: '1', holder: 'x' }, documents: [{ id: 'd1', name: '<svg onload=alert(2)>.pdf', size: 100, data: 'data:,', addedAt: '2026-06-19' }], contracts: [{ id: 'k1', title: '<b onmouseover=alert(3)>t</b>', createdAt: '2026-06-19' }], customFields: [] };
+    window.state.employees.push(empM);
+    window.employeeDetail(empM);
+    (function () { const h = d.getElementById('modal-root').innerHTML; ok('malicious bank/doc/contract fields render escaped (no live tags)', h.indexOf('<img src=x onerror') === -1 && h.indexOf('<svg onload') === -1 && h.indexOf('<b onmouseover') === -1); })();
+    window.closeModal();
+    window.state.employees = window.state.employees.filter((e) => e.id !== 'eM');
     window.contractEditorModal('eX'); await wait(10);
     ok('contract editor opens a contenteditable doc page + toolbar', !!d.getElementById('contract-body') && /doc-toolbar/.test(d.getElementById('modal-root').innerHTML) && empX.contracts.length === 1);
     empX.contracts[0].signedBy = 'Ana Cruz'; empX.contracts[0].signedAt = '2026-06-19';

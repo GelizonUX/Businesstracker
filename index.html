@@ -3281,10 +3281,15 @@ function sanitizeContractHTML(html){
   try{
     var doc=new DOMParser().parseFromString('<div id="r">'+String(html||'')+'</div>','text/html');
     var root=doc.getElementById('r');
+    var BAD={script:1,style:1,iframe:1,object:1,embed:1,link:1,meta:1,base:1,form:1,svg:1,math:1};
+    var URLA={href:1,src:1,'xlink:href':1,formaction:1,action:1,data:1,poster:1,background:1};
     (function walk(node){
       Array.prototype.slice.call(node.children||[]).forEach(function(el){
-        if(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','LINK','META'].indexOf(el.tagName)>=0){ el.remove(); return; }
-        Array.prototype.slice.call(el.attributes).forEach(function(at){ if(/^on/i.test(at.name)||(/^(href|src)$/i.test(at.name)&&/^\s*javascript:/i.test(at.value))) el.removeAttribute(at.name); });
+        if(BAD[String(el.tagName||'').toLowerCase()]){ el.remove(); return; } // case-insensitive — also kills SVG/MathML <script>
+        Array.prototype.slice.call(el.attributes).forEach(function(at){
+          var n=String(at.name).toLowerCase();
+          if(/^on/.test(n) || n==='style' || (URLA[n] && /^\s*(javascript|data|vbscript):/i.test(at.value))) el.removeAttribute(at.name);
+        });
         walk(el);
       });
     })(root);
@@ -5328,7 +5333,7 @@ function doCloudPut(ep,silent){
       state.settings.sync.lastSync=new Date().toISOString();
       state.settings.sync.lastSyncStamp=state.meta.updatedAt;
       cloudConflictWarned=false;
-      try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(_){}
+      try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(_){ toast("Could not save — browser storage may be full.","error"); }
       if(!silent){ toast('Pushed to cloud ✓'); render(); }
     })
     .catch(function(e){ if(!silent) toast('Cloud push failed: '+e.message,'error'); })
@@ -5351,7 +5356,7 @@ function cloudPull(){
       var sync=JSON.parse(JSON.stringify(state.settings.sync));
       state=deepMerge(JSON.parse(JSON.stringify(DEFAULT_STATE)),data);
       state.settings.sync=Object.assign(state.settings.sync||{},sync,{lastSync:new Date().toISOString(),lastSyncStamp:(data.meta&&data.meta.updatedAt)||Date.now()});
-      try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(_){}
+      try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(_){ toast("Could not save — browser storage may be full.","error"); }
       applyTheme(); render();
       toast('Pulled from cloud — '+state.finance.length+' finance entries on this device now.');
     })
