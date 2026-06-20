@@ -118,6 +118,12 @@ async function main() {
       .catch((e) => ok('offline signed key activates with NO network', false, e));
     await window.verifyActivation(tok, 'someone@else.com').then(() => ok('offline key rejects wrong email', false)).catch((e) => ok('offline key rejects wrong email', e.code === 'email'));
     await window.verifyActivation(tok.slice(0, -4) + 'AAAA', 'buyer@x.com').then(() => ok('tampered offline key rejected', false)).catch((e) => ok('tampered offline key rejected', !!e));
+    // the gate input must NOT mangle a pasted long signed token
+    window.GATE.enabled = true; window.renderGate(); window.GATE.enabled = false;
+    const gk = d.getElementById('gate-key');
+    if (gk) { gk.value = tok; gk.dispatchEvent(new window.Event('input', { bubbles: true })); ok('gate input preserves a pasted signed token (no mangling)', gk.value === tok, { len: gk.value.length }); }
+    else ok('gate input preserves a pasted signed token (no mangling)', false, 'no gate-key');
+    if (d.getElementById('gate-root')) d.getElementById('gate-root').innerHTML = '';
 
     // ---------- PIN lock (PBKDF2) ----------
     ok('no lock initially', window.hasLock() === false);

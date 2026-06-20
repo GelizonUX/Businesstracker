@@ -1345,8 +1345,9 @@ function renderGate(){
       '<div class="gate-foot">Don’t have a key yet? Get one from '+esc(GATE.sellerContact)+'.<br>Your business data stays private on this device.</div>'+
     '</div></div>';
   var keyEl=byId('gate-key'), emailEl=byId('gate-email'), btn=byId('gate-go'), msg=byId('gate-msg');
-  // pretty-format the key as they type
+  // pretty-format SHORT keys as they type — but leave long signed tokens (which contain ".") untouched
   keyEl.addEventListener('input',function(){
+    if(this.value.indexOf('.')>=0||this.value.length>20) return; // signed offline token — don't reformat
     var c=this.selectionStart, raw=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,12);
     var out=raw.replace(/(.{4})(.{4})(.{1,4})/,'$1-$2-$3').replace(/(.{4})(.{1,4})$/,function(m){return m;});
     if(raw.length>4&&raw.length<=8) out=raw.slice(0,4)+'-'+raw.slice(4);
