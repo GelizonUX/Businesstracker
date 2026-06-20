@@ -217,8 +217,37 @@ async function main() {
       window.ui.navEdit = false; window.renderSidebar();
       ok('non-edit mode shows the Edit menu button below the CSV import', /data-action="nav-edit-toggle"/.test(d.getElementById('sidebar').innerHTML));
     })();
+    // END-TO-END: dispatch REAL clicks through the delegated dispatcher (proves wiring, not just markup)
+    (function () {
+      const fire = (el) => el.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+      const sb = d.getElementById('sidebar');
+      window.ui.navEdit = false; window.state.settings.navScale = 1; window.renderSidebar();
+      // click "Edit menu" -> enters edit mode
+      fire(sb.querySelector('[data-action="nav-edit-toggle"]'));
+      ok('clicking "Edit menu" actually opens edit mode', window.ui.navEdit === true && !!d.getElementById('sidebar').querySelector('.nav-edit-bar'));
+      // click the A+ stepper -> scale rises and the CSS var updates
+      fire(d.getElementById('sidebar').querySelector('[data-action="nav-size"][data-dir="1"]'));
+      ok('clicking A+ raises the menu scale + sets --nav-scale', window.state.settings.navScale === 1.1 && d.documentElement.style.getPropertyValue('--nav-scale') === '1.1');
+      // click a section's "move up" arrow -> order actually changes
+      window.state.settings.sectionOrder = [];
+      const upBtn = Array.prototype.find.call(d.getElementById('sidebar').querySelectorAll('[data-action="sec-move"][data-dir="up"]'), (b) => b.getAttribute('data-sec') === 'Shop');
+      if (upBtn) fire(upBtn);
+      ok('clicking a section "move up" arrow reorders + persists', Array.isArray(window.state.settings.sectionOrder) && window.state.settings.sectionOrder.length > 0);
+      // click "Done" -> leaves edit mode
+      fire(d.getElementById('sidebar').querySelector('[data-action="nav-edit-toggle"]'));
+      ok('clicking "Done" exits edit mode', window.ui.navEdit === false);
+      window.state.settings.navScale = 1; window.state.settings.sectionOrder = []; window.renderSidebar();
+    })();
     // Manpower must be present and routable (regression: it was blanked to id:Employees with no label)
     ok('Manpower nav item is restored (labelled + routes to manpower view)', window.ROUTES.some((r) => r.id === 'manpower' && r.label === 'Manpower') && !window.ROUTES.some((r) => r.id === 'Employees'));
+    (function () {
+      window.renderSidebar();
+      const mp = d.getElementById('sidebar').querySelector('.nav-item[data-route="manpower"]');
+      ok('Manpower renders with a visible label (not a blank icon)', !!mp && /Manpower/.test(mp.querySelector('span').textContent));
+      mp.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+      ok('clicking Manpower routes to the manpower view', window.currentRoute() === 'manpower');
+      window.location.hash = '#/dashboard';
+    })();
     ok('documents carry no "Licensed to" watermark', window.licTag() === '' && !/· Licensed to /.test((function(){ try { return document.getElementById('sidebar').innerHTML; } catch(_) { return ''; } })()));
     // Tailwind-compatible utility layer ships IN-FILE (no CDN/build) and stays CSP/offline-safe
     ok('in-file Tailwind-style utility layer present', /\.flex\{display:flex\}/.test(html) && /\.gap-2\{gap:8px\}/.test(html) && /\.items-center\{align-items:center\}/.test(html) && /\.truncate\{overflow:hidden;text-overflow:ellipsis;white-space:nowrap\}/.test(html));
