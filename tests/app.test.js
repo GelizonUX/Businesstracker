@@ -220,6 +220,9 @@ async function main() {
     // Manpower must be present and routable (regression: it was blanked to id:Employees with no label)
     ok('Manpower nav item is restored (labelled + routes to manpower view)', window.ROUTES.some((r) => r.id === 'manpower' && r.label === 'Manpower') && !window.ROUTES.some((r) => r.id === 'Employees'));
     ok('documents carry no "Licensed to" watermark', window.licTag() === '' && !/· Licensed to /.test((function(){ try { return document.getElementById('sidebar').innerHTML; } catch(_) { return ''; } })()));
+    // Tailwind-compatible utility layer ships IN-FILE (no CDN/build) and stays CSP/offline-safe
+    ok('in-file Tailwind-style utility layer present', /\.flex\{display:flex\}/.test(html) && /\.gap-2\{gap:8px\}/.test(html) && /\.items-center\{align-items:center\}/.test(html) && /\.truncate\{overflow:hidden;text-overflow:ellipsis;white-space:nowrap\}/.test(html));
+    ok('no external CSS/JS framework introduced (CSP + offline intact)', !/cdn\.tailwindcss|tailwindcss\.com|<script[^>]+src=|<link[^>]+stylesheet|@import/i.test(html));
     window.dismissGreeting();
     ok('dismiss clears the greeting state (unblurs)', !d.body.classList.contains('greeting-on'));
     window.state.settings.displayName = '';
