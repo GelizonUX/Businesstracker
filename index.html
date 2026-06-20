@@ -916,7 +916,8 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 
 /* ===== onboarding carousel ===== */
 /* ---- first-open greeting (time-based, animated, blurred backdrop) ---- */
-.greet-overlay{position:fixed;inset:0;z-index:520;display:grid;place-items:center;padding:20px;background:rgba(10,12,24,.46);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);animation:greetIn .45s var(--ease) both;cursor:pointer}
+.greet-overlay{position:fixed;inset:0;z-index:520;display:grid;place-items:center;padding:20px;background:rgba(8,10,20,.72);backdrop-filter:blur(20px) saturate(115%);-webkit-backdrop-filter:blur(20px) saturate(115%);animation:greetIn .45s var(--ease) both;cursor:pointer}
+body.greeting-on{overflow:hidden}
 .greet-overlay.greet-out{animation:greetOut .32s var(--ease) forwards}
 .greet-card{text-align:center;max-width:440px;width:100%;cursor:default;animation:greetUp .55s var(--ease) .08s both}
 .greet-ico{position:relative;width:96px;height:96px;margin:0 auto 24px;border-radius:50%;display:grid;place-items:center;color:#fff;background:var(--accent-grad);box-shadow:0 14px 44px var(--accent-soft);cursor:pointer;overflow:visible;transition:transform .3s var(--ease),box-shadow .3s var(--ease)}
@@ -924,6 +925,7 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 .greet-ico:active{transform:scale(.97)}
 .greet-logo{width:100%;height:100%;object-fit:cover;border-radius:50%;position:relative;z-index:2;animation:greetPop .55s var(--ease) .12s both}
 .greet-initial{font-size:2.5rem;font-weight:800;color:#fff;position:relative;z-index:2;animation:greetPop .55s var(--ease) .12s both}
+.greet-logohint{font-size:.92rem;font-weight:700;letter-spacing:.03em;color:rgba(255,255,255,.92);position:relative;z-index:2;animation:greetPop .55s var(--ease) .12s both}
 /* small time-of-day badge that gently bobs */
 .greet-time{position:absolute;bottom:-3px;right:-3px;width:34px;height:34px;border-radius:50%;background:var(--bg-card);color:var(--accent);display:grid;place-items:center;box-shadow:var(--shadow);z-index:4;animation:greetFloat 3.2s ease-in-out infinite}
 .greet-time svg{width:18px;height:18px}
@@ -935,7 +937,8 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 .greet-hello{font-size:2rem;font-weight:800;letter-spacing:-.03em;line-height:1.15;color:#fff;text-shadow:0 2px 24px rgba(0,0,0,.3)}
 .greet-name{color:#fff;text-shadow:0 2px 22px var(--accent)}
 .greet-sub{color:rgba(255,255,255,.82);margin-top:8px;font-size:1rem}
-.greet-form{display:flex;flex-direction:column;gap:14px;margin:26px auto 0;max-width:300px}
+.greet-form{display:flex;flex-direction:column;gap:20px;margin:28px auto 0;max-width:300px}
+.greet-form .btn{margin-top:2px}
 .greet-form .input{text-align:center;font-size:1rem;background:rgba(255,255,255,.96);padding:11px 14px}
 .greet-form .btn{justify-content:center;padding:11px 14px}
 .greet-skip{margin-top:14px;background:none;color:rgba(255,255,255,.7);font-size:.82rem;font-weight:600;padding:6px 10px;border-radius:8px}
@@ -9118,8 +9121,7 @@ function showGreeting(){
   var g=greetingTime();
   function greetAvatar(){
     var bl=state.settings&&state.settings.bizLogo;
-    var inner=bl?'<img class="greet-logo" src="'+esc(bl)+'" alt="">':'<span class="greet-initial">'+esc(String(state.settings.businessName||'B').charAt(0).toUpperCase())+'</span>';
-    return inner+'<span class="greet-time">'+icon(g.ico)+'</span>';
+    return bl?'<img class="greet-logo" src="'+esc(bl)+'" alt="">':'<span class="greet-logohint">Logo</span>';
   }
   if(!nm){
     root.innerHTML='<div class="greet-overlay greet-'+g.part+'" data-greet="setup">'+
