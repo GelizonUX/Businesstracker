@@ -198,11 +198,60 @@ async function main() {
     // foundation polish: independent sidebar scroll, full-readable labels, no licensee watermark
     ok('sidebar scrolls independently (overscroll contained)', /\.nav\{[^}]*overscroll-behavior:contain/.test(html));
     (function () {
-      const m = html.match(/\.nav-item>span:not\(\.nav-badge\)\{([^}]*)\}/);
+      const m = html.match(/\.nav-item>span:not\(\.nav-badge\):not\(\.nav-fav\)\{([^}]*)\}/);
       const rule = m ? m[1] : '';
-      ok('sidebar labels wrap fully with no truncation (no clamp/ellipsis)', /white-space:normal/.test(rule) && /overflow-wrap:break-word/.test(rule) && !/-webkit-line-clamp/.test(rule) && !/text-overflow:ellipsis/.test(rule));
+      ok('sidebar labels render on one line (nowrap + ellipsis, no wrap)', /white-space:nowrap/.test(rule) && /text-overflow:ellipsis/.test(rule) && !/-webkit-line-clamp/.test(rule) && !/white-space:normal/.test(rule));
+    })();
+    // adjustable menu size scales both text and icon via --nav-scale, and the sidebar width tracks it
+    ok('sidebar font + icon + width scale with --nav-scale', /font-size:calc\(\.9rem\*var\(--nav-scale/.test(html) && /\.nav-item svg\{width:calc\(17px\*var\(--nav-scale/.test(html) && /\.sidebar\{[^}]*width:calc\(248px\*var\(--nav-scale/.test(html));
+    (function () {
+      window.state.settings.navScale = 1;
+      window.setNavScale(1);
+      ok('menu size control increases the scale (clamped)', window.state.settings.navScale === 1.1);
+      for (let i = 0; i < 10; i++) window.setNavScale(1);
+      ok('menu size is clamped to a sane maximum', window.state.settings.navScale <= 1.3);
+      window.state.settings.navScale = 1;
+      window.ui.navEdit = true; window.renderSidebar();
+      const sbEdit = d.getElementById('sidebar').innerHTML;
+      ok('edit mode shows size control + section reorder arrows', /data-action="nav-size"/.test(sbEdit) && /data-action="sec-move"/.test(sbEdit) && /nav-edit-bar/.test(sbEdit));
+      window.ui.navEdit = false; window.renderSidebar();
+      ok('non-edit mode shows the Edit menu button below the CSV import', /data-action="nav-edit-toggle"/.test(d.getElementById('sidebar').innerHTML));
+    })();
+    // END-TO-END: dispatch REAL clicks through the delegated dispatcher (proves wiring, not just markup)
+    (function () {
+      const fire = (el) => el.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+      const sb = d.getElementById('sidebar');
+      window.ui.navEdit = false; window.state.settings.navScale = 1; window.renderSidebar();
+      // click "Edit menu" -> enters edit mode
+      fire(sb.querySelector('[data-action="nav-edit-toggle"]'));
+      ok('clicking "Edit menu" actually opens edit mode', window.ui.navEdit === true && !!d.getElementById('sidebar').querySelector('.nav-edit-bar'));
+      // click the A+ stepper -> scale rises and the CSS var updates
+      fire(d.getElementById('sidebar').querySelector('[data-action="nav-size"][data-dir="1"]'));
+      ok('clicking A+ raises the menu scale + sets --nav-scale', window.state.settings.navScale === 1.1 && d.documentElement.style.getPropertyValue('--nav-scale') === '1.1');
+      // click a section's "move up" arrow -> order actually changes
+      window.state.settings.sectionOrder = [];
+      const upBtn = Array.prototype.find.call(d.getElementById('sidebar').querySelectorAll('[data-action="sec-move"][data-dir="up"]'), (b) => b.getAttribute('data-sec') === 'Shop');
+      if (upBtn) fire(upBtn);
+      ok('clicking a section "move up" arrow reorders + persists', Array.isArray(window.state.settings.sectionOrder) && window.state.settings.sectionOrder.length > 0);
+      // click "Done" -> leaves edit mode
+      fire(d.getElementById('sidebar').querySelector('[data-action="nav-edit-toggle"]'));
+      ok('clicking "Done" exits edit mode', window.ui.navEdit === false);
+      window.state.settings.navScale = 1; window.state.settings.sectionOrder = []; window.renderSidebar();
+    })();
+    // Manpower must be present and routable (regression: it was blanked to id:Employees with no label)
+    ok('Manpower nav item is restored (labelled + routes to manpower view)', window.ROUTES.some((r) => r.id === 'manpower' && r.label === 'Manpower') && !window.ROUTES.some((r) => r.id === 'Employees'));
+    (function () {
+      window.renderSidebar();
+      const mp = d.getElementById('sidebar').querySelector('.nav-item[data-route="manpower"]');
+      ok('Manpower renders with a visible label (not a blank icon)', !!mp && /Manpower/.test(mp.querySelector('span').textContent));
+      mp.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+      ok('clicking Manpower routes to the manpower view', window.currentRoute() === 'manpower');
+      window.location.hash = '#/dashboard';
     })();
     ok('documents carry no "Licensed to" watermark', window.licTag() === '' && !/· Licensed to /.test((function(){ try { return document.getElementById('sidebar').innerHTML; } catch(_) { return ''; } })()));
+    // Tailwind-compatible utility layer ships IN-FILE (no CDN/build) and stays CSP/offline-safe
+    ok('in-file Tailwind-style utility layer present', /\.flex\{display:flex\}/.test(html) && /\.gap-2\{gap:8px\}/.test(html) && /\.items-center\{align-items:center\}/.test(html) && /\.truncate\{overflow:hidden;text-overflow:ellipsis;white-space:nowrap\}/.test(html));
+    ok('no external CSS/JS framework introduced (CSP + offline intact)', !/cdn\.tailwindcss|tailwindcss\.com|<script[^>]+src=|<link[^>]+stylesheet|@import/i.test(html));
     window.dismissGreeting();
     ok('dismiss clears the greeting state (unblurs)', !d.body.classList.contains('greeting-on'));
     window.state.settings.displayName = '';
