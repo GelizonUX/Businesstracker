@@ -795,7 +795,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 /* sidebar: kill horizontal scroll + truncate long labels */
 .nav{overflow-x:hidden}
 .nav-item{min-width:0}
-.nav-item>span:not(.nav-badge){flex:1;min-width:0;overflow:hidden;white-space:normal;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.nav-item>span:not(.nav-badge){flex:1;min-width:0;white-space:normal;line-height:1.25;overflow-wrap:break-word;word-break:break-word}
 
 /* color-coded navigation (per section) */
 .nav-item svg{color:#fff}
@@ -848,15 +848,22 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .doc-tool{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;font-size:.9rem;color:var(--text-2);background:transparent;border:1px solid transparent;cursor:pointer;transition:background .12s,color .12s}
 .doc-tool:hover{background:var(--bg-hover);color:var(--accent)}
 .doc-div{width:1px;height:18px;background:var(--border);margin:0 3px}
-.doc-page{border:1px solid var(--border);border-radius:0 0 10px 10px;background:#fff;color:#1c2033;padding:30px 34px;min-height:340px;max-height:46vh;overflow-y:auto;font-size:.92rem;line-height:1.7;outline:none}
-html[data-theme="dark"] .doc-page{background:#f7f8fc}
-.doc-page:focus{box-shadow:inset 0 0 0 2px var(--accent-soft)}
-.doc-page h2{font-size:1.3rem;font-weight:800;margin:0 0 12px;color:#111}
-.doc-page p{margin:0 0 10px}
-.doc-page ul,.doc-page ol{margin:0 0 10px 22px}
-.doc-signed{margin-top:14px;padding:14px;border:1px dashed var(--good);border-radius:12px;background:var(--good-soft);text-align:center}
-.sign-img{max-height:80px;max-width:100%}
-.sign-text{font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:1.7rem;color:var(--text)}
+.doc-sel{height:30px;border-radius:7px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-2);font-size:.76rem;font-weight:600;padding:0 5px;cursor:pointer;max-width:78px}
+.doc-sel-wide{max-width:124px}
+/* the editing surface mimics a real page: a white sheet sitting on a sunken "desk" */
+.doc-stage{background:var(--bg-sunken);border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:20px;max-height:58vh;overflow:auto;display:flex;justify-content:center}
+.doc-sheet{background:#fff;color:#1c2033;box-shadow:0 6px 28px rgba(0,0,0,.20);padding:64px 68px;box-sizing:border-box;line-height:1.6;display:flex;flex-direction:column;flex-shrink:0}
+.doc-page{outline:none;flex:1;min-height:120px}
+.doc-sheet h1{font-size:1.5em;font-weight:700;text-align:center;margin:0 0 8px;color:#111}
+.doc-sheet h2{font-size:1.18em;font-weight:700;margin:16px 0 8px;color:#111}
+.doc-sheet h3{font-size:1.05em;font-weight:700;margin:12px 0 6px;color:#111}
+.doc-sheet p{margin:0 0 9px}
+.doc-sheet ul,.doc-sheet ol{margin:0 0 9px 24px}
+.doc-sheet li{margin:0 0 4px}
+.doc-sign-block{margin-top:34px}
+.doc-sign-img{height:64px;max-width:100%}
+.doc-sign-cursive{font-family:'Brush Script MT','Segoe Script',Georgia,cursive;font-style:italic;font-size:1.9em;line-height:1;color:#1c2033}
+.doc-sign-rule{border-top:1px solid #1c2033;width:240px;padding-top:4px;margin-top:4px;font-size:.78em;color:#333}
 .sign-pad{width:100%;height:170px;border:1.5px dashed var(--border-2);border-radius:12px;background:repeating-linear-gradient(var(--bg-input),var(--bg-input));cursor:crosshair;touch-action:none}
 .swatch:hover{transform:scale(1.12)}
 .swatch.on{box-shadow:0 0 0 2px var(--bg-card),0 0 0 4px currentColor}
@@ -997,11 +1004,11 @@ body.greeting-on{overflow:hidden}
 .greet-hello{font-size:2rem;font-weight:800;letter-spacing:-.03em;line-height:1.15;color:#fff;text-shadow:0 2px 24px rgba(0,0,0,.3)}
 .greet-name{color:#fff;text-shadow:0 2px 22px var(--accent)}
 .greet-sub{color:rgba(255,255,255,.82);margin-top:8px;font-size:1rem}
-.greet-form{display:flex;flex-direction:column;gap:32px;margin:30px auto 0;max-width:300px}
-.greet-form .btn{margin-top:0}
-.greet-form .input{text-align:center;font-size:1rem;background:rgba(255,255,255,.96);padding:11px 14px}
-.greet-form .btn{justify-content:center;padding:11px 14px}
-.greet-skip{margin-top:14px;background:none;color:rgba(255,255,255,.7);font-size:.82rem;font-weight:600;padding:6px 10px;border-radius:8px}
+/* match BOTH the id and the class so this can never silently stop applying */
+#greet-form,.greet-form{display:flex;flex-direction:column;gap:18px;margin:28px auto 0;max-width:300px}
+#greet-form .btn,.greet-form .btn{margin-top:0;justify-content:center;padding:12px 14px;width:100%}
+#greet-form .input,.greet-form .input{text-align:center;font-size:1rem;background:rgba(255,255,255,.96);padding:12px 14px;width:100%}
+.greet-skip{margin-top:18px;background:none;color:rgba(255,255,255,.7);font-size:.82rem;font-weight:600;padding:6px 10px;border-radius:8px}
 .greet-skip:hover{color:#fff}
 .greet-tap{margin-top:22px;color:rgba(255,255,255,.6);font-size:.76rem;font-weight:600;text-transform:uppercase;letter-spacing:.12em;animation:greetBlink 2.2s ease-in-out infinite}
 .greet-wave{display:inline-block;transform-origin:70% 70%;animation:greetWave 2.4s ease-in-out infinite}
@@ -1014,7 +1021,7 @@ body.greeting-on{overflow:hidden}
 @keyframes greetPop{from{opacity:0;transform:scale(.4) rotate(-25deg)}to{opacity:1;transform:none}}
 @keyframes greetBlink{0%,100%{opacity:.45}50%{opacity:.9}}
 @keyframes greetWave{0%,60%,100%{transform:rotate(0)}10%,30%{transform:rotate(16deg)}20%{transform:rotate(-8deg)}}
-@media (max-width:480px){.greet-hello{font-size:1.6rem}.greet-form{flex-direction:column}}
+@media (max-width:480px){.greet-hello{font-size:1.6rem}#greet-form,.greet-form{flex-direction:column}}
 .onb-overlay{position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(8,10,22,.66);backdrop-filter:blur(5px);animation:fadeIn .2s}
 .onb-card{position:relative;width:100%;max-width:440px;background:var(--bg-card);border:1px solid var(--border);border-radius:22px;overflow:hidden;box-shadow:var(--shadow-lg);animation:popIn .32s var(--ease)}
 .onb-x{position:absolute;top:12px;right:12px;z-index:3;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:#fff;background:rgba(0,0,0,.28)}
@@ -1647,7 +1654,7 @@ function openModal(title,bodyHTML,opts){
   var root=byId('modal-root');
   root.innerHTML=
     '<div class="modal-overlay" data-action="close-modal-overlay">'+
-      '<div class="modal'+(opts.wide?' wide':'')+'" role="dialog" aria-modal="true">'+
+      '<div class="modal'+(opts.wide?' wide':'')+'" role="dialog" aria-modal="true"'+(opts.maxWidth?' style="max-width:'+opts.maxWidth+'"':'')+'>'+
         '<div class="modal-head"><h3>'+esc(title)+'</h3>'+
           '<button class="btn-icon" data-action="close-modal" aria-label="Close">'+icon('x')+'</button></div>'+
         '<div class="modal-body"><form id="modal-form" novalidate>'+bodyHTML+
@@ -3386,34 +3393,56 @@ function sanitizeContractHTML(html){
     return root.innerHTML;
   }catch(_){ return ''; }
 }
+var DOC_SIZES={A4:{w:794,h:1123,css:'210mm 297mm'},Letter:{w:816,h:1056,css:'8.5in 11in'},Legal:{w:816,h:1344,css:'8.5in 14in'}};
+var DOC_FONTS={'Times New Roman':"'Times New Roman',Times,serif",'Georgia':"Georgia,'Times New Roman',serif",'Garamond':"Garamond,'Times New Roman',serif",'Helvetica':"Helvetica,Arial,sans-serif",'Arial':"Arial,Helvetica,sans-serif",'Calibri':"Calibri,Candara,Segoe,'Segoe UI',sans-serif",'Courier New':"'Courier New',Courier,monospace"};
+function docPageStyle(c){
+  var sz=DOC_SIZES[c.pageSize]||DOC_SIZES.A4, ff=DOC_FONTS[c.font]||DOC_FONTS['Times New Roman'];
+  return 'width:'+sz.w+'px;min-height:'+sz.h+'px;font-family:'+ff+';font-size:'+(c.fontPt||12)+'pt';
+}
 function contractEditorModal(empId,cid){
   var emp=hrEmp(empId); if(!emp) return; emp.contracts=emp.contracts||[];
   var c=cid?emp.contracts.find(function(x){return x.id===cid;}):null, isNew=!c;
   if(!c){ c={id:uid(),title:'Employment Contract',html:contractTemplate(emp),createdAt:todayISO()}; emp.contracts.push(c); save(); }
+  if(!c.pageSize) c.pageSize='A4'; if(!c.font) c.font='Times New Roman'; if(!c.fontPt) c.fontPt=12;
+  function sel(action,title,opts,cur,extra){
+    return '<select class="doc-sel'+(extra||'')+'" data-action-change="'+action+'" title="'+title+'" aria-label="'+title+'">'+
+      opts.map(function(o){ var v=o[0], lbl=o[1]; return '<option value="'+esc(String(v))+'"'+(String(cur)===String(v)?' selected':'')+'>'+esc(lbl)+'</option>'; }).join('')+'</select>';
+  }
   var body='<input type="hidden" id="contract-emp" value="'+empId+'"><input type="hidden" id="contract-id" value="'+esc(c.id)+'">'+
     '<input class="input" id="contract-title" value="'+esc(c.title||'')+'" placeholder="Contract title" style="font-weight:700;margin-bottom:10px">'+
     '<div class="doc-toolbar">'+
+      sel('doc-pagesize','Page size',[['A4','A4'],['Letter','Letter'],['Legal','Legal']],c.pageSize)+
+      sel('doc-font','Font',Object.keys(DOC_FONTS).map(function(f){return [f,f];}),c.font,' doc-sel-wide')+
+      sel('doc-fontsize','Text size',[[10,'10 pt'],[11,'11 pt'],[12,'12 pt'],[13,'13 pt'],[14,'14 pt'],[16,'16 pt']],c.fontPt)+
+      '<span class="doc-div"></span>'+
       '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="bold" title="Bold"><b>B</b></button>'+
       '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="italic" title="Italic"><i>I</i></button>'+
       '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="underline" title="Underline"><u>U</u></button>'+
       '<span class="doc-div"></span>'+
       '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="formatBlock" data-val="h2" title="Heading">H</button>'+
       '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="formatBlock" data-val="p" title="Normal text">¶</button>'+
+      '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="justifyLeft" title="Align left">⯇</button>'+
+      '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="justifyFull" title="Justify">≡</button>'+
       '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="insertUnorderedList" title="Bullets">•</button>'+
       '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="insertOrderedList" title="Numbered">1.</button>'+
     '</div>'+
-    '<div class="doc-page" id="contract-body" contenteditable="true">'+sanitizeContractHTML(c.html||'')+'</div>'+
-    (c.signedAt?'<div class="doc-signed">'+(c.signatureImg?'<img src="'+esc(c.signatureImg)+'" alt="signature" class="sign-img">':'<span class="sign-text">'+esc(c.signedBy)+'</span>')+'<div class="sub">Signed by <b>'+esc(c.signedBy||'')+'</b> · '+fmtDate(c.signedAt)+'</div></div>':'')+
+    '<div class="doc-stage"><div class="doc-sheet" id="contract-sheet" style="'+docPageStyle(c)+'">'+
+      '<div class="doc-page" id="contract-body" contenteditable="true" spellcheck="true">'+sanitizeContractHTML(c.html||'')+'</div>'+
+      (c.signedAt?'<div class="doc-sign-block" contenteditable="false">'+(c.signatureImg?'<img src="'+esc(c.signatureImg)+'" alt="signature" class="doc-sign-img">':'<div class="doc-sign-cursive">'+esc(c.signedBy||'')+'</div>')+'<div class="doc-sign-rule">'+esc(c.signedBy||'')+' · '+fmtDate(c.signedAt)+'</div></div>':'')+
+    '</div></div>'+
     '<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button type="button" class="btn btn-primary" data-action="hr-contract-save">'+icon('check')+' Save</button>'+
       '<button type="button" class="btn btn-ghost" data-action="hr-contract-sign" data-id="'+empId+'" data-c="'+c.id+'">'+icon('pen')+' '+(c.signedAt?'Re-sign':'E-sign')+'</button>'+
       '<button type="button" class="btn btn-ghost" data-action="hr-contract-print" data-id="'+empId+'" data-c="'+c.id+'">'+icon('print')+' Print / PDF</button></div>';
-  openModal('Contract — '+esc(emp.name),body,{wide:true});
+  openModal('Contract — '+esc(emp.name),body,{wide:true,maxWidth:'900px'});
 }
 function hrContractSave(){
   var empId=(byId('contract-emp')||{}).value, cid=(byId('contract-id')||{}).value;
   var emp=hrEmp(empId); if(!emp) return; var c=(emp.contracts||[]).find(function(x){return x.id===cid;}); if(!c) return;
   c.title=String((byId('contract-title')||{}).value||'Untitled contract').slice(0,120);
   c.html=sanitizeContractHTML((byId('contract-body')||{}).innerHTML||''); c.updatedAt=todayISO();
+  var ps=document.querySelector('[data-action-change="doc-pagesize"]'); if(ps&&DOC_SIZES[ps.value]) c.pageSize=ps.value;
+  var pf=document.querySelector('[data-action-change="doc-font"]'); if(pf&&DOC_FONTS[pf.value]) c.font=pf.value;
+  var pt=document.querySelector('[data-action-change="doc-fontsize"]'); if(pt&&num(pt.value)) c.fontPt=Math.max(8,Math.min(24,num(pt.value)));
   save(); toast('Contract saved.');
 }
 var _signDrew=false;
@@ -3445,10 +3474,35 @@ function hrSignSave(){
   c.signedBy=nm.slice(0,80); c.signedAt=todayISO(); save();
   closeModal(); contractEditorModal(empId,cid); toast('Contract signed ✓');
 }
+function contractPrintHTML(c){
+  var sz=DOC_SIZES[c.pageSize]||DOC_SIZES.A4, ff=DOC_FONTS[c.font]||DOC_FONTS['Times New Roman'], pt=c.fontPt||12;
+  var sig=c.signedAt?'<div class="ct-sign">'+(c.signatureImg?'<img src="'+esc(c.signatureImg)+'" class="ct-sign-img" alt="signature">':'<div class="ct-sign-cursive">'+esc(c.signedBy||'')+'</div>')+
+    '<div class="ct-sign-rule">'+esc(c.signedBy||'')+'</div><div class="ct-sign-date">Signed '+fmtDate(c.signedAt)+'</div></div>':'';
+  // Inject a print stylesheet that sets the true page size + document-grade typography,
+  // scoped to .pr-contract so it overrides the generic invoice/report print rules.
+  var P='#print-area .pr-contract';
+  var css='<style>'+
+    '@page{size:'+sz.css+';margin:0}'+
+    P+'{font-family:'+ff+';font-size:'+pt+'pt;line-height:1.6;color:#111;max-width:none;margin:0;padding:25.4mm 25.4mm;box-sizing:border-box;text-align:justify;-webkit-print-color-adjust:exact}'+
+    P+' h1{font-size:'+(pt+8)+'pt;font-weight:700;text-align:center;margin:0 0 6pt;border:none;text-transform:none;letter-spacing:.01em}'+
+    P+' h2{font-size:'+(pt+3)+'pt;font-weight:700;text-align:left;margin:15pt 0 6pt;border:none;padding:0}'+
+    P+' h3{font-size:'+(pt+1)+'pt;font-weight:700;margin:12pt 0 4pt}'+
+    P+' p{margin:0 0 8pt;text-align:justify;orphans:3;widows:3}'+
+    P+' h1,'+P+' h2,'+P+' h3{break-after:avoid;page-break-after:avoid}'+
+    P+' ul,'+P+' ol{margin:0 0 8pt 20pt}'+
+    P+' li{margin:0 0 4pt}'+
+    P+' b,'+P+' strong{font-weight:700}'+
+    P+' .ct-sign{margin-top:34pt;page-break-inside:avoid}'+
+    P+' .ct-sign-img{height:58pt}'+
+    P+' .ct-sign-cursive{font-family:"Brush Script MT","Segoe Script",cursive;font-size:'+(pt+12)+'pt;line-height:1}'+
+    P+' .ct-sign-rule{border-top:1px solid #000;width:62mm;padding-top:3pt;margin-top:4pt;font-size:'+(pt-1)+'pt}'+
+    P+' .ct-sign-date{font-size:'+(pt-1)+'pt;color:#333;margin-top:1pt}'+
+  '</style>';
+  return css+'<div class="pr-contract">'+sanitizeContractHTML(c.html||'')+sig+'</div>';
+}
 function hrContractPrint(empId,cid){
   var emp=hrEmp(empId); if(!emp) return; var c=(emp.contracts||[]).find(function(x){return x.id===cid;}); if(!c) return;
-  var sig=c.signedAt?'<div style="margin-top:40px">'+(c.signatureImg?'<img src="'+esc(c.signatureImg)+'" style="height:70px">':'<div style="font-family:cursive;font-size:1.6rem">'+esc(c.signedBy||'')+'</div>')+'<div style="border-top:1px solid #000;width:240px;padding-top:4px;font-size:.8rem">'+esc(c.signedBy||'')+' · '+fmtDate(c.signedAt)+'</div></div>':'';
-  printDoc('<div class="pr-doc"><div style="max-width:720px;margin:0 auto">'+sanitizeContractHTML(c.html||'')+sig+'</div></div>');
+  printDoc(contractPrintHTML(c));
 }
 /* after an in-record action, save + refresh the page behind, and RE-OPEN the employee record
    so the user stays exactly where they were working (no drop back to the directory). */
@@ -8334,6 +8388,13 @@ document.addEventListener('change',function(e){
     return;
   }
   if(act==='hr-card-toggle'){ var hcid=el.getAttribute('data-id'); var hh=state.settings.hrHidden=state.settings.hrHidden||[]; if(el.checked){ state.settings.hrHidden=hh.filter(function(x){return x!==hcid;}); } else if(hh.indexOf(hcid)<0){ hh.push(hcid); } save(); render(); return; }
+  if(act==='doc-pagesize'||act==='doc-font'||act==='doc-fontsize'){
+    var sheet=byId('contract-sheet'); if(sheet){
+      var conf={pageSize:(document.querySelector('[data-action-change="doc-pagesize"]')||{}).value,font:(document.querySelector('[data-action-change="doc-font"]')||{}).value,fontPt:num((document.querySelector('[data-action-change="doc-fontsize"]')||{}).value)};
+      sheet.style.cssText=docPageStyle(conf);
+    }
+    return;
+  }
   /* invoice modal: amount symbol follows the chosen currency */
   if(el.name==='currency'&&el.closest('#modal-form')){
     var sym=byId('inv-amt-sym');
@@ -9441,7 +9502,7 @@ function showGreeting(){
         '<div class="greet-ico">'+greetAvatar()+'</div>'+
         '<h2 class="greet-hello">Hi there! <span class="greet-wave">👋</span></h2>'+
         '<p class="greet-sub">How would you like me to call you?</p>'+
-        '<form id="greet-form" autocomplete="off"><input id="greet-name" class="input" maxlength="40" placeholder="e.g. Ira" aria-label="Your name">'+
+        '<form id="greet-form" class="greet-form" autocomplete="off"><input id="greet-name" class="input" maxlength="40" placeholder="e.g. Ira" aria-label="Your name">'+
         '<button class="btn btn-primary" type="submit">'+icon('check')+' That’s me</button></form>'+
         '<button class="greet-skip" data-greet-skip type="button">Maybe later</button>'+
       '</div></div>';

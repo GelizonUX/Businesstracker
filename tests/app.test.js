@@ -171,6 +171,17 @@ async function main() {
     window.showGreeting();
     const greetRoot = d.getElementById('greet-root');
     ok('greeting shows name-setup when no display name', !!greetRoot.querySelector('[data-greet="setup"]') && !!greetRoot.querySelector('#greet-name'));
+    // REGRESSION (reported 3x): the form is #greet-form but the spacing CSS was .greet-form (class) — they never matched.
+    (function () {
+      const form = greetRoot.querySelector('form#greet-form');
+      ok('greeting form carries BOTH id and class greet-form (so spacing CSS applies)', !!form && form.classList.contains('greet-form'));
+      // the input and the "That's me" button must be DIRECT flex children so the gap actually separates them
+      const kids = form ? Array.prototype.filter.call(form.children, (c) => c.tagName === 'INPUT' || c.tagName === 'BUTTON') : [];
+      ok('greeting input + submit are direct children of the form (gap separates them)', kids.length === 2 && kids[0].tagName === 'INPUT' && kids[1].tagName === 'BUTTON');
+      // the stylesheet must target the actual rendered selector (#greet-form) with a real gap, not a dead class-only rule
+      ok('greeting spacing CSS targets #greet-form with a gap', /#greet-form[^{]*,?[^{]*\{[^}]*gap:\s*\d/.test(html) || /#greet-form,\.greet-form\{[^}]*gap:\s*\d/.test(html));
+      ok('greeting input + button are width-capped (not full-bleed)', /#greet-form,\.greet-form\{[^}]*max-width:\s*\d/.test(html));
+    })();
     d.getElementById('greet-name').value = 'Ira'; window.greetSaveName();
     ok('saving a name persists displayName + switches to a personalised hello', window.state.settings.displayName === 'Ira' && !!greetRoot.querySelector('[data-greet="hello"]') && /Ira/.test(greetRoot.innerHTML));
     ok('greeting is time-based', /Good (morning|afternoon|evening)/.test(greetRoot.innerHTML));
@@ -186,7 +197,11 @@ async function main() {
     window.state.settings.favorites = []; window.state.settings.sectionOrder = [];
     // foundation polish: independent sidebar scroll, full-readable labels, no licensee watermark
     ok('sidebar scrolls independently (overscroll contained)', /\.nav\{[^}]*overscroll-behavior:contain/.test(html));
-    ok('sidebar labels wrap instead of hard-truncating', /\.nav-item>span:not\(\.nav-badge\)\{[^}]*-webkit-line-clamp:2/.test(html));
+    (function () {
+      const m = html.match(/\.nav-item>span:not\(\.nav-badge\)\{([^}]*)\}/);
+      const rule = m ? m[1] : '';
+      ok('sidebar labels wrap fully with no truncation (no clamp/ellipsis)', /white-space:normal/.test(rule) && /overflow-wrap:break-word/.test(rule) && !/-webkit-line-clamp/.test(rule) && !/text-overflow:ellipsis/.test(rule));
+    })();
     ok('documents carry no "Licensed to" watermark', window.licTag() === '' && !/· Licensed to /.test((function(){ try { return document.getElementById('sidebar').innerHTML; } catch(_) { return ''; } })()));
     window.dismissGreeting();
     ok('dismiss clears the greeting state (unblurs)', !d.body.classList.contains('greeting-on'));
@@ -248,7 +263,21 @@ async function main() {
     window.closeModal();
     window.state.employees = window.state.employees.filter((e) => e.id !== 'eM');
     window.contractEditorModal('eX'); await wait(10);
-    ok('contract editor opens a contenteditable doc page + toolbar', !!d.getElementById('contract-body') && /doc-toolbar/.test(d.getElementById('modal-root').innerHTML) && empX.contracts.length === 1);
+    const cmHTML = () => d.getElementById('modal-root').innerHTML;
+    ok('contract editor opens a contenteditable doc page + toolbar', !!d.getElementById('contract-body') && /doc-toolbar/.test(cmHTML()) && empX.contracts.length === 1);
+    // A4 page model + font/size controls
+    ok('contract editor shows an A4 page sheet sized in px', !!d.getElementById('contract-sheet') && /width:794px/.test(d.getElementById('contract-sheet').getAttribute('style') || ''));
+    ok('contract editor exposes page-size, font and text-size controls', /data-action-change="doc-pagesize"/.test(cmHTML()) && /data-action-change="doc-font"/.test(cmHTML()) && /data-action-change="doc-fontsize"/.test(cmHTML()));
+    ok('contract defaults to A4 / Times New Roman / 12pt', empX.contracts[0].pageSize === 'A4' && empX.contracts[0].font === 'Times New Roman' && empX.contracts[0].fontPt === 12);
+    // print/PDF output is a real, sized document (not the tiny generic block)
+    empX.contracts[0].pageSize = 'Legal'; empX.contracts[0].fontPt = 14;
+    (function () {
+      const pr = window.contractPrintHTML(empX.contracts[0]);
+      ok('contract print sets the true @page size', /@page\{size:8\.5in 14in;margin:0\}/.test(pr));
+      ok('contract print uses the chosen base font size in points', /font-size:14pt/.test(pr) && /\.pr-contract/.test(pr));
+      ok('contract print applies real document margins', /padding:25\.4mm 25\.4mm/.test(pr));
+    })();
+    empX.contracts[0].pageSize = 'A4'; empX.contracts[0].fontPt = 12;
     empX.contracts[0].signedBy = 'Ana Cruz'; empX.contracts[0].signedAt = '2026-06-19';
     window.employeeDetail(empX);
     ok('a signed contract shows as signed', /signed</.test(d.getElementById('modal-root').innerHTML));
