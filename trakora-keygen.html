@@ -333,7 +333,7 @@ function renderLedger(){
   $('ledger-empty').style.display=keys.length?'none':'block';
   body.innerHTML=keys.map(function(k){ var r=m[k]||{}; var st=(r.status==='revoked')?'revoked':'active';
     return '<tr><td class="k">'+esc(k)+'</td><td>'+esc(r.name||'—')+'</td><td>'+esc(r.email||'—')+'</td>'+
-      '<td>'+(r.deviceLimit||2)+'</td><td>'+deviceCount(r)+' / '+(r.deviceLimit||2)+'</td>'+
+      '<td>'+(r.deviceLimit||2)+'</td><td>'+(r.offline?'<span title="Offline keys activate locally — no cloud device counter">offline</span>':(deviceCount(r)+' / '+(r.deviceLimit||2)))+'</td>'+
       '<td><span class="pill '+st+'">'+st+'</span></td>'+
       '<td style="white-space:nowrap;text-align:right">'+
         (st==='active'
