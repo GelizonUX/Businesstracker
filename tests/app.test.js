@@ -223,6 +223,18 @@ async function main() {
     const det = d.getElementById('modal-root').innerHTML;
     ok('employee detail shows Bank, Documents & Contracts sections', /Bank \/ payout/.test(det) && /Documents/.test(det) && /Contracts/.test(det));
     window.closeModal();
+    // employee photo + address: form fields exist, detail surfaces them, directory grid shows photo
+    window.employeeModal(empX);
+    (function () { const f = d.getElementById('modal-form'); ok('employee form has photo + address fields', !!(f && f.elements['photo'] && f.elements['address'])); })();
+    window.closeModal();
+    const empP = { id:'eP', name:'Liza', role:'Rider', payBasis:'Daily', payRate:500, status:'Active', colorTag:'#6366f1', address:'123 Mabini St, Cebu', photo:'data:image/png;base64,iVBORw0KGgo=', contact:'0917 000', customFields:[] };
+    window.state.employees = [empP];
+    window.employeeDetail(empP);
+    (function () { const h = d.getElementById('modal-root').innerHTML; ok('employee detail surfaces photo + address', /hr-detail-photo/.test(h) && /Mabini/.test(h)); })();
+    window.closeModal();
+    window.location.hash = '#/manpower'; window.render(); await wait(10);
+    ok('directory grid renders employee photo', /hr-emp-photo/.test(d.getElementById('main').innerHTML));
+    window.state.employees = [empX];
     // malicious bank/doc/contract fields render escaped — no LIVE (unescaped) tags injected
     const empM = { id: 'eM', name: 'Z', bank: { name: '<img src=x onerror="alert(1)">', acct: '1', holder: 'x' }, documents: [{ id: 'd1', name: '<svg onload=alert(2)>.pdf', size: 100, data: 'data:,', addedAt: '2026-06-19' }], contracts: [{ id: 'k1', title: '<b onmouseover=alert(3)>t</b>', createdAt: '2026-06-19' }], customFields: [] };
     window.state.employees.push(empM);
