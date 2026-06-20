@@ -152,6 +152,13 @@ a{color:var(--accent);text-decoration:none}
   width:100%;text-align:left;position:relative;
 }
 .nav-item:not(.active){color:#eef1fb}
+.nav-fav{margin-left:auto;width:20px;height:20px;display:grid;place-items:center;flex-shrink:0;opacity:0;color:var(--sidebar-text);transition:opacity .15s,color .15s,transform .15s}
+.nav-item:hover .nav-fav{opacity:.55}
+.nav-fav:hover{opacity:1;color:#fbbf24;transform:scale(1.15)}
+.nav-fav.on{opacity:1;color:#fbbf24}
+.nav-fav svg{width:14px;height:14px;fill:currentColor;stroke:none}
+.nav-fav:not(.on) svg{fill:none;stroke:currentColor;stroke-width:1.7}
+.app.nav-collapsed .nav-fav{display:none}
 .nav-item:hover{background:var(--sidebar-hover);color:#fff}
 /* .nav-item.active is defined once, later, as a single source of truth */
 .nav-item.active::before{content:'';position:absolute;left:-12px;top:20%;bottom:20%;width:3px;border-radius:0 3px 3px 0;background:var(--accent-grad)}
@@ -812,6 +819,11 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 /* sidebar section editor (Customization) */
 .sec-edit{display:flex;flex-direction:column;gap:8px}
 .sec-edit-row{display:flex;align-items:center;gap:9px}
+.sec-order{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.sec-order-row{display:flex;align-items:center;justify-content:space-between;padding:7px 11px;font-size:.86rem;font-weight:600;border-bottom:1px solid var(--border);background:var(--bg-card)}
+.sec-order-row:last-child{border-bottom:none}
+.sec-order-btns{display:flex;gap:3px}
+.sec-order-btns .btn-icon[disabled]{opacity:.3;pointer-events:none}
 .sec-color{width:38px;height:34px;padding:2px;border:1.5px solid var(--border);border-radius:9px;background:var(--bg-input);cursor:pointer;flex-shrink:0}
 .sec-color::-webkit-color-swatch-wrapper{padding:0}
 .sec-color::-webkit-color-swatch{border:none;border-radius:6px}
@@ -1091,6 +1103,9 @@ var ICONS = {
   notes:'<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>',
   clients:'<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>',
   idcard:'<rect x="2.5" y="4.5" width="19" height="15" rx="2.2"/><circle cx="8" cy="10.5" r="2.2"/><path d="M4.6 16a3.6 3.6 0 0 1 6.8 0"/><path d="M14.5 9.5h4.5M14.5 13h4.5"/>',
+  star:'<path d="M12 2.6l2.7 5.9 6.4.7-4.8 4.4 1.3 6.3L12 17.7 6.4 19.9l1.3-6.3-4.8-4.4 6.4-.7z"/>',
+  doc:'<path d="M14 2.5H6.5A1.5 1.5 0 0 0 5 4v16a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 20V7.5z"/><path d="M14 2.5V7.5H19"/><path d="M8.5 12h7M8.5 15.5h7M8.5 8.5h2"/>',
+  pen:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
   metrics:'<path d="M3 3v18h18"/><path d="M7 14l4-5 4 3 5-7"/>',
   insights:'<path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7c.6.5 1 1.3 1 2.1v.2h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0012 2z"/>',
   reviews:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M9 16l2 2 4-4"/>',
@@ -1357,7 +1372,7 @@ var DEFAULT_STATE={
     sync:{ url:'', path:'bizpilot', enabled:false, lastSync:null },
     productCats:['Candle','Keychain','Gift Box'], productAttrs:['Scent','Color'],
     moduleLabels:{}, bizAddress:'', bizPhone:'', onboarded:false, lang:'en', payQR:'', payQRLabel:'',
-    collapsedNav:[], taskLanes:['To do','Doing','Done'], bizLogo:'', tourDone:false,
+    collapsedNav:[], taskLanes:['To do','Doing','Done'], bizLogo:'', tourDone:false, favorites:[], sectionOrder:[],
     country:'', taxLabel:'', locale:'', sectionColors:{}, sectionLabels:{},
     fx:{ auto:true, updated:null, phpPer:{USD:58.5,EUR:63.5,GBP:74,AUD:38,CAD:42.5,SGD:43.5,AED:16,JPY:0.39} } },
   invoices:[],  // {id,number,client,desc,amount,issueDate,dueDate,status,paidDate,createdAt}
@@ -2087,6 +2102,19 @@ function applyNavCollapse(){
   var app=byId('app'); if(app) app.classList.toggle('nav-collapsed',!!(state.settings&&state.settings.navCollapsed));
 }
 
+function sidebarSectionOrder(){
+  var base=[]; visibleRoutes().forEach(function(r){ if(base.indexOf(r.section)<0) base.push(r.section); });
+  var order=(state.settings.sectionOrder||[]).filter(function(n){ return base.indexOf(n)>=0; });
+  base.forEach(function(n){ if(order.indexOf(n)<0) order.push(n); });
+  return order;
+}
+function moveSidebarSection(name,dir){
+  var order=sidebarSectionOrder();
+  var i=order.indexOf(name); if(i<0) return;
+  var j=i+dir; if(j<0||j>=order.length) return;
+  var t=order[i]; order[i]=order[j]; order[j]=t;
+  state.settings.sectionOrder=order; save(); renderSidebar();
+}
 function renderSidebar(){
   var route=currentRoute();
   var openTasks=state.tasks.filter(function(t){ var d=daysUntil(t.deadline); return !t.done&&d!=null&&d<0; }).length;
@@ -2099,13 +2127,31 @@ function renderSidebar(){
     '<nav class="nav">';
   var labels=state.settings.moduleLabels||{};
   var collapsed=state.settings.collapsedNav||[];
+  var allVis=visibleRoutes();
+  function navItemHTML(r){
+    var rlbl=labels[r.id]||tr(r.label);
+    var fav=(state.settings.favorites||[]).indexOf(r.id)>=0;
+    return '<button class="nav-item'+(route===r.id?' active':'')+'" data-action="nav" data-route="'+r.id+'" title="'+esc(rlbl)+'">'+icon(r.icon)+'<span>'+esc(rlbl)+'</span>'+
+      (r.id==='tasks'&&openTasks>0?'<span class="nav-badge">'+openTasks+'</span>':'')+
+      '<span class="nav-fav'+(fav?' on':'')+'" data-action="fav-toggle" data-route="'+r.id+'" role="button" tabindex="0" title="'+(fav?'Unpin from Favorites':'Pin to Favorites')+'" aria-label="'+(fav?'Unpin':'Pin')+'">'+icon('star')+'</span></button>';
+  }
+  // ★ Favorites — pinned shortcuts at the very top
+  var favItems=(state.settings.favorites||[]).map(function(id){ for(var i=0;i<allVis.length;i++) if(allVis[i].id===id) return allVis[i]; return null; }).filter(Boolean);
+  if(favItems.length){
+    var favC=collapsed.indexOf('Favorites')>=0;
+    html+='<div class="nav-section nav-sec-toggle" data-action="nav-sec-toggle" data-sec="Favorites" role="button" style="color:#fbbf24">'+icon('star',10)+' '+esc(tr('Favorites'))+'<span class="nav-chev'+(favC?' closed':'')+'">'+icon('down-chev',10)+'</span></div>';
+    if(!favC) favItems.forEach(function(r){ html+=navItemHTML(r); });
+  }
   // group routes by section; a section containing the active route is always shown open
   var sections=[];
-  visibleRoutes().forEach(function(r){
+  allVis.forEach(function(r){
     var s=sections[sections.length-1];
     if(!s||s.name!==r.section){ s={name:r.section,items:[]}; sections.push(s); }
     s.items.push(r);
   });
+  // user-defined section order (e.g. move "Shop" to the top); unlisted sections keep natural order after
+  var secOrder=state.settings.sectionOrder||[];
+  if(secOrder.length) sections.sort(function(a,b){ var ia=secOrder.indexOf(a.name), ib=secOrder.indexOf(b.name); return (ia<0?999:ia)-(ib<0?999:ib); });
   sections.forEach(function(sec){
     var hasActive=sec.items.some(function(r){return r.id===route;});
     var isCollapsed=collapsed.indexOf(sec.name)>=0&&!hasActive;
@@ -2115,11 +2161,7 @@ function renderSidebar(){
     html+='<div class="nav-section nav-sec-toggle" data-action="nav-sec-toggle" data-sec="'+esc(sec.name)+'" role="button" style="color:'+hdrCol+'">'+esc(sectionLabelOf(sec.name))+
       '<span class="nav-chev'+(isCollapsed?' closed':'')+'">'+icon('down-chev',10)+'</span></div>';
     if(isCollapsed) return;
-    sec.items.forEach(function(r){
-      var rlbl=labels[r.id]||tr(r.label);
-      html+='<button class="nav-item'+(route===r.id?' active':'')+'" data-action="nav" data-route="'+r.id+'" title="'+esc(rlbl)+'">'+icon(r.icon)+'<span>'+esc(rlbl)+'</span>'+
-        (r.id==='tasks'&&openTasks>0?'<span class="nav-badge">'+openTasks+'</span>':'')+'</button>';
-    });
+    sec.items.forEach(function(r){ html+=navItemHTML(r); });
   });
   var modsActive=route.indexOf('custom-')===0;
   var modsCollapsed=collapsed.indexOf('My Modules')>=0&&!modsActive;
@@ -4134,6 +4176,8 @@ document.addEventListener('click',function(e){
 
   /* navigation & shell */
   if(action==='nav'){ nav(el.getAttribute('data-route')); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); return; }
+  if(action==='fav-toggle'){ e.stopPropagation(); var fid=el.getAttribute('data-route'); var f=state.settings.favorites=state.settings.favorites||[]; var ix=f.indexOf(fid); if(ix>=0){ f.splice(ix,1); toast('Removed from Favorites.'); } else { f.push(fid); toast('Pinned to Favorites ★'); } save(); renderSidebar(); return; }
+  if(action==='sec-move'){ var sn=el.getAttribute('data-sec'), dir=el.getAttribute('data-dir')==='up'?-1:1; moveSidebarSection(sn,dir); return; }
   if(action==='go-import'){ ui.settingsTab='data'; nav('settings'); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); setTimeout(function(){ var c=document.querySelector('[data-action="csv-import"]'); if(c&&c.scrollIntoView) c.scrollIntoView({behavior:'smooth',block:'center'}); },120); return; }
   if(action==='open-sidebar'){ byId('sidebar').classList.add('open'); byId('scrim').classList.add('show'); return; }
   if(action==='toggle-nav-collapse'){ state.settings.navCollapsed=!state.settings.navCollapsed; save(); applyNavCollapse(); render(); return; }
@@ -5037,6 +5081,14 @@ function customizationCardHTML(){
     }).join('')+'</div>'+
     '<div style="display:flex;justify-content:flex-end;margin-top:8px"><button type="button" class="btn btn-ghost btn-sm" data-action="reset-sections">'+icon('refresh')+' Reset to defaults</button></div>'+
     '<p style="font-size:.72rem;color:var(--text-3);margin-top:3px">Pick a color and rename any section — changes show in the sidebar instantly.</p></div>';
+  // sidebar order
+  html+='<div class="field"><label>Sidebar order — arrange your categories</label><div class="sec-order">'+
+    sidebarSectionOrder().map(function(name,i,arr){
+      return '<div class="sec-order-row"><span>'+esc(sectionLabelOf(name))+'</span><span class="sec-order-btns">'+
+        '<button type="button" class="btn-icon" data-action="sec-move" data-sec="'+esc(name)+'" data-dir="up"'+(i===0?' disabled':'')+' title="Move up">'+icon('up')+'</button>'+
+        '<button type="button" class="btn-icon" data-action="sec-move" data-sec="'+esc(name)+'" data-dir="down"'+(i===arr.length-1?' disabled':'')+' title="Move down">'+icon('down')+'</button></span></div>';
+    }).join('')+'</div>'+
+    '<p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Move a category (e.g. Shop) up or down. Pin links to ★ Favorites with the star that appears on each sidebar item.</p></div>';
   // modules
   html+='<div class="field"><label>Visible modules</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">'+
     hideable.map(function(r){

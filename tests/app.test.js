@@ -170,6 +170,14 @@ async function main() {
     ok('greeting is time-based', /Good (morning|afternoon|evening)/.test(greetRoot.innerHTML));
     ok('greeting shows the business logo / Logo cue in the circle (no sun emoji)', /greet-logo"|greet-logohint/.test(greetRoot.innerHTML) && !/greet-time/.test(greetRoot.innerHTML));
     ok('greeting locks background scroll', /body\.greeting-on\{overflow:hidden\}/.test(html));
+
+    // ---------- sidebar: favorites + section reorder ----------
+    window.state.settings.favorites = ['finance']; window.renderSidebar();
+    const sb = d.getElementById('sidebar').innerHTML;
+    ok('favorites section renders the pinned item', /Favorites/.test(sb) && /nav-fav on/.test(sb));
+    window.state.settings.sectionOrder = []; window.moveSidebarSection('Shop', -1);
+    ok('moving a section persists a custom order', Array.isArray(window.state.settings.sectionOrder) && window.state.settings.sectionOrder.length > 0 && window.state.settings.sectionOrder.indexOf('Shop') < window.state.settings.sectionOrder.indexOf('Money'));
+    window.state.settings.favorites = []; window.state.settings.sectionOrder = [];
     window.dismissGreeting();
     ok('dismiss clears the greeting state (unblurs)', !d.body.classList.contains('greeting-on'));
     window.state.settings.displayName = '';
