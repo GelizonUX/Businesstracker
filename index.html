@@ -152,6 +152,13 @@ a{color:var(--accent);text-decoration:none}
   width:100%;text-align:left;position:relative;
 }
 .nav-item:not(.active){color:#eef1fb}
+.nav-fav{margin-left:auto;width:20px;height:20px;display:grid;place-items:center;flex-shrink:0;opacity:0;color:var(--sidebar-text);transition:opacity .15s,color .15s,transform .15s}
+.nav-item:hover .nav-fav{opacity:.55}
+.nav-fav:hover{opacity:1;color:#fbbf24;transform:scale(1.15)}
+.nav-fav.on{opacity:1;color:#fbbf24}
+.nav-fav svg{width:14px;height:14px;fill:currentColor;stroke:none}
+.nav-fav:not(.on) svg{fill:none;stroke:currentColor;stroke-width:1.7}
+.app.nav-collapsed .nav-fav{display:none}
 .nav-item:hover{background:var(--sidebar-hover);color:#fff}
 /* .nav-item.active is defined once, later, as a single source of truth */
 .nav-item.active::before{content:'';position:absolute;left:-12px;top:20%;bottom:20%;width:3px;border-radius:0 3px 3px 0;background:var(--accent-grad)}
@@ -657,6 +664,8 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .gate-input::placeholder{color:#6a7095}
 .gate-input:focus{outline:none;border-color:#8b8cf6;box-shadow:0 0 0 3px rgba(124,124,246,.22)}
 .gate-input.key{font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;text-align:center;font-size:1.05rem}
+/* the license key field accepts long signed tokens too — don't upper-case / space them */
+#gate-key{text-transform:none;letter-spacing:normal;text-align:left;font-size:.85rem}
 .gate-btn{width:100%;margin-top:8px;padding:13px;border:none;border-radius:11px;cursor:pointer;
   background:#6366f1;color:#fff;font-size:.98rem;font-weight:700;font-family:var(--font);
   letter-spacing:.01em;transition:background .15s,transform .12s}
@@ -801,6 +810,24 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .hr-more>summary{cursor:pointer;font-size:.82rem;font-weight:700;color:var(--accent);padding:4px 0;list-style:none}
 .hr-more>summary::-webkit-details-marker{display:none}
 .hr-more[open]>summary{margin-bottom:8px}
+.hr-sub-h{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--text-3);margin:10px 0 4px}
+.doc-ico{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);flex-shrink:0}
+.doc-ico svg{width:15px;height:15px}
+/* Google-Docs-style contract editor */
+.doc-toolbar{display:flex;align-items:center;gap:3px;flex-wrap:wrap;padding:6px;border:1px solid var(--border);border-bottom:none;border-radius:10px 10px 0 0;background:var(--bg-sunken);position:sticky;top:0;z-index:2}
+.doc-tool{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;font-size:.9rem;color:var(--text-2);background:transparent;border:1px solid transparent;cursor:pointer;transition:background .12s,color .12s}
+.doc-tool:hover{background:var(--bg-hover);color:var(--accent)}
+.doc-div{width:1px;height:18px;background:var(--border);margin:0 3px}
+.doc-page{border:1px solid var(--border);border-radius:0 0 10px 10px;background:#fff;color:#1c2033;padding:30px 34px;min-height:340px;max-height:46vh;overflow-y:auto;font-size:.92rem;line-height:1.7;outline:none}
+html[data-theme="dark"] .doc-page{background:#f7f8fc}
+.doc-page:focus{box-shadow:inset 0 0 0 2px var(--accent-soft)}
+.doc-page h2{font-size:1.3rem;font-weight:800;margin:0 0 12px;color:#111}
+.doc-page p{margin:0 0 10px}
+.doc-page ul,.doc-page ol{margin:0 0 10px 22px}
+.doc-signed{margin-top:14px;padding:14px;border:1px dashed var(--good);border-radius:12px;background:var(--good-soft);text-align:center}
+.sign-img{max-height:80px;max-width:100%}
+.sign-text{font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:1.7rem;color:var(--text)}
+.sign-pad{width:100%;height:170px;border:1.5px dashed var(--border-2);border-radius:12px;background:repeating-linear-gradient(var(--bg-input),var(--bg-input));cursor:crosshair;touch-action:none}
 .swatch:hover{transform:scale(1.12)}
 .swatch.on{box-shadow:0 0 0 2px var(--bg-card),0 0 0 4px currentColor}
 .chip-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle;flex-shrink:0}
@@ -810,6 +837,11 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 /* sidebar section editor (Customization) */
 .sec-edit{display:flex;flex-direction:column;gap:8px}
 .sec-edit-row{display:flex;align-items:center;gap:9px}
+.sec-order{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.sec-order-row{display:flex;align-items:center;justify-content:space-between;padding:7px 11px;font-size:.86rem;font-weight:600;border-bottom:1px solid var(--border);background:var(--bg-card)}
+.sec-order-row:last-child{border-bottom:none}
+.sec-order-btns{display:flex;gap:3px}
+.sec-order-btns .btn-icon[disabled]{opacity:.3;pointer-events:none}
 .sec-color{width:38px;height:34px;padding:2px;border:1.5px solid var(--border);border-radius:9px;background:var(--bg-input);cursor:pointer;flex-shrink:0}
 .sec-color::-webkit-color-swatch-wrapper{padding:0}
 .sec-color::-webkit-color-swatch{border:none;border-radius:6px}
@@ -914,7 +946,8 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 
 /* ===== onboarding carousel ===== */
 /* ---- first-open greeting (time-based, animated, blurred backdrop) ---- */
-.greet-overlay{position:fixed;inset:0;z-index:520;display:grid;place-items:center;padding:20px;background:rgba(10,12,24,.46);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);animation:greetIn .45s var(--ease) both;cursor:pointer}
+.greet-overlay{position:fixed;inset:0;z-index:520;display:grid;place-items:center;padding:20px;background:rgba(8,10,20,.72);backdrop-filter:blur(20px) saturate(115%);-webkit-backdrop-filter:blur(20px) saturate(115%);animation:greetIn .45s var(--ease) both;cursor:pointer}
+body.greeting-on{overflow:hidden}
 .greet-overlay.greet-out{animation:greetOut .32s var(--ease) forwards}
 .greet-card{text-align:center;max-width:440px;width:100%;cursor:default;animation:greetUp .55s var(--ease) .08s both}
 .greet-ico{position:relative;width:96px;height:96px;margin:0 auto 24px;border-radius:50%;display:grid;place-items:center;color:#fff;background:var(--accent-grad);box-shadow:0 14px 44px var(--accent-soft);cursor:pointer;overflow:visible;transition:transform .3s var(--ease),box-shadow .3s var(--ease)}
@@ -922,6 +955,7 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 .greet-ico:active{transform:scale(.97)}
 .greet-logo{width:100%;height:100%;object-fit:cover;border-radius:50%;position:relative;z-index:2;animation:greetPop .55s var(--ease) .12s both}
 .greet-initial{font-size:2.5rem;font-weight:800;color:#fff;position:relative;z-index:2;animation:greetPop .55s var(--ease) .12s both}
+.greet-logohint{font-size:.92rem;font-weight:700;letter-spacing:.03em;color:rgba(255,255,255,.92);position:relative;z-index:2;animation:greetPop .55s var(--ease) .12s both}
 /* small time-of-day badge that gently bobs */
 .greet-time{position:absolute;bottom:-3px;right:-3px;width:34px;height:34px;border-radius:50%;background:var(--bg-card);color:var(--accent);display:grid;place-items:center;box-shadow:var(--shadow);z-index:4;animation:greetFloat 3.2s ease-in-out infinite}
 .greet-time svg{width:18px;height:18px}
@@ -933,7 +967,8 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 .greet-hello{font-size:2rem;font-weight:800;letter-spacing:-.03em;line-height:1.15;color:#fff;text-shadow:0 2px 24px rgba(0,0,0,.3)}
 .greet-name{color:#fff;text-shadow:0 2px 22px var(--accent)}
 .greet-sub{color:rgba(255,255,255,.82);margin-top:8px;font-size:1rem}
-.greet-form{display:flex;flex-direction:column;gap:14px;margin:26px auto 0;max-width:300px}
+.greet-form{display:flex;flex-direction:column;gap:20px;margin:28px auto 0;max-width:300px}
+.greet-form .btn{margin-top:2px}
 .greet-form .input{text-align:center;font-size:1rem;background:rgba(255,255,255,.96);padding:11px 14px}
 .greet-form .btn{justify-content:center;padding:11px 14px}
 .greet-skip{margin-top:14px;background:none;color:rgba(255,255,255,.7);font-size:.82rem;font-weight:600;padding:6px 10px;border-radius:8px}
@@ -1086,6 +1121,9 @@ var ICONS = {
   notes:'<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>',
   clients:'<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>',
   idcard:'<rect x="2.5" y="4.5" width="19" height="15" rx="2.2"/><circle cx="8" cy="10.5" r="2.2"/><path d="M4.6 16a3.6 3.6 0 0 1 6.8 0"/><path d="M14.5 9.5h4.5M14.5 13h4.5"/>',
+  star:'<path d="M12 2.6l2.7 5.9 6.4.7-4.8 4.4 1.3 6.3L12 17.7 6.4 19.9l1.3-6.3-4.8-4.4 6.4-.7z"/>',
+  doc:'<path d="M14 2.5H6.5A1.5 1.5 0 0 0 5 4v16a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 20V7.5z"/><path d="M14 2.5V7.5H19"/><path d="M8.5 12h7M8.5 15.5h7M8.5 8.5h2"/>',
+  pen:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
   metrics:'<path d="M3 3v18h18"/><path d="M7 14l4-5 4 3 5-7"/>',
   insights:'<path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7c.6.5 1 1.3 1 2.1v.2h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0012 2z"/>',
   reviews:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M9 16l2 2 4-4"/>',
@@ -1225,8 +1263,38 @@ function licEmailMatches(key,email,lic){
   if(lic&&lic.emailHash) return licEmailHash(key,email).then(function(h){ return h===lic.emailHash; });
   return Promise.resolve(((lic&&lic.email)||'').trim().toLowerCase()===String(email||'').trim().toLowerCase());
 }
+/* ---- offline signed licenses (ZERO backend) ----
+   The keygen signs {eh:emailHash, d:deviceLimit, i:issued} with an ECDSA P-256 private key
+   held only in the seller's private keygen. The app verifies it with this PUBLIC key — fully
+   offline: no database, no Firebase rules, no network. A signed key is a long
+   "payloadBase64url.signatureBase64url" token. Short XXXX-XXXX-XXXX keys still use the cloud path. */
+var LICENSE_PUBKEY={"kty":"EC","crv":"P-256","x":"ehXZYwQBYbP8HhHKZ6_hvK1Yp3e2fgQyzqJTXCqdXBc","y":"tyv_vdWFYP84K8O3gYfpLR5RIYQx_s0rm6jmySyysFg"};
+var _licPubKey=null;
+function importLicensePub(){ if(_licPubKey) return Promise.resolve(_licPubKey); return window.crypto.subtle.importKey('jwk',LICENSE_PUBKEY,{name:'ECDSA',namedCurve:'P-256'},false,['verify']).then(function(k){ _licPubKey=k; return k; }); }
+function b64uToBytes(s){ s=String(s||'').replace(/-/g,'+').replace(/_/g,'/'); while(s.length%4) s+='='; var bin=atob(s),a=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++) a[i]=bin.charCodeAt(i); return a; }
+function sha256Hex(str){ var d=new TextEncoder().encode(String(str||'')); return window.crypto.subtle.digest('SHA-256',d).then(function(buf){ return Array.prototype.map.call(new Uint8Array(buf),function(b){return ('0'+b.toString(16)).slice(-2);}).join(''); }); }
+function isSignedKey(raw){ raw=String(raw||'').trim(); return raw.length>=60 && /^[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+$/.test(raw); }
+function keyShow(t){ t=String(t||''); return t.length>18?t.slice(0,10)+'…'+t.slice(-4):t; }
+function verifySignedKey(token,email){
+  token=String(token||'').trim(); email=String(email||'').trim().toLowerCase();
+  var parts=token.split('.'), payloadBytes, sig;
+  if(parts.length!==2) return Promise.reject({code:'nokey',msg:'That license key wasn’t recognized. Paste the full key exactly as it appears in your purchase email.'});
+  try{ payloadBytes=b64uToBytes(parts[0]); sig=b64uToBytes(parts[1]); }catch(_){ return Promise.reject({code:'nokey',msg:'That license key looks corrupted. Copy it again from your email.'}); }
+  return importLicensePub().then(function(pk){ return window.crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},pk,sig,payloadBytes); }).then(function(okSig){
+    if(!okSig) throw {code:'nokey',msg:'This license key is invalid or was altered. Use the exact key from your purchase.'};
+    var payload; try{ payload=JSON.parse(new TextDecoder().decode(payloadBytes)); }catch(_){ throw {code:'nokey',msg:'This license key is invalid.'}; }
+    if(payload.exp && Date.now()>payload.exp) throw {code:'revoked',msg:'This license has expired. Please contact '+GATE.sellerContact+'.'};
+    return sha256Hex(email).then(function(eh){
+      if(payload.eh && payload.eh!==eh) throw {code:'email',msg:'This key is registered to a different email address. Use the email from your purchase.'};
+      var act={key:keyShow(token),fullKey:token,email:email,name:email,activatedAt:Date.now(),device:DEVICE_ID,offline:true};
+      setActivation(act); return act;
+    });
+  });
+}
 function verifyActivation(key,email){
-  key=normKey(key); email=String(email||'').trim().toLowerCase();
+  var raw=String(key||'').trim();
+  if(isSignedKey(raw)) return verifySignedKey(raw,email);   // offline signed token — no network
+  key=normKey(raw); email=String(email||'').trim().toLowerCase();
   return gateReadLicense(key,0).then(function(lic){
     if(!lic||typeof lic!=='object') throw {code:'nokey',msg:'That license key wasn’t found. Double-check the key from your purchase email — and that it was issued on the current activation database.'};
     if(lic.status&&lic.status!=='active') throw {code:'revoked',msg:'This license has been disabled. Please contact '+esc(GATE.sellerContact)+'.'};
@@ -1268,7 +1336,7 @@ function renderGate(){
       '<div class="gate-steps"><span><i class="dot"></i>Enter key</span><span><i class="dot"></i>Verify</span><span><i class="dot"></i>You’re in</span></div>'+
       '<form id="gate-form" autocomplete="off">'+
         '<div class="gate-field"><label>License key</label>'+
-          '<input class="gate-input key" id="gate-key" placeholder="XXXX-XXXX-XXXX" maxlength="14" autocomplete="off" spellcheck="false"></div>'+
+          '<input class="gate-input key" id="gate-key" placeholder="Paste your license key" maxlength="800" autocomplete="off" spellcheck="false"></div>'+
         '<div class="gate-field"><label>Email used at purchase</label>'+
           '<input class="gate-input" id="gate-email" type="email" placeholder="you@email.com" autocomplete="off"></div>'+
         '<button class="gate-btn" id="gate-go" type="submit">Activate &amp; open →</button>'+
@@ -1277,8 +1345,9 @@ function renderGate(){
       '<div class="gate-foot">Don’t have a key yet? Get one from '+esc(GATE.sellerContact)+'.<br>Your business data stays private on this device.</div>'+
     '</div></div>';
   var keyEl=byId('gate-key'), emailEl=byId('gate-email'), btn=byId('gate-go'), msg=byId('gate-msg');
-  // pretty-format the key as they type
+  // pretty-format SHORT keys as they type — but leave long signed tokens (which contain ".") untouched
   keyEl.addEventListener('input',function(){
+    if(this.value.indexOf('.')>=0||this.value.length>20) return; // signed offline token — don't reformat
     var c=this.selectionStart, raw=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,12);
     var out=raw.replace(/(.{4})(.{4})(.{1,4})/,'$1-$2-$3').replace(/(.{4})(.{1,4})$/,function(m){return m;});
     if(raw.length>4&&raw.length<=8) out=raw.slice(0,4)+'-'+raw.slice(4);
@@ -1322,7 +1391,7 @@ var DEFAULT_STATE={
     sync:{ url:'', path:'bizpilot', enabled:false, lastSync:null },
     productCats:['Candle','Keychain','Gift Box'], productAttrs:['Scent','Color'],
     moduleLabels:{}, bizAddress:'', bizPhone:'', onboarded:false, lang:'en', payQR:'', payQRLabel:'',
-    collapsedNav:[], taskLanes:['To do','Doing','Done'], bizLogo:'', tourDone:false,
+    collapsedNav:[], taskLanes:['To do','Doing','Done'], bizLogo:'', tourDone:false, favorites:[], sectionOrder:[],
     country:'', taxLabel:'', locale:'', sectionColors:{}, sectionLabels:{},
     fx:{ auto:true, updated:null, phpPer:{USD:58.5,EUR:63.5,GBP:74,AUD:38,CAD:42.5,SGD:43.5,AED:16,JPY:0.39} } },
   invoices:[],  // {id,number,client,desc,amount,issueDate,dueDate,status,paidDate,createdAt}
@@ -2052,6 +2121,19 @@ function applyNavCollapse(){
   var app=byId('app'); if(app) app.classList.toggle('nav-collapsed',!!(state.settings&&state.settings.navCollapsed));
 }
 
+function sidebarSectionOrder(){
+  var base=[]; visibleRoutes().forEach(function(r){ if(base.indexOf(r.section)<0) base.push(r.section); });
+  var order=(state.settings.sectionOrder||[]).filter(function(n){ return base.indexOf(n)>=0; });
+  base.forEach(function(n){ if(order.indexOf(n)<0) order.push(n); });
+  return order;
+}
+function moveSidebarSection(name,dir){
+  var order=sidebarSectionOrder();
+  var i=order.indexOf(name); if(i<0) return;
+  var j=i+dir; if(j<0||j>=order.length) return;
+  var t=order[i]; order[i]=order[j]; order[j]=t;
+  state.settings.sectionOrder=order; save(); renderSidebar();
+}
 function renderSidebar(){
   var route=currentRoute();
   var openTasks=state.tasks.filter(function(t){ var d=daysUntil(t.deadline); return !t.done&&d!=null&&d<0; }).length;
@@ -2064,13 +2146,31 @@ function renderSidebar(){
     '<nav class="nav">';
   var labels=state.settings.moduleLabels||{};
   var collapsed=state.settings.collapsedNav||[];
+  var allVis=visibleRoutes();
+  function navItemHTML(r){
+    var rlbl=labels[r.id]||tr(r.label);
+    var fav=(state.settings.favorites||[]).indexOf(r.id)>=0;
+    return '<button class="nav-item'+(route===r.id?' active':'')+'" data-action="nav" data-route="'+r.id+'" title="'+esc(rlbl)+'">'+icon(r.icon)+'<span>'+esc(rlbl)+'</span>'+
+      (r.id==='tasks'&&openTasks>0?'<span class="nav-badge">'+openTasks+'</span>':'')+
+      '<span class="nav-fav'+(fav?' on':'')+'" data-action="fav-toggle" data-route="'+r.id+'" role="button" tabindex="0" title="'+(fav?'Unpin from Favorites':'Pin to Favorites')+'" aria-label="'+(fav?'Unpin':'Pin')+'">'+icon('star')+'</span></button>';
+  }
+  // ★ Favorites — pinned shortcuts at the very top
+  var favItems=(state.settings.favorites||[]).map(function(id){ for(var i=0;i<allVis.length;i++) if(allVis[i].id===id) return allVis[i]; return null; }).filter(Boolean);
+  if(favItems.length){
+    var favC=collapsed.indexOf('Favorites')>=0;
+    html+='<div class="nav-section nav-sec-toggle" data-action="nav-sec-toggle" data-sec="Favorites" role="button" style="color:#fbbf24">'+icon('star',10)+' '+esc(tr('Favorites'))+'<span class="nav-chev'+(favC?' closed':'')+'">'+icon('down-chev',10)+'</span></div>';
+    if(!favC) favItems.forEach(function(r){ html+=navItemHTML(r); });
+  }
   // group routes by section; a section containing the active route is always shown open
   var sections=[];
-  visibleRoutes().forEach(function(r){
+  allVis.forEach(function(r){
     var s=sections[sections.length-1];
     if(!s||s.name!==r.section){ s={name:r.section,items:[]}; sections.push(s); }
     s.items.push(r);
   });
+  // user-defined section order (e.g. move "Shop" to the top); unlisted sections keep natural order after
+  var secOrder=state.settings.sectionOrder||[];
+  if(secOrder.length) sections.sort(function(a,b){ var ia=secOrder.indexOf(a.name), ib=secOrder.indexOf(b.name); return (ia<0?999:ia)-(ib<0?999:ib); });
   sections.forEach(function(sec){
     var hasActive=sec.items.some(function(r){return r.id===route;});
     var isCollapsed=collapsed.indexOf(sec.name)>=0&&!hasActive;
@@ -2080,11 +2180,7 @@ function renderSidebar(){
     html+='<div class="nav-section nav-sec-toggle" data-action="nav-sec-toggle" data-sec="'+esc(sec.name)+'" role="button" style="color:'+hdrCol+'">'+esc(sectionLabelOf(sec.name))+
       '<span class="nav-chev'+(isCollapsed?' closed':'')+'">'+icon('down-chev',10)+'</span></div>';
     if(isCollapsed) return;
-    sec.items.forEach(function(r){
-      var rlbl=labels[r.id]||tr(r.label);
-      html+='<button class="nav-item'+(route===r.id?' active':'')+'" data-action="nav" data-route="'+r.id+'" title="'+esc(rlbl)+'">'+icon(r.icon)+'<span>'+esc(rlbl)+'</span>'+
-        (r.id==='tasks'&&openTasks>0?'<span class="nav-badge">'+openTasks+'</span>':'')+'</button>';
-    });
+    sec.items.forEach(function(r){ html+=navItemHTML(r); });
   });
   var modsActive=route.indexOf('custom-')===0;
   var modsCollapsed=collapsed.indexOf('My Modules')>=0&&!modsActive;
@@ -3096,6 +3192,10 @@ function employeeModal(emp){
         '<div class="field"><label>Pay cycle</label><select class="input" name="payCycle">'+HR_CYCLES.map(function(t){return '<option'+(emp.payCycle===t?' selected':'')+'>'+t+'</option>';}).join('')+'</select></div></div>'+
       '<div class="form-row"><div class="field"><label>SSS #</label><input class="input" name="sss" value="'+esc(g.sss||'')+'"></div><div class="field"><label>PhilHealth #</label><input class="input" name="philhealth" value="'+esc(g.philhealth||'')+'"></div></div>'+
       '<div class="form-row"><div class="field"><label>Pag-IBIG #</label><input class="input" name="pagibig" value="'+esc(g.pagibig||'')+'"></div><div class="field"><label>TIN</label><input class="input" name="tin" value="'+esc(g.tin||'')+'"></div></div>'+
+      '<div class="hr-sub-h">Bank / payout account</div>'+
+      '<div class="form-row"><div class="field"><label>Bank / e-wallet</label><input class="input" name="bankName" value="'+esc((emp.bank||{}).name||'')+'" placeholder="BPI, GCash, Maya…"></div>'+
+        '<div class="field"><label>Account number</label><input class="input" name="bankAcct" value="'+esc((emp.bank||{}).acct||'')+'" placeholder="0000-0000-00"></div></div>'+
+      '<div class="field"><label>Account name</label><input class="input" name="bankHolder" value="'+esc((emp.bank||{}).holder||'')+'" placeholder="Name on the account"></div>'+
       '<div class="field"><label>Notes</label><textarea class="input" name="notes" rows="2" placeholder="Schedule, reminders, anything…">'+esc(emp.notes||'')+'</textarea></div>'+
     '</details>'+
     '<div class="field"><label>Custom fields</label><div id="hr-cf">'+(emp.customFields||[]).map(hrCfRow).join('')+'</div>'+
@@ -3105,9 +3205,9 @@ function employeeModal(emp){
     var name=fv(form,'name'); if(!name){ toast('Enter the employee name.','error'); return false; }
     var cfs=[], root=byId('hr-cf');
     if(root) Array.prototype.forEach.call(root.querySelectorAll('.hr-cf-row'),function(r){ var lbl=r.querySelector('[data-cf="label"]').value.trim(); if(!lbl) return; cfs.push({id:r.getAttribute('data-id')||uid(),label:lbl,type:r.querySelector('[data-cf="type"]').value,value:r.querySelector('[data-cf="value"]').value.trim()}); });
-    var data={name:name,role:fv(form,'role'),employmentType:fv(form,'employmentType'),payBasis:fv(form,'payBasis'),payRate:num(fv(form,'payRate')),dateHired:fv(form,'dateHired'),status:fv(form,'status'),colorTag:safeColor(fv(form,'colorTag')),contact:fv(form,'contact'),payCycle:fv(form,'payCycle'),notes:form.elements['notes']?form.elements['notes'].value:'',govIDs:{sss:fv(form,'sss'),philhealth:fv(form,'philhealth'),pagibig:fv(form,'pagibig'),tin:fv(form,'tin')},customFields:cfs};
+    var data={name:name,role:fv(form,'role'),employmentType:fv(form,'employmentType'),payBasis:fv(form,'payBasis'),payRate:num(fv(form,'payRate')),dateHired:fv(form,'dateHired'),status:fv(form,'status'),colorTag:safeColor(fv(form,'colorTag')),contact:fv(form,'contact'),payCycle:fv(form,'payCycle'),notes:form.elements['notes']?form.elements['notes'].value:'',govIDs:{sss:fv(form,'sss'),philhealth:fv(form,'philhealth'),pagibig:fv(form,'pagibig'),tin:fv(form,'tin')},bank:{name:fv(form,'bankName'),acct:fv(form,'bankAcct'),holder:fv(form,'bankHolder')},customFields:cfs};
     var id=fv(form,'id');
-    if(id){ var e=hrEmp(id); if(e) Object.assign(e,data); toast('Employee updated.'); }
+    if(id){ var e=hrEmp(id); if(e){ data.documents=e.documents||[]; data.contracts=e.contracts||[]; Object.assign(e,data); } toast('Employee updated.'); }
     else { data.id=uid(); data.createdAt=todayISO(); state.employees.push(data); toast('Employee added.'); }
     return true;
   }});
@@ -3128,8 +3228,137 @@ function employeeDetail(emp){
     '<div class="card mt" style="padding:12px 14px"><div class="card-head" style="margin-bottom:8px"><h3 style="font-size:.92rem">Payout history</h3><span class="spacer"></span><button class="btn btn-sm btn-primary" data-action="hr-payout" data-id="'+emp.id+'">'+icon('cash')+' Record payout</button></div>'+
       (pays.length?'<div class="table-wrap"><table><thead><tr><th>Period</th><th style="text-align:right">Gross</th><th style="text-align:right">Net</th><th>Date</th></tr></thead><tbody>'+pays.map(function(p){return '<tr><td>'+esc(p.periodLabel||'—')+'</td><td class="num" style="text-align:right">'+fmtMoney(num(p.gross))+'</td><td class="num" style="text-align:right;color:var(--income)">'+fmtMoney(num(p.net))+'</td><td>'+fmtDate(p.date)+'</td></tr>';}).join('')+'</tbody></table></div>':'<p class="sub">No payouts yet.</p>')+'</div>'+
     ((emp.customFields||[]).length?'<div class="card mt" style="padding:12px 14px"><div class="card-head" style="margin-bottom:6px"><h3 style="font-size:.92rem">Details</h3></div>'+emp.customFields.map(function(f){return '<div class="list-row"><span class="sub" style="flex:1">'+esc(f.label)+'</span><b style="font-size:.86rem">'+esc(f.type==='money'&&f.value?fmtMoney(num(f.value)):(f.value||'—'))+'</b></div>';}).join('')+'</div>':'')+
+    hrBankHTML(emp)+hrDocsHTML(emp)+hrContractsHTML(emp)+
     '<div style="display:flex;gap:8px;margin-top:14px"><button class="btn btn-ghost" data-action="hr-edit" data-id="'+emp.id+'">'+icon('edit')+' Edit</button></div>';
   openModal(esc(emp.name),body,{wide:true});
+}
+function hrFileSize(n){ n=num(n); if(n<1024) return n+' B'; if(n<1048576) return (n/1024).toFixed(0)+' KB'; return (n/1048576).toFixed(1)+' MB'; }
+function hrBankHTML(emp){
+  var b=emp.bank||{}; if(!b.name&&!b.acct&&!b.holder) return '';
+  return '<div class="card mt" style="padding:12px 14px"><div class="card-head" style="margin-bottom:6px"><h3 style="font-size:.92rem">'+icon('bank',15)+' Bank / payout account</h3></div>'+
+    '<div class="list-row"><span class="sub" style="flex:1">'+esc(b.name||'Account')+'</span><b style="font-size:.86rem;font-variant-numeric:tabular-nums">'+esc(b.acct||'—')+'</b></div>'+
+    (b.holder?'<div class="sub" style="margin-top:2px">Account name: '+esc(b.holder)+'</div>':'')+'</div>';
+}
+function hrDocsHTML(emp){
+  var docs=emp.documents||[];
+  return '<div class="card mt" style="padding:12px 14px"><div class="card-head" style="margin-bottom:8px"><h3 style="font-size:.92rem">'+icon('doc',15)+' Documents</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="hr-doc-add" data-id="'+emp.id+'">'+icon('upload')+' Upload</button></div>'+
+    (docs.length?docs.map(function(dd){return '<div class="list-row"><span class="doc-ico">'+icon('doc')+'</span><div style="flex:1;min-width:0"><b style="font-size:.84rem;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(dd.name)+'</b><span class="sub">'+esc(hrFileSize(dd.size))+' · '+fmtDate(dd.addedAt)+'</span></div><button class="btn-icon" data-action="hr-doc-view" data-id="'+emp.id+'" data-doc="'+dd.id+'" title="Open / download">'+icon('download')+'</button><button class="btn-icon danger" data-action="hr-doc-del" data-id="'+emp.id+'" data-doc="'+dd.id+'" title="Delete">'+icon('trash')+'</button></div>';}).join(''):'<p class="sub">No documents yet — upload IDs, certificates, signed forms, payslips… (max 4 MB each).</p>')+'</div>';
+}
+function hrContractsHTML(emp){
+  var cs=emp.contracts||[];
+  return '<div class="card mt" style="padding:12px 14px"><div class="card-head" style="margin-bottom:8px"><h3 style="font-size:.92rem">'+icon('pen',15)+' Contracts</h3><span class="spacer"></span><button class="btn btn-sm btn-primary" data-action="hr-contract-new" data-id="'+emp.id+'">'+icon('plus')+' New contract</button></div>'+
+    (cs.length?cs.map(function(c){return '<div class="list-row"><div style="flex:1;min-width:0"><b style="font-size:.86rem">'+esc(c.title||'Untitled contract')+'</b> '+(c.signedAt?'<span class="badge good">signed</span>':'<span class="badge neutral">draft</span>')+'<div class="sub">'+(c.signedAt?'Signed by '+esc(c.signedBy||'—')+' · '+fmtDate(c.signedAt):'Updated '+fmtDate(c.updatedAt||c.createdAt))+'</div></div><button class="btn btn-sm btn-ghost" data-action="hr-contract-open" data-id="'+emp.id+'" data-c="'+c.id+'">Open</button><button class="btn-icon danger" data-action="hr-contract-del" data-id="'+emp.id+'" data-c="'+c.id+'">'+icon('trash')+'</button></div>';}).join(''):'<p class="sub">No contracts yet. Create an employment contract, NDA or agreement — then e-sign it.</p>')+'</div>';
+}
+function hrDocUpload(empId){
+  var inp=document.createElement('input'); inp.type='file'; inp.multiple=true; inp.accept='image/*,application/pdf,.pdf,.doc,.docx,.txt';
+  inp.onchange=function(){
+    var emp=hrEmp(empId); if(!emp) return; emp.documents=emp.documents||[];
+    var files=Array.prototype.slice.call(inp.files||[]); if(!files.length) return;
+    var pending=files.length, tooBig=0;
+    function done(){ if(--pending>0) return; save(); toast(tooBig?(tooBig+' file(s) skipped — keep each under 4 MB.'):'Document(s) uploaded.',tooBig?'warn':undefined); employeeDetail(emp); }
+    files.forEach(function(f){
+      if(f.size>4*1024*1024){ tooBig++; done(); return; }
+      var r=new FileReader();
+      r.onload=function(){ emp.documents.push({id:uid(),name:f.name,type:f.type,size:f.size,data:r.result,addedAt:todayISO()}); done(); };
+      r.onerror=function(){ done(); };
+      r.readAsDataURL(f);
+    });
+  };
+  inp.click();
+}
+function hrDocView(empId,docId){
+  var emp=hrEmp(empId); if(!emp) return; var dd=(emp.documents||[]).find(function(x){return x.id===docId;}); if(!dd) return;
+  var a=document.createElement('a'); a.href=dd.data; a.download=dd.name||'document'; a.target='_blank'; a.rel='noopener'; document.body.appendChild(a); a.click(); a.remove();
+}
+function contractTemplate(emp){
+  return '<h2>Employment Contract</h2>'+
+    '<p>This Employment Contract is made between <b>'+esc(state.settings.businessName||'the Employer')+'</b> ("Employer") and <b>'+esc(emp.name||'')+'</b> ("Employee").</p>'+
+    '<p><b>Position:</b> '+esc(emp.role||'__________')+'<br><b>Employment type:</b> '+esc(emp.employmentType||'__________')+'<br><b>Compensation:</b> '+(emp.payRate?esc(fmtMoney(num(emp.payRate))+' per '+String(emp.payBasis||'').toLowerCase()):'__________')+'<br><b>Start date:</b> '+esc(emp.dateHired||'__________')+'</p>'+
+    '<p>The Employee agrees to perform their duties diligently and in accordance with the lawful policies of the Employer. This agreement may be amended only in writing by mutual consent of both parties.</p>'+
+    '<p style="margin-top:24px">Signed on ____________________.</p>';
+}
+function sanitizeContractHTML(html){
+  try{
+    var doc=new DOMParser().parseFromString('<div id="r">'+String(html||'')+'</div>','text/html');
+    var root=doc.getElementById('r');
+    var BAD={script:1,style:1,iframe:1,object:1,embed:1,link:1,meta:1,base:1,form:1,svg:1,math:1};
+    var URLA={href:1,src:1,'xlink:href':1,formaction:1,action:1,data:1,poster:1,background:1};
+    (function walk(node){
+      Array.prototype.slice.call(node.children||[]).forEach(function(el){
+        if(BAD[String(el.tagName||'').toLowerCase()]){ el.remove(); return; } // case-insensitive — also kills SVG/MathML <script>
+        Array.prototype.slice.call(el.attributes).forEach(function(at){
+          var n=String(at.name).toLowerCase();
+          if(/^on/.test(n) || n==='style' || (URLA[n] && /^\s*(javascript|data|vbscript):/i.test(at.value))) el.removeAttribute(at.name);
+        });
+        walk(el);
+      });
+    })(root);
+    return root.innerHTML;
+  }catch(_){ return ''; }
+}
+function contractEditorModal(empId,cid){
+  var emp=hrEmp(empId); if(!emp) return; emp.contracts=emp.contracts||[];
+  var c=cid?emp.contracts.find(function(x){return x.id===cid;}):null, isNew=!c;
+  if(!c){ c={id:uid(),title:'Employment Contract',html:contractTemplate(emp),createdAt:todayISO()}; emp.contracts.push(c); save(); }
+  var body='<input type="hidden" id="contract-emp" value="'+empId+'"><input type="hidden" id="contract-id" value="'+esc(c.id)+'">'+
+    '<input class="input" id="contract-title" value="'+esc(c.title||'')+'" placeholder="Contract title" style="font-weight:700;margin-bottom:10px">'+
+    '<div class="doc-toolbar">'+
+      '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="bold" title="Bold"><b>B</b></button>'+
+      '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="italic" title="Italic"><i>I</i></button>'+
+      '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="underline" title="Underline"><u>U</u></button>'+
+      '<span class="doc-div"></span>'+
+      '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="formatBlock" data-val="h2" title="Heading">H</button>'+
+      '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="formatBlock" data-val="p" title="Normal text">¶</button>'+
+      '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="insertUnorderedList" title="Bullets">•</button>'+
+      '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="insertOrderedList" title="Numbered">1.</button>'+
+    '</div>'+
+    '<div class="doc-page" id="contract-body" contenteditable="true">'+sanitizeContractHTML(c.html||'')+'</div>'+
+    (c.signedAt?'<div class="doc-signed">'+(c.signatureImg?'<img src="'+esc(c.signatureImg)+'" alt="signature" class="sign-img">':'<span class="sign-text">'+esc(c.signedBy)+'</span>')+'<div class="sub">Signed by <b>'+esc(c.signedBy||'')+'</b> · '+fmtDate(c.signedAt)+'</div></div>':'')+
+    '<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button type="button" class="btn btn-primary" data-action="hr-contract-save">'+icon('check')+' Save</button>'+
+      '<button type="button" class="btn btn-ghost" data-action="hr-contract-sign" data-id="'+empId+'" data-c="'+c.id+'">'+icon('pen')+' '+(c.signedAt?'Re-sign':'E-sign')+'</button>'+
+      '<button type="button" class="btn btn-ghost" data-action="hr-contract-print" data-id="'+empId+'" data-c="'+c.id+'">'+icon('print')+' Print / PDF</button></div>';
+  openModal('Contract — '+esc(emp.name),body,{wide:true});
+}
+function hrContractSave(){
+  var empId=(byId('contract-emp')||{}).value, cid=(byId('contract-id')||{}).value;
+  var emp=hrEmp(empId); if(!emp) return; var c=(emp.contracts||[]).find(function(x){return x.id===cid;}); if(!c) return;
+  c.title=String((byId('contract-title')||{}).value||'Untitled contract').slice(0,120);
+  c.html=sanitizeContractHTML((byId('contract-body')||{}).innerHTML||''); c.updatedAt=todayISO();
+  save(); toast('Contract saved.');
+}
+var _signDrew=false;
+function initSignPad(){
+  var cv=byId('sign-pad'); if(!cv||!cv.getContext) return; var ctx=cv.getContext('2d'); _signDrew=false;
+  ctx.clearRect(0,0,cv.width,cv.height); ctx.lineWidth=2.6; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle='#16182a';
+  var drawing=false,last=null;
+  function pos(e){ var r=cv.getBoundingClientRect(),t=e.touches?e.touches[0]:e; return {x:(t.clientX-r.left)*(cv.width/r.width),y:(t.clientY-r.top)*(cv.height/r.height)}; }
+  function start(e){ drawing=true; last=pos(e); if(e.cancelable)e.preventDefault(); }
+  function move(e){ if(!drawing)return; var p=pos(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; _signDrew=true; if(e.cancelable)e.preventDefault(); }
+  function end(){ drawing=false; }
+  cv.addEventListener('mousedown',start); cv.addEventListener('mousemove',move); window.addEventListener('mouseup',end);
+  cv.addEventListener('touchstart',start,{passive:false}); cv.addEventListener('touchmove',move,{passive:false}); cv.addEventListener('touchend',end);
+}
+function contractSignModal(empId,cid){
+  var body='<input type="hidden" id="sign-emp" value="'+empId+'"><input type="hidden" id="sign-cid" value="'+esc(cid)+'">'+
+    '<div class="field"><label>Signer’s full name *</label><input class="input" id="sign-name" placeholder="Type the name of who is signing"></div>'+
+    '<div class="field"><label>Signature</label><canvas id="sign-pad" class="sign-pad" width="520" height="170"></canvas>'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><span class="sub">Draw with your mouse or finger (optional — name alone also works)</span><button type="button" class="btn btn-sm btn-ghost" data-action="hr-sign-clear">Clear</button></div></div>'+
+    '<div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="btn btn-primary" data-action="hr-sign-save">'+icon('check')+' Apply signature</button></div>';
+  openModal('E-sign contract',body,{});
+  setTimeout(initSignPad,70);
+}
+function hrSignSave(){
+  var empId=(byId('sign-emp')||{}).value, cid=(byId('sign-cid')||{}).value;
+  var nm=String((byId('sign-name')||{}).value||'').trim(); if(!nm){ toast('Type the signer’s name.','error'); return; }
+  var emp=hrEmp(empId); if(!emp) return; var c=(emp.contracts||[]).find(function(x){return x.id===cid;}); if(!c) return;
+  var cv=byId('sign-pad'); c.signatureImg=(_signDrew&&cv&&cv.toDataURL)?cv.toDataURL('image/png'):'';
+  c.signedBy=nm.slice(0,80); c.signedAt=todayISO(); save();
+  closeModal(); contractEditorModal(empId,cid); toast('Contract signed ✓');
+}
+function hrContractPrint(empId,cid){
+  var emp=hrEmp(empId); if(!emp) return; var c=(emp.contracts||[]).find(function(x){return x.id===cid;}); if(!c) return;
+  var sig=c.signedAt?'<div style="margin-top:40px">'+(c.signatureImg?'<img src="'+esc(c.signatureImg)+'" style="height:70px">':'<div style="font-family:cursive;font-size:1.6rem">'+esc(c.signedBy||'')+'</div>')+'<div style="border-top:1px solid #000;width:240px;padding-top:4px;font-size:.8rem">'+esc(c.signedBy||'')+' · '+fmtDate(c.signedAt)+'</div></div>':'';
+  printDoc('<div class="pr-doc"><div style="max-width:720px;margin:0 auto">'+sanitizeContractHTML(c.html||'')+sig+'</div></div>');
 }
 function hrValeAddModal(empId){
   var body='<input type="hidden" name="employeeId" value="'+empId+'">'+
@@ -4099,6 +4328,8 @@ document.addEventListener('click',function(e){
 
   /* navigation & shell */
   if(action==='nav'){ nav(el.getAttribute('data-route')); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); return; }
+  if(action==='fav-toggle'){ e.stopPropagation(); var fid=el.getAttribute('data-route'); var f=state.settings.favorites=state.settings.favorites||[]; var ix=f.indexOf(fid); if(ix>=0){ f.splice(ix,1); toast('Removed from Favorites.'); } else { f.push(fid); toast('Pinned to Favorites ★'); } save(); renderSidebar(); return; }
+  if(action==='sec-move'){ var sn=el.getAttribute('data-sec'), dir=el.getAttribute('data-dir')==='up'?-1:1; moveSidebarSection(sn,dir); return; }
   if(action==='go-import'){ ui.settingsTab='data'; nav('settings'); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); setTimeout(function(){ var c=document.querySelector('[data-action="csv-import"]'); if(c&&c.scrollIntoView) c.scrollIntoView({behavior:'smooth',block:'center'}); },120); return; }
   if(action==='open-sidebar'){ byId('sidebar').classList.add('open'); byId('scrim').classList.add('show'); return; }
   if(action==='toggle-nav-collapse'){ state.settings.navCollapsed=!state.settings.navCollapsed; save(); applyNavCollapse(); render(); return; }
@@ -4296,6 +4527,19 @@ document.addEventListener('click',function(e){
   if(action==='hr-customize'){ hrCustomizeModal(); return; }
   if(action==='hr-card-del'){ state.settings.hrCustomCards=(state.settings.hrCustomCards||[]).filter(function(c){return c.id!==id;}); save(); closeModal(); hrCustomizeModal(); return; }
   if(action==='hr-card-add'){ var hlbl=String(((byId('hrc-label')||{}).value)||'').trim().slice(0,30); if(!hlbl){ toast('Give the card a title.','error'); return; } var hmetric=(byId('hrc-metric')||{}).value||'count'; var hfield=(byId('hrc-field')||{}).value||'payRate'; var hfilter=(byId('hrc-filter')||{}).value||'all'; var hfmt=(hmetric!=='count')?'money':''; state.settings.hrCustomCards=(state.settings.hrCustomCards||[]); state.settings.hrCustomCards.push({id:uid(),label:hlbl,metric:hmetric,field:hfield,filter:hfilter,fmt:hfmt}); save(); closeModal(); toast('Card added.'); render(); return; }
+  /* ---- Manpower: documents + contracts + e-sign ---- */
+  if(action==='hr-doc-add'){ hrDocUpload(id); return; }
+  if(action==='hr-doc-view'){ hrDocView(id,el.getAttribute('data-doc')); return; }
+  if(action==='hr-doc-del'){ var hde=hrEmp(id); if(hde){ hde.documents=(hde.documents||[]).filter(function(x){return x.id!==el.getAttribute('data-doc');}); save(); employeeDetail(hde); } return; }
+  if(action==='hr-contract-new'){ contractEditorModal(id); return; }
+  if(action==='hr-contract-open'){ contractEditorModal(id,el.getAttribute('data-c')); return; }
+  if(action==='hr-contract-del'){ var hce=hrEmp(id); if(hce&&confirm('Delete this contract?')){ hce.contracts=(hce.contracts||[]).filter(function(x){return x.id!==el.getAttribute('data-c');}); save(); employeeDetail(hce); } return; }
+  if(action==='hr-contract-save'){ hrContractSave(); return; }
+  if(action==='hr-contract-sign'){ hrContractSave(); contractSignModal(id,el.getAttribute('data-c')); return; }
+  if(action==='hr-contract-print'){ hrContractSave(); hrContractPrint(id,el.getAttribute('data-c')); return; }
+  if(action==='hr-fmt'){ var cmd=el.getAttribute('data-cmd'),val=el.getAttribute('data-val')||null; var cb=byId('contract-body'); if(cb){ cb.focus(); try{ document.execCommand(cmd,false,val); }catch(_){ } } return; }
+  if(action==='hr-sign-clear'){ initSignPad(); return; }
+  if(action==='hr-sign-save'){ hrSignSave(); return; }
 
   /* reviews */
   if(action==='toggle-weekly'){
@@ -5002,6 +5246,14 @@ function customizationCardHTML(){
     }).join('')+'</div>'+
     '<div style="display:flex;justify-content:flex-end;margin-top:8px"><button type="button" class="btn btn-ghost btn-sm" data-action="reset-sections">'+icon('refresh')+' Reset to defaults</button></div>'+
     '<p style="font-size:.72rem;color:var(--text-3);margin-top:3px">Pick a color and rename any section — changes show in the sidebar instantly.</p></div>';
+  // sidebar order
+  html+='<div class="field"><label>Sidebar order — arrange your categories</label><div class="sec-order">'+
+    sidebarSectionOrder().map(function(name,i,arr){
+      return '<div class="sec-order-row"><span>'+esc(sectionLabelOf(name))+'</span><span class="sec-order-btns">'+
+        '<button type="button" class="btn-icon" data-action="sec-move" data-sec="'+esc(name)+'" data-dir="up"'+(i===0?' disabled':'')+' title="Move up">'+icon('up')+'</button>'+
+        '<button type="button" class="btn-icon" data-action="sec-move" data-sec="'+esc(name)+'" data-dir="down"'+(i===arr.length-1?' disabled':'')+' title="Move down">'+icon('down')+'</button></span></div>';
+    }).join('')+'</div>'+
+    '<p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Move a category (e.g. Shop) up or down. Pin links to ★ Favorites with the star that appears on each sidebar item.</p></div>';
   // modules
   html+='<div class="field"><label>Visible modules</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">'+
     hideable.map(function(r){
@@ -5081,7 +5333,7 @@ function doCloudPut(ep,silent){
       state.settings.sync.lastSync=new Date().toISOString();
       state.settings.sync.lastSyncStamp=state.meta.updatedAt;
       cloudConflictWarned=false;
-      try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(_){}
+      try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(_){ toast("Could not save — browser storage may be full.","error"); }
       if(!silent){ toast('Pushed to cloud ✓'); render(); }
     })
     .catch(function(e){ if(!silent) toast('Cloud push failed: '+e.message,'error'); })
@@ -5104,7 +5356,7 @@ function cloudPull(){
       var sync=JSON.parse(JSON.stringify(state.settings.sync));
       state=deepMerge(JSON.parse(JSON.stringify(DEFAULT_STATE)),data);
       state.settings.sync=Object.assign(state.settings.sync||{},sync,{lastSync:new Date().toISOString(),lastSyncStamp:(data.meta&&data.meta.updatedAt)||Date.now()});
-      try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(_){}
+      try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(_){ toast("Could not save — browser storage may be full.","error"); }
       applyTheme(); render();
       toast('Pulled from cloud — '+state.finance.length+' finance entries on this device now.');
     })
@@ -9086,8 +9338,7 @@ function showGreeting(){
   var g=greetingTime();
   function greetAvatar(){
     var bl=state.settings&&state.settings.bizLogo;
-    var inner=bl?'<img class="greet-logo" src="'+esc(bl)+'" alt="">':'<span class="greet-initial">'+esc(String(state.settings.businessName||'B').charAt(0).toUpperCase())+'</span>';
-    return inner+'<span class="greet-time">'+icon(g.ico)+'</span>';
+    return bl?'<img class="greet-logo" src="'+esc(bl)+'" alt="">':'<span class="greet-logohint">Logo</span>';
   }
   if(!nm){
     root.innerHTML='<div class="greet-overlay greet-'+g.part+'" data-greet="setup">'+
@@ -9133,6 +9384,8 @@ function maybeGreet(){
   setTimeout(showGreeting,450);
 }
 document.addEventListener('submit',function(e){ if(e.target&&e.target.id==='greet-form'){ e.preventDefault(); greetSaveName(); } });
+/* keep the contract editor's text selection when a formatting button is pressed */
+document.addEventListener('mousedown',function(e){ if(e.target.closest&&e.target.closest('.doc-tool')) e.preventDefault(); });
 document.addEventListener('click',function(e){
   if(!document.body.classList.contains('greeting-on')) return;
   if(e.target.closest&&e.target.closest('[data-greet-skip]')){ state.settings.greetDone=true; save(); dismissGreeting(); return; }

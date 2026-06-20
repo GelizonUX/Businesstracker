@@ -100,6 +100,31 @@ async function main() {
     window.fetch = () => resp(200, JSON.stringify({ emailHash: eh, devices: {} }));
     await window.verifyActivation(K, 'attacker@evil.com').then(() => ok('hashed-email rejects wrong email', false)).catch((e) => ok('hashed-email rejects wrong email', e.code === 'email', e));
 
+    // ---------- OFFLINE signed license: verifies with ZERO network (no Firebase) ----------
+    const PRIV = { kty:'EC', crv:'P-256', x:'ehXZYwQBYbP8HhHKZ6_hvK1Yp3e2fgQyzqJTXCqdXBc', y:'tyv_vdWFYP84K8O3gYfpLR5RIYQx_s0rm6jmySyysFg', d:'6mksRId8vn1ZRhc4O34WgWVroFsWm9JFPhKaTq9apjg' };
+    const b64u = (a) => Buffer.from(a).toString('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    async function makeToken(email, limit) {
+      const pk = await webcrypto.subtle.importKey('jwk', PRIV, { name:'ECDSA', namedCurve:'P-256' }, false, ['sign']);
+      const ehBuf = await webcrypto.subtle.digest('SHA-256', new TextEncoder().encode(email.toLowerCase()));
+      const eh = [...new Uint8Array(ehBuf)].map((b) => ('0'+b.toString(16)).slice(-2)).join('');
+      const pb = new TextEncoder().encode(JSON.stringify({ eh, d: limit, i: '2026-06-19' }));
+      const sig = await webcrypto.subtle.sign({ name:'ECDSA', hash:'SHA-256' }, pk, pb);
+      return b64u(pb) + '.' + b64u(new Uint8Array(sig));
+    }
+    const tok = await makeToken('buyer@x.com', 2);
+    let netHit = false; window.fetch = () => { netHit = true; return resp(500, '{}'); };
+    await window.verifyActivation(tok, 'buyer@x.com')
+      .then((a) => ok('offline signed key activates with NO network', a && a.offline === true && netHit === false, { netHit }))
+      .catch((e) => ok('offline signed key activates with NO network', false, e));
+    await window.verifyActivation(tok, 'someone@else.com').then(() => ok('offline key rejects wrong email', false)).catch((e) => ok('offline key rejects wrong email', e.code === 'email'));
+    await window.verifyActivation(tok.slice(0, -4) + 'AAAA', 'buyer@x.com').then(() => ok('tampered offline key rejected', false)).catch((e) => ok('tampered offline key rejected', !!e));
+    // the gate input must NOT mangle a pasted long signed token
+    window.GATE.enabled = true; window.renderGate(); window.GATE.enabled = false;
+    const gk = d.getElementById('gate-key');
+    if (gk) { gk.value = tok; gk.dispatchEvent(new window.Event('input', { bubbles: true })); ok('gate input preserves a pasted signed token (no mangling)', gk.value === tok, { len: gk.value.length }); }
+    else ok('gate input preserves a pasted signed token (no mangling)', false, 'no gate-key');
+    if (d.getElementById('gate-root')) d.getElementById('gate-root').innerHTML = '';
+
     // ---------- PIN lock (PBKDF2) ----------
     ok('no lock initially', window.hasLock() === false);
     await window.setPin('1357');
@@ -149,7 +174,16 @@ async function main() {
     d.getElementById('greet-name').value = 'Ira'; window.greetSaveName();
     ok('saving a name persists displayName + switches to a personalised hello', window.state.settings.displayName === 'Ira' && !!greetRoot.querySelector('[data-greet="hello"]') && /Ira/.test(greetRoot.innerHTML));
     ok('greeting is time-based', /Good (morning|afternoon|evening)/.test(greetRoot.innerHTML));
-    ok('greeting shows the business avatar + time badge (not a bare emoji)', /greet-initial|greet-logo/.test(greetRoot.innerHTML) && /greet-time/.test(greetRoot.innerHTML));
+    ok('greeting shows the business logo / Logo cue in the circle (no sun emoji)', /greet-logo"|greet-logohint/.test(greetRoot.innerHTML) && !/greet-time/.test(greetRoot.innerHTML));
+    ok('greeting locks background scroll', /body\.greeting-on\{overflow:hidden\}/.test(html));
+
+    // ---------- sidebar: favorites + section reorder ----------
+    window.state.settings.favorites = ['finance']; window.renderSidebar();
+    const sb = d.getElementById('sidebar').innerHTML;
+    ok('favorites section renders the pinned item', /Favorites/.test(sb) && /nav-fav on/.test(sb));
+    window.state.settings.sectionOrder = []; window.moveSidebarSection('Shop', -1);
+    ok('moving a section persists a custom order', Array.isArray(window.state.settings.sectionOrder) && window.state.settings.sectionOrder.length > 0 && window.state.settings.sectionOrder.indexOf('Shop') < window.state.settings.sectionOrder.indexOf('Money'));
+    window.state.settings.favorites = []; window.state.settings.sectionOrder = [];
     window.dismissGreeting();
     ok('dismiss clears the greeting state (unblurs)', !d.body.classList.contains('greeting-on'));
     window.state.settings.displayName = '';
@@ -170,6 +204,34 @@ async function main() {
     window.state.settings.hrCustomCards = [{ id: 'c1', label: 'Riders', metric: 'count', field: 'payRate', filter: 'Active', fmt: '' }];
     window.render();
     ok('custom Manpower stat card renders', /Riders/.test(d.getElementById('main').innerHTML));
+
+    // ---------- Manpower upgrade: bank, documents, contracts, e-sign, sanitizer ----------
+    ok('contract HTML sanitizer strips scripts + on* handlers', !/onerror|<script/i.test(window.sanitizeContractHTML('<p onerror="x()">hi<script>bad()</script><img src=x onerror="alert(1)"></p>')));
+    (function () {
+      const s = window.sanitizeContractHTML('<svg><script>x()</script></svg><a xlink:href="javascript:alert(1)">a</a><button formaction="javascript:x()">b</button><p style="x:y">t</p>');
+      ok('sanitizer also blocks SVG/MathML scripts, javascript: URLs (xlink/formaction) + style', !/<svg|<script|javascript:|formaction|style=/i.test(s));
+    })();
+    const empX = { id:'eX', name:'Ana', role:'Cashier', payBasis:'Daily', payRate:500, status:'Active', colorTag:'#10b981', customFields:[], bank:{name:'GCash',acct:'0917 555',holder:'Ana'}, documents:[], contracts:[] };
+    window.state.employees = [empX];
+    const tpl = window.contractTemplate(empX);
+    ok('contract template includes the employee + employer', /Ana/.test(tpl) && /Employment Contract/.test(tpl));
+    window.employeeDetail(empX);
+    const det = d.getElementById('modal-root').innerHTML;
+    ok('employee detail shows Bank, Documents & Contracts sections', /Bank \/ payout/.test(det) && /Documents/.test(det) && /Contracts/.test(det));
+    window.closeModal();
+    // malicious bank/doc/contract fields render escaped — no LIVE (unescaped) tags injected
+    const empM = { id: 'eM', name: 'Z', bank: { name: '<img src=x onerror="alert(1)">', acct: '1', holder: 'x' }, documents: [{ id: 'd1', name: '<svg onload=alert(2)>.pdf', size: 100, data: 'data:,', addedAt: '2026-06-19' }], contracts: [{ id: 'k1', title: '<b onmouseover=alert(3)>t</b>', createdAt: '2026-06-19' }], customFields: [] };
+    window.state.employees.push(empM);
+    window.employeeDetail(empM);
+    (function () { const h = d.getElementById('modal-root').innerHTML; ok('malicious bank/doc/contract fields render escaped (no live tags)', h.indexOf('<img src=x onerror') === -1 && h.indexOf('<svg onload') === -1 && h.indexOf('<b onmouseover') === -1); })();
+    window.closeModal();
+    window.state.employees = window.state.employees.filter((e) => e.id !== 'eM');
+    window.contractEditorModal('eX'); await wait(10);
+    ok('contract editor opens a contenteditable doc page + toolbar', !!d.getElementById('contract-body') && /doc-toolbar/.test(d.getElementById('modal-root').innerHTML) && empX.contracts.length === 1);
+    empX.contracts[0].signedBy = 'Ana Cruz'; empX.contracts[0].signedAt = '2026-06-19';
+    window.employeeDetail(empX);
+    ok('a signed contract shows as signed', /signed</.test(d.getElementById('modal-root').innerHTML));
+    window.closeModal();
     window.state.employees = []; window.state.hrAdvances = []; window.state.hrPayouts = []; window.state.settings.hrCustomCards = [];
 
     // ---------- delight: KPI count-up is non-destructive (settles to the EXACT figure) ----------
