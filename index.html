@@ -1042,8 +1042,8 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
   .table-wrap tr:last-child{border-bottom:none}
   /* compact detail-list row: small caption label on the left, value LEFT-ALIGNED right beside it
      (not stretched to the far edge) — and long values wrap instead of clipping */
-  .table-wrap td{display:block;position:relative;border:none;padding:5px 0 5px 33%;text-align:left;min-height:0;line-height:1.45;white-space:normal;overflow-wrap:anywhere;word-break:break-word}
-  .table-wrap td[data-label]::before{content:attr(data-label);position:absolute;left:0;top:6px;width:30%;text-align:left;font-weight:700;color:var(--text-3);text-transform:uppercase;font-size:.6rem;letter-spacing:.04em;line-height:1.5}
+  .table-wrap td{display:block;position:relative;border:none;padding:5px 0 5px 37%;text-align:left;min-height:0;line-height:1.45;white-space:normal;overflow-wrap:anywhere;word-break:break-word}
+  .table-wrap td[data-label]::before{content:attr(data-label);position:absolute;left:0;top:6px;width:34%;text-align:left;font-weight:700;color:var(--text-3);text-transform:uppercase;font-size:.58rem;letter-spacing:.02em;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .table-wrap td[data-label]{text-align:left!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important} /* beat inline right-align/ellipsis on value cells */
   .table-wrap td:not([data-label]){padding-left:0;text-align:right} /* action-button cell stays right */
   /* mobile cards want the FULL value — override any desktop ellipsis/nowrap/max-width/right-align on cell content */
