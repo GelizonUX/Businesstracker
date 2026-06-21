@@ -5507,7 +5507,7 @@ function invPHP(iv){
 }
 function fmtInvAmt(iv){
   var sym=FX_SYMBOLS[iv.currency||'PHP']||'';
-  return sym+Number(iv.amount).toLocaleString(undefined,{maximumFractionDigits:2});
+  return sym+num(iv.amount).toLocaleString(undefined,{maximumFractionDigits:2});
 }
 function invIncomeNote(iv){
   return 'Invoice '+iv.number+(iv.desc?' — '+iv.desc:'')+(iv.currency&&iv.currency!=='PHP'?' ('+fmtInvAmt(iv)+' via '+(iv.payMethod||'—')+')':(iv.payMethod?' via '+iv.payMethod:''));
