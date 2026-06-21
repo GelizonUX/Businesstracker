@@ -1,0 +1,8 @@
+# Always fetch the freshest app shell — the whole app is one HTML file, so a stale
+# cached copy would hide new deploys (e.g. mobile layout fixes). Force revalidation.
+/
+  Cache-Control: public, max-age=0, must-revalidate
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
