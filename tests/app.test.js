@@ -207,6 +207,10 @@ async function main() {
     // design-system normalization: type-scale + grid-gap tokens defined and used; no 13px gutters / half-pixel padding
     ok('design tokens defined (type scale + grid gutter)', /--fs-2xl:/.test(html) && /--grid-gap:/.test(html));
     ok('card grids use the gutter token, not magic 13px', /\.grid\{display:grid;gap:var\(--grid-gap\)\}/.test(html) && !/\.grid\{display:grid;gap:13px\}/.test(html) && !/padding:6\.5px/.test(html));
+    // mobile-first: on phones the stat grids go 2-up (not full-width stacked) and dashboard KPIs sit 2-up
+    ok('mobile stat grids are 2-up (not single-column) at <=560px', /@media \(max-width:560px\)\{\s*\.grid-3,\.grid-4\{grid-template-columns:repeat\(2,1fr\)\}/.test(html));
+    ok('mobile dashboard KPIs sit 2-up while rich widgets go full-width', /\.dash-grid \.dash-widget\{grid-column:1 \/ -1\}/.test(html) && /data-widget="rev"\][\s\S]{0,160}grid-column:auto/.test(html));
+    ok('mobile compacts cards + hides floating sparkline at 2-up', /\.stat-card \.spark\{display:none\}/.test(html));
     (function () {
       window.state.settings.navScale = 1;
       window.setNavScale(1);

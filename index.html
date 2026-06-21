@@ -577,7 +577,7 @@ details.calc .calc-body{margin-top:10px}
   .topbar-actions .btn{padding:8px 12px}
 }
 @media (max-width:560px){
-  .grid-3,.grid-4{grid-template-columns:1fr}
+  .grid-3,.grid-4{grid-template-columns:repeat(2,1fr)}
   html{font-size:14px}
   .ring-wrap{flex-direction:column;align-items:flex-start}
 }
@@ -981,6 +981,31 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .dash-widget[data-span="2"]{grid-column:span 2}
 @media (max-width:680px){.dash-widget[data-span="2"]{grid-column:span 1}}
 .dash-widget>.card{flex:1;min-width:0;margin-top:0}
+/* ============================================================
+   MOBILE (phones ≤560px): compact, balanced grids — not big stacked cards
+   Placed after the dashboard CSS so these rules win the cascade.
+   ============================================================ */
+@media (max-width:560px){
+  :root{--grid-gap:10px}
+  .main{padding:14px 12px 64px}
+  /* dashboard: the four KPIs sit 2-up; richer widgets stay full-width and readable */
+  .dash-grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .dash-grid .dash-widget{grid-column:1 / -1}
+  .dash-grid .dash-widget[data-widget="rev"],
+  .dash-grid .dash-widget[data-widget="exp"],
+  .dash-grid .dash-widget[data-widget="prof"],
+  .dash-grid .dash-widget[data-widget="margin"]{grid-column:auto}
+  /* compact every card so a 2-up row stays balanced and not oversized */
+  .card{padding:13px 14px}
+  .stat-card .stat-value{font-size:1.28rem;margin-top:3px}
+  .stat-card .stat-label{font-size:.66rem;letter-spacing:.05em;gap:6px}
+  .stat-card .stat-label svg{width:12px;height:12px}
+  .stat-card .stat-delta{font-size:.68rem;margin-top:5px;padding:1px 7px}
+  .stat-card .spark{display:none}              /* the floating sparkline has no room at 2-up */
+  .stat-icon{width:26px;height:26px;border-radius:8px}
+  .stat-icon svg{width:14px;height:14px}
+  .card-head h3{font-size:.95rem}
+}
 /* small floating per-card drag handle (appears on hover) */
 .dash-handle{position:absolute;top:-9px;right:14px;z-index:6;display:inline-flex;align-items:center;gap:4px;
   padding:2px 8px 2px 8px;border-radius:99px;background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--shadow-sm);
