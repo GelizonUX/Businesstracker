@@ -165,6 +165,8 @@ async function main() {
     const domOrder = Array.from(dgrid.querySelectorAll('.dash-widget')).map((w) => w.getAttribute('data-widget'));
     ok('drag end clears the placeholder state', !dgrid.querySelector('.dash-widget.dragging') && !dgrid.classList.contains('is-dragging'));
     ok('drag end persists the new order', JSON.stringify((window.state.settings.dashOrder || []).slice(0, domOrder.length)) === JSON.stringify(domOrder));
+    // touch long-press drag (mobile): wiring + CSS present, reorder helper falls back to the touch element
+    ok('mobile long-press drag is wired (touch state + lift CSS + scroll-lock)', typeof window.dashTouchApplyTransform === 'function' && !!window.dashTouch && /\.dash-widget\.dash-lift\{/.test(html) && /body\.dash-dragging \.main\{overflow:hidden/.test(html));
 
     // ---------- first-open greeting (name setup → time-based hello → dismiss) ----------
     window.state.settings.displayName = '';

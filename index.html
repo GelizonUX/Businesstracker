@@ -1096,6 +1096,13 @@ body.greeting-on .tabbar,body.greeting-on .fab{display:none!important}
 .dash-widget.dragging>.card>*{visibility:hidden}
 .dash-widget.dragging .dash-handle{opacity:0}
 .dash-grid.is-dragging .dash-widget:not(.dragging){cursor:grab}
+/* touch long-press drag (mobile): the held card lifts and follows the finger */
+.dash-widget.dash-lift{z-index:20;will-change:transform;touch-action:none}
+.dash-widget.dash-lift>.card{box-shadow:var(--shadow-lg);border-color:var(--accent);transform-origin:center}
+.dash-widget.dash-press>.card{transform:scale(.97);transition:transform .15s var(--ease)}
+body.dash-dragging{cursor:grabbing}
+body.dash-dragging .main{overflow:hidden!important;touch-action:none}
+body.dash-dragging .tabbar,body.dash-dragging .fab{opacity:.4;pointer-events:none}
 
 /* getting-started checklist */
 .start-card{background:linear-gradient(135deg,var(--accent-soft),transparent 70%),var(--bg-card);border-color:var(--accent-soft);margin-bottom:12px}
@@ -9544,6 +9551,13 @@ function animateCounts(scope){
 /* dashboard widgets: live drag-to-reorder — the picked-up card becomes a placeholder gap
    that follows the cursor while the others smoothly make room (FLIP); order saves on drop. */
 var dashDragId=null, dashPhTimer=null, dashRaf=0, dashPtrX=0, dashPtrY=0;
+var dashTouch={el:null,grabX:0,grabY:0,timer:null,startX:0,startY:0,active:false};
+function dashTouchApplyTransform(px,py){
+  var el=dashTouch.el; if(!el) return;
+  el.style.transform=''; // measure the slot rect without our offset
+  var r=el.getBoundingClientRect();
+  el.style.transform='translate('+(px-dashTouch.grabX-r.left)+'px,'+(py-dashTouch.grabY-r.top)+'px) scale(1.04)';
+}
 function dashGridEl(){ return document.querySelector('.dash-grid'); }
 function dashWidgetEls(g){ return (g||dashGridEl())? Array.prototype.slice.call((g||dashGridEl()).querySelectorAll('.dash-widget')) : []; }
 function dashFlipRecord(g){ var m={}; dashWidgetEls(g).forEach(function(w){ m[w.getAttribute('data-widget')]=w.getBoundingClientRect(); }); return m; }
@@ -9572,7 +9586,8 @@ function dashDragCleanup(){
   if(dashRaf){ cancelAnimationFrame(dashRaf); dashRaf=0; }
   var g=dashGridEl();
   if(g){ g.classList.remove('is-dragging');
-    dashWidgetEls(g).forEach(function(w){ if(w._anim){ try{ w._anim.cancel(); }catch(_){ } w._anim=null; } w.classList.remove('dragging'); w.style.transition=''; w.style.transform=''; }); }
+    dashWidgetEls(g).forEach(function(w){ if(w._anim){ try{ w._anim.cancel(); }catch(_){ } w._anim=null; } w.classList.remove('dragging','dash-lift','dash-press'); w.style.transition=''; w.style.transform=''; }); }
+  document.body.classList.remove('dash-dragging');
   dashDragId=null;
 }
 // where should the dragged card land for a pointer at (x,y)? works anywhere in the grid —
@@ -9593,14 +9608,14 @@ function dashInsertRef(g,x,y,dragEl){
 // run at most once per frame (dragover fires far faster) → no thrash, buttery reordering
 function dashProcessReorder(){
   dashRaf=0;
-  if(!dashDragId) return;
   var g=dashGridEl(); if(!g) return;
-  var dragEl=g.querySelector('.dash-widget.dragging'); if(!dragEl) return;
+  var dragEl=g.querySelector('.dash-widget.dragging')||(dashTouch&&dashTouch.el); if(!dragEl) return;
   var ref=dashInsertRef(g,dashPtrX,dashPtrY,dragEl);
   if(ref===dragEl||ref===dragEl.nextElementSibling) return; // already in place
   var prev=dashFlipRecord(g);
   g.insertBefore(dragEl,ref);
   dashFlip(g,prev,dragEl);
+  if(dashTouch&&dashTouch.active&&dashTouch.el===dragEl) dashTouchApplyTransform(dashPtrX,dashPtrY); // keep under finger after re-slot
 }
 document.addEventListener('dragstart',function(e){
   var h=e.target.closest&&e.target.closest('[data-dh]'); if(!h) return;
@@ -9631,6 +9646,52 @@ document.addEventListener('dragend',function(){
   dashPersistOrder();
   dashDragCleanup();
 });
+/* ---- touch long-press drag for dashboard widgets (mobile): hold ~480ms, then drag to reorder ---- */
+function dashTouchReset(){
+  if(dashTouch.timer){ clearTimeout(dashTouch.timer); dashTouch.timer=null; }
+  if(dashTouch.el) dashTouch.el.classList.remove('dash-press');
+  dashTouch.el=null; dashTouch.active=false;
+}
+document.addEventListener('pointerdown',function(e){
+  if(e.pointerType!=='touch') return;
+  if(!dashGridEl()) return;
+  var w=e.target.closest&&e.target.closest('.dash-widget'); if(!w) return;
+  if(e.target.closest('input,select,textarea')) return; // don't hijack real form fields
+  dashTouchReset();
+  dashTouch.el=w; dashTouch.startX=e.clientX; dashTouch.startY=e.clientY;
+  var r=w.getBoundingClientRect(); dashTouch.grabX=e.clientX-r.left; dashTouch.grabY=e.clientY-r.top;
+  w.classList.add('dash-press'); // subtle press-feedback while waiting for the hold
+  dashTouch.timer=setTimeout(function(){
+    dashTouch.timer=null; dashTouch.active=true; dashDragId=w.getAttribute('data-widget');
+    w.classList.remove('dash-press'); w.classList.add('dash-lift'); w.style.transition='none';
+    var g=dashGridEl(); if(g) g.classList.add('is-dragging'); document.body.classList.add('dash-dragging');
+    if(navigator.vibrate){ try{ navigator.vibrate(18); }catch(_){ } }
+    dashTouchApplyTransform(dashTouch.startX,dashTouch.startY);
+  },480);
+},{passive:true});
+document.addEventListener('pointermove',function(e){
+  if(e.pointerType!=='touch') return;
+  if(dashTouch.timer){ // still waiting for the hold — a real move means the user is scrolling
+    if(Math.abs(e.clientX-dashTouch.startX)>9||Math.abs(e.clientY-dashTouch.startY)>9) dashTouchReset();
+    return;
+  }
+  if(!dashTouch.active) return;
+  if(e.cancelable) e.preventDefault(); // stop the page from scrolling while dragging
+  dashPtrX=e.clientX; dashPtrY=e.clientY;
+  dashTouchApplyTransform(e.clientX,e.clientY);
+  if(!dashRaf) dashRaf=requestAnimationFrame(dashProcessReorder);
+},{passive:false});
+function dashTouchEnd(){
+  if(dashTouch.timer){ clearTimeout(dashTouch.timer); dashTouch.timer=null; if(dashTouch.el) dashTouch.el.classList.remove('dash-press'); }
+  if(dashTouch.active){
+    dashPersistOrder(); dashDragCleanup();
+    // a touch sequence fires a click after pointerup — swallow it so the drag doesn't also navigate
+    document.addEventListener('click',function sup(ev){ ev.stopPropagation(); ev.preventDefault(); document.removeEventListener('click',sup,true); },true);
+  }
+  dashTouch.el=null; dashTouch.active=false;
+}
+document.addEventListener('pointerup',function(e){ if(e.pointerType==='touch') dashTouchEnd(); },{passive:true});
+document.addEventListener('pointercancel',function(e){ if(e.pointerType==='touch'){ dashTouchReset(); dashDragCleanup(); } },{passive:true});
 
 window.addEventListener('hashchange',render);
 
