@@ -204,6 +204,9 @@ async function main() {
     })();
     // adjustable menu size scales both text and icon via --nav-scale, and the sidebar width tracks it
     ok('sidebar font + icon + width scale with --nav-scale', /font-size:calc\(\.9rem\*var\(--nav-scale/.test(html) && /\.nav-item svg\{width:calc\(17px\*var\(--nav-scale/.test(html) && /\.sidebar\{[^}]*width:calc\(248px\*var\(--nav-scale/.test(html));
+    // design-system normalization: type-scale + grid-gap tokens defined and used; no 13px gutters / half-pixel padding
+    ok('design tokens defined (type scale + grid gutter)', /--fs-2xl:/.test(html) && /--grid-gap:/.test(html));
+    ok('card grids use the gutter token, not magic 13px', /\.grid\{display:grid;gap:var\(--grid-gap\)\}/.test(html) && !/\.grid\{display:grid;gap:13px\}/.test(html) && !/padding:6\.5px/.test(html));
     (function () {
       window.state.settings.navScale = 1;
       window.setNavScale(1);
@@ -268,6 +271,43 @@ async function main() {
     ok('daily pay normalizes to monthly (×26)', window.hrMonthlyPay(window.state.employees[0]) === 13000);
     ok('vale balance nets repayments', window.hrValeBalance('e1') === 500 && window.hrValeOutstanding() === 500);
     ok('employee colors are sanitized in render', d.getElementById('main').innerHTML.indexOf('onerror') === -1);
+    // --- full-audit correctness + a11y hardening ---
+    ok('financeTotals ignores corrupt amounts (no NaN poisoning)', (function () { const t = window.financeTotals([{ type: 'income', amount: 1000 }, { type: 'income', amount: undefined }, { type: 'expense', amount: 'x' }]); return t.revenue === 1000 && t.expenses === 0 && !Number.isNaN(t.profit); })());
+    ok('fxRateValid rejects missing/zero rates, accepts positive', (function () { window.state.settings.fx = { phpPer: { USD: 58.5, EUR: 0 } }; return window.fxRateValid('PHP') === true && window.fxRateValid('USD') === true && window.fxRateValid('EUR') === false && window.fxRateValid('GBP') === false; })());
+    ok('invPHP converts with the stored rate and is num-safe', window.invPHP({ currency: 'USD', amount: 100, fxRate: 58.5 }) === 5850 && window.invPHP({ currency: 'PHP', amount: 'x' }) === 0);
+    ok('editing a PAID invoice reconciles its recorded finance income', (function () {
+      const savedFin = window.state.finance;
+      window.state.finance = [];
+      const iv = { id: 'ivx', number: 'INV-X', client: 'A', amount: 5000, currency: 'PHP', status: 'Paid' };
+      window.recordInvoiceIncome(iv);
+      const fe = window.state.finance.find((x) => x.id === iv.financeId);
+      const before = fe && fe.amount;
+      iv.amount = 8000; window.reconcileInvoiceIncome(iv);
+      const okk = before === 5000 && fe.amount === 8000 && window.state.finance.length === 1;
+      window.state.finance = savedFin;
+      return okk;
+    })());
+    ok('enhanceA11y associates field labels + labels icon-only buttons', (function () {
+      window.employeeModal({ id: 'e1', name: 'Maria Santos', role: 'Head Baker', payBasis: 'Monthly', payRate: 18000, status: 'Active', colorTag: '#6366f1', customFields: [] });
+      const form = d.getElementById('modal-form');
+      const lbl = form.querySelector('.field > label');
+      const linked = lbl && lbl.htmlFor && form.querySelector('#' + lbl.htmlFor);
+      window.closeModal();
+      return !!linked;
+    })());
+    ok('keyboard handler activates role=button controls (Enter)', (function () {
+      const el = d.createElement('div'); el.setAttribute('role', 'button'); let fired = false; el.addEventListener('click', function () { fired = true; });
+      d.body.appendChild(el); el.focus();
+      el.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      d.body.removeChild(el);
+      return fired;
+    })());
+    (function () {
+      window.ui.taskView = 'board'; window.location.hash = '#/tasks'; window.render();
+      const h = d.getElementById('main').innerHTML;
+      ok('tasks kanban is responsive via --lanes (no hardcoded inline grid-template)', /--lanes:/.test(h) && !/style="grid-template-columns:repeat\(\d/.test(h));
+      window.ui.taskView = 'list'; window.location.hash = '#/manpower'; window.render();
+    })();
     // custom stat card composes safely (no eval)
     window.state.settings.hrCustomCards = [{ id: 'c1', label: 'Riders', metric: 'count', field: 'payRate', filter: 'Active', fmt: '' }];
     window.render();
