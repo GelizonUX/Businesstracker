@@ -127,7 +127,7 @@ a{color:var(--accent);text-decoration:none}
 /* ============================================================
    layout: sidebar + main
    ============================================================ */
-.app{display:flex;min-height:100vh}
+.app{display:flex;height:100vh;height:100dvh;overflow:hidden}
 .sidebar{
   position:fixed;inset:0 auto 0 0;width:calc(248px*var(--nav-scale,1));z-index:60;
   background:var(--bg-sidebar);
@@ -173,7 +173,7 @@ a{color:var(--accent);text-decoration:none}
 .biz-chip .avatar{width:30px;height:30px;border-radius:8px;background:var(--accent-grad);display:grid;place-items:center;color:#fff;font-weight:700;font-size:.8rem;flex-shrink:0}
 .biz-chip b{color:#fff;display:block;font-size:.84rem;line-height:1.2;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-.main{flex:1;margin-left:calc(248px*var(--nav-scale,1));min-width:0;padding:20px 28px 60px;animation:fadeIn .35s var(--ease)}
+.main{flex:1;margin-left:calc(248px*var(--nav-scale,1));min-width:0;height:100vh;height:100dvh;overflow-y:auto;overscroll-behavior:contain;padding:20px 28px 60px;animation:fadeIn .35s var(--ease)}
 
 /* topbar */
 .topbar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
@@ -453,6 +453,12 @@ tr:hover .row-actions{opacity:1}
 
 /* filter chips */
 .chips{display:flex;gap:8px;flex-wrap:wrap}
+/* task filter bar: primary status as pills + compact priority/cadence dropdowns (standard, uncluttered) */
+.task-filterbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:16px}
+.filter-sel{height:34px;border-radius:99px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-2);font-size:.82rem;font-weight:600;padding:0 30px 0 14px;cursor:pointer;transition:border-color .15s,color .15s;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23808aa3' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center}
+.filter-sel:hover{border-color:var(--accent);color:var(--text)}
+.filter-sel:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:560px){.task-filterbar .spacer{display:none}.task-filterbar{gap:8px}.filter-sel{flex:1 1 calc(50% - 4px);min-width:0}}
 .chip{padding:4px 12px;border-radius:99px;font-size:.8rem;font-weight:600;color:var(--text-2);background:var(--bg-sunken);transition:all .15s;border:1px solid transparent}
 .chip:hover{color:var(--text);border-color:var(--border-2)}
 .chip.active{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700;box-shadow:0 2px 10px var(--accent-soft)}
@@ -571,6 +577,7 @@ details.calc .calc-body{margin-top:10px}
   .sidebar{transform:translateX(-100%);width:min(calc(248px*var(--nav-scale,1)),86vw)}
   .sidebar.open{transform:translateX(0);box-shadow:var(--shadow-lg)}
   .scrim.show{display:block}
+  body.drawer-open .main{overflow:hidden}
   .main{margin-left:0;padding:16px 16px 56px}
   .hamburger{display:inline-flex}
   .grid-2,.grid-hero{grid-template-columns:1fr}
@@ -1171,7 +1178,8 @@ body.greeting-on{overflow:hidden}
 /* match BOTH the id and the class so this can never silently stop applying */
 #greet-form,.greet-form{display:flex;flex-direction:column;gap:20px;margin:28px auto 0;max-width:300px}
 #greet-form .btn,.greet-form .btn{margin-top:0;justify-content:center;padding:12px 16px;width:100%}
-#greet-form .input,.greet-form .input{text-align:center;font-size:1rem;background:rgba(255,255,255,.96);padding:12px 16px;width:100%}
+#greet-form .input,.greet-form .input{text-align:center;font-size:1rem;background:rgba(255,255,255,.96);color:#16182a;padding:12px 16px;width:100%;caret-color:var(--accent)}
+#greet-form .input::placeholder,.greet-form .input::placeholder{color:#9aa0b4}
 .greet-skip{margin-top:20px;background:none;color:rgba(255,255,255,.7);font-size:.82rem;font-weight:600;padding:6px 10px;border-radius:8px}
 .greet-skip:hover{color:#fff}
 .greet-tap{margin-top:24px;color:rgba(255,255,255,.6);font-size:.76rem;font-weight:600;text-transform:uppercase;letter-spacing:.12em;animation:greetBlink 2.2s ease-in-out infinite}
@@ -3325,13 +3333,14 @@ function viewTasks(){
   if(tv==='calendar') return html+taskCalendarHTML();
   // filters
   var tf=ui.taskFilter;
-  html+='<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:16px;align-items:center">'+
+  html+='<div class="task-filterbar">'+
     '<div class="chips">'+[['open','Open'],['overdue','Overdue'],['done','Done'],['all','All']].map(function(x){
       return '<button class="chip '+(tf.status===x[0]?'active':'')+'" data-action="task-filter-status" data-val="'+x[0]+'">'+x[1]+'</button>';}).join('')+'</div>'+
-    '<div class="chips">'+[['all','Any priority'],['High','High'],['Medium','Medium'],['Low','Low']].map(function(x){
-      return '<button class="chip '+(tf.priority===x[0]?'active':'')+'" data-action="task-filter-priority" data-val="'+x[0]+'">'+x[1]+'</button>';}).join('')+'</div>'+
-    '<div class="chips">'+[['all','Any cadence'],['daily','Daily'],['weekly','Weekly'],['monthly','Monthly']].map(function(x){
-      return '<button class="chip '+(tf.bucket===x[0]?'active':'')+'" data-action="task-filter-bucket" data-val="'+x[0]+'">'+x[1]+'</button>';}).join('')+'</div></div>';
+    '<span class="spacer"></span>'+
+    '<select class="filter-sel" data-action-change="task-filter-priority" aria-label="Filter by priority">'+[['all','Any priority'],['High','High'],['Medium','Medium'],['Low','Low']].map(function(x){
+      return '<option value="'+x[0]+'"'+(tf.priority===x[0]?' selected':'')+'>'+x[1]+'</option>';}).join('')+'</select>'+
+    '<select class="filter-sel" data-action-change="task-filter-bucket" aria-label="Filter by cadence">'+[['all','Any cadence'],['daily','Daily'],['weekly','Weekly'],['monthly','Monthly']].map(function(x){
+      return '<option value="'+x[0]+'"'+(tf.bucket===x[0]?' selected':'')+'>'+x[1]+'</option>';}).join('')+'</select></div>';
   var list=state.tasks.filter(function(t){
     if(tf.status==='open'&&t.done) return false;
     if(tf.status==='done'&&!t.done) return false;
@@ -4750,13 +4759,13 @@ document.addEventListener('click',function(e){
   var id=el.getAttribute('data-id');
 
   /* navigation & shell */
-  if(action==='nav'){ nav(el.getAttribute('data-route')); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); return; }
+  if(action==='nav'){ nav(el.getAttribute('data-route')); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); document.body.classList.remove('drawer-open'); return; }
   if(action==='fav-toggle'){ e.stopPropagation(); var fid=el.getAttribute('data-route'); var f=state.settings.favorites=state.settings.favorites||[]; var ix=f.indexOf(fid); if(ix>=0){ f.splice(ix,1); toast('Removed from Favorites.'); } else { f.push(fid); toast('Pinned to Favorites ★'); } save(); renderSidebar(); return; }
   if(action==='sec-move'){ var sn=el.getAttribute('data-sec'), dir=el.getAttribute('data-dir')==='up'?-1:1; moveSidebarSection(sn,dir); return; }
   if(action==='nav-edit-toggle'){ ui.navEdit=!ui.navEdit; renderSidebar(); return; }
   if(action==='nav-size'){ setNavScale(el.getAttribute('data-dir')==='1'?1:-1); return; }
   if(action==='go-import'){ ui.settingsTab='data'; nav('settings'); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); setTimeout(function(){ var c=document.querySelector('[data-action="csv-import"]'); if(c&&c.scrollIntoView) c.scrollIntoView({behavior:'smooth',block:'center'}); },120); return; }
-  if(action==='open-sidebar'){ byId('sidebar').classList.add('open'); byId('scrim').classList.add('show'); return; }
+  if(action==='open-sidebar'){ byId('sidebar').classList.add('open'); byId('scrim').classList.add('show'); document.body.classList.add('drawer-open'); return; }
   if(action==='toggle-nav-collapse'){ state.settings.navCollapsed=!state.settings.navCollapsed; save(); applyNavCollapse(); render(); return; }
   if(action==='pin-set'){ pinModal('set'); return; }
   if(action==='pin-change'){ pinModal('change'); return; }
@@ -4767,7 +4776,7 @@ document.addEventListener('click',function(e){
   if(action==='start-show'){ state.settings.startDismissed=false; nav('dashboard'); render(); toast('Getting-started checklist is back.'); return; }
   if(action==='settings-go'){ ui.settingsTab=el.getAttribute('data-tab')||'business'; nav('settings'); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); return; }
   if(action==='dash-reset'){ state.settings.dashOrder=null; state.settings.dashHidden=[]; save(); closeModal(); nav('dashboard'); render(); toast('Dashboard layout reset.'); return; }
-  if(action==='close-sidebar'){ byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); return; }
+  if(action==='close-sidebar'){ byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); document.body.classList.remove('drawer-open'); return; }
   if(action==='toggle-theme'){ toggleTheme(); return; }
   if(action==='toggle-topbar-actions'){ var ta=byId('topbar-actions'); if(ta){ var op=ta.classList.toggle('open'); el.setAttribute('aria-expanded',op?'true':'false'); } return; }
   if(action==='close-modal'){ closeModal(); return; }
@@ -8938,6 +8947,8 @@ document.addEventListener('change',function(e){
     if(tb){ tb.bucket=el.value; commit(); }
     return;
   }
+  if(tact==='task-filter-priority'){ ui.taskFilter.priority=el.value; render(); return; }
+  if(tact==='task-filter-bucket'){ ui.taskFilter.bucket=el.value; render(); return; }
 });
 
 /* ============================================================
