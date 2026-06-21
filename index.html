@@ -180,6 +180,8 @@ a{color:var(--accent);text-decoration:none}
 .page-title h1{font-size:1.32rem;font-weight:800;letter-spacing:-.025em;line-height:1.2}
 .page-title p{color:var(--text-2);font-size:.88rem;margin-top:2px}
 .topbar-actions{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.topbar-more{display:none;width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);box-shadow:var(--shadow-sm);color:var(--text-2);align-items:center;justify-content:center;flex-shrink:0;cursor:pointer}
+.theme-toggle .btn-txt{display:none} /* search/theme stay icon-only except inside the mobile overflow menu */
 .hamburger{display:none;width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);align-items:center;justify-content:center;box-shadow:var(--shadow-sm)}
 .hamburger svg{width:19px;height:19px}
 .scrim{display:none;position:fixed;inset:0;background:rgba(8,10,20,.55);z-index:55;backdrop-filter:blur(2px);animation:fadeIn .2s}
@@ -573,8 +575,21 @@ details.calc .calc-body{margin-top:10px}
   .hamburger{display:inline-flex}
   .grid-2,.grid-hero{grid-template-columns:1fr}
   .form-row,.form-row-3{grid-template-columns:1fr}
-  .topbar-actions .btn span.btn-txt{display:none}
-  .topbar-actions .btn{padding:8px 12px}
+  /* one clean header row: ☰ + title + ⋮ overflow; per-view actions collapse into a menu */
+  .topbar{flex-wrap:nowrap;position:relative;gap:10px}
+  .page-title{flex:1;min-width:0}
+  .page-title h1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .page-title p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .topbar-more{display:inline-flex;margin-left:auto}
+  .topbar-actions{position:absolute;top:calc(100% + 4px);right:0;left:auto;margin:0;z-index:46;
+    flex-direction:column;align-items:stretch;flex-wrap:nowrap;gap:2px;min-width:210px;max-width:80vw;
+    background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-lg);padding:6px;display:none}
+  .topbar-actions.open{display:flex;animation:fadeUp .16s var(--ease)}
+  .topbar-actions .btn,.topbar-actions .theme-toggle{width:100%;justify-content:flex-start;gap:11px;padding:11px 12px;
+    border-radius:9px;background:transparent;border:none;box-shadow:none;font-weight:600;min-height:44px}
+  .topbar-actions .btn:hover,.topbar-actions .theme-toggle:hover{background:var(--bg-hover)}
+  .topbar-actions .btn .btn-txt,.topbar-actions .theme-toggle .btn-txt{display:inline!important}
+  .topbar-actions .btn.btn-primary{color:var(--accent)}
 }
 @media (max-width:560px){
   .grid-3,.grid-4{grid-template-columns:repeat(2,1fr)}
@@ -1005,7 +1020,52 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
   .stat-icon{width:26px;height:26px;border-radius:8px}
   .stat-icon svg{width:14px;height:14px}
   .card-head h3{font-size:.95rem}
+  /* keep the value baselines aligned when a 2-up sibling's label wraps to 2 lines */
+  .stat-card .stat-label{min-height:2.1em;align-items:flex-start}
+  .page-title h1{font-size:1.12rem}
+  /* let users know more tabs exist off-screen */
+  .tabs{-webkit-mask-image:linear-gradient(90deg,#000 86%,transparent);mask-image:linear-gradient(90deg,#000 86%,transparent)}
+  /* primary repeatedly-tapped controls get a real touch target on phones */
+  .step-btn{width:34px;height:34px}
+  /* ---- data tables become clean stacked rows (no sideways spreadsheet) ---- */
+  .table-wrap{overflow-x:visible}
+  .table-wrap table,.table-wrap tbody,.table-wrap tr,.table-wrap td{display:block;width:auto}
+  .table-wrap thead{position:absolute;left:-9999px;top:-9999px}
+  .table-wrap tr{border:none;border-bottom:1px solid var(--border);padding:9px 0}
+  .table-wrap tr:last-child{border-bottom:none}
+  .table-wrap td{display:flex;justify-content:space-between;align-items:center;gap:14px;border:none;padding:4px 0;text-align:right;min-height:0;white-space:normal}
+  .table-wrap td[data-label]::before{content:attr(data-label);font-weight:700;color:var(--text-3);text-transform:uppercase;font-size:.62rem;letter-spacing:.05em;text-align:left;flex:0 0 auto;max-width:45%}
+  .table-wrap td:not([data-label]){justify-content:flex-end}
+  .table-wrap td:empty{display:none}
+  .table-wrap td.num,.table-wrap td[style*="text-align:right"]{text-align:right}
 }
+.step-btn{width:22px;height:22px}
+/* ===== standard-mobile shell: bottom tab bar + FAB (phones/tablets ≤860px) ===== */
+.tabbar{display:none}
+.fab{display:none}
+@media (max-width:860px){
+  .tabbar{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:58;
+    background:var(--bg-card);border-top:1px solid var(--border);box-shadow:0 -2px 18px rgba(0,0,0,.07);
+    padding-bottom:env(safe-area-inset-bottom,0)}
+  .tab-item{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    padding:8px 0 7px;min-height:54px;background:none;color:var(--text-3);font-size:.6rem;font-weight:700;letter-spacing:.02em;
+    transition:color .15s}
+  .tab-item svg{width:21px;height:21px}
+  .tab-item.active{color:var(--accent)}
+  .tab-item:active{transform:scale(.94)}
+  .tab-badge{position:absolute;top:5px;left:calc(50% + 5px);background:var(--risk);color:#fff;font-size:.54rem;font-weight:800;
+    min-width:15px;height:15px;border-radius:99px;display:grid;place-items:center;padding:0 3px;line-height:1}
+  .fab{display:grid;place-items:center;position:fixed;right:16px;bottom:calc(74px + env(safe-area-inset-bottom,0));
+    width:54px;height:54px;border-radius:50%;background:var(--accent-grad);color:#fff;box-shadow:var(--shadow-lg);z-index:57;
+    border:none;cursor:pointer;transition:transform .15s var(--ease)}
+  .fab:active{transform:scale(.9)}
+  .fab svg{width:24px;height:24px}
+  /* reserve space so content clears the bar; lift the advisor bubble above the FAB + tab bar */
+  .main{padding-bottom:calc(82px + env(safe-area-inset-bottom,0))}
+  #advisor-bubble{bottom:calc(140px + env(safe-area-inset-bottom,0));right:14px;width:min(320px,calc(100vw - 28px))}
+}
+/* never show the mobile shell over the gate/lock or greeting overlays */
+body.greeting-on .tabbar,body.greeting-on .fab{display:none!important}
 /* small floating per-card drag handle (appears on hover) */
 .dash-handle{position:absolute;top:-9px;right:14px;z-index:6;display:inline-flex;align-items:center;gap:4px;
   padding:2px 8px 2px 8px;border-radius:99px;background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--shadow-sm);
@@ -1175,6 +1235,8 @@ body.greeting-on{overflow:hidden}
   <div class="scrim" id="scrim" data-action="close-sidebar"></div>
   <aside class="sidebar" id="sidebar"></aside>
   <main class="main" id="main"></main>
+  <button class="fab" data-action="open-entry-modal" aria-label="Add entry" title="Add entry"></button>
+  <nav class="tabbar" id="tabbar" aria-label="Primary"></nav>
 </div>
 <div id="advisor-bubble"></div>
 <div id="modal-root"></div>
@@ -1756,6 +1818,7 @@ function openModal(title,bodyHTML,opts){
           '</div></form></div></div></div>';
   modalReturnFocus=document.activeElement;
   if(typeof enhanceA11y==='function') enhanceA11y(root);
+  if(typeof labelizeTables==='function') labelizeTables(root);
   var first=root.querySelector('input,select,textarea')||root.querySelector('.modal button');
   if(first) setTimeout(function(){ try{ first.focus(); }catch(_){ } },60);
   if(typeof updateAdvisorBubble==='function') updateAdvisorBubble(currentRoute());
@@ -2255,8 +2318,50 @@ function render(){
   applyNavCollapse();
   if(typeof updateAdvisorBubble==='function') updateAdvisorBubble(route);
   enhanceA11y(main);
+  labelizeTables(main);
+  renderTabbar(route);
   main.scrollTop=0;
 }
+/* Auto-label every table cell from its column header so tables can render as clean
+   stacked rows on phones (CSS at ≤560px). Generic — no render site needs editing. */
+function labelizeTables(root){
+  if(!root||!root.querySelectorAll) return;
+  Array.prototype.forEach.call(root.querySelectorAll('.table-wrap table'),function(t){
+    var heads=Array.prototype.map.call(t.querySelectorAll('thead th'),function(th){ return (th.textContent||'').trim(); });
+    if(!heads.length) return;
+    Array.prototype.forEach.call(t.querySelectorAll('tbody tr'),function(tr){
+      Array.prototype.forEach.call(tr.children,function(td,i){
+        if(td.tagName!=='TD') return;
+        var lbl=heads[i];
+        if(lbl) td.setAttribute('data-label',lbl); // unlabeled (action) cells stay right-aligned with no prefix
+      });
+    });
+  });
+}
+/* Bottom tab bar (phones): the 4 most-used destinations + a "Menu" tab that opens the
+   full drawer. Reuses the existing nav routing + open-sidebar action. Hidden on desktop via CSS. */
+function renderTabbar(route){
+  var tb=byId('tabbar'); if(!tb) return;
+  route=route||currentRoute();
+  var openTasks=state.tasks.filter(function(t){ var d=daysUntil(t.deadline); return !t.done&&d!=null&&d<0; }).length;
+  var items=[['dashboard','Home','dashboard'],['finance','Money','finance'],['products','Shop','box'],['tasks','Tasks','tasks']];
+  var html=items.map(function(it){
+    var active=route===it[0];
+    var badge=(it[0]==='tasks'&&openTasks>0)?'<span class="tab-badge">'+openTasks+'</span>':'';
+    return '<button class="tab-item'+(active?' active':'')+'" data-action="nav" data-route="'+it[0]+'"'+(active?' aria-current="page"':'')+' aria-label="'+it[1]+'">'+icon(it[2])+badge+'<span>'+it[1]+'</span></button>';
+  }).join('');
+  html+='<button class="tab-item" data-action="open-sidebar" aria-label="Open menu">'+icon('menu')+'<span>Menu</span></button>';
+  tb.innerHTML=html;
+  var fab=document.querySelector('.fab'); if(fab&&!fab.firstChild) fab.innerHTML=icon('plus');
+}
+/* close the mobile header overflow menu on outside click or after picking an action */
+document.addEventListener('click',function(e){
+  var ta=byId('topbar-actions'); if(!ta||!ta.classList.contains('open')) return;
+  if(e.target.closest&&e.target.closest('.topbar-more')) return; // the toggle handles itself
+  if(e.target.closest&&e.target.closest('#topbar-actions')&&!e.target.closest('[data-action]')) return; // click on empty menu area
+  ta.classList.remove('open');
+  var mb=document.querySelector('.topbar-more'); if(mb) mb.setAttribute('aria-expanded','false');
+});
 /* Post-render accessibility pass — applied globally so no markup site has to remember it:
    associate field labels with their control, label icon-only buttons, and make
    role=button controls keyboard-focusable. */
@@ -2394,9 +2499,10 @@ function topbar(title,subtitle,actionsHTML){
     '<button class="hamburger" data-action="open-sidebar" aria-label="Menu">'+icon('menu')+'</button>'+
     '<button class="nav-toggle" data-action="toggle-nav-collapse" title="'+((state.settings&&state.settings.navCollapsed)?'Expand sidebar':'Collapse sidebar')+'" aria-label="Collapse or expand sidebar">'+icon((state.settings&&state.settings.navCollapsed)?'collapseR':'collapseL')+'</button>'+
     '<div class="page-title"><h1>'+esc(tr(title))+'</h1><p>'+esc(tr(subtitle||''))+'</p></div>'+
-    '<div class="topbar-actions">'+(actionsHTML||'')+
-      '<button class="theme-toggle" data-action="open-palette" aria-label="Search everything (Ctrl+K)" title="Search everything (Ctrl+K)">'+icon('search')+'</button>'+
-      '<button class="theme-toggle" data-action="toggle-theme" aria-label="Toggle theme">'+icon(document.documentElement.getAttribute('data-theme')==='dark'?'sun':'moon')+'</button>'+
+    '<button class="topbar-more" data-action="toggle-topbar-actions" aria-label="More actions" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/></svg></button>'+
+    '<div class="topbar-actions" id="topbar-actions">'+(actionsHTML||'')+
+      '<button class="theme-toggle" data-action="open-palette" aria-label="Search everything (Ctrl+K)" title="Search everything (Ctrl+K)">'+icon('search')+'<span class="btn-txt">Search</span></button>'+
+      '<button class="theme-toggle" data-action="toggle-theme" aria-label="Toggle theme">'+icon(document.documentElement.getAttribute('data-theme')==='dark'?'sun':'moon')+'<span class="btn-txt">Theme</span></button>'+
     '</div></div>';
 }
 
@@ -4644,6 +4750,7 @@ document.addEventListener('click',function(e){
   if(action==='dash-reset'){ state.settings.dashOrder=null; state.settings.dashHidden=[]; save(); closeModal(); nav('dashboard'); render(); toast('Dashboard layout reset.'); return; }
   if(action==='close-sidebar'){ byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); return; }
   if(action==='toggle-theme'){ toggleTheme(); return; }
+  if(action==='toggle-topbar-actions'){ var ta=byId('topbar-actions'); if(ta){ var op=ta.classList.toggle('open'); el.setAttribute('aria-expanded',op?'true':'false'); } return; }
   if(action==='close-modal'){ closeModal(); return; }
   if(action==='close-modal-overlay'){ if(e.target===el) closeModal(); return; }
 
@@ -5906,9 +6013,9 @@ function stockBadge(p){
 /* inner markup of the inline stock control — re-rendered in place on +/- so the screen never flashes */
 function stockCellInner(p){
   return '<div style="display:flex;align-items:center;gap:6px">'+
-    '<button class="btn-icon" data-action="stock-adjust" data-id="'+p.id+'" data-delta="-1" title="−1 stock" style="width:22px;height:22px">−</button>'+
+    '<button class="btn-icon step-btn" data-action="stock-adjust" data-id="'+p.id+'" data-delta="-1" title="−1 stock" aria-label="Decrease stock">−</button>'+
     stockBadge(p)+
-    '<button class="btn-icon" data-action="stock-adjust" data-id="'+p.id+'" data-delta="1" title="+1 stock" style="width:22px;height:22px">+</button></div>'+
+    '<button class="btn-icon step-btn" data-action="stock-adjust" data-id="'+p.id+'" data-delta="1" title="+1 stock" aria-label="Increase stock">+</button></div>'+
     ((p.bom||[]).length?'<div style="font-size:.68rem;color:var(--text-3);margin-top:3px">can make '+fmtNum(canMake(p),0)+' more</div>':'');
 }
 function viewProducts(){

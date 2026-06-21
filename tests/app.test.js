@@ -211,6 +211,22 @@ async function main() {
     ok('mobile stat grids are 2-up (not single-column) at <=560px', /@media \(max-width:560px\)\{\s*\.grid-3,\.grid-4\{grid-template-columns:repeat\(2,1fr\)\}/.test(html));
     ok('mobile dashboard KPIs sit 2-up while rich widgets go full-width', /\.dash-grid \.dash-widget\{grid-column:1 \/ -1\}/.test(html) && /data-widget="rev"\][\s\S]{0,160}grid-column:auto/.test(html));
     ok('mobile compacts cards + hides floating sparkline at 2-up', /\.stat-card \.spark\{display:none\}/.test(html));
+    // standard-mobile shell: bottom tab bar + FAB + header overflow menu + tables→cards
+    ok('shell has a FAB and a bottom tab bar container', /class="fab"/.test(html) && /id="tabbar"/.test(html));
+    (function () {
+      window.location.hash = '#/dashboard'; window.render();
+      const tb = d.getElementById('tabbar');
+      const active = tb && tb.querySelector('.tab-item.active');
+      ok('tab bar renders 5 destinations with Home active on dashboard', !!tb && tb.querySelectorAll('.tab-item').length === 5 && !!active && active.getAttribute('aria-label') === 'Home');
+    })();
+    ok('header collapses actions into an overflow menu on mobile', /class="topbar-more"/.test(html) && /data-action="toggle-topbar-actions"/.test(html) && /id="topbar-actions"/.test(html) && /\.topbar-actions\.open\{display:flex/.test(html));
+    ok('mobile turns data tables into stacked labeled cards', /\.table-wrap thead\{position:absolute/.test(html) && /\.table-wrap td\[data-label\]::before\{content:attr\(data-label\)/.test(html));
+    (function () {
+      window.location.hash = '#/finance'; window.render();
+      const labeled = d.getElementById('main').querySelectorAll('.table-wrap td[data-label]').length;
+      ok('labelizeTables auto-labels table cells from their headers', labeled > 0);
+      window.location.hash = '#/dashboard'; window.render();
+    })();
     (function () {
       window.state.settings.navScale = 1;
       window.setNavScale(1);
