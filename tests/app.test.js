@@ -523,6 +523,7 @@ async function main() {
     window.state.finance = []; window.state.products = []; window.state.goals = [];
     window.location.hash = '#/dashboard'; window.render(); await wait(20);
     ok('checklist shows for new account', /Get started ·/.test(d.getElementById('main').innerHTML));
+    ok('checklist is a collapsible <details> (collapsed on phones so money stays above the fold)', /class="card start-card start-details"/.test(window.getStartedHTML()) && /<summary class="start-summary"/.test(window.getStartedHTML()) && /\.start-details:not\(\[open\]\) \.progress,\.start-details:not\(\[open\]\) \.start-list\{display:none\}/.test(html));
 
     // ---------- design/a11y polish ----------
     window.state.tasks = []; window.render();

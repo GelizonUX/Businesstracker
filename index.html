@@ -1092,6 +1092,13 @@ body.greeting-on .tabbar,body.greeting-on .fab{display:none!important}
 
 /* getting-started checklist */
 .start-card{background:linear-gradient(135deg,var(--accent-soft),transparent 70%),var(--bg-card);border-color:var(--accent-soft);margin-bottom:12px}
+.start-summary{display:flex;align-items:center;gap:10px;cursor:pointer;list-style:none}
+.start-summary::-webkit-details-marker{display:none}
+.start-chev{display:none;color:var(--text-3);transition:transform .2s var(--ease);flex-shrink:0}
+.start-details[open] .start-chev{transform:rotate(180deg)}
+/* author display on .start-list/.progress would otherwise defeat the UA's closed-details hiding */
+.start-details:not([open]) .progress,.start-details:not([open]) .start-list{display:none}
+@media (max-width:560px){.start-chev{display:inline-flex}}
 .start-list{display:flex;flex-direction:column;gap:2px}
 .start-item{display:flex;align-items:center;gap:12px;padding:8px 2px;border-bottom:1px solid var(--border);font-size:.9rem}
 .start-item:last-child{border-bottom:none}
@@ -2541,8 +2548,10 @@ function getStartedHTML(){
     return '<div class="card start-card"><div class="card-head"><h3>'+icon('check',16)+' You’re all set up!</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="start-dismiss">Dismiss</button></div>'+
       '<p style="font-size:.85rem;color:var(--text-2)">Every starter step is done. Your dashboard is ready — keep your numbers current, drag the cards to suit you, and let Trakora do the math.</p></div>';
   }
-  return '<div class="card start-card"><div class="card-head"><h3>'+icon('spark',16)+' Get started · '+done+' of '+total+'</h3><span class="spacer"></span><button class="btn-icon" data-action="start-dismiss" title="Hide this checklist" aria-label="Hide">'+icon('x')+'</button></div>'+
-    '<div class="progress thick" style="margin-bottom:12px"><div class="bar good" style="width:'+(done/total*100)+'%"></div></div>'+
+  // collapsed by default on phones so the money KPIs sit near the top; open on desktop
+  var openAttr=(typeof window!=='undefined'&&window.innerWidth<=560)?'':' open';
+  return '<details class="card start-card start-details"'+openAttr+'><summary class="start-summary"><h3 style="margin:0;display:flex;align-items:center;gap:8px">'+icon('spark',16)+' Get started · '+done+' of '+total+'</h3><span class="spacer"></span><button class="btn-icon" data-action="start-dismiss" title="Hide this checklist" aria-label="Hide">'+icon('x')+'</button><span class="start-chev">'+icon('down-chev',12)+'</span></summary>'+
+    '<div class="progress thick" style="margin:12px 0"><div class="bar good" style="width:'+(done/total*100)+'%"></div></div>'+
     '<div class="start-list">'+steps.map(function(st){
       return '<div class="start-item'+(st.done?' done':'')+'">'+
         '<span class="start-check">'+(st.done?icon('check',14):'')+'</span>'+
@@ -2550,7 +2559,7 @@ function getStartedHTML(){
         (st.done?'<span class="badge good" style="margin-left:auto">Done</span>'
                 :'<button class="btn btn-sm btn-primary" style="margin-left:auto" '+st.act+'>'+esc(st.cta)+'</button>')+
       '</div>';
-    }).join('')+'</div></div>';
+    }).join('')+'</div></details>';
 }
 
 /* ============================================================
