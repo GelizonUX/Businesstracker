@@ -1040,9 +1040,12 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
   .table-wrap thead{position:absolute;left:-9999px;top:-9999px}
   .table-wrap tr{border:none;border-bottom:1px solid var(--border);padding:7px 0}
   .table-wrap tr:last-child{border-bottom:none}
-  .table-wrap td{display:flex;justify-content:space-between;align-items:center;gap:14px;border:none;padding:3px 0;text-align:right;min-width:0;min-height:0;white-space:normal;overflow-wrap:anywhere}
-  .table-wrap td[data-label]::before{content:attr(data-label);font-weight:700;color:var(--text-3);text-transform:uppercase;font-size:.62rem;letter-spacing:.05em;text-align:left;flex:0 0 auto;max-width:42%}
-  .table-wrap td:not([data-label]){justify-content:flex-end}
+  /* block row with the label absolutely placed left — lets long values (emails, notes) wrap instead of clipping */
+  .table-wrap td{display:block;position:relative;border:none;padding:5px 0 5px 40%;text-align:right;min-height:0;white-space:normal;overflow-wrap:anywhere;word-break:break-word}
+  .table-wrap td[data-label]::before{content:attr(data-label);position:absolute;left:0;top:5px;width:36%;text-align:left;font-weight:700;color:var(--text-3);text-transform:uppercase;font-size:.62rem;letter-spacing:.05em;line-height:1.7}
+  .table-wrap td:not([data-label]){padding-left:0;text-align:right}
+  /* mobile cards want the FULL value — override any desktop ellipsis/nowrap/max-width on cell content */
+  .table-wrap td,.table-wrap td span,.table-wrap td div,.table-wrap td b,.table-wrap td a,.table-wrap td p{max-width:none!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important}
   .table-wrap td:empty,.table-wrap td[data-mobempty]{display:none}
   .table-wrap td.num,.table-wrap td[style*="text-align:right"]{text-align:right}
   /* Orders are hand-built flex rows with fixed-width columns — stack them on phones */
