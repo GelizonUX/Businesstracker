@@ -165,6 +165,8 @@ async function main() {
     const domOrder = Array.from(dgrid.querySelectorAll('.dash-widget')).map((w) => w.getAttribute('data-widget'));
     ok('drag end clears the placeholder state', !dgrid.querySelector('.dash-widget.dragging') && !dgrid.classList.contains('is-dragging'));
     ok('drag end persists the new order', JSON.stringify((window.state.settings.dashOrder || []).slice(0, domOrder.length)) === JSON.stringify(domOrder));
+    // touch long-press drag (mobile): wiring + CSS present, reorder helper falls back to the touch element
+    ok('mobile long-press drag is wired (touch state + lift CSS + scroll-lock)', typeof window.dashTouchApplyTransform === 'function' && !!window.dashTouch && /\.dash-widget\.dash-lift\{/.test(html) && /body\.dash-dragging \.main\{overflow:hidden/.test(html));
 
     // ---------- first-open greeting (name setup → time-based hello → dismiss) ----------
     window.state.settings.displayName = '';
@@ -207,6 +209,32 @@ async function main() {
     // design-system normalization: type-scale + grid-gap tokens defined and used; no 13px gutters / half-pixel padding
     ok('design tokens defined (type scale + grid gutter)', /--fs-2xl:/.test(html) && /--grid-gap:/.test(html));
     ok('card grids use the gutter token, not magic 13px', /\.grid\{display:grid;gap:var\(--grid-gap\)\}/.test(html) && !/\.grid\{display:grid;gap:13px\}/.test(html) && !/padding:6\.5px/.test(html));
+    // mobile-first: on phones the stat grids go 2-up (not full-width stacked) and dashboard KPIs sit 2-up
+    ok('mobile stat grids are 2-up (not single-column) at <=560px', /@media \(max-width:560px\)\{\s*\.grid-3,\.grid-4\{grid-template-columns:repeat\(2,1fr\)\}/.test(html));
+    ok('mobile dashboard KPIs sit 2-up while rich widgets go full-width', /\.dash-grid \.dash-widget\{grid-column:1 \/ -1\}/.test(html) && /data-widget="rev"\][\s\S]{0,160}grid-column:auto/.test(html));
+    ok('mobile compacts cards + hides floating sparkline at 2-up', /\.stat-card \.spark\{display:none\}/.test(html));
+    // standard-mobile shell: bottom tab bar + FAB + header overflow menu + tables→cards
+    ok('shell has a FAB and a bottom tab bar container', /class="fab"/.test(html) && /id="tabbar"/.test(html));
+    (function () {
+      window.location.hash = '#/dashboard'; window.render();
+      const tb = d.getElementById('tabbar');
+      const active = tb && tb.querySelector('.tab-item.active');
+      ok('tab bar renders 5 destinations with Home active on dashboard', !!tb && tb.querySelectorAll('.tab-item').length === 5 && !!active && active.getAttribute('aria-label') === 'Home');
+    })();
+    ok('header collapses actions into an overflow menu on mobile', /class="topbar-more"/.test(html) && /data-action="toggle-topbar-actions"/.test(html) && /id="topbar-actions"/.test(html) && /\.topbar-actions\.open\{display:flex/.test(html));
+    ok('mobile turns data tables into stacked labeled cards', /\.table-wrap thead\{position:absolute/.test(html) && /\.table-wrap td\[data-label\]::before\{content:attr\(data-label\)/.test(html));
+    ok('mobile hides empty/dash cells + stacks the hand-built order rows (no overflow)', /\.table-wrap td:empty,\.table-wrap td\[data-mobempty\]\{display:none\}/.test(html) && /\.order-row>div\{min-width:0!important;flex:1 1 100%!important\}/.test(html));
+    (function () {
+      window.location.hash = '#/orders'; window.render();
+      ok('order cards are tagged for the mobile stack rule', /class="list-row order-row"/.test(d.getElementById('main').innerHTML));
+      window.location.hash = '#/dashboard'; window.render();
+    })();
+    (function () {
+      window.location.hash = '#/finance'; window.render();
+      const labeled = d.getElementById('main').querySelectorAll('.table-wrap td[data-label]').length;
+      ok('labelizeTables auto-labels table cells from their headers', labeled > 0);
+      window.location.hash = '#/dashboard'; window.render();
+    })();
     (function () {
       window.state.settings.navScale = 1;
       window.setNavScale(1);
@@ -497,6 +525,7 @@ async function main() {
     window.state.finance = []; window.state.products = []; window.state.goals = [];
     window.location.hash = '#/dashboard'; window.render(); await wait(20);
     ok('checklist shows for new account', /Get started ·/.test(d.getElementById('main').innerHTML));
+    ok('checklist is a collapsible <details> (collapsed on phones so money stays above the fold)', /class="card start-card start-details"/.test(window.getStartedHTML()) && /<summary class="start-summary"/.test(window.getStartedHTML()) && /\.start-details:not\(\[open\]\) \.progress,\.start-details:not\(\[open\]\) \.start-list\{display:none\}/.test(html));
 
     // ---------- design/a11y polish ----------
     window.state.tasks = []; window.render();
