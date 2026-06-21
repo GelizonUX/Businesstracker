@@ -396,7 +396,8 @@ tr:hover .row-actions{opacity:1}
 .empty h4{color:var(--text);font-size:1rem;font-weight:700}
 .empty p{font-size:.86rem;max-width:340px;line-height:1.6}
 
-.insight{display:flex;gap:12px;padding:13px 15px;border-radius:13px;border:1px solid var(--border);background:var(--bg-card);align-items:flex-start;animation:fadeUp .4s var(--ease) backwards}
+/* insights are always rendered inside a card — keep them as clean borderless rows (no card-in-card) */
+.insight{display:flex;gap:12px;padding:10px 2px;border-radius:0;border:none;background:transparent;align-items:flex-start;animation:fadeUp .4s var(--ease) backwards}
 .insight .i-icon{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;flex-shrink:0}
 .insight .i-icon svg{width:16px;height:16px}
 .insight.good .i-icon{background:var(--good-soft);color:var(--good)}
@@ -405,6 +406,10 @@ tr:hover .row-actions{opacity:1}
 .insight.info .i-icon{background:var(--info-soft);color:var(--info)}
 .insight b{font-size:.88rem;display:block}
 .insight p{font-size:.82rem;color:var(--text-2);margin-top:1px}
+/* employee record: de-card the stacked sections into borderless sections (no card-in-card inside the modal) */
+.emp-detail .card{border:none;box-shadow:none;background:transparent;border-radius:0;padding:15px 0;margin-top:0;border-top:1px solid var(--border)}
+.emp-detail .grid.grid-2{gap:10px;margin-top:4px}
+.emp-detail .grid.grid-2 .card{background:var(--bg-sunken);border-top:none;border-radius:var(--r);padding:11px 13px}
 /* lead-icon card head — the in-house alternative to the colored left-stripe motif */
 .lead-card .card-head{flex-wrap:nowrap;align-items:flex-start}
 .lead-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex-shrink:0;background:var(--accent-soft);color:var(--accent)}
@@ -599,7 +604,7 @@ body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft)
 .lightbox img{max-width:92vw;max-height:88vh;border-radius:14px;box-shadow:var(--shadow-lg);animation:popIn .25s var(--ease)}
 .lightbox .lb-close{position:fixed;top:18px;right:18px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;display:grid;place-items:center}
 /* kanban board */
-.kb-board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start}
+.kb-board{display:grid;grid-template-columns:repeat(var(--lanes,4),1fr);gap:12px;align-items:start}
 .kb-col{background:var(--bg-sunken);border-radius:14px;padding:10px;min-height:120px}
 .kb-col.drag-over{outline:2px dashed var(--accent);outline-offset:-2px}
 .kb-col h4{font-size:.74rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--text-2);padding:2px 6px 8px;display:flex;justify-content:space-between}
@@ -612,6 +617,9 @@ body.dragging-active{cursor:grabbing;-webkit-user-select:none;user-select:none}
 body.dragging-active .card:hover,body.dragging-active .kb-card:hover{transform:none;box-shadow:var(--shadow-sm);border-color:var(--border)}
 body.dragging-active .kb-col{transition:outline-color .12s var(--ease)}
 @media (max-width:900px){.kb-board{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:560px){.kb-board{grid-template-columns:1fr}}
+.kb-lane-btn{width:26px;height:26px}
+@media (max-width:768px){.kb-lane-btn{width:34px;height:34px}}
 /* bulk bar */
 .bulk-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--accent-soft);border:1px solid var(--accent);border-radius:12px;padding:9px 14px;margin-bottom:14px;animation:fadeUp .25s var(--ease)}
 /* spotlight walkthrough */
@@ -905,8 +913,9 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .doc-sel{height:30px;border-radius:7px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-2);font-size:.76rem;font-weight:600;padding:0 5px;cursor:pointer;max-width:78px}
 .doc-sel-wide{max-width:124px}
 /* the editing surface mimics a real page: a white sheet sitting on a sunken "desk" */
-.doc-stage{background:var(--bg-sunken);border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:20px;max-height:58vh;overflow:auto;display:flex;justify-content:center}
-.doc-sheet{background:#fff;color:#1c2033;box-shadow:0 6px 28px rgba(0,0,0,.20);padding:64px 68px;box-sizing:border-box;line-height:1.6;display:flex;flex-direction:column;flex-shrink:0}
+.doc-stage{background:var(--bg-sunken);border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:20px;max-height:58vh;overflow:auto;display:flex;justify-content:flex-start}
+/* margin:auto centers the sheet when it fits, but keeps its left edge reachable when it overflows a narrow viewport */
+.doc-sheet{background:#fff;color:#1c2033;box-shadow:0 6px 28px rgba(0,0,0,.20);padding:64px 68px;box-sizing:border-box;line-height:1.6;display:flex;flex-direction:column;flex-shrink:0;margin:0 auto}
 .doc-page{outline:none;flex:1;min-height:120px}
 .doc-sheet h1{font-size:1.5em;font-weight:700;text-align:center;margin:0 0 8px;color:#111}
 .doc-sheet h2{font-size:1.18em;font-weight:700;margin:16px 0 8px;color:#111}
@@ -1718,11 +1727,21 @@ function openModal(title,bodyHTML,opts){
             '<button type="submit" class="btn btn-primary">'+esc(tr(opts.submitLabel||'Save'))+'</button>'+
           '</div></form></div></div></div>';
   modalReturnFocus=document.activeElement;
+  if(typeof enhanceA11y==='function') enhanceA11y(root);
   var first=root.querySelector('input,select,textarea')||root.querySelector('.modal button');
   if(first) setTimeout(function(){ try{ first.focus(); }catch(_){ } },60);
   if(typeof updateAdvisorBubble==='function') updateAdvisorBubble(currentRoute());
 }
 var modalReturnFocus=null;
+/* keyboard operability for non-native controls: Enter/Space activates any [role="button"]
+   (nav-section toggles, favorite stars, advisor dismiss, etc.) like a real button */
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Enter'&&e.key!==' '&&e.key!=='Spacebar') return;
+  var t=e.target; if(!t||!t.closest) return;
+  var rb=t.closest('[role="button"]'); if(!rb) return;
+  if(t.matches&&t.matches('input,textarea,select,button,a[href]')) return; // let native controls handle it
+  e.preventDefault(); rb.click();
+});
 /* keep keyboard focus inside the open modal (WCAG focus trap) */
 document.addEventListener('keydown',function(e){
   if(e.key!=='Tab') return;
@@ -1742,7 +1761,7 @@ function fv(form,name){ var el=form.elements[name]; return el?el.value.trim():''
 function financeTotals(entries){
   entries=entries||state.finance;
   var rev=0,exp=0;
-  entries.forEach(function(e){ if(e.type==='income') rev+=e.amount; else exp+=e.amount; });
+  entries.forEach(function(e){ if(e.type==='income') rev+=num(e.amount); else exp+=num(e.amount); });
   return { revenue:rev, expenses:exp, profit:rev-exp,
     margin: rev>0 ? (rev-exp)/rev*100 : null,
     expenseRatio: rev>0 ? exp/rev*100 : (exp>0?Infinity:null) };
@@ -1752,7 +1771,7 @@ function monthlyMap(){
   state.finance.forEach(function(e){
     var k=monthKey(e.date); if(!k) return;
     if(!m[k]) m[k]={revenue:0,expenses:0};
-    if(e.type==='income') m[k].revenue+=e.amount; else m[k].expenses+=e.amount;
+    if(e.type==='income') m[k].revenue+=num(e.amount); else m[k].expenses+=num(e.amount);
   });
   return m;
 }
@@ -1768,7 +1787,7 @@ function categoryMap(type,monthFilter){
     if(e.type!==type) return;
     if(monthFilter && monthKey(e.date)!==monthFilter) return;
     var c=e.category||'Other';
-    m[c]=(m[c]||0)+e.amount;
+    m[c]=(m[c]||0)+num(e.amount);
   });
   return m;
 }
@@ -2207,8 +2226,32 @@ function render(){
   // Settings → Accent color) for ONE consistent colour across every section — no per-section tint.
   applyNavCollapse();
   if(typeof updateAdvisorBubble==='function') updateAdvisorBubble(route);
+  enhanceA11y(main);
   main.scrollTop=0;
 }
+/* Post-render accessibility pass — applied globally so no markup site has to remember it:
+   associate field labels with their control, label icon-only buttons, and make
+   role=button controls keyboard-focusable. */
+function enhanceA11y(root){
+  root=root||document; if(!root.querySelectorAll) return;
+  var n=0;
+  Array.prototype.forEach.call(root.querySelectorAll('.field'),function(f){
+    var lbl=f.querySelector(':scope>label'); if(!lbl||lbl.htmlFor) return;
+    var ctl=f.querySelector('input,select,textarea'); if(!ctl) return;
+    if(ctl.getAttribute('aria-label')||ctl.getAttribute('aria-labelledby')) return;
+    if(!ctl.id) ctl.id='f_'+(++n)+'_'+Math.random().toString(36).slice(2,7);
+    lbl.htmlFor=ctl.id;
+  });
+  Array.prototype.forEach.call(root.querySelectorAll('button.btn-icon,button.nav-move-btn,button.nav-edit-step'),function(b){
+    if(b.getAttribute('aria-label')||(b.textContent||'').trim()) return;
+    var lab=b.getAttribute('title')||humanizeAction(b.getAttribute('data-action'));
+    if(lab) b.setAttribute('aria-label',lab);
+  });
+  Array.prototype.forEach.call(root.querySelectorAll('[role="button"]'),function(b){
+    if(!b.hasAttribute('tabindex')) b.setAttribute('tabindex','0');
+  });
+}
+function humanizeAction(a){ return a?a.replace(/^[a-z]+-/,'').replace(/-/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();}):''; }
 function applyNavCollapse(){
   var app=byId('app'); if(app) app.classList.toggle('nav-collapsed',!!(state.settings&&state.settings.navCollapsed));
 }
@@ -2315,6 +2358,7 @@ function renderSidebar(){
   sb.innerHTML=html;
   var navNew=sb.querySelector('.nav');
   if(navNew) navNew.scrollTop=keepScroll;
+  if(typeof enhanceA11y==='function') enhanceA11y(sb);
 }
 
 function topbar(title,subtitle,actionsHTML){
@@ -3369,7 +3413,7 @@ function employeeDetail(emp){
     ((emp.customFields||[]).length?'<div class="card mt" style="padding:12px 14px"><div class="card-head" style="margin-bottom:6px"><h3 style="font-size:.92rem">Details</h3></div>'+emp.customFields.map(function(f){return '<div class="list-row"><span class="sub" style="flex:1">'+esc(f.label)+'</span><b style="font-size:.86rem">'+esc(f.type==='money'&&f.value?fmtMoney(num(f.value)):(f.value||'—'))+'</b></div>';}).join('')+'</div>':'')+
     hrBankHTML(emp)+hrDocsHTML(emp)+hrContractsHTML(emp)+
     '<div style="display:flex;gap:8px;margin-top:14px"><button class="btn btn-ghost" data-action="hr-edit" data-id="'+emp.id+'">'+icon('edit')+' Edit</button><span class="spacer"></span><button class="btn btn-ghost danger" data-action="hr-del" data-id="'+emp.id+'">'+icon('trash')+' Delete</button></div>';
-  openModal(esc(emp.name),body,{wide:true});
+  openModal(esc(emp.name),'<div class="emp-detail">'+body+'</div>',{wide:true});
 }
 function hrFileSize(n){ n=num(n); if(n<1024) return n+' B'; if(n<1048576) return (n/1024).toFixed(0)+' KB'; return (n/1048576).toFixed(1)+' MB'; }
 function hrBankHTML(emp){
@@ -3528,6 +3572,9 @@ function initSignPad(){
   function start(e){ drawing=true; last=pos(e); if(e.cancelable)e.preventDefault(); }
   function move(e){ if(!drawing)return; var p=pos(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; _signDrew=true; if(e.cancelable)e.preventDefault(); }
   function end(){ drawing=false; }
+  // remove any prior window binding (Clear/re-open call this repeatedly) so it can't stack
+  if(initSignPad._end) window.removeEventListener('mouseup',initSignPad._end);
+  initSignPad._end=end;
   cv.addEventListener('mousedown',start); cv.addEventListener('mousemove',move); window.addEventListener('mouseup',end);
   cv.addEventListener('touchstart',start,{passive:false}); cv.addEventListener('touchmove',move,{passive:false}); cv.addEventListener('touchend',end);
 }
@@ -3609,7 +3656,9 @@ function hrPayoutModal(empId){
       '<div class="field"><label>Vale repaid ('+esc(state.settings.currency)+')</label><input class="input" type="number" step="any" min="0" name="valeRepaid" value="" placeholder="'+(bal>0?'up to '+fmtMoney(bal):'0')+'"></div></div>'+
     '<p class="sub">Net = (rate × days) + bonus − deductions − vale repaid. Adjust as needed.</p>';
   openModal('Record payout',body,{onSubmit:function(form){
-    var days=num(fv(form,'days')), bonus=num(fv(form,'bonus')), ded=num(fv(form,'deductions')), valeRep=num(fv(form,'valeRepaid'));
+    var days=Math.max(0,num(fv(form,'days'))), bonus=Math.max(0,num(fv(form,'bonus'))), ded=Math.max(0,num(fv(form,'deductions')));
+    // vale repayment can never exceed what's actually outstanding (else the net is understated and money "vanishes")
+    var valeRep=Math.max(0,Math.min(num(fv(form,'valeRepaid')),hrValeBalance(empId)));
     var rate=num(e.payRate);
     var gross=e.payBasis==='Monthly'?rate:rate*days; // daily: rate×days · hourly: rate×hours · monthly: flat
     var net=gross+bonus-ded-valeRep;
@@ -5303,6 +5352,7 @@ function invoiceModal(iv){
         var wasPaid=ex.status==='Paid';
         Object.assign(ex,data);
         if(!wasPaid&&ex.status==='Paid'){ ex.paidDate=todayISO(); recordInvoiceIncome(ex); }
+        else if(wasPaid&&ex.status==='Paid'){ reconcileInvoiceIncome(ex); }
       }
       toast('Invoice updated.');
     } else {
@@ -5316,17 +5366,31 @@ function invoiceModal(iv){
   }});
 }
 function invPHP(iv){
-  if(!iv.currency||iv.currency==='PHP') return iv.amount;
-  return Math.round(iv.amount*(iv.fxRate||fxRateFor(iv.currency))*100)/100;
+  if(!iv.currency||iv.currency==='PHP') return num(iv.amount);
+  var r=(iv.fxRate&&iv.fxRate>0)?iv.fxRate:fxRateFor(iv.currency);
+  return Math.round(num(iv.amount)*r*100)/100;
 }
 function fmtInvAmt(iv){
   var sym=FX_SYMBOLS[iv.currency||'PHP']||'';
   return sym+Number(iv.amount).toLocaleString(undefined,{maximumFractionDigits:2});
 }
+function invIncomeNote(iv){
+  return 'Invoice '+iv.number+(iv.desc?' — '+iv.desc:'')+(iv.currency&&iv.currency!=='PHP'?' ('+fmtInvAmt(iv)+' via '+(iv.payMethod||'—')+')':(iv.payMethod?' via '+iv.payMethod:''));
+}
 function recordInvoiceIncome(iv){
-  state.finance.push({id:uid(),type:'income',amount:invPHP(iv),date:iv.paidDate||todayISO(),category:'Sales',
-    note:'Invoice '+iv.number+(iv.desc?' — '+iv.desc:'')+(iv.currency&&iv.currency!=='PHP'?' ('+fmtInvAmt(iv)+' via '+(iv.payMethod||'—')+')':(iv.payMethod?' via '+iv.payMethod:'')),
-    client:iv.client,offer:'',account:accountForMethod(iv.payMethod)});
+  if(iv.currency&&iv.currency!=='PHP'&&!(iv.fxRate>0)&&!fxRateValid(iv.currency))
+    toast('No '+iv.currency+'→PHP rate set — recorded at 1:1. Set the rate in Calculators ▸ FX and edit if needed.','warn');
+  var fid=uid();
+  state.finance.push({id:fid,type:'income',amount:invPHP(iv),date:iv.paidDate||todayISO(),category:'Sales',
+    note:invIncomeNote(iv),client:iv.client,offer:'',account:accountForMethod(iv.payMethod)});
+  iv.financeId=fid; // link so an edit-after-paid can reconcile the books
+}
+// keep the recorded income in sync if a PAID invoice is later edited (amount/currency/desc/method)
+function reconcileInvoiceIncome(iv){
+  if(!iv.financeId) return;
+  var fe=(state.finance||[]).find(function(x){return x.id===iv.financeId;});
+  if(!fe) return;
+  fe.amount=invPHP(iv); fe.client=iv.client; fe.note=invIncomeNote(iv); fe.account=accountForMethod(iv.payMethod);
 }
 
 /* ---------- print system ---------- */
@@ -7727,9 +7791,9 @@ function todayPanelHTML(){
   if(!items.length) return '';
   return '<div class="card" style="margin-bottom:13px;padding:13px 16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:9px"><b style="font-size:.92rem">☀️ '+esc(tr('Today'))+'</b><span style="font-size:.72rem;color:var(--text-3)">'+new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})+'</span></div>'+
     '<div style="display:flex;flex-direction:column;gap:5px">'+items.map(function(it){
-      return '<button style="display:flex;align-items:center;gap:9px;text-align:left;padding:6px 9px;border-radius:9px;width:100%;font-size:.85rem;background:var(--bg-sunken)" data-action="nav" data-route="'+it.route+'">'+
-        '<span style="color:var(--'+(it.cls==='good'?'good':(it.cls==='risk'?'risk':(it.cls==='warn'?'warn':'info')))+')">'+icon(it.icon,14)+'</span>'+
-        '<span style="flex:1">'+it.text+'</span><span style="color:var(--text-3)">→</span></button>';
+      return '<button style="display:flex;align-items:flex-start;gap:9px;text-align:left;padding:6px 9px;border-radius:9px;width:100%;min-width:0;font-size:.85rem;background:var(--bg-sunken)" data-action="nav" data-route="'+it.route+'">'+
+        '<span style="color:var(--'+(it.cls==='good'?'good':(it.cls==='risk'?'risk':(it.cls==='warn'?'warn':'info')))+');flex-shrink:0;line-height:1.4">'+icon(it.icon,14)+'</span>'+
+        '<span style="flex:1;min-width:0;overflow-wrap:anywhere;line-height:1.4">'+it.text+'</span><span style="color:var(--text-3);flex-shrink:0;line-height:1.4">→</span></button>';
     }).join('')+'</div></div>';
 }
 
@@ -8323,7 +8387,13 @@ var FX_SYMBOLS={PHP:'₱',USD:'$',EUR:'€',GBP:'£',AUD:'A$',CAD:'C$',SGD:'S$',
 function fxRateFor(cur){
   if(!cur||cur==='PHP') return 1;
   var fx=state.settings.fx||{};
-  return (fx.phpPer&&fx.phpPer[cur])||1;
+  var r=fx.phpPer&&fx.phpPer[cur];
+  return (r&&r>0)?r:1; // display fallback; use fxRateValid() before recording money
+}
+function fxRateValid(cur){
+  if(!cur||cur==='PHP') return true;
+  var fx=state.settings.fx||{}, r=fx.phpPer&&fx.phpPer[cur];
+  return !!(r&&r>0);
 }
 /* automatic rates: free open API, no key. Falls back to saved/manual rates offline. */
 var fxFetching=false;
@@ -8501,12 +8571,12 @@ function taskViewSwitcherHTML(){
 }
 function taskBoardHTML(){
   var lanes=taskLanes();
-  var html='<div class="kb-board mt" style="grid-template-columns:repeat('+Math.min(lanes.length,4)+',1fr)">';
+  var html='<div class="kb-board mt" style="--lanes:'+Math.min(lanes.length,4)+'">';
   lanes.forEach(function(lane,li){
     var cards=state.tasks.filter(function(t){return (t.status||lanes[0])===lane;});
     html+='<div class="kb-col" data-task-drop="'+esc(lane)+'"><h4><span style="display:flex;align-items:center;gap:5px">'+esc(lane)+
-      '<button class="btn-icon" style="width:18px;height:18px" data-action="task-lane-rename" data-lane="'+esc(lane)+'" title="Rename lane">'+icon('edit',10)+'</button>'+
-      (lanes.length>2&&li!==lanes.length-1?'<button class="btn-icon danger" style="width:18px;height:18px" data-action="task-lane-delete" data-lane="'+esc(lane)+'" title="Delete lane">'+icon('x',10)+'</button>':'')+
+      '<button class="btn-icon kb-lane-btn" data-action="task-lane-rename" data-lane="'+esc(lane)+'" title="Rename lane" aria-label="Rename lane">'+icon('edit',12)+'</button>'+
+      (lanes.length>2&&li!==lanes.length-1?'<button class="btn-icon danger kb-lane-btn" data-action="task-lane-delete" data-lane="'+esc(lane)+'" title="Delete lane" aria-label="Delete lane">'+icon('x',12)+'</button>':'')+
       '</span><span>'+cards.length+'</span></h4>';
     cards.forEach(function(t){
       var d=daysUntil(t.deadline);
