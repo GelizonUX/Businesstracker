@@ -204,6 +204,9 @@ async function main() {
     })();
     // adjustable menu size scales both text and icon via --nav-scale, and the sidebar width tracks it
     ok('sidebar font + icon + width scale with --nav-scale', /font-size:calc\(\.9rem\*var\(--nav-scale/.test(html) && /\.nav-item svg\{width:calc\(17px\*var\(--nav-scale/.test(html) && /\.sidebar\{[^}]*width:calc\(248px\*var\(--nav-scale/.test(html));
+    // design-system normalization: type-scale + grid-gap tokens defined and used; no 13px gutters / half-pixel padding
+    ok('design tokens defined (type scale + grid gutter)', /--fs-2xl:/.test(html) && /--grid-gap:/.test(html));
+    ok('card grids use the gutter token, not magic 13px', /\.grid\{display:grid;gap:var\(--grid-gap\)\}/.test(html) && !/\.grid\{display:grid;gap:13px\}/.test(html) && !/padding:6\.5px/.test(html));
     (function () {
       window.state.settings.navScale = 1;
       window.setNavScale(1);
