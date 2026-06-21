@@ -1031,13 +1031,18 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
   .table-wrap{overflow-x:visible}
   .table-wrap table,.table-wrap tbody,.table-wrap tr,.table-wrap td{display:block;width:auto}
   .table-wrap thead{position:absolute;left:-9999px;top:-9999px}
-  .table-wrap tr{border:none;border-bottom:1px solid var(--border);padding:9px 0}
+  .table-wrap tr{border:none;border-bottom:1px solid var(--border);padding:7px 0}
   .table-wrap tr:last-child{border-bottom:none}
-  .table-wrap td{display:flex;justify-content:space-between;align-items:center;gap:14px;border:none;padding:4px 0;text-align:right;min-height:0;white-space:normal}
-  .table-wrap td[data-label]::before{content:attr(data-label);font-weight:700;color:var(--text-3);text-transform:uppercase;font-size:.62rem;letter-spacing:.05em;text-align:left;flex:0 0 auto;max-width:45%}
+  .table-wrap td{display:flex;justify-content:space-between;align-items:center;gap:14px;border:none;padding:3px 0;text-align:right;min-width:0;min-height:0;white-space:normal;overflow-wrap:anywhere}
+  .table-wrap td[data-label]::before{content:attr(data-label);font-weight:700;color:var(--text-3);text-transform:uppercase;font-size:.62rem;letter-spacing:.05em;text-align:left;flex:0 0 auto;max-width:42%}
   .table-wrap td:not([data-label]){justify-content:flex-end}
-  .table-wrap td:empty{display:none}
+  .table-wrap td:empty,.table-wrap td[data-mobempty]{display:none}
   .table-wrap td.num,.table-wrap td[style*="text-align:right"]{text-align:right}
+  /* Orders are hand-built flex rows with fixed-width columns — stack them on phones */
+  .order-row{flex-wrap:wrap;gap:10px!important;padding:14px 2px!important}
+  .order-row>div{min-width:0!important;flex:1 1 100%!important}
+  .order-row>input[type="checkbox"]{flex:0 0 auto}
+  .order-row .row-actions{flex-direction:row!important;justify-content:flex-end;width:100%;gap:6px}
 }
 .step-btn{width:22px;height:22px}
 /* ===== standard-mobile shell: bottom tab bar + FAB (phones/tablets ≤860px) ===== */
@@ -1045,8 +1050,9 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .fab{display:none}
 @media (max-width:860px){
   .tabbar{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:58;
-    background:var(--bg-card);border-top:1px solid var(--border);box-shadow:0 -2px 18px rgba(0,0,0,.07);
-    padding-bottom:env(safe-area-inset-bottom,0)}
+    background:var(--bg-card);border-top:1.5px solid var(--border-2,var(--border));box-shadow:0 -6px 26px rgba(2,6,23,.14);
+    -webkit-backdrop-filter:saturate(1.2);backdrop-filter:saturate(1.2);padding-bottom:env(safe-area-inset-bottom,0)}
+  html[data-theme="dark"] .tabbar{box-shadow:0 -6px 26px rgba(0,0,0,.5);border-top-color:rgba(255,255,255,.1)}
   .tab-item{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
     padding:8px 0 7px;min-height:54px;background:none;color:var(--text-3);font-size:.6rem;font-weight:700;letter-spacing:.02em;
     transition:color .15s}
@@ -2334,6 +2340,10 @@ function labelizeTables(root){
         if(td.tagName!=='TD') return;
         var lbl=heads[i];
         if(lbl) td.setAttribute('data-label',lbl); // unlabeled (action) cells stay right-aligned with no prefix
+        // mark empty / dash-only value cells so they can be hidden on mobile (declutters the stacked cards)
+        var txt=(td.textContent||'').trim();
+        if(td.children.length===0 && (txt===''||/^[—–-]+$/.test(txt))) td.setAttribute('data-mobempty','');
+        else td.removeAttribute('data-mobempty');
       });
     });
   });
@@ -2589,7 +2599,7 @@ function viewDashboard(){
     healthBlk+='<div class="ring-wrap">'+svgRing(hs.score,128,null,String(hs.score),'/ 100')+
       '<div style="flex:1;min-width:0"><span class="badge '+hl.cls+'">'+hl.label+'</span><div class="mt" style="margin-top:10px">'+
       hs.parts.map(function(p){
-        return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:.76rem;color:var(--text-2)"><span>'+esc(p.k)+'</span><b>'+Math.round(p.pts)+'/'+p.max+'</b></div>'+
+        return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;gap:10px;font-size:.76rem;color:var(--text-2)"><span>'+esc(p.k)+'</span><b style="flex-shrink:0">'+Math.round(p.pts)+'/'+p.max+'</b></div>'+
           '<div class="progress" style="height:5px;margin-top:3px"><div class="bar '+(p.pts/p.max>=0.6?'good':(p.pts/p.max>=0.35?'warn':'risk'))+'" style="width:'+(p.pts/p.max*100)+'%"></div></div></div>';
       }).join('')+'</div></div></div>';
   } else {
@@ -3471,7 +3481,7 @@ function viewManpower(){
       '<span class="hr-emp-status '+(on?'on':'off')+'">'+(on?'Active':'Inactive')+'</span>'+av+
       '<span class="hr-emp-name">'+esc(e.name)+'</span>'+
       '<span class="hr-emp-role">'+esc(e.role||'—')+(e.employmentType?' · '+esc(e.employmentType):'')+'</span>'+
-      '<span class="hr-emp-meta">'+(e.payRate?fmtMoney(num(e.payRate))+'/'+esc(String(e.payBasis||'mo').toLowerCase().slice(0,3)):'—')+(bal>0?' · <span class="hr-emp-vale">'+fmtMoney(bal)+' vale</span>':'')+'</span>'+
+      '<span class="hr-emp-meta">'+(e.payRate?fmtMoney(num(e.payRate))+'/'+({Daily:'day',Hourly:'hr',Monthly:'mo'}[e.payBasis]||'mo'):'—')+(bal>0?' · <span class="hr-emp-vale">'+fmtMoney(bal)+' vale</span>':'')+'</span>'+
     '</button>';
   });
   html+='</div>';
@@ -6277,7 +6287,7 @@ function viewOrders(){
       var d=daysUntil(o.deliveryDate);
       var late=o.status!=='Delivered'&&o.status!=='Cancelled'&&d!=null&&d<0;
       var prof=orderProfit(o);
-      html+='<div class="list-row" style="align-items:flex-start;gap:16px;padding:16px 4px">'+
+      html+='<div class="list-row order-row" style="align-items:flex-start;gap:16px;padding:16px 4px">'+
         '<input type="checkbox" style="margin-top:4px" data-action-change="order-select" data-id="'+o.id+'"'+(ui.selOrders&&ui.selOrders[o.id]?' checked':'')+'>'+
         '<div style="flex:1.4;min-width:160px"><b class="mono" style="font-size:.8rem;color:var(--accent)">'+esc(o.number)+'</b>'+
           '<div style="font-weight:700">'+esc(o.clientName||'Walk-in')+'</div>'+

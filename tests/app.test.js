@@ -221,6 +221,12 @@ async function main() {
     })();
     ok('header collapses actions into an overflow menu on mobile', /class="topbar-more"/.test(html) && /data-action="toggle-topbar-actions"/.test(html) && /id="topbar-actions"/.test(html) && /\.topbar-actions\.open\{display:flex/.test(html));
     ok('mobile turns data tables into stacked labeled cards', /\.table-wrap thead\{position:absolute/.test(html) && /\.table-wrap td\[data-label\]::before\{content:attr\(data-label\)/.test(html));
+    ok('mobile hides empty/dash cells + stacks the hand-built order rows (no overflow)', /\.table-wrap td:empty,\.table-wrap td\[data-mobempty\]\{display:none\}/.test(html) && /\.order-row>div\{min-width:0!important;flex:1 1 100%!important\}/.test(html));
+    (function () {
+      window.location.hash = '#/orders'; window.render();
+      ok('order cards are tagged for the mobile stack rule', /class="list-row order-row"/.test(d.getElementById('main').innerHTML));
+      window.location.hash = '#/dashboard'; window.render();
+    })();
     (function () {
       window.location.hash = '#/finance'; window.render();
       const labeled = d.getElementById('main').querySelectorAll('.table-wrap td[data-label]').length;
