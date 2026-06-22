@@ -321,6 +321,9 @@ html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--
   border:1.5px solid var(--border);background:var(--bg-input);
   transition:border-color .18s,box-shadow .18s;
 }
+/* a width:auto select grows to its widest option — cap it so long user-defined categories
+   never push the page wider than the viewport (the source of mobile horizontal scroll) */
+select.input{max-width:100%}
 .input:hover:not(:focus){border-color:var(--border-2)}
 .input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 textarea.input{resize:vertical;min-height:80px}
@@ -1038,14 +1041,18 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
   .table-wrap{overflow-x:visible}
   .table-wrap table,.table-wrap tbody,.table-wrap tr,.table-wrap td{display:block;width:auto}
   .table-wrap thead{position:absolute;left:-9999px;top:-9999px}
-  .table-wrap tr{border:none;border-bottom:1px solid var(--border);padding:11px 0}
+  .table-wrap tr{border:none;border-bottom:1px solid var(--border);padding:9px 0}
   .table-wrap tr:last-child{border-bottom:none}
-  /* mobile detail card: a small caption label ABOVE the value; the value uses the FULL card width
-     so notes/emails/descriptions wrap naturally with no awkward indent gap or cramped column */
-  .table-wrap td{display:block;border:none;padding:6px 2px 0;text-align:left;line-height:1.5;white-space:normal;overflow-wrap:anywhere;word-break:break-word}
+  /* mobile detail card. HYBRID: long-text fields stack (caption above full-width value); short
+     scalar fields ([data-inline]) sit on one row (caption left, value right) to keep cards compact. */
+  .table-wrap td{display:block;border:none;padding:5px 2px 0;text-align:left;line-height:1.5;white-space:normal;overflow-wrap:anywhere;word-break:break-word}
   .table-wrap td:first-child{padding-top:0}
-  .table-wrap td[data-label]::before{content:attr(data-label);display:block;margin-bottom:1px;font-weight:700;color:var(--text-3);text-transform:uppercase;font-size:.58rem;letter-spacing:.05em;line-height:1.4}
+  .table-wrap td[data-label]::before{content:attr(data-label);display:block;margin-bottom:1px;font-weight:700;color:var(--text-3);text-transform:uppercase;font-size:.57rem;letter-spacing:.05em;line-height:1.4}
   .table-wrap td[data-label]{text-align:left!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important}
+  /* inline short scalars: label left, value right on the same row */
+  .table-wrap td[data-inline]{display:flex;justify-content:space-between;align-items:baseline;gap:14px}
+  .table-wrap td[data-inline]::before{display:inline-block;margin-bottom:0;flex:0 0 auto;align-self:center}
+  .table-wrap td[data-inline]>*{text-align:right!important}
   .table-wrap td:not([data-label]){padding:10px 2px 0;text-align:right} /* action-button cell on its own line, right-aligned */
   /* mobile cards want the FULL value — override any desktop ellipsis/nowrap/max-width/right-align on cell content */
   .table-wrap td span,.table-wrap td div,.table-wrap td b,.table-wrap td a,.table-wrap td p{max-width:none!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;text-align:left!important;float:none!important}
@@ -2366,9 +2373,16 @@ function labelizeTables(root){
       Array.prototype.forEach.call(tr.children,function(td,i){
         if(td.tagName!=='TD') return;
         var lbl=heads[i];
-        if(lbl) td.setAttribute('data-label',lbl); // unlabeled (action) cells stay right-aligned with no prefix
-        // mark empty / dash-only value cells so they can be hidden on mobile (declutters the stacked cards)
         var txt=(td.textContent||'').trim();
+        if(lbl){
+          td.setAttribute('data-label',lbl);
+          // HYBRID: short scalar fields render inline (label … value on one row); long-text columns
+          // (note/description/contact/client/product…) and any long value or stepper cell stay stacked (full width).
+          var stack=/(note|description|address|contact|email|client|product|material|detail|title|item|reason|memo|message|win)/i.test(lbl);
+          if(!stack && txt.length<=22 && !td.querySelector('button')) td.setAttribute('data-inline','');
+          else td.removeAttribute('data-inline');
+        }
+        // mark empty / dash-only value cells so they can be hidden on mobile (declutters the cards)
         if(td.children.length===0 && (txt===''||/^[—–-]+$/.test(txt))) td.setAttribute('data-mobempty','');
         else td.removeAttribute('data-mobempty');
       });
