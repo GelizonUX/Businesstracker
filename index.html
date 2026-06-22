@@ -1041,7 +1041,8 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
   .stat-card .stat-label{min-height:2.1em;align-items:flex-start}
   .page-title h1{font-size:1.12rem}
   /* let users know more tabs exist off-screen */
-  .tabs{-webkit-mask-image:linear-gradient(90deg,#000 86%,transparent);mask-image:linear-gradient(90deg,#000 86%,transparent)}
+  .tabs{-webkit-mask-image:linear-gradient(90deg,#000 80%,transparent);mask-image:linear-gradient(90deg,#000 80%,transparent)}
+  .tabs button{padding:8px 12px}
   /* primary repeatedly-tapped controls get a real touch target on phones */
   .step-btn{width:34px;height:34px}
   /* ---- data tables become clean stacked rows (no sideways spreadsheet) ---- */
@@ -1070,6 +1071,12 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
   .order-row>div{min-width:0!important;flex:1 1 100%!important}
   .order-row>input[type="checkbox"]{flex:0 0 auto}
   .order-row .row-actions{flex-direction:row!important;justify-content:flex-end;width:100%;gap:6px}
+  /* roadmap task rows: a width:auto status select was crushing the title to one word per line.
+     Put the title on its own full-width line, with the select + actions on the row below. */
+  .rm-task-row{flex-wrap:wrap;gap:8px!important;align-items:center}
+  .rm-task-row .rm-task-main{flex:1 1 100%!important;order:-1;min-width:0}
+  .rm-task-row .rm-task-status{flex:0 0 auto}
+  .rm-task-row .row-actions{margin-left:auto}
 }
 .step-btn{width:22px;height:22px}
 /* ===== standard-mobile shell: bottom tab bar + FAB (phones/tablets ≤860px) ===== */
@@ -3316,10 +3323,10 @@ function viewRoadmap(){
         var d=daysUntil(t.deadline);
         var stCls={'Not Started':'neutral','In Progress':'info','Blocked':'risk','Completed':'good'}[t.status]||'neutral';
         var late=t.status!=='Completed'&&d!=null&&d<0;
-        html+='<div class="list-row" style="padding:8px 0">'+
-          '<select class="input" style="width:auto;padding:4px 28px 4px 8px;font-size:.76rem;font-weight:600" data-action-change="phase-task-status" data-phase="'+p.id+'" data-task="'+t.id+'">'+
+        html+='<div class="list-row rm-task-row" style="padding:8px 0">'+
+          '<select class="input rm-task-status" style="width:auto;padding:4px 28px 4px 8px;font-size:.76rem;font-weight:600" data-action-change="phase-task-status" data-phase="'+p.id+'" data-task="'+t.id+'">'+
             ROADMAP_STATUSES.map(function(s){return '<option'+(t.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
-          '<div style="flex:1;min-width:0"><span style="font-size:.88rem;font-weight:600;'+(t.status==='Completed'?'text-decoration:line-through;color:var(--text-3)':'')+'">'+esc(t.title)+'</span>'+
+          '<div class="rm-task-main" style="flex:1;min-width:0"><span style="font-size:.88rem;font-weight:600;'+(t.status==='Completed'?'text-decoration:line-through;color:var(--text-3)':'')+'">'+esc(t.title)+'</span>'+
           '<div class="task-meta">'+(t.deadline?'<span class="badge '+(late?'risk':'neutral')+'">'+icon('clock')+' '+fmtDate(t.deadline)+(late?' · late':'')+'</span>':'')+
           (t.priority?'<span class="badge '+({High:'risk',Medium:'warn',Low:'neutral'}[t.priority]||'neutral')+'">'+esc(t.priority)+'</span>':'')+
           '<span class="badge '+stCls+'">'+esc(t.status)+'</span></div></div>'+

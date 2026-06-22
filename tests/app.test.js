@@ -212,6 +212,9 @@ async function main() {
     // mobile-first: on phones the stat grids go 2-up (not full-width stacked) and dashboard KPIs sit 2-up
     ok('mobile stat grids are 2-up (not single-column) at <=560px', /@media \(max-width:560px\)\{\s*\.grid-3,\.grid-4\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)\}/.test(html));
     ok('mobile grid tracks use minmax(0,1fr) so no child can force horizontal overflow', /\.grid-2,\.grid-hero\{grid-template-columns:minmax\(0,1fr\)\}/.test(html) && /\.calc-fields\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/.test(html));
+    ok('mobile: table/order rows have 16px inner padding (not tight to border)', /\.table-wrap tr\{[^}]*padding:11px 16px\}/.test(html) && /\.order-row\{[^}]*padding:14px 16px!important\}/.test(html));
+    ok('FX compare + narrow-phone metric grid never overflow (min(100%) tracks / 1-col)', /minmax\(min\(100%,150px\),1fr\)/.test(html) && /@media \(max-width:360px\)\{\s*\.grid-3\{grid-template-columns:minmax\(0,1fr\)\}/.test(html));
+    ok('roadmap task rows stack on mobile (title not crushed by the status select)', /class="list-row rm-task-row"/.test(html) && /\.rm-task-row \.rm-task-main\{flex:1 1 100%!important;order:-1/.test(html));
     ok('mobile dashboard KPIs sit 2-up while rich widgets go full-width', /\.dash-grid \.dash-widget\{grid-column:1 \/ -1\}/.test(html) && /data-widget="rev"\][\s\S]{0,160}grid-column:auto/.test(html));
     ok('mobile compacts cards + hides floating sparkline at 2-up', /\.stat-card \.spark\{display:none\}/.test(html));
     // standard-mobile shell: bottom tab bar + FAB + header overflow menu + tables→cards
