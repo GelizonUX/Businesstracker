@@ -606,6 +606,11 @@ details.calc .calc-body{margin-top:10px}
   html{font-size:14px}
   .ring-wrap{flex-direction:column;align-items:flex-start}
 }
+/* very narrow phones (≤360px, e.g. iPhone SE): metric cards (.grid-3) carry nowrap action
+   buttons that won't fit 2-up — give them the full width */
+@media (max-width:360px){
+  .grid-3{grid-template-columns:minmax(0,1fr)}
+}
 /* depth & polish */
 body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft),transparent 60%)}
 .stat-icon{width:29px;height:29px;border-radius:9px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);flex-shrink:0}
@@ -6132,7 +6137,7 @@ function viewProducts(){
     '</div><form data-form="product-cat-add" style="display:flex;gap:8px"><input class="input" name="name" placeholder="e.g. Soap, Diffuser, Bundle…" style="flex:1"><button class="btn btn-ghost btn-sm" type="submit">'+icon('plus')+' Add</button></form></div></div>'+
     '<div><div class="field"><label>Custom product fields — your form, your business</label><div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px">'+
     (productFields().length?productFields().map(function(f){
-      return '<div style="display:flex;align-items:center;gap:8px;background:var(--bg-sunken);border-radius:9px;padding:6px 10px"><b style="font-size:.8rem;flex:1">'+esc(f.label)+'</b>'+
+      return '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--bg-sunken);border-radius:9px;padding:6px 10px"><b style="font-size:.8rem;flex:1;min-width:0">'+esc(f.label)+'</b>'+
         '<span class="badge neutral" style="font-size:.62rem">'+esc(f.type)+(f.type==='select'&&f.options?': '+esc(f.options.join('/')):'')+'</span>'+
         '<span class="badge accent" style="font-size:.62rem">'+(f.cat?esc(f.cat)+' only':'all categories')+'</span>'+
         '<button class="btn-icon danger" style="width:20px;height:20px" data-action="product-field-del" data-key="'+f.key+'">'+icon('x')+'</button></div>';
