@@ -523,10 +523,10 @@ details.calc .calc-body{margin-top:10px}
 .calc-hidden{display:none!important}
 .calc-flash{animation:calcFlash 1s var(--ease)}
 @keyframes calcFlash{0%,100%{box-shadow:var(--shadow-sm)}45%{box-shadow:0 0 0 3px var(--accent-soft)}}
-.calc-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-top:8px}
-.calc-fields .field{margin-bottom:0}
+.calc-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,108px),1fr));gap:8px;margin-top:8px}
+.calc-fields .field{margin-bottom:0;min-width:0}
 .calc-fields label{font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3)}
-.calc-fields .input{padding:6px 8px;font-size:.88rem}
+.calc-fields .input{padding:6px 8px;font-size:.88rem;min-width:0}
 .calc-desc{font-size:.74rem;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .calc-result{margin-top:12px;padding:12px 16px;border-radius:10px;background:var(--accent-soft);font-size:.92rem;font-weight:600;color:var(--text);display:none}
 .calc-result b{color:var(--accent)}
@@ -572,8 +572,8 @@ details.calc .calc-body{margin-top:10px}
    responsive
    ============================================================ */
 @media (max-width:1100px){
-  .grid-4{grid-template-columns:repeat(2,1fr)}
-  .grid-3{grid-template-columns:repeat(2,1fr)}
+  .grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media (max-width:860px){
   /* off-canvas overlay: keep at least ~14vw of scrim tappable even at max menu size */
@@ -583,8 +583,8 @@ details.calc .calc-body{margin-top:10px}
   body.drawer-open .main{overflow:hidden}
   .main{margin-left:0;padding:16px 16px 56px}
   .hamburger{display:inline-flex}
-  .grid-2,.grid-hero{grid-template-columns:1fr}
-  .form-row,.form-row-3{grid-template-columns:1fr}
+  .grid-2,.grid-hero{grid-template-columns:minmax(0,1fr)}
+  .form-row,.form-row-3{grid-template-columns:minmax(0,1fr)}
   /* one clean header row: ☰ + title + ⋮ overflow; per-view actions collapse into a menu */
   .topbar{flex-wrap:nowrap;position:relative;gap:10px}
   .page-title{flex:1;min-width:0}
@@ -602,9 +602,14 @@ details.calc .calc-body{margin-top:10px}
   .topbar-actions .btn.btn-primary{color:var(--accent)}
 }
 @media (max-width:560px){
-  .grid-3,.grid-4{grid-template-columns:repeat(2,1fr)}
+  .grid-3,.grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}
   html{font-size:14px}
   .ring-wrap{flex-direction:column;align-items:flex-start}
+}
+/* very narrow phones (≤360px, e.g. iPhone SE): metric cards (.grid-3) carry nowrap action
+   buttons that won't fit 2-up — give them the full width */
+@media (max-width:360px){
+  .grid-3{grid-template-columns:minmax(0,1fr)}
 }
 /* depth & polish */
 body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft),transparent 60%)}
@@ -1014,14 +1019,16 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
   :root{--grid-gap:10px}
   .main{padding:14px 12px 64px}
   /* dashboard: the four KPIs sit 2-up; richer widgets stay full-width and readable */
-  .dash-grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .dash-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
   .dash-grid .dash-widget{grid-column:1 / -1}
   .dash-grid .dash-widget[data-widget="rev"],
   .dash-grid .dash-widget[data-widget="exp"],
   .dash-grid .dash-widget[data-widget="prof"],
   .dash-grid .dash-widget[data-widget="margin"]{grid-column:auto}
-  /* compact every card so a 2-up row stays balanced and not oversized */
-  .card{padding:13px 14px}
+  /* roomy-but-compact card padding so labels/values aren't tight against the border */
+  .card{padding:15px 16px}
+  /* calc form fields: clean 2-up on phones (was auto-fit that could force 3 cramped/overflowing cols) */
+  .calc-fields{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
   .stat-card .stat-value{font-size:1.28rem;margin-top:3px}
   .stat-card .stat-label{font-size:.66rem;letter-spacing:.05em;gap:6px}
   .stat-card .stat-label svg{width:12px;height:12px}
@@ -1034,18 +1041,20 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
   .stat-card .stat-label{min-height:2.1em;align-items:flex-start}
   .page-title h1{font-size:1.12rem}
   /* let users know more tabs exist off-screen */
-  .tabs{-webkit-mask-image:linear-gradient(90deg,#000 86%,transparent);mask-image:linear-gradient(90deg,#000 86%,transparent)}
+  .tabs{-webkit-mask-image:linear-gradient(90deg,#000 80%,transparent);mask-image:linear-gradient(90deg,#000 80%,transparent)}
+  .tabs button{padding:8px 12px}
   /* primary repeatedly-tapped controls get a real touch target on phones */
   .step-btn{width:34px;height:34px}
   /* ---- data tables become clean stacked rows (no sideways spreadsheet) ---- */
   .table-wrap{overflow-x:visible}
   .table-wrap table,.table-wrap tbody,.table-wrap tr,.table-wrap td{display:block;width:auto}
   .table-wrap thead{position:absolute;left:-9999px;top:-9999px}
-  .table-wrap tr{border:none;border-bottom:1px solid var(--border);padding:9px 0}
+  .table-wrap tr{border:none;border-bottom:1px solid var(--border);padding:11px 16px}
   .table-wrap tr:last-child{border-bottom:none}
   /* mobile detail card. HYBRID: long-text fields stack (caption above full-width value); short
-     scalar fields ([data-inline]) sit on one row (caption left, value right) to keep cards compact. */
-  .table-wrap td{display:block;border:none;padding:5px 2px 0;text-align:left;line-height:1.5;white-space:normal;overflow-wrap:anywhere;word-break:break-word}
+     scalar fields ([data-inline]) sit on one row (caption left, value right) to keep cards compact.
+     Horizontal breathing room lives on the row (16px) so text isn't tight to the table-wrap border. */
+  .table-wrap td{display:block;border:none;padding:5px 0 0;text-align:left;line-height:1.5;white-space:normal;overflow-wrap:anywhere;word-break:break-word}
   .table-wrap td:first-child{padding-top:0}
   .table-wrap td[data-label]::before{content:attr(data-label);display:block;margin-bottom:1px;font-weight:700;color:var(--text-3);text-transform:uppercase;font-size:.57rem;letter-spacing:.05em;line-height:1.4}
   .table-wrap td[data-label]{text-align:left!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important}
@@ -1053,15 +1062,21 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
   .table-wrap td[data-inline]{display:flex;justify-content:space-between;align-items:baseline;gap:14px}
   .table-wrap td[data-inline]::before{display:inline-block;margin-bottom:0;flex:0 0 auto;align-self:center}
   .table-wrap td[data-inline]>*{text-align:right!important}
-  .table-wrap td:not([data-label]){padding:10px 2px 0;text-align:right} /* action-button cell on its own line, right-aligned */
+  .table-wrap td:not([data-label]){padding:10px 0 0;text-align:right} /* action-button cell on its own line, right-aligned */
   /* mobile cards want the FULL value — override any desktop ellipsis/nowrap/max-width/right-align on cell content */
   .table-wrap td span,.table-wrap td div,.table-wrap td b,.table-wrap td a,.table-wrap td p{max-width:none!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;text-align:left!important;float:none!important}
   .table-wrap td:empty,.table-wrap td[data-mobempty]{display:none}
   /* Orders are hand-built flex rows with fixed-width columns — stack them on phones */
-  .order-row{flex-wrap:wrap;gap:10px!important;padding:14px 2px!important}
+  .order-row{flex-wrap:wrap;gap:10px!important;padding:14px 16px!important}
   .order-row>div{min-width:0!important;flex:1 1 100%!important}
   .order-row>input[type="checkbox"]{flex:0 0 auto}
   .order-row .row-actions{flex-direction:row!important;justify-content:flex-end;width:100%;gap:6px}
+  /* roadmap task rows: a width:auto status select was crushing the title to one word per line.
+     Put the title on its own full-width line, with the select + actions on the row below. */
+  .rm-task-row{flex-wrap:wrap;gap:8px!important;align-items:center}
+  .rm-task-row .rm-task-main{flex:1 1 100%!important;order:-1;min-width:0}
+  .rm-task-row .rm-task-status{flex:0 0 auto}
+  .rm-task-row .row-actions{margin-left:auto}
 }
 .step-btn{width:22px;height:22px}
 /* ===== standard-mobile shell: bottom tab bar + FAB (phones/tablets ≤860px) ===== */
@@ -3308,10 +3323,10 @@ function viewRoadmap(){
         var d=daysUntil(t.deadline);
         var stCls={'Not Started':'neutral','In Progress':'info','Blocked':'risk','Completed':'good'}[t.status]||'neutral';
         var late=t.status!=='Completed'&&d!=null&&d<0;
-        html+='<div class="list-row" style="padding:8px 0">'+
-          '<select class="input" style="width:auto;padding:4px 28px 4px 8px;font-size:.76rem;font-weight:600" data-action-change="phase-task-status" data-phase="'+p.id+'" data-task="'+t.id+'">'+
+        html+='<div class="list-row rm-task-row" style="padding:8px 0">'+
+          '<select class="input rm-task-status" style="width:auto;padding:4px 28px 4px 8px;font-size:.76rem;font-weight:600" data-action-change="phase-task-status" data-phase="'+p.id+'" data-task="'+t.id+'">'+
             ROADMAP_STATUSES.map(function(s){return '<option'+(t.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
-          '<div style="flex:1;min-width:0"><span style="font-size:.88rem;font-weight:600;'+(t.status==='Completed'?'text-decoration:line-through;color:var(--text-3)':'')+'">'+esc(t.title)+'</span>'+
+          '<div class="rm-task-main" style="flex:1;min-width:0"><span style="font-size:.88rem;font-weight:600;'+(t.status==='Completed'?'text-decoration:line-through;color:var(--text-3)':'')+'">'+esc(t.title)+'</span>'+
           '<div class="task-meta">'+(t.deadline?'<span class="badge '+(late?'risk':'neutral')+'">'+icon('clock')+' '+fmtDate(t.deadline)+(late?' · late':'')+'</span>':'')+
           (t.priority?'<span class="badge '+({High:'risk',Medium:'warn',Low:'neutral'}[t.priority]||'neutral')+'">'+esc(t.priority)+'</span>':'')+
           '<span class="badge '+stCls+'">'+esc(t.status)+'</span></div></div>'+
@@ -6129,7 +6144,7 @@ function viewProducts(){
     '</div><form data-form="product-cat-add" style="display:flex;gap:8px"><input class="input" name="name" placeholder="e.g. Soap, Diffuser, Bundle…" style="flex:1"><button class="btn btn-ghost btn-sm" type="submit">'+icon('plus')+' Add</button></form></div></div>'+
     '<div><div class="field"><label>Custom product fields — your form, your business</label><div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px">'+
     (productFields().length?productFields().map(function(f){
-      return '<div style="display:flex;align-items:center;gap:8px;background:var(--bg-sunken);border-radius:9px;padding:6px 10px"><b style="font-size:.8rem;flex:1">'+esc(f.label)+'</b>'+
+      return '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--bg-sunken);border-radius:9px;padding:6px 10px"><b style="font-size:.8rem;flex:1;min-width:0">'+esc(f.label)+'</b>'+
         '<span class="badge neutral" style="font-size:.62rem">'+esc(f.type)+(f.type==='select'&&f.options?': '+esc(f.options.join('/')):'')+'</span>'+
         '<span class="badge accent" style="font-size:.62rem">'+(f.cat?esc(f.cat)+' only':'all categories')+'</span>'+
         '<button class="btn-icon danger" style="width:20px;height:20px" data-action="product-field-del" data-key="'+f.key+'">'+icon('x')+'</button></div>';
@@ -8686,7 +8701,7 @@ function fxCompareTableHTML(amt,from){
       '<span style="font-size:.78rem;color:var(--text-2);flex-shrink:0">'+c+'</span>'+
       '<bdi class="num" style="font-size:.9rem;font-weight:700;white-space:nowrap">'+FX_SYMBOLS[c]+fmtNum(v,2)+'</bdi></div>';
   }).join('');
-  return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:8px">'+rows+'</div>';
+  return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),1fr));gap:8px">'+rows+'</div>';
 }
 function fxAllRefresh(){
   var amtEl=byId('fxall-amt'), fromEl=byId('fxall-from'), out=byId('fxall-table');
