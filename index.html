@@ -447,6 +447,27 @@ tr:hover .row-actions{opacity:1}
 .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.78rem;color:var(--text-2);margin-top:8px}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 
+/* mobile finance timeline (day-grouped; rendered only on phones, hidden on desktop where the table wins) */
+.fin-timeline{display:none}
+.fin-day{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:16px 1px 2px;padding-top:8px;border-top:1px solid var(--border)}
+.fin-day:first-child{margin-top:2px;padding-top:0;border-top:none}
+.fin-day-label{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--text-2)}
+.fin-day-sum{font-size:.72rem;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text-3);text-align:right}
+.fin-tl-row{display:flex;gap:11px;align-items:flex-start;padding:11px 1px}
+.fin-tl-row+.fin-tl-row{border-top:1px solid var(--border)}
+.fin-tl-dot{width:9px;height:9px;border-radius:50%;margin-top:6px;flex:0 0 auto;background:var(--expense);box-shadow:0 0 0 3px var(--expense-soft,rgba(239,68,68,.16))}
+.fin-tl-row[data-type="income"] .fin-tl-dot{background:var(--income);box-shadow:0 0 0 3px var(--income-soft,rgba(16,185,129,.16))}
+.fin-tl-main{flex:1;min-width:0}
+.fin-tl-line{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.fin-tl-cat{font-weight:700;font-size:.9rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.fin-tl-amt{font-weight:800;font-size:.92rem;font-variant-numeric:tabular-nums;flex:0 0 auto;white-space:nowrap}
+.fin-tl-sub{display:flex;align-items:center;gap:7px;margin-top:3px}
+.fin-tl-rcpt{width:22px!important;height:22px!important;border-radius:6px;flex:0 0 auto}
+.fin-tl-note{color:var(--text-3);font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.fin-tl-actions{flex:0 0 auto;display:flex;gap:1px;margin-right:-4px}
+.fin-tl-actions .btn-icon{width:28px;height:28px}
+.fin-tl-total{display:flex;justify-content:space-between;gap:10px;align-items:baseline;font-weight:800;font-size:.9rem;padding:13px 1px 1px;margin-top:8px;border-top:1.5px solid var(--border);font-variant-numeric:tabular-nums}
+
 /* tabs */
 .tabs{display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:20px;overflow-x:auto;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
@@ -1043,6 +1064,9 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
   .acct-grid .btn-sm{padding:5px 8px;font-size:.72rem}
   /* the dashed "Add account" tile sits full-width below the wallet pairs */
   .acct-grid>[data-action="account-new"]{grid-column:1 / -1;min-height:96px!important}
+  /* finance: swap the spreadsheet table for the day-grouped timeline */
+  .fin-table-wrap{display:none}
+  .fin-timeline{display:block}
   .stat-card .stat-value{font-size:1.28rem;margin-top:3px}
   .stat-card .stat-label{font-size:.66rem;letter-spacing:.05em;gap:6px}
   .stat-card .stat-label svg{width:12px;height:12px}
@@ -2954,7 +2978,7 @@ function financeEntriesHTML(){
   var ft=financeTotals(entries);
   var limit=ui.financeLimit||50;
   var shown=entries.slice(0,limit);
-  html+='<div class="table-wrap"><table><thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Note</th><th>Client</th><th style="text-align:right">Amount</th><th></th></tr></thead><tbody>';
+  html+='<div class="table-wrap fin-table-wrap"><table><thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Note</th><th>Client</th><th style="text-align:right">Amount</th><th></th></tr></thead><tbody>';
   shown.forEach(function(e){
     html+='<tr><td style="white-space:nowrap">'+fmtDate(e.date)+'</td>'+
       '<td><span class="badge '+(e.type==='income'?'good':'risk')+'">'+(e.type==='income'?'Income':'Expense')+'</span></td>'+
@@ -2967,7 +2991,44 @@ function financeEntriesHTML(){
       '<td><div class="row-actions"><button class="btn-icon" data-action="edit-entry" data-id="'+e.id+'" aria-label="Edit">'+icon('edit')+'</button><button class="btn-icon danger" data-action="delete-entry" data-id="'+e.id+'" aria-label="Delete">'+icon('trash')+'</button></div></td></tr>';
   });
   html+='</tbody><tfoot><tr><td colspan="5" style="font-weight:700">Filtered total ('+entries.length+' entries)</td><td class="num" style="text-align:right;font-weight:800;color:'+(ft.profit>=0?'var(--income)':'var(--expense)')+'">'+fmtMoney(ft.revenue-ft.expenses)+'</td><td></td></tr></tfoot></table></div>';
+  // mobile: same entries rendered as a clean day-grouped timeline (the reference's pattern)
+  html+=financeTimelineHTML(shown,entries.length,ft);
   if(entries.length>limit) html+='<div style="text-align:center;margin-top:12px"><button class="btn btn-ghost btn-sm" data-action="finance-more">Show more ('+(entries.length-limit)+' remaining)</button></div>';
+  html+='</div>';
+  return html;
+}
+// Mobile-only finance timeline: groups entries by day with a coloured dot, category,
+// note/client and a colour-coded amount — far more scannable than a stacked table card.
+function financeTimelineHTML(rows,totalCount,ft){
+  if(!rows.length) return '';
+  var today=todayISO();
+  var yest=(function(){ var d=new Date(today+'T00:00:00'); d.setDate(d.getDate()-1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); })();
+  function dayLabel(d){ if(!d) return 'Undated'; if(d===today) return 'Today'; if(d===yest) return 'Yesterday'; return fmtDate(d); }
+  // rows are already sorted by date desc — group consecutive same-date entries
+  var groups=[],cur=null;
+  rows.forEach(function(e){ var d=e.date||''; if(!cur||cur.date!==d){ cur={date:d,items:[],inn:0,out:0}; groups.push(cur); } cur.items.push(e); if(e.type==='income') cur.inn+=(+e.amount||0); else cur.out+=(+e.amount||0); });
+  var html='<div class="fin-timeline">';
+  groups.forEach(function(g){
+    var sum=(g.inn?'<span style="color:var(--income)">+'+fmtMoney(g.inn)+'</span>':'')+(g.inn&&g.out?' · ':'')+(g.out?'<span style="color:var(--expense)">−'+fmtMoney(g.out)+'</span>':'');
+    html+='<div class="fin-day"><span class="fin-day-label">'+esc(dayLabel(g.date))+'</span><span class="fin-day-sum">'+sum+'</span></div>';
+    g.items.forEach(function(e){
+      var inc=e.type==='income';
+      html+='<div class="fin-tl-row" data-type="'+esc(e.type||'expense')+'">'+
+        '<span class="fin-tl-dot"></span>'+
+        '<div class="fin-tl-main">'+
+          '<div class="fin-tl-line"><span class="fin-tl-cat">'+esc(e.category||'Other')+'</span>'+
+            '<span class="fin-tl-amt" style="color:'+(inc?'var(--income)':'var(--expense)')+'">'+(inc?'+':'−')+fmtMoney(e.amount)+'</span></div>'+
+          '<div class="fin-tl-sub">'+
+            (e.receipt?'<img class="img-thumb fin-tl-rcpt" src="'+esc(e.receipt)+'" alt="receipt" title="View receipt">':'')+
+            '<span class="fin-tl-note">'+esc(e.note||'—')+(e.client?' · '+esc(e.client):'')+'</span>'+
+            '<span class="fin-tl-actions"><button class="btn-icon" data-action="edit-entry" data-id="'+e.id+'" aria-label="Edit entry">'+icon('edit')+'</button>'+
+              '<button class="btn-icon danger" data-action="delete-entry" data-id="'+e.id+'" aria-label="Delete entry">'+icon('trash')+'</button></span>'+
+          '</div>'+
+        '</div></div>';
+    });
+  });
+  var net=ft.revenue-ft.expenses;
+  html+='<div class="fin-tl-total"><span>Filtered total · '+totalCount+' entr'+(totalCount===1?'y':'ies')+'</span><span style="color:'+(net>=0?'var(--income)':'var(--expense)')+'">'+fmtMoney(net)+'</span></div>';
   html+='</div>';
   return html;
 }
