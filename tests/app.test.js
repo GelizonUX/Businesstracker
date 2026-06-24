@@ -228,6 +228,10 @@ async function main() {
     // iOS "liquid glass": frosted tab bar + FAB, gated behind @supports (progressive enhancement, solid fallback)
     ok('floating chrome gets frosted glass only where backdrop-filter is supported', /@supports \(\(-webkit-backdrop-filter:blur\(12px\)\) or \(backdrop-filter:blur\(12px\)\)\)/.test(html));
     ok('glass tab bar is translucent + blurred in both themes, FAB is accent glass', /\.tabbar\{background:rgba\(255,255,255,\.7\);[\s\S]{0,160}backdrop-filter:blur\(20px\)/.test(html) && /html\[data-theme="dark"\] \.tabbar\{background:rgba\(18,20,29,\.58\)/.test(html) && /\.fab\{background:linear-gradient\(140deg,color-mix\(in srgb,var\(--accent\)/.test(html));
+    // macOS Control-Center liquid glass on the KPI stat tiles + wallet tiles, over an ambient mesh
+    ok('ambient colour mesh exists so the frosted glass has something to refract', /body\{background-image:\s*radial-gradient\([^;]*var\(--accent-soft\)[\s\S]*var\(--info-soft\)[\s\S]*var\(--good-soft\)[\s\S]*background-attachment:fixed\}/.test(html));
+    ok('stat tiles get frosted glass (both themes) only where backdrop-filter is supported', /@supports[^{]*\{\s*\.stat-card\{background:rgba\(255,255,255,\.5\);[\s\S]{0,160}backdrop-filter:blur\(22px\)/.test(html) && /html\[data-theme="dark"\] \.stat-card\{background:rgba\(32,36,54,\.46\)/.test(html));
+    ok('wallet tiles become colour-tinted glass (translucent base under the colour fill)', /\.acct-card\{background:linear-gradient\(var\(--acct-fill,transparent\),var\(--acct-fill,transparent\)\),rgba\(255,255,255,\.5\)/.test(html) && /html\[data-theme="dark"\] \.acct-card\{background:linear-gradient\(var\(--acct-fill,transparent\),var\(--acct-fill,transparent\)\),rgba\(32,36,54,\.46\)/.test(html));
     // standard-mobile shell: bottom tab bar + FAB + header overflow menu + tables→cards
     ok('shell has a FAB and a bottom tab bar container', /class="fab"/.test(html) && /id="tabbar"/.test(html));
     (function () {
