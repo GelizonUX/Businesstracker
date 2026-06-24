@@ -217,6 +217,11 @@ async function main() {
     ok('roadmap task rows stack on mobile (title not crushed by the status select)', /class="list-row rm-task-row"/.test(html) && /\.rm-task-row \.rm-task-main\{flex:1 1 100%!important;order:-1/.test(html));
     ok('mobile dashboard KPIs sit 2-up while rich widgets go full-width', /\.dash-grid \.dash-widget\{grid-column:1 \/ -1\}/.test(html) && /data-widget="rev"\][\s\S]{0,160}grid-column:auto/.test(html));
     ok('mobile compacts cards + hides floating sparkline at 2-up', /\.stat-card \.spark\{display:none\}/.test(html));
+    // sleek mobile redesign: account cards become a 2-up colourful wallet grid
+    ok('mobile account cards sit 2-up (the wallet grid) and override the desktop inline track', /\.acct-grid\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/.test(html) && /class="grid acct-grid mt"/.test(html));
+    ok('mobile account name wraps to 2 lines (no "BPI Busines…" clip) and balance clips gracefully', /\.acct-card \.acct-name\{[^}]*-webkit-line-clamp:2/.test(html) && /\.acct-card \.acct-balance\{[^}]*white-space:nowrap\}/.test(html) && /<b class="acct-name"/.test(html));
+    ok('mobile add-account tile spans the full wallet-grid row', /\.acct-grid>\[data-action="account-new"\]\{grid-column:1 \/ -1/.test(html));
+    ok('mobile cards adopt the larger radius for the spacious look', /@media \(max-width:560px\)\{[\s\S]*\.card\{padding:16px 17px;border-radius:var\(--r-xl\)\}/.test(html));
     // standard-mobile shell: bottom tab bar + FAB + header overflow menu + tables→cards
     ok('shell has a FAB and a bottom tab bar container', /class="fab"/.test(html) && /id="tabbar"/.test(html));
     (function () {

@@ -1016,19 +1016,33 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
    Placed after the dashboard CSS so these rules win the cascade.
    ============================================================ */
 @media (max-width:560px){
-  :root{--grid-gap:10px}
-  .main{padding:14px 12px 64px}
+  :root{--grid-gap:12px}
+  .main{padding:14px 13px 64px}
   /* dashboard: the four KPIs sit 2-up; richer widgets stay full-width and readable */
-  .dash-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .dash-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
   .dash-grid .dash-widget{grid-column:1 / -1}
   .dash-grid .dash-widget[data-widget="rev"],
   .dash-grid .dash-widget[data-widget="exp"],
   .dash-grid .dash-widget[data-widget="prof"],
   .dash-grid .dash-widget[data-widget="margin"]{grid-column:auto}
-  /* roomy-but-compact card padding so labels/values aren't tight against the border */
-  .card{padding:15px 16px}
+  /* sleek mobile cards: softer radius + roomy padding (matches the reference's spacious feel) */
+  .card{padding:16px 17px;border-radius:var(--r-xl)}
+  html[data-theme="dark"] .card{border-color:rgba(255,255,255,.07);box-shadow:0 6px 18px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.04)}
   /* calc form fields: clean 2-up on phones (was auto-fit that could force 3 cramped/overflowing cols) */
   .calc-fields{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  /* account cards: 2-up colourful tiles (the reference's signature wallet grid) */
+  .acct-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px}
+  .acct-card{padding:14px 14px;border-radius:var(--r-xl)}
+  /* in a ~160px tile a single-line ellipsis ate the name ("BPI Busines…"); let it use two lines */
+  .acct-card .acct-name{font-size:.9rem;line-height:1.22;white-space:normal!important;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis}
+  /* a long balance shouldn't wrap/spill the narrow tile — clip it gracefully */
+  .acct-card .acct-balance{font-size:1.32rem;margin-top:10px!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .acct-card .acct-chip,.acct-card .acct-logo{width:30px;height:30px}
+  .acct-card .badge{font-size:.6rem;padding:1px 6px}
+  /* keep the action row tight so two tiles fit a 360px row */
+  .acct-grid .btn-sm{padding:5px 8px;font-size:.72rem}
+  /* the dashed "Add account" tile sits full-width below the wallet pairs */
+  .acct-grid>[data-action="account-new"]{grid-column:1 / -1;min-height:96px!important}
   .stat-card .stat-value{font-size:1.28rem;margin-top:3px}
   .stat-card .stat-label{font-size:.66rem;letter-spacing:.05em;gap:6px}
   .stat-card .stat-label svg{width:12px;height:12px}
@@ -7725,7 +7739,7 @@ function viewAccounts(){
     statCard('True position',fmtMoney(totalCash+recv),'<span class="stat-delta flat">cash + receivables</span>','','shield')+
     statCard('This month P&L',fmtMoney(cur.revenue-cur.expenses),'<span class="stat-delta '+(cur.revenue-cur.expenses>=0?'up':'down')+'">'+fmtMoney(cur.revenue)+' in · '+fmtMoney(cur.expenses)+' out</span>','','metrics')+
   '</div>';
-  html+='<div class="grid mt" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">';
+  html+='<div class="grid acct-grid mt" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">';
   accts.forEach(function(a){
     var bal=accountBalance(a);
     var flow=accountMonthFlow(a,mk);
@@ -7733,7 +7747,7 @@ function viewAccounts(){
     html+='<div class="card acct-card" style="--acct-color:'+col+';--acct-fill:'+hexA(col,.10)+';--acct-glow:'+hexA(col,.22)+'">'+
       '<div style="display:flex;align-items:flex-start;gap:8px">'+
       (a.logo?'<img class="acct-logo" src="'+esc(a.logo)+'" alt="">':'<span class="acct-chip" style="background:'+col+'22;color:'+col+'">'+icon(a.type==='Cash'?'cash':'bank')+'</span>')+
-      '<div style="flex:1;min-width:0"><b style="font-size:.95rem;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(a.name)+'</b><span class="badge" style="background:'+col+'1d;color:'+col+'">'+esc(a.type)+'</span></div></div>'+
+      '<div style="flex:1;min-width:0"><b class="acct-name" style="font-size:.95rem;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(a.name)+'</b><span class="badge" style="background:'+col+'1d;color:'+col+'">'+esc(a.type)+'</span></div></div>'+
       '<div class="acct-balance" style="margin-top:12px;color:'+(bal>=0?'var(--text)':'var(--risk)')+'">'+fmtMoney(bal)+'</div>'+
       '<div style="font-size:.74rem;color:var(--text-3);margin-top:2px">this month: <span style="color:var(--good)">+'+fmtMoney(flow.inn)+'</span> · <span style="color:var(--risk)">−'+fmtMoney(flow.out)+'</span></div>'+
       (a.note?'<div style="font-size:.74rem;color:var(--text-3);margin-top:4px">'+esc(a.note)+'</div>':'')+
