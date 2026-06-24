@@ -633,7 +633,13 @@ details.calc .calc-body{margin-top:10px}
   .grid-3{grid-template-columns:minmax(0,1fr)}
 }
 /* depth & polish */
-body{background-image:radial-gradient(1100px 500px at 18% -8%,var(--accent-soft),transparent 60%)}
+/* ambient colour mesh — subtle, fixed so the frosted glass surfaces have something to refract
+   (a flat background makes backdrop-blur look like a dull grey panel instead of real glass) */
+body{background-image:
+  radial-gradient(900px 460px at 12% -6%,var(--accent-soft),transparent 60%),
+  radial-gradient(760px 520px at 92% 6%,var(--info-soft),transparent 62%),
+  radial-gradient(720px 600px at 50% 110%,var(--good-soft),transparent 60%);
+  background-attachment:fixed}
 .stat-icon{width:29px;height:29px;border-radius:9px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);flex-shrink:0}
 .stat-icon svg{width:16px;height:16px}
 .stat-card .stat-value{margin-top:10px}
@@ -1163,6 +1169,28 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 }
 /* never show the mobile shell over the gate/lock or greeting overlays */
 body.greeting-on .tabbar,body.greeting-on .fab{display:none!important}
+/* ---- macOS Control-Center "liquid glass" on the KPI stat tiles ----
+   The short-text, pill-shaped stat tiles are the natural analog of Control Centre toggles, so
+   they take the frosted treatment while dense data cards/tables stay solid for readability.
+   Gated behind @supports; placed after the .card rules so it wins at equal specificity. Both themes. */
+@supports ((-webkit-backdrop-filter:blur(12px)) or (backdrop-filter:blur(12px))){
+  .stat-card{background:rgba(255,255,255,.5);
+    -webkit-backdrop-filter:blur(22px) saturate(1.7);backdrop-filter:blur(22px) saturate(1.7);
+    border:1px solid rgba(255,255,255,.55);
+    box-shadow:0 8px 24px rgba(15,23,42,.08),inset 0 1px 0 rgba(255,255,255,.8),inset 0 0 0 1px rgba(255,255,255,.16)}
+  html[data-theme="dark"] .stat-card{background:rgba(32,36,54,.46);
+    border:1px solid rgba(255,255,255,.1);
+    box-shadow:0 12px 32px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.13),inset 0 0 0 1px rgba(255,255,255,.05)}
+  /* the account "wallet" tiles become colour-tinted glass (like the Wi-Fi/Bluetooth toggles):
+     swap the opaque card base for a translucent one so the blur shows, keep the colour fill on top */
+  .acct-card{background:linear-gradient(var(--acct-fill,transparent),var(--acct-fill,transparent)),rgba(255,255,255,.5);
+    -webkit-backdrop-filter:blur(20px) saturate(1.6);backdrop-filter:blur(20px) saturate(1.6);
+    border:1px solid rgba(255,255,255,.5);
+    box-shadow:0 8px 24px rgba(15,23,42,.08),inset 0 1px 0 rgba(255,255,255,.7)}
+  html[data-theme="dark"] .acct-card{background:linear-gradient(var(--acct-fill,transparent),var(--acct-fill,transparent)),rgba(32,36,54,.46);
+    border:1px solid rgba(255,255,255,.1);
+    box-shadow:0 12px 32px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.12)}
+}
 /* small floating per-card drag handle (appears on hover) */
 .dash-handle{position:absolute;top:-9px;right:14px;z-index:6;display:inline-flex;align-items:center;gap:4px;
   padding:2px 8px 2px 8px;border-radius:99px;background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--shadow-sm);
