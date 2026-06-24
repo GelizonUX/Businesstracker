@@ -1142,6 +1142,25 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
   .main{padding-bottom:calc(82px + env(safe-area-inset-bottom,0))}
   #advisor-bubble{bottom:calc(140px + env(safe-area-inset-bottom,0));right:14px;width:min(320px,calc(100vw - 28px))}
 }
+/* ---- iOS-style frosted "liquid glass" on the floating chrome (tab bar + FAB) ----
+   Progressive enhancement: only browsers that can blur the backdrop get the glass;
+   everyone else keeps the solid var(--bg-card) tab bar declared above. Limited to the
+   two floating surfaces so content stays crisp and older phones don't pay a blur cost. */
+@supports ((-webkit-backdrop-filter:blur(12px)) or (backdrop-filter:blur(12px))){
+  @media (max-width:860px){
+    .tabbar{background:rgba(255,255,255,.7);
+      -webkit-backdrop-filter:blur(20px) saturate(1.8);backdrop-filter:blur(20px) saturate(1.8);
+      border-top:1px solid rgba(255,255,255,.55);
+      box-shadow:0 -6px 26px rgba(2,6,23,.1),inset 0 1px 0 rgba(255,255,255,.7)}
+    html[data-theme="dark"] .tabbar{background:rgba(18,20,29,.58);
+      border-top:1px solid rgba(255,255,255,.1);
+      box-shadow:0 -8px 30px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08)}
+    /* FAB: translucent accent glass — clearly the action colour, with a lit top rim */
+    .fab{background:linear-gradient(140deg,color-mix(in srgb,var(--accent) 86%,transparent),color-mix(in srgb,var(--accent) 72%,transparent));
+      -webkit-backdrop-filter:blur(10px) saturate(1.5);backdrop-filter:blur(10px) saturate(1.5);
+      box-shadow:var(--shadow-lg),inset 0 1px 0 rgba(255,255,255,.5),inset 0 0 0 1px rgba(255,255,255,.16)}
+  }
+}
 /* never show the mobile shell over the gate/lock or greeting overlays */
 body.greeting-on .tabbar,body.greeting-on .fab{display:none!important}
 /* small floating per-card drag handle (appears on hover) */

@@ -225,6 +225,9 @@ async function main() {
     // finance: desktop keeps the spreadsheet table; phones get a clean day-grouped timeline
     ok('finance timeline is desktop-hidden and swaps in for the table on phones', /\.fin-timeline\{display:none\}/.test(html) && /\.fin-table-wrap\{display:none\}\s*\.fin-timeline\{display:block\}/.test(html) && /class="table-wrap fin-table-wrap"/.test(html));
     ok('finance timeline groups by day with colour-coded dots + amounts', /function financeTimelineHTML/.test(html) && /\.fin-tl-row\[data-type="income"\] \.fin-tl-dot\{background:var\(--income\)/.test(html) && /class="fin-day"/.test(html) && /class="fin-tl-amt"/.test(html));
+    // iOS "liquid glass": frosted tab bar + FAB, gated behind @supports (progressive enhancement, solid fallback)
+    ok('floating chrome gets frosted glass only where backdrop-filter is supported', /@supports \(\(-webkit-backdrop-filter:blur\(12px\)\) or \(backdrop-filter:blur\(12px\)\)\)/.test(html));
+    ok('glass tab bar is translucent + blurred in both themes, FAB is accent glass', /\.tabbar\{background:rgba\(255,255,255,\.7\);[\s\S]{0,160}backdrop-filter:blur\(20px\)/.test(html) && /html\[data-theme="dark"\] \.tabbar\{background:rgba\(18,20,29,\.58\)/.test(html) && /\.fab\{background:linear-gradient\(140deg,color-mix\(in srgb,var\(--accent\)/.test(html));
     // standard-mobile shell: bottom tab bar + FAB + header overflow menu + tables→cards
     ok('shell has a FAB and a bottom tab bar container', /class="fab"/.test(html) && /id="tabbar"/.test(html));
     (function () {
