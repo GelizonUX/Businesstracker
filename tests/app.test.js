@@ -217,6 +217,17 @@ async function main() {
     ok('roadmap task rows stack on mobile (title not crushed by the status select)', /class="list-row rm-task-row"/.test(html) && /\.rm-task-row \.rm-task-main\{flex:1 1 100%!important;order:-1/.test(html));
     ok('mobile dashboard KPIs sit 2-up while rich widgets go full-width', /\.dash-grid \.dash-widget\{grid-column:1 \/ -1\}/.test(html) && /data-widget="rev"\][\s\S]{0,160}grid-column:auto/.test(html));
     ok('mobile compacts cards + hides floating sparkline at 2-up', /\.stat-card \.spark\{display:none\}/.test(html));
+    // sleek mobile redesign: account cards become a 2-up colourful wallet grid
+    ok('mobile account cards sit 2-up (the wallet grid) and override the desktop inline track', /\.acct-grid\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/.test(html) && /class="grid acct-grid mt"/.test(html));
+    ok('mobile account name wraps to 2 lines (no "BPI Busines…" clip) and balance clips gracefully', /\.acct-card \.acct-name\{[^}]*-webkit-line-clamp:2/.test(html) && /\.acct-card \.acct-balance\{[^}]*white-space:nowrap\}/.test(html) && /<b class="acct-name"/.test(html));
+    ok('mobile add-account tile spans the full wallet-grid row', /\.acct-grid>\[data-action="account-new"\]\{grid-column:1 \/ -1/.test(html));
+    ok('mobile cards adopt the larger radius for the spacious look', /@media \(max-width:560px\)\{[\s\S]*\.card\{padding:16px 17px;border-radius:var\(--r-xl\)\}/.test(html));
+    // finance: desktop keeps the spreadsheet table; phones get a clean day-grouped timeline
+    ok('finance timeline is desktop-hidden and swaps in for the table on phones', /\.fin-timeline\{display:none\}/.test(html) && /\.fin-table-wrap\{display:none\}\s*\.fin-timeline\{display:block\}/.test(html) && /class="table-wrap fin-table-wrap"/.test(html));
+    ok('finance timeline groups by day with colour-coded dots + amounts', /function financeTimelineHTML/.test(html) && /\.fin-tl-row\[data-type="income"\] \.fin-tl-dot\{background:var\(--income\)/.test(html) && /class="fin-day"/.test(html) && /class="fin-tl-amt"/.test(html));
+    // iOS "liquid glass": frosted tab bar + FAB, gated behind @supports (progressive enhancement, solid fallback)
+    ok('floating chrome gets frosted glass only where backdrop-filter is supported', /@supports \(\(-webkit-backdrop-filter:blur\(12px\)\) or \(backdrop-filter:blur\(12px\)\)\)/.test(html));
+    ok('glass tab bar is translucent + blurred in both themes, FAB is accent glass', /\.tabbar\{background:rgba\(255,255,255,\.7\);[\s\S]{0,160}backdrop-filter:blur\(20px\)/.test(html) && /html\[data-theme="dark"\] \.tabbar\{background:rgba\(18,20,29,\.58\)/.test(html) && /\.fab\{background:linear-gradient\(140deg,color-mix\(in srgb,var\(--accent\)/.test(html));
     // standard-mobile shell: bottom tab bar + FAB + header overflow menu + tables→cards
     ok('shell has a FAB and a bottom tab bar container', /class="fab"/.test(html) && /id="tabbar"/.test(html));
     (function () {
