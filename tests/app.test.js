@@ -46,13 +46,13 @@ async function main() {
     ok('app boots (state present)', !!window.state);
     window.loadSampleData();
     await wait(40);
-    const routes = ['dashboard','insights','accounts','finance','invoices','report','calculators','metrics','products','orders','utang','manpower','goals','roadmap','tasks','clients','notes','reviews','settings'];
+    const routes = ['dashboard','assistant','insights','accounts','finance','invoices','report','calculators','metrics','products','orders','utang','manpower','goals','roadmap','tasks','clients','notes','reviews','settings'];
     const viewErrors = [];
     for (const rt of routes) {
       try { window.location.hash = '#/' + rt; window.render(); if (d.getElementById('main').innerHTML.length < 50) viewErrors.push(rt + '(empty)'); }
       catch (e) { viewErrors.push(rt + ': ' + e.message); }
     }
-    ok('every one of the 19 views renders without error', viewErrors.length === 0, viewErrors);
+    ok('every one of the 20 views renders without error', viewErrors.length === 0, viewErrors);
 
     // ---------- security: escaping + CSP + safeColor ----------
     ok('no unescaped image src in source', html.match(/src="'\+(?!esc\()/g) === null);
@@ -587,6 +587,70 @@ async function main() {
     window.state.invoices = [{ id: 'o1', number: 'INV-1', client: 'X', amount: 100, currency: 'PHP', issueDate: '2026-01-01', dueDate: '2026-01-15', status: 'Sent' }];
     window.location.hash = '#/invoices'; window.render();
     ok('overdue invoices get a visual row marker', d.getElementById('main').innerHTML.indexOf('inv-overdue') > -1);
+
+    // ---------- assistant (beta): NL parser + log-through ----------
+    const T = new Date('2026-06-30T08:00:00');
+    ok('assistant nav route registered', html.indexOf("{id:'assistant'") > -1);
+    ok('assistant view in render map', /assistant:viewAssistant/.test(html));
+    ok('chat state key in DEFAULT_STATE', /chat:\[\]/.test(html));
+    // parser: the headline example from the brief
+    const pInv = window.nlParse('Create invoice for john doe, amount is $100, payment due on july 21st, 2026.', T);
+    ok('parses invoice intent', pInv.intent === 'invoice');
+    ok('parses invoice client', pInv.client === 'John Doe', pInv.client);
+    ok('parses invoice amount', pInv.amount === 100, pInv.amount);
+    ok('parses invoice due date', pInv.dueDate === '2026-07-21', pInv.dueDate);
+    // parser: expense + income
+    const pExp = window.nlParse('Spent ₱500 on Facebook ads today', T);
+    ok('parses expense + category', pExp.intent === 'expense' && pExp.category === 'Marketing & Ads', pExp);
+    const pIncm = window.nlParse('Received 1,000 from Acme for website', T);
+    ok('parses income + client', pIncm.intent === 'income' && pIncm.amount === 1000 && pIncm.client === 'Acme', pIncm);
+    ok('non-financial text yields no intent', window.nlParse('what is my balance?', T).intent === null);
+    ok('amount handles k shorthand', window.nlParseAmount('worth 2k') === 2000);
+    ok('date handles tomorrow', window.nlParseDate('pay tomorrow', T).iso === '2026-07-01');
+    // hardening from the business-owner stress test:
+    ok('"got X from a customer" → income (not dropped)', (function(){ var r=window.nlParse('got 1500 from a customer', T); return r.intent==='income' && r.amount===1500 && r.client===''; })());
+    ok('bare "electricity bill 2400" → expense, not invoice', (function(){ var r=window.nlParse('electricity bill 2400', T); return r.intent==='expense' && r.amount===2400 && r.category==='Rent & Utilities'; })());
+    ok('bare "rent 15000" → expense', window.nlParse('rent 15000', T).intent === 'expense');
+    ok('invoice name wins over "for" clause', (function(){ var r=window.nlParse('invoice maria 5000 for catering', T); return r.client==='Maria' && r.desc==='Catering'; })());
+    ok('"invoice for X" keeps X as client', window.nlParse('create invoice for John Doe, amount 100', T).client === 'John Doe');
+    ok('"total" beats unit price', window.nlParse('sold 5 boxes at 250 each total 1250', T).amount === 1250);
+    ok('generic "from a client" is not a name', window.nlParse('collected 7500 from a client', T).client === '');
+    ok('invalid ISO date is rejected', window.nlParseDate('due 2026-13-45', T) === null);
+    ok('"paid suppliers 8k" → Inventory/Supplies', window.nlParse('paid suppliers 8k', T).category === 'Inventory / Supplies');
+    // behavioral: confirming a parsed expense actually logs a finance entry
+    window.state.chat = []; window.state.finance = [];
+    const beforeFin = window.state.finance.length;
+    window.location.hash = '#/assistant'; window.render();
+    d.getElementById('asst-input').value = 'Spent 750 on grab yesterday';
+    click(d.querySelector('[data-action="assistant-send"]'));
+    await waitFor(() => (window.state.chat || []).some(m => m.kind === 'preview'));
+    const prev = window.state.chat.filter(m => m.kind === 'preview')[0];
+    ok('send creates a preview draft (nothing logged yet)', !!prev && window.state.finance.length === beforeFin);
+    window.render();
+    click(d.querySelector('[data-action="assistant-confirm"]'));
+    await waitFor(() => window.state.finance.length === beforeFin + 1);
+    ok('confirm logs the expense to finance', window.state.finance.length === beforeFin + 1 && window.state.finance[window.state.finance.length-1].amount === 750, window.state.finance[window.state.finance.length-1]);
+    ok('confirmed draft is marked resolved', window.state.chat.filter(m => m.id === prev.id)[0].resolved === true);
+    // behavioral: confirming a parsed invoice creates an invoice
+    const beforeInv = window.state.invoices.length;
+    d.getElementById('asst-input').value = 'Invoice Maria Santos 15000 due aug 5';
+    click(d.querySelector('[data-action="assistant-send"]'));
+    await waitFor(() => window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).length > 0);
+    window.render();
+    const invBtns = d.querySelectorAll('[data-action="assistant-confirm"]');
+    click(invBtns[invBtns.length - 1]);
+    await waitFor(() => window.state.invoices.length === beforeInv + 1);
+    ok('confirm creates the invoice', window.state.invoices.length === beforeInv + 1 && window.state.invoices[window.state.invoices.length-1].client === 'Maria Santos');
+    // discard logs nothing
+    const finCount = window.state.finance.length;
+    d.getElementById('asst-input').value = 'bought a printer for 3000';
+    click(d.querySelector('[data-action="assistant-send"]'));
+    await waitFor(() => window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).length > 0);
+    window.render();
+    const cancelBtns = d.querySelectorAll('[data-action="assistant-cancel"]');
+    click(cancelBtns[cancelBtns.length - 1]);
+    await waitFor(() => window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).length === 0);
+    ok('discard logs nothing to finance', window.state.finance.length === finCount);
 
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

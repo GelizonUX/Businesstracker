@@ -245,6 +245,31 @@ html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--
 .grid-3{grid-template-columns:repeat(3,1fr)}
 .grid-4{grid-template-columns:repeat(4,1fr)}
 .grid-hero{grid-template-columns:1fr 1.7fr}
+/* ----- Assistant (beta) chat ----- */
+.asst-beta{font-size:.62rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:var(--accent-soft);color:var(--accent);padding:3px 9px;border-radius:999px;align-self:center}
+.asst-wrap{display:flex;flex-direction:column;height:calc(100vh - 190px);min-height:430px}
+.asst-log{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px;padding:6px 2px 10px}
+.asst-msg{display:flex;gap:9px;max-width:88%}
+.asst-msg.user{align-self:flex-end;flex-direction:row-reverse}
+.asst-msg.bot{align-self:flex-start}
+.asst-avatar{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;background:var(--accent-soft);color:var(--accent);font-size:15px}
+.asst-bubble{padding:11px 14px;border-radius:16px;font-size:.9rem;line-height:1.5;box-shadow:var(--shadow-sm);word-break:break-word}
+.asst-msg.user .asst-bubble{background:var(--accent-grad);color:#fff;border-bottom-right-radius:5px}
+.asst-msg.bot .asst-bubble{background:var(--bg-card);border:1px solid var(--border);border-bottom-left-radius:5px}
+.asst-examples{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.asst-chip{padding:7px 11px;border-radius:999px;border:1px solid var(--border);background:var(--bg-sunken);font-size:.8rem;cursor:pointer;color:var(--text-2);transition:border-color .15s,color .15s;text-align:left}
+.asst-chip:hover{border-color:var(--accent);color:var(--accent)}
+.asst-hint{font-size:.72rem;color:var(--text-3);margin-top:10px}
+.asst-preview{margin-top:10px;border:1px solid var(--border-2);border-radius:12px;padding:12px;background:var(--bg-sunken)}
+.asst-pv-title{display:flex;align-items:center;gap:6px;font-weight:700;font-size:.85rem;margin-bottom:10px}
+.asst-preview .field{margin-bottom:9px}
+.asst-preview .field label{font-size:.74rem}
+.asst-pv-actions{display:flex;gap:8px;margin-top:4px}
+.asst-logged{display:flex;align-items:center;gap:6px;font-size:.86rem;color:var(--good);font-weight:600}
+.asst-logged.cancel{color:var(--text-3);font-weight:500}
+.asst-input-row{display:flex;gap:8px;align-items:flex-end;padding-top:12px;border-top:1px solid var(--border);margin-top:6px}
+.asst-input-row textarea.input{flex:1;min-height:46px;max-height:150px;resize:none;line-height:1.4}
+@media (max-width:560px){ .asst-wrap{height:calc(100vh - 220px)} .asst-msg{max-width:94%} }
 .grid > .card:nth-child(2){animation-delay:.05s}
 .grid > .card:nth-child(3){animation-delay:.1s}
 .grid > .card:nth-child(4){animation-delay:.15s}
@@ -1498,7 +1523,9 @@ var ICONS = {
   ledger:'<path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/><path d="M9 7h7M9 11h5"/>',
   truck:'<rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>',
   palette:'<circle cx="12" cy="12" r="10"/><circle cx="8" cy="10" r="1.2" fill="currentColor"/><circle cx="12" cy="7.5" r="1.2" fill="currentColor"/><circle cx="16" cy="10" r="1.2" fill="currentColor"/><path d="M12 22a10 10 0 010-20 10 9 0 0110 9 5 5 0 01-5 5h-2.2a2 2 0 00-1.5 3.3c.3.4.5.8.5 1.2a1.5 1.5 0 01-1.8 1.5z"/>',
-  logo:'<path d="M8 22l5-6 4 3 7-9" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+  logo:'<path d="M8 22l5-6 4 3 7-9" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+  chat:'<path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/><path d="M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01"/>',
+  send:'<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/>'
 };
 function icon(name,size){
   return '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'+(size?' style="width:'+size+'px;height:'+size+'px"':'')+'>'+(ICONS[name]||'')+'</svg>';
@@ -1748,6 +1775,7 @@ var DEFAULT_STATE={
   hrPayouts:[], // {id,employeeId,date,periodLabel,daysWorked,gross,deductions,valeRepaid,bonus,net}
   metrics:{},   // {key:{value,updatedAt}}
   reviews:{ monthly:{}, weekly:{ week:null, items:{} }, decisions:[], swot:{s:'',w:'',o:'',t:''} },
+  chat:[],      // {id,role:'user'|'bot',text,kind,parsed,resolved,ts} — Assistant (beta) conversation log
   meta:{ createdAt:null }
 };
 var state=null;
@@ -1973,6 +2001,11 @@ document.addEventListener('keydown',function(e){
   var rb=t.closest('[role="button"]'); if(!rb) return;
   if(t.matches&&t.matches('input,textarea,select,button,a[href]')) return; // let native controls handle it
   e.preventDefault(); rb.click();
+});
+/* assistant: Enter sends, Shift+Enter makes a new line */
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Enter'||e.shiftKey) return;
+  if(e.target&&e.target.id==='asst-input'){ e.preventDefault(); if(typeof assistantSend==='function') assistantSend(); }
 });
 /* keep keyboard focus inside the open modal (WCAG focus trap) */
 document.addEventListener('keydown',function(e){
@@ -2321,6 +2354,7 @@ function svgRing(pct,size,color,labelTop,labelBottom){
    ============================================================ */
 var ROUTES=[
   {id:'dashboard',label:'Dashboard',icon:'dashboard',section:'Overview'},
+  {id:'assistant',label:'Assistant',icon:'chat',section:'Overview'},
   {id:'insights',label:'Advisor',icon:'spark',section:'Overview'},
   {id:'accounts',label:'Accounts & Cash',icon:'bank',section:'Money'},
   {id:'finance',label:'Finance',icon:'finance',section:'Money'},
@@ -2441,7 +2475,7 @@ function render(){
   var route=currentRoute();
   var main=byId('main');
   var views={
-    dashboard:viewDashboard, insights:viewInsights, finance:viewFinance,
+    dashboard:viewDashboard, assistant:viewAssistant, insights:viewInsights, finance:viewFinance,
     invoices:viewInvoices, report:viewReport, products:viewProducts, orders:viewOrders, accounts:viewAccounts, utang:viewUtang,
     calculators:viewCalculators, metrics:viewMetrics, goals:viewGoals,
     roadmap:viewRoadmap, tasks:viewTasks, clients:viewClients, manpower:viewManpower,
@@ -2953,6 +2987,284 @@ function viewInsights(){
   // 3) good-to-know
   if(notes.length) html+='<div class="card mt"><div class="card-head"><h3>Good to know</h3><span class="sub">context, timing &amp; opportunities</span></div><div class="grid grid-2">'+notes.map(insightHTML).join('')+'</div></div>';
   return html;
+}
+
+/* ============================================================
+   view: assistant (beta) — type plain words, log to the right place
+   ============================================================ */
+/* ---- natural-language parser (pure, no DOM, unit-tested) ---- */
+function nlPad2(n){ return String(n).length<2?('0'+n):String(n); }
+function nlIsoFrom(y,m,d){ return y+'-'+nlPad2(m+1)+'-'+nlPad2(d); }
+function nlIsoToday(today){ return nlIsoFrom(today.getFullYear(),today.getMonth(),today.getDate()); }
+function nlMonthIndex(name){
+  var k=String(name).toLowerCase().replace(/[^a-z]/g,'').slice(0,3);
+  return ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'].indexOf(k);
+}
+function nlCleanName(s){
+  s=String(s||'').replace(/\s+/g,' ').trim().replace(/^[\s,.;:-]+|[\s,.;:-]+$/g,'');
+  s=s.replace(/^(?:a|an|the|my)\s+/i,'');
+  return s.replace(/\b([a-z])/g,function(_,c){ return c.toUpperCase(); });
+}
+function nlApplyMult(numStr,suf){
+  var n=parseFloat(String(numStr).replace(/,/g,''));
+  if(isNaN(n)) return null;
+  if(/k/i.test(suf)) n*=1000; else if(/m/i.test(suf)) n*=1000000;
+  return Math.round(n*100)/100;
+}
+function nlParseDate(text, today){
+  today=today||new Date();
+  var low=' '+String(text).toLowerCase()+' ', m;
+  m=low.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
+  if(m && +m[2]>=1 && +m[2]<=12 && +m[3]>=1 && +m[3]<=31) return {iso:m[1]+'-'+nlPad2(+m[2])+'-'+nlPad2(+m[3]), source:m[0].trim()};
+  var months='january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sept|sep|oct|nov|dec';
+  m=low.match(new RegExp('\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+)?('+months+')\\.?(?:,?\\s+(\\d{4}))?','i'));
+  if(m){ var mi2=nlMonthIndex(m[2]), d2=+m[1], y2=m[3]?+m[3]:today.getFullYear();
+    if(mi2>=0&&d2>=1&&d2<=31) return {iso:nlIsoFrom(y2,mi2,d2), source:m[0].trim()}; }
+  m=low.match(new RegExp('\\b('+months+')\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?!\\d)(?:,?\\s+(\\d{4}))?','i'));
+  if(m){ var mi=nlMonthIndex(m[1]), d=+m[2], y=m[3]?+m[3]:today.getFullYear();
+    if(mi>=0&&d>=1&&d<=31) return {iso:nlIsoFrom(y,mi,d), source:m[0].trim()}; }
+  m=low.match(/\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})\b/);
+  if(m){ var a=+m[1], b=+m[2], yy=+m[3]; if(yy<100) yy+=2000; var mm,dd;
+    if(a>12){ dd=a; mm=b-1; } else if(b>12){ mm=a-1; dd=b; } else { mm=a-1; dd=b; }
+    if(mm>=0&&mm<12&&dd>=1&&dd<=31) return {iso:nlIsoFrom(yy,mm,dd), source:m[0].trim()}; }
+  if(/\btoday\b/.test(low)) return {iso:nlIsoToday(today), source:'today'};
+  if(/\btomorrow\b/.test(low)){ var t=new Date(today.getTime()+864e5); return {iso:nlIsoFrom(t.getFullYear(),t.getMonth(),t.getDate()), source:'tomorrow'}; }
+  if(/\byesterday\b/.test(low)){ var yd=new Date(today.getTime()-864e5); return {iso:nlIsoFrom(yd.getFullYear(),yd.getMonth(),yd.getDate()), source:'yesterday'}; }
+  m=low.match(/\bin\s+(\d{1,2})\s+days?\b/);
+  if(m){ var ti=new Date(today.getTime()+(+m[1])*864e5); return {iso:nlIsoFrom(ti.getFullYear(),ti.getMonth(),ti.getDate()), source:m[0].trim()}; }
+  m=low.match(/\b(?:next|this|on|by)\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/);
+  if(m){ var days=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+    var target=days.indexOf(m[1]), cur=today.getDay(), delta=(target-cur+7)%7; if(delta===0) delta=7;
+    var tn=new Date(today.getTime()+delta*864e5); return {iso:nlIsoFrom(tn.getFullYear(),tn.getMonth(),tn.getDate()), source:m[1]}; }
+  return null;
+}
+function nlParseAmount(text){
+  var s=' '+String(text)+' ', m;
+  // an explicit "total" is the money figure, even if a unit price appears earlier
+  m=s.match(/\b(?:grand\s+)?total\s*(?:of|is|:|=|amount)?\s*[\$₱]?\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\b/i);
+  if(m) return nlApplyMult(m[1],m[2]);
+  m=s.match(/(?:₱|\$)\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\b/i)
+    || s.match(/\b([\d,]+(?:\.\d+)?)\s*(k|m)?\s*(?:₱|\$|php|usd|peso[s]?|dollar[s]?)\b/i)
+    || s.match(/\b(?:php|usd)\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\b/i);
+  if(m) return nlApplyMult(m[1],m[2]);
+  m=s.match(/\b(?:amount|cost|price|worth|sum|for|at)\s*(?:is|of|was|:|=|to)?\s*[\$₱]?\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\b/i);
+  if(m) return nlApplyMult(m[1],m[2]);
+  m=s.match(/\b([\d,]+(?:\.\d+)?)\s*(k|m)\b/i);
+  if(m) return nlApplyMult(m[1],m[2]);
+  var nums=s.match(/\b\d[\d,]*(?:\.\d+)?\b/g), best=null;
+  if(nums) nums.forEach(function(x){ var v=nlApplyMult(x,''); if(v!=null&&(best==null||v>best)) best=v; });
+  return best;
+}
+function nlGrabAfter(text, prep){
+  var re=new RegExp('\\b'+prep+'\\s+([^,$₱]+?)(?=,|\\bamount\\b|\\bdue\\b|\\bpayment\\b|\\bworth\\b|\\bfor\\s|\\bon\\s|\\bwith\\b|[\\$₱]|\\s\\d|$)','i');
+  var m=String(text).match(re);
+  if(!m) return '';
+  var v=nlCleanName(m[1]);
+  if(/^[\d,.\s₱$km]+$/i.test(v)) return '';
+  if(/^(?:the|a|an|on|for|to|and|of|with|my|some)$/i.test(v)) return '';
+  return v;
+}
+var NL_EXP_CATS=[
+  [/\b(ads?|advert\w*|marketing|facebook|fb|boost\w*|promo\w*|campaign)\b/i,'Marketing & Ads'],
+  [/\b(rent|electric\w*|water|utilit\w*|internet|wifi|meralco|power\s*bill)\b/i,'Rent & Utilities'],
+  [/\b(software|app|subscription|saas|hosting|domain|license|canva|figma|adobe)\b/i,'Software & Tools'],
+  [/\b(salary|salaries|wage[s]?|payroll|contractor[s]?|staff|employee[s]?)\b/i,'Salaries / Contractors'],
+  [/\b(transport\w*|gas|fuel|grab|taxi|uber|fare|jeep\w*|delivery|shipping|courier)\b/i,'Transport'],
+  [/\b(supplies|supply|suppliers?|inventory|stock|material[s]?|ingredient[s]?|raw|goods)\b/i,'Inventory / Supplies'],
+  [/\b(equipment|machine|laptop|computer|phone|printer|hardware)\b/i,'Equipment'],
+  [/\b(tax|taxes|fee[s]?|charge[s]?|penalty|interest|bank\s*fee)\b/i,'Fees & Taxes']
+];
+function nlExpenseCategory(text){ for(var i=0;i<NL_EXP_CATS.length;i++){ if(NL_EXP_CATS[i][0].test(text)) return NL_EXP_CATS[i][1]; } return 'Other expense'; }
+var NL_INC_CATS=[
+  [/\bconsult\w*/i,'Consulting'],
+  [/\b(service|fix|repair|labou?r|gig|website|web\s*site|webpage|design|develop\w*|app\s*dev)\b/i,'Services'],
+  [/\b(subscription|recurring|membership|retainer)\b/i,'Subscriptions'],
+  [/\bcommission/i,'Commissions'],
+  [/\b(sold|sale[s]?|sell|product[s]?|order|item[s]?)\b/i,'Sales']
+];
+function nlIncomeCategory(text){ for(var i=0;i<NL_INC_CATS.length;i++){ if(NL_INC_CATS[i][0].test(text)) return NL_INC_CATS[i][1]; } return 'Sales'; }
+/* nouns that, paired with a number, are clearly the owner's own spending even
+   with no verb ("rent 15000", "load 300", "electricity bill 2400") */
+var NL_EXP_NOUNS=/\b(rent|load|prepaid|e-?load|salary|salaries|wage[s]?|electric\w*|water|utilit\w*|internet|wifi|meralco|grab|fuel|gas|fare|supplies|supplier[s]?|inventory|stock|snack[s]?|meal[s]?|grocery|groceries|allowance|rental)\b/i;
+function nlGenericParty(name){
+  var g=String(name||'').toLowerCase().replace(/[^a-z\s]/g,'').replace(/\b(a|an|the|my|some)\b/g,'').replace(/\s+/g,' ').trim();
+  return !g || /^(customer|client|buyer|sale|sales|someone|somebody|them|guy|person|people)$/.test(g);
+}
+function nlIntent(text){
+  var s=' '+String(text).toLowerCase()+' ';
+  if(/\binvoice\b/.test(s)) return 'invoice';
+  if(/\b(received|recieved|got\s+paid|get\s+paid|earned|earn|income|revenue|deposit\w*|collected|client\s+paid|paid\s+me|came\s+in|commission[s]?|bonus|tip[s]?)\b/.test(s)) return 'income';
+  if(/\bgot\b[^.!?]*(?:\bfrom\b|[\d₱$])/.test(s)) return 'income'; // "got 1500 from a customer"
+  if(/\b(sold|sale[s]?|sell)\b/.test(s)) return 'income';
+  if(/\b(spent|spend\w*|paid|pay|bought|buy|purchase\w*|expense|cost|withdrew|withdraw|gave|spend)\b/.test(s)) return 'expense';
+  if(/\d/.test(s) && NL_EXP_NOUNS.test(s)) return 'expense'; // bare "rent 15000", "load 300", "electricity bill 2400"
+  if(/\bbill\b/.test(s)) return 'invoice'; // "bill Acme 5000" — bill used as a verb (last resort)
+  return null;
+}
+function nlInvoiceDesc(text){
+  var all=String(text).match(/\bfor\s+[^,$₱]+/ig);
+  if(all && all.length>=2) return nlCleanName(all[1].replace(/^for\s+/i,''));
+  return '';
+}
+function nlParse(text, today){
+  today=today||new Date();
+  var intent=nlIntent(text);
+  if(!intent) return {intent:null};
+  var dateInfo=nlParseDate(text, today);
+  var rest=String(text);
+  if(dateInfo && dateInfo.source) rest=rest.replace(new RegExp(dateInfo.source.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'),' ');
+  // drop any leftover numeric date-like token so it can't be mistaken for the amount
+  rest=rest.replace(/\b\d{1,4}[\/.\-]\d{1,2}[\/.\-]\d{1,4}\b/g,' ');
+  var amount=nlParseAmount(rest);
+  var out={intent:intent, amount:amount};
+  if(intent==='invoice'){
+    // a name right after "invoice"/"bill" is the client; but "invoice FOR X" means X is the client
+    var directFor=/\b(?:invoice|bill)\s+(?:for|to)\b/i.test(rest);
+    var nameFirst=directFor?'':(nlGrabAfter(rest,'invoice')||nlGrabAfter(rest,'bill'));
+    var forClause=nlGrabAfter(rest,'for')||nlGrabAfter(rest,'to');
+    var client=nameFirst||forClause;
+    out.client=nlGenericParty(client)?'':client;
+    out.dueDate=dateInfo?dateInfo.iso:'';
+    out.issueDate=nlIsoToday(today);
+    out.desc=nlInvoiceDesc(rest)||(nameFirst?forClause:'');
+    out.status='Pending';
+  } else {
+    out.type=intent;
+    out.date=dateInfo?dateInfo.iso:nlIsoToday(today);
+    out.category=intent==='income'?nlIncomeCategory(text):nlExpenseCategory(text);
+    out.note=nlGrabAfter(rest,'on')||nlGrabAfter(rest,'for')||'';
+    if(intent==='income'){ var inc=nlGrabAfter(rest,'from'); out.client=nlGenericParty(inc)?'':inc; }
+  }
+  return out;
+}
+
+/* ---- assistant view + chat plumbing ---- */
+function assistantExamples(){
+  return ['Spent ₱500 on Facebook ads today',
+    'Received ₱10,000 from Acme for website',
+    'Create invoice for John Doe, amount ₱100, due July 21 2026',
+    'Paid 12,000 for rent yesterday'];
+}
+function assistantChipsHTML(){
+  return '<div class="asst-examples">'+assistantExamples().map(function(x){
+    return '<button type="button" class="asst-chip" data-action="assistant-example" data-text="'+esc(x)+'">'+esc(x)+'</button>';
+  }).join('')+'</div>';
+}
+function assistantWelcomeHTML(){
+  return '<div class="asst-msg bot"><span class="asst-avatar">'+icon('chat')+'</span><div class="asst-bubble">'+
+    '<b>Hi! I’m your logging assistant.</b><br>Tell me what you spent, earned, or who to bill — in plain words. I’ll read the amount, date and details, then show a draft for you to confirm before anything saves.'+
+    assistantChipsHTML()+
+    '<div class="asst-hint">Runs entirely on your device — nothing is sent anywhere.</div>'+
+  '</div></div>';
+}
+function assistantResolvedHTML(m){
+  return '<div class="asst-logged'+(m.ok===false?' cancel':'')+'">'+icon(m.ok===false?'x':'check',15)+' <span>'+esc(m.result||'Logged.')+'</span></div>';
+}
+function assistantPreviewHTML(m){
+  var p=m.parsed||{};
+  var box='<div class="asst-preview" id="apv-'+esc(m.id)+'">';
+  if(p.intent==='invoice'){
+    box+='<div class="asst-pv-title">'+icon('invoice',15)+' New invoice</div>'+
+      '<div class="field"><label>Client</label><input class="input" name="client" value="'+esc(p.client||'')+'" placeholder="Who is billed?"></div>'+
+      '<div class="form-row"><div class="field"><label>Amount</label><input class="input" type="number" step="any" min="0" name="amount" value="'+(p.amount!=null?p.amount:'')+'"></div>'+
+        '<div class="field"><label>Due date</label><input class="input" type="date" name="dueDate" value="'+esc(p.dueDate||'')+'"></div></div>'+
+      '<div class="field"><label>Description</label><input class="input" name="desc" value="'+esc(p.desc||'')+'" placeholder="Optional"></div>'+
+      '<div class="field"><label>Status</label><select class="input" name="status">'+['Pending','Paid','Overdue'].map(function(s){return '<option'+(p.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select></div>';
+  } else {
+    var type=p.type||'expense';
+    box+='<div class="asst-pv-title">'+icon(type==='income'?'arrowdr':'arrowur',15)+' New '+type+'</div>'+
+      '<div class="form-row"><div class="field"><label>Type</label><select class="input" name="type">'+['income','expense'].map(function(s){return '<option value="'+s+'"'+(type===s?' selected':'')+'>'+(s==='income'?'Income':'Expense')+'</option>';}).join('')+'</select></div>'+
+        '<div class="field"><label>Amount</label><input class="input" type="number" step="any" min="0" name="amount" value="'+(p.amount!=null?p.amount:'')+'"></div></div>'+
+      '<div class="form-row"><div class="field"><label>Date</label><input class="input" type="date" name="date" value="'+esc(p.date||'')+'"></div>';
+    var cats=(typeof allCats==='function')?allCats(type):[];
+    if(p.category && cats.indexOf(p.category)<0) cats=cats.concat([p.category]);
+    box+='<div class="field"><label>Category</label><select class="input" name="category">'+cats.map(function(c){return '<option'+(p.category===c?' selected':'')+'>'+esc(c)+'</option>';}).join('')+'</select></div></div>'+
+      '<div class="field"><label>Note</label><input class="input" name="note" value="'+esc(p.note||'')+'" placeholder="Optional"></div>';
+    if(state.accounts && state.accounts.length){
+      box+='<div class="field"><label>Account (optional)</label><select class="input" name="account"><option value="">—</option>'+
+        state.accounts.map(function(a){return '<option value="'+esc(a.id)+'">'+esc(a.name)+'</option>';}).join('')+'</select></div>';
+    }
+  }
+  box+='<div class="asst-pv-actions"><button type="button" class="btn btn-primary btn-sm" data-action="assistant-confirm" data-id="'+esc(m.id)+'">'+icon('check',15)+' Log it</button>'+
+    '<button type="button" class="btn btn-ghost btn-sm" data-action="assistant-cancel" data-id="'+esc(m.id)+'">Discard</button></div></div>';
+  return box;
+}
+function assistantMsgHTML(m){
+  if(m.role==='user') return '<div class="asst-msg user"><div class="asst-bubble">'+esc(m.text)+'</div></div>';
+  var inner='';
+  if(m.text) inner+='<div>'+esc(m.text)+'</div>';
+  if(m.kind==='examples') inner+=assistantChipsHTML();
+  if(m.kind==='preview') inner+= m.resolved ? assistantResolvedHTML(m) : assistantPreviewHTML(m);
+  return '<div class="asst-msg bot"><span class="asst-avatar">'+icon('chat')+'</span><div class="asst-bubble">'+inner+'</div></div>';
+}
+function viewAssistant(){
+  var html=topbar('Assistant','Type what happened — I turn it into an invoice, income or expense for you to confirm.',
+    '<span class="asst-beta">Beta</span>'+
+    ((state.chat&&state.chat.length)?'<button class="btn btn-ghost" data-action="assistant-clear" title="Clear conversation">'+icon('trash')+'<span class="btn-txt">Clear</span></button>':''));
+  html+='<div class="asst-wrap"><div class="asst-log" id="asst-log">';
+  html+= (state.chat&&state.chat.length) ? state.chat.map(assistantMsgHTML).join('') : assistantWelcomeHTML();
+  html+='</div>'+
+    '<div class="asst-input-row">'+
+      '<textarea class="input" id="asst-input" rows="1" placeholder="e.g. Spent ₱500 on Facebook ads today" aria-label="Message the assistant"></textarea>'+
+      '<button class="btn btn-primary" data-action="assistant-send" aria-label="Send">'+icon('send')+'<span class="btn-txt">Send</span></button>'+
+    '</div></div>';
+  return html;
+}
+function assistantScroll(){ var l=byId('asst-log'); if(l) l.scrollTop=l.scrollHeight; }
+function assistantFindMsg(id){ return (state.chat||[]).filter(function(m){return m.id===id;})[0]; }
+function assistantSend(){
+  var inp=byId('asst-input'); if(!inp) return;
+  var text=(inp.value||'').replace(/\s+$/,'').trim(); if(!text) return;
+  state.chat=state.chat||[];
+  state.chat.push({id:uid(),role:'user',text:text,ts:Date.now()});
+  var parsed=nlParse(text, new Date());
+  if(!parsed.intent){
+    state.chat.push({id:uid(),role:'bot',kind:'examples',text:'I couldn’t tell if that’s an invoice, income or expense. Try wording it like one of these:',ts:Date.now()});
+  } else {
+    var lead = parsed.intent==='invoice' ? 'Here’s a draft invoice — check it and tap Log it.'
+      : (parsed.intent==='income' ? 'Looks like income — review and confirm.' : 'Looks like an expense — review and confirm.');
+    state.chat.push({id:uid(),role:'bot',kind:'preview',parsed:parsed,resolved:false,text:lead,ts:Date.now()});
+  }
+  if(state.chat.length>60) state.chat=state.chat.slice(-60);
+  commit(); assistantScroll();
+}
+function assistantConfirm(id){
+  var m=assistantFindMsg(id); if(!m||!m.parsed) return;
+  var box=byId('apv-'+id);
+  var g=function(n){ if(!box) return ''; var el=box.querySelector('[name="'+n+'"]'); return el?String(el.value).trim():''; };
+  var p=m.parsed;
+  if(p.intent==='invoice'){
+    var amount=num(g('amount')||p.amount), client=g('client')||p.client||'';
+    if(!client){ toast('Add the client name first.','error'); return; }
+    if(amount<=0){ toast('Enter an amount greater than zero.','error'); return; }
+    var cur='PHP';
+    var inv={id:uid(),number:nextInvoiceNumber(),client:client,desc:g('desc'),amount:amount,
+      issueDate:p.issueDate||todayISO(),dueDate:g('dueDate'),status:g('status')||'Pending',
+      currency:cur,fxRate:(typeof fxRateFor==='function'?fxRateFor(cur):1),
+      payMethod:'',payDetails:'',payQR:'',payQRPos:'br',createdAt:todayISO()};
+    if(inv.status==='Paid') inv.paidDate=todayISO();
+    state.invoices.push(inv);
+    if(inv.status==='Paid' && typeof recordInvoiceIncome==='function') recordInvoiceIncome(inv);
+    m.resolved=true; m.ok=true;
+    m.result='Invoice '+inv.number+' for '+client+' — '+fmtMoney(amount)+(inv.dueDate?', due '+fmtDate(inv.dueDate):'')+' created.';
+    state.chat.push({id:uid(),role:'bot',text:'Done! You’ll find it under Invoices.',ts:Date.now()});
+  } else {
+    var amt=num(g('amount')||p.amount);
+    if(amt<=0){ toast('Enter an amount greater than zero.','error'); return; }
+    var type=g('type')||p.type||'expense', date=g('date')||p.date||todayISO();
+    var entry={id:uid(),type:type,amount:amt,date:date,category:g('category')||p.category||(type==='income'?'Sales':'Other expense'),
+      note:g('note'),client:(type==='income'?(p.client||''):''),offer:'',account:g('account')||'',receipt:''};
+    state.finance.push(entry);
+    m.resolved=true; m.ok=true;
+    m.result=(type==='income'?'Income':'Expense')+' of '+fmtMoney(amt)+' ('+entry.category+') logged for '+fmtDate(date)+'.';
+    state.chat.push({id:uid(),role:'bot',text:'Saved to Finance. Anything else?',ts:Date.now()});
+  }
+  commit(); assistantScroll();
+}
+function assistantCancel(id){
+  var m=assistantFindMsg(id); if(!m) return;
+  m.resolved=true; m.ok=false; m.result='Discarded — nothing was saved.';
+  commit(); assistantScroll();
 }
 
 /* ============================================================
@@ -4946,6 +5258,13 @@ document.addEventListener('click',function(e){
   if(action==='toggle-topbar-actions'){ var ta=byId('topbar-actions'); if(ta){ var op=ta.classList.toggle('open'); el.setAttribute('aria-expanded',op?'true':'false'); } return; }
   if(action==='close-modal'){ closeModal(); return; }
   if(action==='close-modal-overlay'){ if(e.target===el) closeModal(); return; }
+
+  /* assistant (beta) */
+  if(action==='assistant-send'){ assistantSend(); return; }
+  if(action==='assistant-example'){ var ai=byId('asst-input'); if(ai){ ai.value=el.getAttribute('data-text')||''; } assistantSend(); return; }
+  if(action==='assistant-confirm'){ assistantConfirm(id); return; }
+  if(action==='assistant-cancel'){ assistantCancel(id); return; }
+  if(action==='assistant-clear'){ if(confirm('Clear the assistant conversation? Anything you already logged stays saved.')){ state.chat=[]; commit(); } return; }
 
   /* finance */
   if(action==='open-entry-modal'){ entryModal(); return; }
