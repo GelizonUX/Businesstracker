@@ -652,6 +652,36 @@ async function main() {
     await waitFor(() => window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).length === 0);
     ok('discard logs nothing to finance', window.state.finance.length === finCount);
 
+    // ---------- assistant: more sections (tasks, clients) + Taglish + adaptive learning ----------
+    ok('assistant state.assistant.terms exists', !!(window.state.assistant && window.state.assistant.terms));
+    // parser: task + client + Taglish
+    ok('parses a task', (function(){ var r=window.nlParse('Remind me to follow up with Maria on friday', T); return r.intent==='task' && r.title==='Follow up with Maria' && r.deadline==='2026-07-03'; })());
+    ok('parses a new client', (function(){ var r=window.nlParse('Add client Dela Cruz Trading', T); return r.intent==='client' && r.name==='Dela Cruz Trading'; })());
+    ok('Taglish "bayad kuryente 2400" → expense/Utilities', (function(){ var r=window.nlParse('bayad kuryente 2400', T); return r.intent==='expense' && r.amount===2400 && r.category==='Rent & Utilities'; })());
+    ok('Taglish "nabenta ... 500" → income', window.nlParse('nabenta 5 cupcakes 500', T).intent === 'income');
+    // behavioral: a task logs into state.tasks
+    window.state.chat = []; var beforeTasks = window.state.tasks.length;
+    window.location.hash = '#/assistant'; window.render();
+    d.getElementById('asst-input').value = 'task: order more packaging tomorrow';
+    click(d.querySelector('[data-action="assistant-send"]'));
+    await waitFor(() => window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).length > 0);
+    window.render(); { const b = d.querySelectorAll('[data-action="assistant-confirm"]'); click(b[b.length-1]); }
+    await waitFor(() => window.state.tasks.length === beforeTasks + 1);
+    ok('confirm logs a task to Tasks', window.state.tasks.length === beforeTasks + 1 && /packaging/i.test(window.state.tasks[window.state.tasks.length-1].title));
+    // behavioral: a client logs into state.clients
+    const beforeClients = window.state.clients.length;
+    d.getElementById('asst-input').value = 'add client Santos Bakeshop';
+    click(d.querySelector('[data-action="assistant-send"]'));
+    await waitFor(() => window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).length > 0);
+    window.render(); { const b = d.querySelectorAll('[data-action="assistant-confirm"]'); click(b[b.length-1]); }
+    await waitFor(() => window.state.clients.length === beforeClients + 1);
+    ok('confirm logs a client to Clients', window.state.clients.length === beforeClients + 1 && window.state.clients[window.state.clients.length-1].name === 'Santos Bakeshop');
+    // behavioral: learning — confirm an expense with a corrected custom category, then the next parse adopts it
+    window.state.assistant = { terms: {} };
+    window.nlLearnRecord(window.state.assistant.terms, 'paid aqua station 200', 'expense', 'Water Refill');
+    ok('a single correction adopts a custom category', (function(){ var r=window.nlParse('aqua station 200', T, window.state.assistant.terms); return r.intent==='expense' && r.category==='Water Refill'; })());
+    ok('learning is persisted in state (survives save)', JSON.stringify(window.state.assistant.terms).indexOf('Water Refill') > -1);
+
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
   } catch (e) {
