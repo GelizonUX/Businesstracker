@@ -607,6 +607,16 @@ async function main() {
     ok('non-financial text yields no intent', window.nlParse('what is my balance?', T).intent === null);
     ok('amount handles k shorthand', window.nlParseAmount('worth 2k') === 2000);
     ok('date handles tomorrow', window.nlParseDate('pay tomorrow', T).iso === '2026-07-01');
+    // hardening from the business-owner stress test:
+    ok('"got X from a customer" → income (not dropped)', (function(){ var r=window.nlParse('got 1500 from a customer', T); return r.intent==='income' && r.amount===1500 && r.client===''; })());
+    ok('bare "electricity bill 2400" → expense, not invoice', (function(){ var r=window.nlParse('electricity bill 2400', T); return r.intent==='expense' && r.amount===2400 && r.category==='Rent & Utilities'; })());
+    ok('bare "rent 15000" → expense', window.nlParse('rent 15000', T).intent === 'expense');
+    ok('invoice name wins over "for" clause', (function(){ var r=window.nlParse('invoice maria 5000 for catering', T); return r.client==='Maria' && r.desc==='Catering'; })());
+    ok('"invoice for X" keeps X as client', window.nlParse('create invoice for John Doe, amount 100', T).client === 'John Doe');
+    ok('"total" beats unit price', window.nlParse('sold 5 boxes at 250 each total 1250', T).amount === 1250);
+    ok('generic "from a client" is not a name', window.nlParse('collected 7500 from a client', T).client === '');
+    ok('invalid ISO date is rejected', window.nlParseDate('due 2026-13-45', T) === null);
+    ok('"paid suppliers 8k" → Inventory/Supplies', window.nlParse('paid suppliers 8k', T).category === 'Inventory / Supplies');
     // behavioral: confirming a parsed expense actually logs a finance entry
     window.state.chat = []; window.state.finance = [];
     const beforeFin = window.state.finance.length;

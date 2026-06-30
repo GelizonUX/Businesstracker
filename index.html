@@ -3015,7 +3015,7 @@ function nlParseDate(text, today){
   today=today||new Date();
   var low=' '+String(text).toLowerCase()+' ', m;
   m=low.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
-  if(m) return {iso:m[1]+'-'+nlPad2(+m[2])+'-'+nlPad2(+m[3]), source:m[0].trim()};
+  if(m && +m[2]>=1 && +m[2]<=12 && +m[3]>=1 && +m[3]<=31) return {iso:m[1]+'-'+nlPad2(+m[2])+'-'+nlPad2(+m[3]), source:m[0].trim()};
   var months='january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sept|sep|oct|nov|dec';
   m=low.match(new RegExp('\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+)?('+months+')\\.?(?:,?\\s+(\\d{4}))?','i'));
   if(m){ var mi2=nlMonthIndex(m[2]), d2=+m[1], y2=m[3]?+m[3]:today.getFullYear();
@@ -3040,11 +3040,14 @@ function nlParseDate(text, today){
 }
 function nlParseAmount(text){
   var s=' '+String(text)+' ', m;
+  // an explicit "total" is the money figure, even if a unit price appears earlier
+  m=s.match(/\b(?:grand\s+)?total\s*(?:of|is|:|=|amount)?\s*[\$₱]?\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\b/i);
+  if(m) return nlApplyMult(m[1],m[2]);
   m=s.match(/(?:₱|\$)\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\b/i)
     || s.match(/\b([\d,]+(?:\.\d+)?)\s*(k|m)?\s*(?:₱|\$|php|usd|peso[s]?|dollar[s]?)\b/i)
     || s.match(/\b(?:php|usd)\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\b/i);
   if(m) return nlApplyMult(m[1],m[2]);
-  m=s.match(/\b(?:amount|total|cost|price|worth|sum|for|at)\s*(?:is|of|was|:|=|to)?\s*[\$₱]?\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\b/i);
+  m=s.match(/\b(?:amount|cost|price|worth|sum|for|at)\s*(?:is|of|was|:|=|to)?\s*[\$₱]?\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\b/i);
   if(m) return nlApplyMult(m[1],m[2]);
   m=s.match(/\b([\d,]+(?:\.\d+)?)\s*(k|m)\b/i);
   if(m) return nlApplyMult(m[1],m[2]);
@@ -3058,6 +3061,7 @@ function nlGrabAfter(text, prep){
   if(!m) return '';
   var v=nlCleanName(m[1]);
   if(/^[\d,.\s₱$km]+$/i.test(v)) return '';
+  if(/^(?:the|a|an|on|for|to|and|of|with|my|some)$/i.test(v)) return '';
   return v;
 }
 var NL_EXP_CATS=[
@@ -3066,7 +3070,7 @@ var NL_EXP_CATS=[
   [/\b(software|app|subscription|saas|hosting|domain|license|canva|figma|adobe)\b/i,'Software & Tools'],
   [/\b(salary|salaries|wage[s]?|payroll|contractor[s]?|staff|employee[s]?)\b/i,'Salaries / Contractors'],
   [/\b(transport\w*|gas|fuel|grab|taxi|uber|fare|jeep\w*|delivery|shipping|courier)\b/i,'Transport'],
-  [/\b(supplies|supply|inventory|stock|material[s]?|ingredient[s]?|raw)\b/i,'Inventory / Supplies'],
+  [/\b(supplies|supply|suppliers?|inventory|stock|material[s]?|ingredient[s]?|raw|goods)\b/i,'Inventory / Supplies'],
   [/\b(equipment|machine|laptop|computer|phone|printer|hardware)\b/i,'Equipment'],
   [/\b(tax|taxes|fee[s]?|charge[s]?|penalty|interest|bank\s*fee)\b/i,'Fees & Taxes']
 ];
@@ -3079,13 +3083,22 @@ var NL_INC_CATS=[
   [/\b(sold|sale[s]?|sell|product[s]?|order|item[s]?)\b/i,'Sales']
 ];
 function nlIncomeCategory(text){ for(var i=0;i<NL_INC_CATS.length;i++){ if(NL_INC_CATS[i][0].test(text)) return NL_INC_CATS[i][1]; } return 'Sales'; }
+/* nouns that, paired with a number, are clearly the owner's own spending even
+   with no verb ("rent 15000", "load 300", "electricity bill 2400") */
+var NL_EXP_NOUNS=/\b(rent|load|prepaid|e-?load|salary|salaries|wage[s]?|electric\w*|water|utilit\w*|internet|wifi|meralco|grab|fuel|gas|fare|supplies|supplier[s]?|inventory|stock|snack[s]?|meal[s]?|grocery|groceries|allowance|rental)\b/i;
+function nlGenericParty(name){
+  var g=String(name||'').toLowerCase().replace(/[^a-z\s]/g,'').replace(/\b(a|an|the|my|some)\b/g,'').replace(/\s+/g,' ').trim();
+  return !g || /^(customer|client|buyer|sale|sales|someone|somebody|them|guy|person|people)$/.test(g);
+}
 function nlIntent(text){
   var s=' '+String(text).toLowerCase()+' ';
   if(/\binvoice\b/.test(s)) return 'invoice';
   if(/\b(received|recieved|got\s+paid|get\s+paid|earned|earn|income|revenue|deposit\w*|collected|client\s+paid|paid\s+me|came\s+in|commission[s]?|bonus|tip[s]?)\b/.test(s)) return 'income';
+  if(/\bgot\b[^.!?]*(?:\bfrom\b|[\d₱$])/.test(s)) return 'income'; // "got 1500 from a customer"
   if(/\b(sold|sale[s]?|sell)\b/.test(s)) return 'income';
-  if(/\b(spent|spend\w*|paid|pay|bought|buy|purchase\w*|expense|cost|withdrew|withdraw)\b/.test(s)) return 'expense';
-  if(/\bbill\b/.test(s)) return 'invoice';
+  if(/\b(spent|spend\w*|paid|pay|bought|buy|purchase\w*|expense|cost|withdrew|withdraw|gave|spend)\b/.test(s)) return 'expense';
+  if(/\d/.test(s) && NL_EXP_NOUNS.test(s)) return 'expense'; // bare "rent 15000", "load 300", "electricity bill 2400"
+  if(/\bbill\b/.test(s)) return 'invoice'; // "bill Acme 5000" — bill used as a verb (last resort)
   return null;
 }
 function nlInvoiceDesc(text){
@@ -3100,20 +3113,27 @@ function nlParse(text, today){
   var dateInfo=nlParseDate(text, today);
   var rest=String(text);
   if(dateInfo && dateInfo.source) rest=rest.replace(new RegExp(dateInfo.source.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'),' ');
+  // drop any leftover numeric date-like token so it can't be mistaken for the amount
+  rest=rest.replace(/\b\d{1,4}[\/.\-]\d{1,2}[\/.\-]\d{1,4}\b/g,' ');
   var amount=nlParseAmount(rest);
   var out={intent:intent, amount:amount};
   if(intent==='invoice'){
-    out.client=nlGrabAfter(rest,'for')||nlGrabAfter(rest,'to')||nlGrabAfter(rest,'invoice')||nlGrabAfter(rest,'bill');
+    // a name right after "invoice"/"bill" is the client; but "invoice FOR X" means X is the client
+    var directFor=/\b(?:invoice|bill)\s+(?:for|to)\b/i.test(rest);
+    var nameFirst=directFor?'':(nlGrabAfter(rest,'invoice')||nlGrabAfter(rest,'bill'));
+    var forClause=nlGrabAfter(rest,'for')||nlGrabAfter(rest,'to');
+    var client=nameFirst||forClause;
+    out.client=nlGenericParty(client)?'':client;
     out.dueDate=dateInfo?dateInfo.iso:'';
     out.issueDate=nlIsoToday(today);
-    out.desc=nlInvoiceDesc(rest);
+    out.desc=nlInvoiceDesc(rest)||(nameFirst?forClause:'');
     out.status='Pending';
   } else {
     out.type=intent;
     out.date=dateInfo?dateInfo.iso:nlIsoToday(today);
     out.category=intent==='income'?nlIncomeCategory(text):nlExpenseCategory(text);
     out.note=nlGrabAfter(rest,'on')||nlGrabAfter(rest,'for')||'';
-    if(intent==='income') out.client=nlGrabAfter(rest,'from');
+    if(intent==='income'){ var inc=nlGrabAfter(rest,'from'); out.client=nlGenericParty(inc)?'':inc; }
   }
   return out;
 }
