@@ -737,6 +737,17 @@ async function main() {
     ok('confirming both logs two separate expenses', window.state.finance.length === beforeMulti + 2);
     (function(){ const last2 = window.state.finance.slice(-2).map(e => e.amount).sort((a,b)=>a-b); ok('the two amounts are 300 and 500', last2[0] === 300 && last2[1] === 500, last2); })();
 
+    // ---------- v2 review/stress hardening ----------
+    ok('"for 2 cakes" no longer steals the amount', window.nlParse('received 1500 from customer for 2 cakes', T).amount === 1500);
+    ok('a stray "one" in a note is not an amount', window.nlParse('paid one staff member', T).amount === null);
+    ok('bare "3 x 250" logs as an expense of 750', (function(){ var r=window.nlParse('3 x 250', T); return r.intent==='expense' && r.amount===750; })());
+    ok('reference/order numbers are not read as the amount', window.nlParse('order number 5567 paid 890', T).amount === 890);
+    ok('"two weeks from now" resolves to a real date', window.nlParseDate('two weeks from now', T).iso === '2026-07-14');
+    ok('"from now" is not captured as a client', window.nlParse('received 1000 2 days from now', T).client === '');
+    ok('multi-entry drops a bare quantity ("2 boxes")', (function(){ var m=window.nlParseMulti('bought 2 boxes and sold 5 cakes for 1500', T); return m.length===1 && m[0].amount===1500; })());
+    // DST-safety: the date math must not drift across a transition (uses calendar days, not ms)
+    ok('"in 2 weeks" is exactly 14 calendar days out', (function(){ var base=new Date(2026,9,19,0,30,0); var d=window.nlParseDate('in 2 weeks', base); var exp=new Date(2026,10,2); return d.iso === (exp.getFullYear()+'-'+String(exp.getMonth()+1).padStart(2,'0')+'-'+String(exp.getDate()).padStart(2,'0')); })());
+
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
   } catch (e) {
