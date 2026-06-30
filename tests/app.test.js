@@ -288,6 +288,31 @@ async function main() {
       ok('clicking "Done" exits edit mode', window.ui.navEdit === false);
       window.state.settings.navScale = 1; window.state.settings.sectionOrder = []; window.renderSidebar();
     })();
+    // Collapsing the rail must never leave the messy editor UI crammed into 74px
+    (function () {
+      window.ui.navEdit = true; window.state.settings.navCollapsed = false; window.renderSidebar();
+      const btn = d.createElement('button');
+      btn.setAttribute('data-action', 'toggle-nav-collapse');
+      d.body.appendChild(btn);
+      btn.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+      ok('collapsing the sidebar force-exits edit mode', window.state.settings.navCollapsed === true && window.ui.navEdit === false);
+      ok('collapsed rail hides the Edit-menu button + edit bar (CSS)', /\.app\.nav-collapsed \.nav-edit-open,\.app\.nav-collapsed \.nav-edit-bar\{display:none\}/.test(html));
+      btn.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+      ok('expanding the sidebar restores the full rail', window.state.settings.navCollapsed === false);
+      d.body.removeChild(btn); window.ui.navEdit = false; window.renderSidebar();
+    })();
+    // Business-owner friction fixes: a real Credit card account type + a Theme control in Settings
+    ok('account types include a dedicated Credit card option', Array.isArray(window.ACCOUNT_TYPES) && window.ACCOUNT_TYPES.indexOf('Credit card') >= 0);
+    (function () {
+      window.state.settings.theme = 'light'; window.applyTheme();
+      const tb = d.createElement('button');
+      tb.setAttribute('data-action', 'set-theme'); tb.setAttribute('data-theme', 'dark'); d.body.appendChild(tb);
+      tb.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+      ok('Settings theme control switches to dark', window.state.settings.theme === 'dark' && d.documentElement.getAttribute('data-theme') === 'dark');
+      tb.setAttribute('data-theme', ''); tb.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+      ok('Settings theme "System" clears the override', (window.state.settings.theme || '') === '');
+      d.body.removeChild(tb);
+    })();
     // Manpower must be present and routable (regression: it was blanked to id:Employees with no label)
     ok('Manpower nav item is restored (labelled + routes to manpower view)', window.ROUTES.some((r) => r.id === 'manpower' && r.label === 'Manpower') && !window.ROUTES.some((r) => r.id === 'Employees'));
     (function () {
