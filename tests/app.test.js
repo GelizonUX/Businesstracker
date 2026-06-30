@@ -652,6 +652,102 @@ async function main() {
     await waitFor(() => window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).length === 0);
     ok('discard logs nothing to finance', window.state.finance.length === finCount);
 
+    // ---------- assistant: more sections (tasks, clients) + Taglish + adaptive learning ----------
+    ok('assistant state.assistant.terms exists', !!(window.state.assistant && window.state.assistant.terms));
+    // parser: task + client + Taglish
+    ok('parses a task', (function(){ var r=window.nlParse('Remind me to follow up with Maria on friday', T); return r.intent==='task' && r.title==='Follow up with Maria' && r.deadline==='2026-07-03'; })());
+    ok('parses a new client', (function(){ var r=window.nlParse('Add client Dela Cruz Trading', T); return r.intent==='client' && r.name==='Dela Cruz Trading'; })());
+    ok('Taglish "bayad kuryente 2400" → expense/Utilities', (function(){ var r=window.nlParse('bayad kuryente 2400', T); return r.intent==='expense' && r.amount===2400 && r.category==='Rent & Utilities'; })());
+    ok('Taglish "nabenta ... 500" → income', window.nlParse('nabenta 5 cupcakes 500', T).intent === 'income');
+    // behavioral: a task logs into state.tasks
+    window.state.chat = []; var beforeTasks = window.state.tasks.length;
+    window.location.hash = '#/assistant'; window.render();
+    d.getElementById('asst-input').value = 'task: order more packaging tomorrow';
+    click(d.querySelector('[data-action="assistant-send"]'));
+    await waitFor(() => window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).length > 0);
+    window.render(); { const b = d.querySelectorAll('[data-action="assistant-confirm"]'); click(b[b.length-1]); }
+    await waitFor(() => window.state.tasks.length === beforeTasks + 1);
+    ok('confirm logs a task to Tasks', window.state.tasks.length === beforeTasks + 1 && /packaging/i.test(window.state.tasks[window.state.tasks.length-1].title));
+    // behavioral: a client logs into state.clients
+    const beforeClients = window.state.clients.length;
+    d.getElementById('asst-input').value = 'add client Santos Bakeshop';
+    click(d.querySelector('[data-action="assistant-send"]'));
+    await waitFor(() => window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).length > 0);
+    window.render(); { const b = d.querySelectorAll('[data-action="assistant-confirm"]'); click(b[b.length-1]); }
+    await waitFor(() => window.state.clients.length === beforeClients + 1);
+    ok('confirm logs a client to Clients', window.state.clients.length === beforeClients + 1 && window.state.clients[window.state.clients.length-1].name === 'Santos Bakeshop');
+    // behavioral: learning — confirm an expense with a corrected custom category, then the next parse adopts it
+    window.state.assistant = { terms: {} };
+    window.nlLearnRecord(window.state.assistant.terms, 'paid aqua station 200', 'expense', 'Water Refill');
+    ok('a single correction adopts a custom category', (function(){ var r=window.nlParse('aqua station 200', T, window.state.assistant.terms); return r.intent==='expense' && r.category==='Water Refill'; })());
+    ok('learning is persisted in state (survives save)', JSON.stringify(window.state.assistant.terms).indexOf('Water Refill') > -1);
+    // review fixes: a confident built-in category needs 2 corrections (not 1) to be overridden
+    ok('one learned token does NOT override a confident "Sales" match', (function(){ var s={}; window.nlLearnRecord(s,'sold cake 500','income','Catering'); return window.nlParse('sold cake 500', T, s).category==='Sales'; })());
+    ok('two corrections DO override a confident match', (function(){ var s={}; window.nlLearnRecord(s,'sold cake 500','income','Catering'); window.nlLearnRecord(s,'sold cake 500','income','Catering'); return window.nlParse('sold cake 500', T, s).category==='Catering'; })());
+    // review fix: soft reminder words don't hijack a clear money intent (amount not silently lost)
+    ok('"reminder: client paid 3000" logs income, not a task', window.nlParse('reminder: client paid 3000', T).intent === 'income');
+    ok('explicit "remind me…" is still a task', window.nlParse('Remind me to deposit cash tomorrow', T).intent === 'task');
+
+    // ---------- floating chat bubble + quick-log popover ----------
+    ok('shell has a chat bubble + popover container', !!d.getElementById('chat-bubble') && !!d.getElementById('asst-pop'));
+    // open it from another view (dashboard) and confirm the popover mounts its own chat input
+    window.location.hash = '#/dashboard'; window.render();
+    ok('bubble is visible off the Assistant page', !d.body.classList.contains('route-assistant'));
+    click(d.getElementById('chat-bubble'));
+    ok('clicking the bubble opens the popover', d.getElementById('asst-pop').classList.contains('open') && !!d.getElementById('asst-pop-input'));
+    // log an expense entirely from the popover (send → preview → confirm)
+    const beforePop = window.state.finance.length;
+    d.getElementById('asst-pop-input').value = 'spent 320 on grab today';
+    click(d.getElementById('asst-pop').querySelector('[data-action="assistant-send"]'));
+    await waitFor(() => d.getElementById('asst-pop') && d.getElementById('asst-pop').querySelector('[data-action="assistant-confirm"]'));
+    click(d.getElementById('asst-pop').querySelector('[data-action="assistant-confirm"]'));
+    await waitFor(() => window.state.finance.length === beforePop + 1);
+    ok('popover logs an expense end-to-end', window.state.finance.length === beforePop + 1 && window.state.finance[window.state.finance.length-1].amount === 320);
+    // toggle closed
+    click(d.getElementById('chat-bubble'));
+    ok('clicking the bubble again closes the popover', !d.getElementById('asst-pop').classList.contains('open'));
+    // on the Assistant page the bubble is suppressed (you're already in the chat)
+    window.location.hash = '#/assistant'; window.render();
+    ok('bubble hidden on the Assistant page', d.body.classList.contains('route-assistant'));
+
+    // ---------- smarter v2: qty-math, word-numbers, smart dates, account routing, multi-entry ----------
+    ok('quantity math: "3 boxes at 250 each" → 750', window.nlParse('sold 3 boxes at 250 each', T).amount === 750);
+    ok('"3 x 250" → 750', window.nlQtyMath('3 x 250') === 750);
+    ok('"3 candles for 900" stays 900 (total, not multiplied)', window.nlParse('sold 3 candles for 900', T).amount === 900);
+    ok('word-number: "spent two thousand on rent" → 2000', window.nlParse('spent two thousand on rent', T).amount === 2000);
+    ok('smart date: "last friday"', window.nlParseDate('last friday', T).iso === '2026-06-26');
+    ok('smart date: "end of month"', window.nlParseDate('due end of month', T).iso === '2026-06-30');
+    ok('smart date: "in 2 weeks"', window.nlParseDate('in 2 weeks', T).iso === '2026-07-14');
+    // account routing: name a wallet → it pre-selects on the draft
+    window.state.accounts = [{ id: 'wGcash', name: 'GCash', type: 'E-wallet', opening: 0, adjust: [] }, { id: 'wCash', name: 'Cash', type: 'Cash', opening: 0, adjust: [] }];
+    ok('account match: "from gcash" → wallet id', window.nlMatchAccount('paid 500 from gcash', window.state.accounts) === 'wGcash');
+    // multi-entry end-to-end: one message → two drafts → confirm both → two finance entries
+    window.state.chat = []; const beforeMulti = window.state.finance.length;
+    window.location.hash = '#/assistant'; window.render();
+    d.getElementById('asst-input').value = 'spent 500 on facebook ads and 300 on grab today';
+    click(d.querySelector('[data-action="assistant-send"]'));
+    await waitFor(() => window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).length >= 2);
+    ok('one message yields two drafts', window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).length === 2);
+    window.render();
+    { const b = d.querySelectorAll('[data-action="assistant-confirm"]'); click(b[0]); }
+    await waitFor(() => window.state.finance.length === beforeMulti + 1);
+    window.render();
+    { const b = d.querySelectorAll('[data-action="assistant-confirm"]'); click(b[b.length - 1]); }
+    await waitFor(() => window.state.finance.length === beforeMulti + 2);
+    ok('confirming both logs two separate expenses', window.state.finance.length === beforeMulti + 2);
+    (function(){ const last2 = window.state.finance.slice(-2).map(e => e.amount).sort((a,b)=>a-b); ok('the two amounts are 300 and 500', last2[0] === 300 && last2[1] === 500, last2); })();
+
+    // ---------- v2 review/stress hardening ----------
+    ok('"for 2 cakes" no longer steals the amount', window.nlParse('received 1500 from customer for 2 cakes', T).amount === 1500);
+    ok('a stray "one" in a note is not an amount', window.nlParse('paid one staff member', T).amount === null);
+    ok('bare "3 x 250" logs as an expense of 750', (function(){ var r=window.nlParse('3 x 250', T); return r.intent==='expense' && r.amount===750; })());
+    ok('reference/order numbers are not read as the amount', window.nlParse('order number 5567 paid 890', T).amount === 890);
+    ok('"two weeks from now" resolves to a real date', window.nlParseDate('two weeks from now', T).iso === '2026-07-14');
+    ok('"from now" is not captured as a client', window.nlParse('received 1000 2 days from now', T).client === '');
+    ok('multi-entry drops a bare quantity ("2 boxes")', (function(){ var m=window.nlParseMulti('bought 2 boxes and sold 5 cakes for 1500', T); return m.length===1 && m[0].amount===1500; })());
+    // DST-safety: the date math must not drift across a transition (uses calendar days, not ms)
+    ok('"in 2 weeks" is exactly 14 calendar days out', (function(){ var base=new Date(2026,9,19,0,30,0); var d=window.nlParseDate('in 2 weeks', base); var exp=new Date(2026,10,2); return d.iso === (exp.getFullYear()+'-'+String(exp.getMonth()+1).padStart(2,'0')+'-'+String(exp.getDate()).padStart(2,'0')); })());
+
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
   } catch (e) {

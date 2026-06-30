@@ -1152,6 +1152,30 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 /* ===== standard-mobile shell: bottom tab bar + FAB (phones/tablets ≤860px) ===== */
 .tabbar{display:none}
 .fab{display:none}
+/* ----- floating chat bubble + quick-log popover (opens the assistant anywhere) ----- */
+.chat-bubble{position:fixed;right:20px;bottom:20px;width:54px;height:54px;border-radius:50%;display:grid;place-items:center;
+  background:var(--accent-grad);color:#fff;border:none;cursor:pointer;box-shadow:var(--shadow-lg);z-index:95;
+  transition:transform .14s var(--ease-snappy),box-shadow .2s}
+.chat-bubble:hover{transform:translateY(-2px)}
+.chat-bubble:active,.chat-bubble.active{transform:scale(.9)}
+.chat-bubble:empty{display:none} /* hidden until the icon is mounted on first render */
+.chat-bubble svg{width:25px;height:25px}
+.route-assistant .chat-bubble,.route-assistant .asst-pop{display:none}
+.asst-pop{position:fixed;right:20px;bottom:84px;width:380px;max-width:calc(100vw - 32px);height:540px;max-height:calc(100vh - 130px);
+  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--shadow-lg);z-index:96;
+  display:flex;flex-direction:column;overflow:hidden;animation:abPop .2s var(--ease) both}
+.asst-pop[hidden]{display:none}
+.asst-pop-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 12px 11px 14px;
+  border-bottom:1px solid var(--border);background:var(--bg-sunken)}
+.asst-pop-title{display:flex;align-items:center;gap:8px;font-weight:700;font-size:.92rem}
+.asst-pop .asst-log{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:13px;padding:13px 12px 8px}
+.asst-pop .asst-input-row{margin:0;padding:10px 12px;border-top:1px solid var(--border)}
+.asst-pop .asst-input-row textarea.input{min-height:42px;max-height:120px}
+@media (max-width:860px){
+  .chat-bubble{right:auto;left:16px;bottom:calc(82px + env(safe-area-inset-bottom,0));width:50px;height:50px;z-index:59}
+  .chat-bubble svg{width:23px;height:23px}
+  .asst-pop{left:12px;right:12px;width:auto;bottom:calc(82px + env(safe-area-inset-bottom,0));height:auto;max-height:62vh;z-index:60}
+}
 @media (max-width:860px){
   .tabbar{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:58;
     background:var(--bg-card);border-top:1.5px solid var(--border-2,var(--border));box-shadow:0 -6px 26px rgba(2,6,23,.14);
@@ -1405,6 +1429,8 @@ body.greeting-on{overflow:hidden}
   <nav class="tabbar" id="tabbar" aria-label="Primary"></nav>
 </div>
 <div id="advisor-bubble"></div>
+<button class="chat-bubble" id="chat-bubble" data-action="assistant-toggle" aria-label="Open the assistant to quickly log something" title="Quick log with the assistant"></button>
+<div class="asst-pop" id="asst-pop" hidden></div>
 <div id="modal-root"></div>
 <div class="toast-root" id="toast-root"></div>
 <div id="print-area"></div>
@@ -1776,6 +1802,7 @@ var DEFAULT_STATE={
   metrics:{},   // {key:{value,updatedAt}}
   reviews:{ monthly:{}, weekly:{ week:null, items:{} }, decisions:[], swot:{s:'',w:'',o:'',t:''} },
   chat:[],      // {id,role:'user'|'bot',text,kind,parsed,resolved,ts} — Assistant (beta) conversation log
+  assistant:{ terms:{} }, // learned word→intent/category counts so logging adapts to the owner's wording
   meta:{ createdAt:null }
 };
 var state=null;
@@ -2002,10 +2029,11 @@ document.addEventListener('keydown',function(e){
   if(t.matches&&t.matches('input,textarea,select,button,a[href]')) return; // let native controls handle it
   e.preventDefault(); rb.click();
 });
-/* assistant: Enter sends, Shift+Enter makes a new line */
+/* assistant: Enter sends, Shift+Enter makes a new line; Esc closes the popover */
 document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){ var ap=byId('asst-pop'); if(ap&&ap.classList.contains('open')){ assistantClosePop(); return; } }
   if(e.key!=='Enter'||e.shiftKey) return;
-  if(e.target&&e.target.id==='asst-input'){ e.preventDefault(); if(typeof assistantSend==='function') assistantSend(); }
+  if(e.target&&(e.target.id==='asst-input'||e.target.id==='asst-pop-input')){ e.preventDefault(); if(typeof assistantSend==='function') assistantSend(); }
 });
 /* keep keyboard focus inside the open modal (WCAG focus trap) */
 document.addEventListener('keydown',function(e){
@@ -2539,6 +2567,10 @@ function renderTabbar(route){
   html+='<button class="tab-item" data-action="open-sidebar" aria-label="Open menu">'+icon('menu')+'<span>Menu</span></button>';
   tb.innerHTML=html;
   var fab=document.querySelector('.fab'); if(fab&&!fab.firstChild) fab.innerHTML=icon('plus');
+  var cb=byId('chat-bubble'); if(cb&&!cb.firstChild) cb.innerHTML=icon('chat');
+  // hide the bubble on the Assistant page itself (you're already in the chat there)
+  document.body.classList.toggle('route-assistant', route==='assistant');
+  if(route==='assistant'){ var pp=byId('asst-pop'); if(pp&&pp.classList.contains('open')){ pp.classList.remove('open'); pp.hidden=true; pp.innerHTML=''; if(cb) cb.classList.remove('active'); } }
 }
 /* close the mobile header overflow menu on outside click or after picking an action */
 document.addEventListener('click',function(e){
@@ -3027,16 +3059,62 @@ function nlParseDate(text, today){
   if(m){ var a=+m[1], b=+m[2], yy=+m[3]; if(yy<100) yy+=2000; var mm,dd;
     if(a>12){ dd=a; mm=b-1; } else if(b>12){ mm=a-1; dd=b; } else { mm=a-1; dd=b; }
     if(mm>=0&&mm<12&&dd>=1&&dd<=31) return {iso:nlIsoFrom(yy,mm,dd), source:m[0].trim()}; }
+  // calendar-day arithmetic (DST-safe — never milliseconds)
+  function shift(n){ var x=new Date(today.getFullYear(),today.getMonth(),today.getDate()+n); return nlIsoFrom(x.getFullYear(),x.getMonth(),x.getDate()); }
   if(/\btoday\b/.test(low)) return {iso:nlIsoToday(today), source:'today'};
-  if(/\btomorrow\b/.test(low)){ var t=new Date(today.getTime()+864e5); return {iso:nlIsoFrom(t.getFullYear(),t.getMonth(),t.getDate()), source:'tomorrow'}; }
-  if(/\byesterday\b/.test(low)){ var yd=new Date(today.getTime()-864e5); return {iso:nlIsoFrom(yd.getFullYear(),yd.getMonth(),yd.getDate()), source:'yesterday'}; }
-  m=low.match(/\bin\s+(\d{1,2})\s+days?\b/);
-  if(m){ var ti=new Date(today.getTime()+(+m[1])*864e5); return {iso:nlIsoFrom(ti.getFullYear(),ti.getMonth(),ti.getDate()), source:m[0].trim()}; }
+  if(/\btomorrow\b/.test(low)) return {iso:shift(1), source:'tomorrow'};
+  if(/\byesterday\b/.test(low)) return {iso:shift(-1), source:'yesterday'};
+  m=low.match(/\bin\s+(\d{1,2})\s+days?\b/); if(m) return {iso:shift(+m[1]), source:m[0].trim()};
+  m=low.match(/\b(\d{1,2})\s+days?\s+from\s+now\b/); if(m) return {iso:shift(+m[1]), source:m[0].trim()};
+  m=low.match(/\blast\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/);
+  if(m){ var ds=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+    var dl=(today.getDay()-ds.indexOf(m[1])+7)%7; if(dl===0) dl=7; return {iso:shift(-dl), source:m[0].trim()}; }
   m=low.match(/\b(?:next|this|on|by)\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/);
   if(m){ var days=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
-    var target=days.indexOf(m[1]), cur=today.getDay(), delta=(target-cur+7)%7; if(delta===0) delta=7;
-    var tn=new Date(today.getTime()+delta*864e5); return {iso:nlIsoFrom(tn.getFullYear(),tn.getMonth(),tn.getDate()), source:m[1]}; }
+    var delta=(days.indexOf(m[1])-today.getDay()+7)%7; if(delta===0) delta=7; return {iso:shift(delta), source:m[1]}; }
+  m=low.match(/\bin\s+(\d{1,2})\s+weeks?\b/); if(m) return {iso:shift((+m[1])*7), source:m[0].trim()};
+  m=low.match(/\b(\d{1,2})\s+weeks?\s+from\s+now\b/); if(m) return {iso:shift((+m[1])*7), source:m[0].trim()};
+  // spelled-out counts: "two weeks from now", "in three days"
+  m=low.match(/\b(?:in\s+)?(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+(day|week)s?(?:\s+from\s+now)?\b/);
+  if(m && NL_WORDNUM[m[1]]!=null) return {iso:shift(NL_WORDNUM[m[1]]*(m[2]==='week'?7:1)), source:m[0].trim()};
+  if(/\bnext\s+week\b/.test(low)) return {iso:shift(7), source:'next week'};
+  if(/\b(?:end\s+of\s+(?:the\s+)?month|month\s*end|eom)\b/.test(low)) return {iso:nlIsoFrom(today.getFullYear(),today.getMonth(),new Date(today.getFullYear(),today.getMonth()+1,0).getDate()), source:'end of month'};
+  if(/\b(?:start|beginning)\s+of\s+(?:the\s+)?month\b/.test(low)) return {iso:nlIsoFrom(today.getFullYear(),today.getMonth(),1), source:'start of month'};
+  if(/\bnext\s+month\b/.test(low)){ var nm=new Date(today.getFullYear(),today.getMonth()+1,Math.min(today.getDate(),new Date(today.getFullYear(),today.getMonth()+2,0).getDate())); return {iso:nlIsoFrom(nm.getFullYear(),nm.getMonth(),nm.getDate()), source:'next month'}; }
   return null;
+}
+/* quantity × unit price → the real total. Only multiplies when the wording means
+   a per-unit price ("3 x 250", "2 @ 1500", "5 boxes at 120 each"); a bare "for"
+   means a total ("3 candles for 900" = 900, not 2700). */
+function nlQtyMul(m){ return Math.round(parseFloat(m[1])*parseFloat(m[2].replace(/,/g,''))*100)/100; }
+function nlQtyMath(text){
+  var s=' '+String(text).toLowerCase()+' ', m;
+  m=s.match(/\b(\d+(?:\.\d+)?)\s*(?:x|×|\*|@)\s*[₱$]?\s*([\d,]+(?:\.\d+)?)\b/);          // 3 x 250, 2 @ 1500
+  if(m) return nlQtyMul(m);
+  m=s.match(/\b(\d+(?:\.\d+)?)\s+(?:[a-z]+\s+){1,3}at\s+[₱$]?\s*([\d,]+(?:\.\d+)?)\s*(?:each|per|ea|apiece)?\b/); // N units at PRICE [each]
+  if(m) return nlQtyMul(m);
+  m=s.match(/\b(\d+(?:\.\d+)?)\s+(?:[a-z]+\s+){1,3}(?:for\s+)?[₱$]?\s*([\d,]+(?:\.\d+)?)\s*(?:each|per|ea|apiece)\b/); // N units (for) PRICE each
+  if(m) return nlQtyMul(m);
+  m=s.match(/\b(\d+(?:\.\d+)?)\s+(?:pcs|pieces|units|boxes|items|pax|kg|kilos?)\b[^\d₱$]*[₱$]?\s*([\d,]+(?:\.\d+)?)\s*(?:each|per|ea)\b/);
+  if(m) return nlQtyMul(m);
+  return null;
+}
+/* spelled-out amounts: "two thousand", "five hundred", "fifteen thousand five hundred" */
+var NL_WORDNUM={zero:0,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12,thirteen:13,fourteen:14,fifteen:15,sixteen:16,seventeen:17,eighteen:18,nineteen:19,twenty:20,thirty:30,forty:40,fifty:50,sixty:60,seventy:70,eighty:80,ninety:90};
+function nlWordsToNumber(text){
+  var toks=String(text).toLowerCase().replace(/[,-]/g,' ').split(/\s+/).filter(Boolean);
+  var total=0, cur=0, used=false;
+  for(var i=0;i<toks.length;i++){
+    var w=toks[i];
+    if(NL_WORDNUM[w]!=null){ cur+=NL_WORDNUM[w]; used=true; }
+    else if(w==='hundred'){ cur=(cur||1)*100; used=true; }
+    else if(w==='thousand'){ total+=(cur||1)*1000; cur=0; used=true; }
+    else if(w==='million'){ total+=(cur||1)*1000000; cur=0; used=true; }
+    else if(w==='and'&&used){ /* skip */ }
+    else { if(used) break; } // stop at the first non-number word once we've started
+  }
+  var n=total+cur;
+  return (used&&n>0)?n:null;
 }
 function nlParseAmount(text){
   var s=' '+String(text)+' ', m;
@@ -3047,13 +3125,19 @@ function nlParseAmount(text){
     || s.match(/\b([\d,]+(?:\.\d+)?)\s*(k|m)?\s*(?:₱|\$|php|usd|peso[s]?|dollar[s]?)\b/i)
     || s.match(/\b(?:php|usd)\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\b/i);
   if(m) return nlApplyMult(m[1],m[2]);
-  m=s.match(/\b(?:amount|cost|price|worth|sum|for|at)\s*(?:is|of|was|:|=|to)?\s*[\$₱]?\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\b/i);
+  var qm=nlQtyMath(s); if(qm!=null) return qm; // 3 x 250 → 750
+  // labelled amount — but NOT "for/at" (those grab a quantity: "for 2 cakes")
+  m=s.match(/\b(?:amount|cost|price|worth|sum|total)\s*(?:is|of|was|:|=|to)?\s*[\$₱]?\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\b/i);
   if(m) return nlApplyMult(m[1],m[2]);
   m=s.match(/\b([\d,]+(?:\.\d+)?)\s*(k|m)\b/i);
   if(m) return nlApplyMult(m[1],m[2]);
   var nums=s.match(/\b\d[\d,]*(?:\.\d+)?\b/g), best=null;
   if(nums) nums.forEach(function(x){ var v=nlApplyMult(x,''); if(v!=null&&(best==null||v>best)) best=v; });
-  return best;
+  if(best!=null) return best;
+  // spelled-out amount — only when a real magnitude word is present, so a stray
+  // "one"/"two" in a note ("paid one staff member") never becomes an amount
+  if(/\b(hundred|thousand|million)\b/i.test(s)) return nlWordsToNumber(s);
+  return null;
 }
 function nlGrabAfter(text, prep){
   var re=new RegExp('\\b'+prep+'\\s+([^,$₱]+?)(?=,|\\bamount\\b|\\bdue\\b|\\bpayment\\b|\\bworth\\b|\\bfor\\s|\\bon\\s|\\bwith\\b|[\\$₱]|\\s\\d|$)','i');
@@ -3064,40 +3148,48 @@ function nlGrabAfter(text, prep){
   if(/^(?:the|a|an|on|for|to|and|of|with|my|some)$/i.test(v)) return '';
   return v;
 }
+/* category keyword maps — English + common Filipino/Taglish terms a local owner uses */
 var NL_EXP_CATS=[
-  [/\b(ads?|advert\w*|marketing|facebook|fb|boost\w*|promo\w*|campaign)\b/i,'Marketing & Ads'],
-  [/\b(rent|electric\w*|water|utilit\w*|internet|wifi|meralco|power\s*bill)\b/i,'Rent & Utilities'],
-  [/\b(software|app|subscription|saas|hosting|domain|license|canva|figma|adobe)\b/i,'Software & Tools'],
-  [/\b(salary|salaries|wage[s]?|payroll|contractor[s]?|staff|employee[s]?)\b/i,'Salaries / Contractors'],
-  [/\b(transport\w*|gas|fuel|grab|taxi|uber|fare|jeep\w*|delivery|shipping|courier)\b/i,'Transport'],
-  [/\b(supplies|supply|suppliers?|inventory|stock|material[s]?|ingredient[s]?|raw|goods)\b/i,'Inventory / Supplies'],
-  [/\b(equipment|machine|laptop|computer|phone|printer|hardware)\b/i,'Equipment'],
-  [/\b(tax|taxes|fee[s]?|charge[s]?|penalty|interest|bank\s*fee)\b/i,'Fees & Taxes']
+  [/\b(ads?|advert\w*|marketing|facebook|fb|tiktok|instagram|ig|google\s*ads|boost\w*|promo\w*|campaign|flyer[s]?|tarp\w*|poster[s]?)\b/i,'Marketing & Ads'],
+  [/\b(rent|rental|renta|upa|electric\w*|kuryente|ilaw|meralco|water|tubig|utilit\w*|internet|wifi|power\s*bill|cable|phone\s*bill)\b/i,'Rent & Utilities'],
+  [/\b(software|app|subscription|saas|hosting|domain|license|canva|figma|adobe|shopify|website\s*fee)\b/i,'Software & Tools'],
+  [/\b(salary|salaries|sahod|suweldo|sweldo|wage[s]?|payroll|contractor[s]?|staff|employee[s]?|labor|manpower)\b/i,'Salaries / Contractors'],
+  [/\b(transport\w*|gas|gasolina|fuel|diesel|grab|taxi|uber|angkas|fare|pamasahe|pamasada|jeep\w*|tricycle|toll|parking|delivery|shipping|courier|lalamove|lbc|sakay)\b/i,'Transport'],
+  [/\b(supplies|supply|suppliers?|inventory|stock|paninda|bilihin|material[s]?|ingredient[s]?|sangkap|raw|goods|packaging|packing|boxes|labels|resto\s*supplies)\b/i,'Inventory / Supplies'],
+  [/\b(equipment|machine|laptop|computer|phone|printer|hardware|oven|fridge|freezer|aircon|tools?|gamit)\b/i,'Equipment'],
+  [/\b(tax|taxes|buwis|fee[s]?|charge[s]?|penalty|interest|bank\s*fee|gcash\s*fee|transaction\s*fee|permit|bir)\b/i,'Fees & Taxes']
 ];
 function nlExpenseCategory(text){ for(var i=0;i<NL_EXP_CATS.length;i++){ if(NL_EXP_CATS[i][0].test(text)) return NL_EXP_CATS[i][1]; } return 'Other expense'; }
 var NL_INC_CATS=[
   [/\bconsult\w*/i,'Consulting'],
-  [/\b(service|fix|repair|labou?r|gig|website|web\s*site|webpage|design|develop\w*|app\s*dev)\b/i,'Services'],
-  [/\b(subscription|recurring|membership|retainer)\b/i,'Subscriptions'],
-  [/\bcommission/i,'Commissions'],
-  [/\b(sold|sale[s]?|sell|product[s]?|order|item[s]?)\b/i,'Sales']
+  [/\b(service[s]?|serbisyo|fix|repair|labou?r|gig|website|web\s*site|webpage|design|develop\w*|app\s*dev|booking)\b/i,'Services'],
+  [/\b(subscription|recurring|membership|retainer|monthly\s*plan)\b/i,'Subscriptions'],
+  [/\b(commission|referral)\b/i,'Commissions'],
+  [/\b(sold|sale[s]?|sell|benta|nabenta|paninda|product[s]?|order[s]?|item[s]?|downpayment|deposit|dp)\b/i,'Sales']
 ];
-function nlIncomeCategory(text){ for(var i=0;i<NL_INC_CATS.length;i++){ if(NL_INC_CATS[i][0].test(text)) return NL_INC_CATS[i][1]; } return 'Sales'; }
+function nlIncomeCategory(text){ for(var i=0;i<NL_INC_CATS.length;i++){ if(NL_INC_CATS[i][0].test(text)) return NL_INC_CATS[i][1]; } return 'Other income'; }
 /* nouns that, paired with a number, are clearly the owner's own spending even
-   with no verb ("rent 15000", "load 300", "electricity bill 2400") */
-var NL_EXP_NOUNS=/\b(rent|load|prepaid|e-?load|salary|salaries|wage[s]?|electric\w*|water|utilit\w*|internet|wifi|meralco|grab|fuel|gas|fare|supplies|supplier[s]?|inventory|stock|snack[s]?|meal[s]?|grocery|groceries|allowance|rental)\b/i;
+   with no verb ("rent 15000", "load 300", "kuryente 2400") */
+var NL_EXP_NOUNS=/\b(rent|rental|renta|upa|load|prepaid|e-?load|salary|salaries|sahod|suweldo|sweldo|wage[s]?|electric\w*|kuryente|ilaw|water|tubig|utilit\w*|internet|wifi|meralco|grab|fuel|gasolina|gas|fare|pamasahe|toll|parking|supplies|supplier[s]?|paninda|inventory|stock|sangkap|snack[s]?|meal[s]?|grocery|groceries|packaging|allowance|buwis|permit)\b/i;
 function nlGenericParty(name){
   var g=String(name||'').toLowerCase().replace(/[^a-z\s]/g,'').replace(/\b(a|an|the|my|some)\b/g,'').replace(/\s+/g,' ').trim();
-  return !g || /^(customer|client|buyer|sale|sales|someone|somebody|them|guy|person|people)$/.test(g);
+  return !g || /^(customer|client|buyer|sale|sales|someone|somebody|them|guy|person|people|now|today|tomorrow|yesterday)$/.test(g);
 }
 function nlIntent(text){
   var s=' '+String(text).toLowerCase()+' ';
+  // explicit task markers win outright — "remind me to invoice John" is a to-do, not an invoice
+  if(/\b(?:remind me|to-?do|don'?t forget|set a task|new task|add task)\b/.test(s) || /\btask\s*:/.test(s)) return 'task';
   if(/\binvoice\b/.test(s)) return 'invoice';
-  if(/\b(received|recieved|got\s+paid|get\s+paid|earned|earn|income|revenue|deposit\w*|collected|client\s+paid|paid\s+me|came\s+in|commission[s]?|bonus|tip[s]?)\b/.test(s)) return 'income';
+  if(/\b(?:add|new|create|save|register)\s+(?:a\s+)?(?:client|customer|contact|lead|supplier\s+contact)\b/.test(s)) return 'client';
+  if(/\b(received|recieved|got\s+paid|get\s+paid|earned|earn|income|revenue|deposit\w*|collected|client\s+paid|paid\s+me|came\s+in|commission[s]?|bonus|tip[s]?|kita|kinita|tinanggap|natanggap|padala|benta|nabenta)\b/.test(s)) return 'income';
   if(/\bgot\b[^.!?]*(?:\bfrom\b|[\d₱$])/.test(s)) return 'income'; // "got 1500 from a customer"
   if(/\b(sold|sale[s]?|sell)\b/.test(s)) return 'income';
-  if(/\b(spent|spend\w*|paid|pay|bought|buy|purchase\w*|expense|cost|withdrew|withdraw|gave|spend)\b/.test(s)) return 'expense';
-  if(/\d/.test(s) && NL_EXP_NOUNS.test(s)) return 'expense'; // bare "rent 15000", "load 300", "electricity bill 2400"
+  if(/\b(spent|spend\w*|paid|pay|bought|buy|purchase\w*|expense|cost|withdrew|withdraw|gave|bumili|binili|bayad|binayaran|magbayad|gastos|gumastos|ginastos)\b/.test(s)) return 'expense';
+  // softer reminder words only become a task when no clear money intent matched above
+  // (so "reminder: client paid 3000" still logs income, not a task with the amount lost)
+  if(/\b(?:reminder|follow ?up|chase up)\b/.test(s)) return 'task';
+  if(/\d/.test(s) && NL_EXP_NOUNS.test(s)) return 'expense'; // bare "rent 15000", "load 300", "kuryente 2400"
+  if(nlQtyMath(text)!=null) return 'expense'; // bare receipt-style "3 x 250", "5 boxes at 120 each"
   if(/\bbill\b/.test(s)) return 'invoice'; // "bill Acme 5000" — bill used as a verb (last resort)
   return null;
 }
@@ -3106,17 +3198,83 @@ function nlInvoiceDesc(text){
   if(all && all.length>=2) return nlCleanName(all[1].replace(/^for\s+/i,''));
   return '';
 }
-function nlParse(text, today){
+function nlTaskTitle(text){
+  var t=String(text).replace(/^[\s,]*/,'');
+  t=t.replace(/^(?:please\s+)?(?:remind me(?:\s+to)?|reminder(?:\s+to)?|set a task(?:\s+to)?|new task(?:\s+to)?|add task(?:\s+to)?|task\s*:?|to-?do\s*:?|follow ?up(?:\s+(?:with|on))?|don'?t forget(?:\s+to)?|chase up)\s+/i,'');
+  t=t.replace(/\s+/g,' ').trim().replace(/[,.\s]+$/,'');
+  t=t.replace(/\s+(?:on|by|at|in|before|this|next|due|para)$/i,'').trim(); // drop a preposition left over from a removed date
+  return t?t.charAt(0).toUpperCase()+t.slice(1):'';
+}
+function nlClientName(text){
+  var m=String(text).match(/\b(?:client|customer|contact|lead)\s+(?:named\s+|called\s+|is\s+)?([^,]+)/i);
+  if(!m) return '';
+  var v=nlCleanName(m[1].replace(/\b(with|number|contact|email|phone).*$/i,''));
+  return nlGenericParty(v)?'':v;
+}
+
+/* ---- adaptive learning: remember which words map to which intent/category ----
+   Every confirmation teaches the parser, so the owner's own vocabulary (custom
+   categories, Taglish, vendor names) gets more accurate the more it is used. */
+var NL_STOP={the:1,a:1,an:1,my:1,for:1,on:1,to:1,of:1,and:1,with:1,from:1,is:1,was:1,at:1,in:1,me:1,it:1,this:1,that:1,paid:1,pay:1,spent:1,spend:1,bought:1,buy:1,got:1,received:1,create:1,add:1,new:1,today:1,yesterday:1,tomorrow:1,due:1,amount:1,total:1,invoice:1,bill:1,each:1,worth:1,sold:1,sale:1,sell:1,'na':1,'ng':1,'sa':1,'ko':1,'ako':1,'yung':1,'po':1};
+'january february march april may june july august september october november december jan feb mar apr jun jul aug sep sept oct nov dec'.split(' ').forEach(function(m){ NL_STOP[m]=1; });
+function nlContentTokens(text){
+  var out=[];
+  (String(text).toLowerCase().match(/[a-z][a-z'-]{2,}/g)||[]).forEach(function(w){
+    if(!NL_STOP[w] && out.indexOf(w)<0) out.push(w);
+  });
+  return out;
+}
+function nlBest(map){ var bk=null,bv=0; for(var k in map){ if(map[k]>bv){ bv=map[k]; bk=k; } } return bk?{key:bk,n:bv}:null; }
+function nlLearnLookup(store, text){
+  if(!store) return {};
+  var iv={}, cv={};
+  nlContentTokens(text).forEach(function(t){
+    var e=store[t]; if(!e) return;
+    if(e.intent) for(var i in e.intent) iv[i]=(iv[i]||0)+e.intent[i];
+    if(e.category) for(var c in e.category) cv[c]=(cv[c]||0)+e.category[c];
+  });
+  return {intent:nlBest(iv), category:nlBest(cv)};
+}
+function nlLearnRecord(store, text, intent, category){
+  if(!store) return;
+  nlContentTokens(text).forEach(function(tok){
+    var e=store[tok]||(store[tok]={intent:{},category:{}});
+    if(intent) e.intent[intent]=(e.intent[intent]||0)+1;
+    if(category) e.category[category]=(e.category[category]||0)+1;
+  });
+  // keep the store bounded — drop the weakest tokens if it grows large
+  var keys=Object.keys(store);
+  if(keys.length>600){
+    keys.map(function(k){ var e=store[k],n=0,o; for(o in e.intent)n+=e.intent[o]; for(o in e.category)n+=e.category[o]; return [k,n]; })
+      .sort(function(a,b){ return a[1]-b[1]; }).slice(0,150).forEach(function(p){ delete store[p[0]]; });
+  }
+}
+function nlParse(text, today, learn){
   today=today||new Date();
+  var learned=nlLearnLookup(learn, text);
   var intent=nlIntent(text);
+  // a learned word can supply the intent when the built-in rules can't decide
+  if(!intent && learned.intent && learned.intent.n>=1) intent=learned.intent.key;
   if(!intent) return {intent:null};
   var dateInfo=nlParseDate(text, today);
   var rest=String(text);
   if(dateInfo && dateInfo.source) rest=rest.replace(new RegExp(dateInfo.source.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'),' ');
   // drop any leftover numeric date-like token so it can't be mistaken for the amount
   rest=rest.replace(/\b\d{1,4}[\/.\-]\d{1,2}[\/.\-]\d{1,4}\b/g,' ');
-  var amount=nlParseAmount(rest);
-  var out={intent:intent, amount:amount};
+  // drop reference/order numbers ("order number 5567", "ref #1234") so an ID isn't read as the amount
+  rest=rest.replace(/(?:#|\b(?:number|no\.?|nbr|ref(?:erence)?|order\s*(?:no|number|#))\s*:?\s*)#?\s*\d+/gi,' ');
+  var out={intent:intent};
+  if(intent==='task'){
+    out.title=nlTaskTitle(rest);
+    out.deadline=dateInfo?dateInfo.iso:'';
+    out.priority='Medium';
+    return out;
+  }
+  if(intent==='client'){
+    out.name=nlClientName(rest);
+    return out;
+  }
+  out.amount=nlParseAmount(rest);
   if(intent==='invoice'){
     // a name right after "invoice"/"bill" is the client; but "invoice FOR X" means X is the client
     var directFor=/\b(?:invoice|bill)\s+(?:for|to)\b/i.test(rest);
@@ -3131,11 +3289,54 @@ function nlParse(text, today){
   } else {
     out.type=intent;
     out.date=dateInfo?dateInfo.iso:nlIsoToday(today);
-    out.category=intent==='income'?nlIncomeCategory(text):nlExpenseCategory(text);
+    var cat=intent==='income'?nlIncomeCategory(text):nlExpenseCategory(text);
+    // learned category wins only when the built-in guess is the generic fallback
+    // ("Other …"), or when the same correction has been confirmed at least twice —
+    // a confidently-matched category (e.g. "Sales", "Transport") needs 2 corrections
+    var isDefault=(cat==='Other expense'||cat==='Other income');
+    if(learned.category && (isDefault || learned.category.n>=2)) cat=learned.category.key;
+    out.category=cat;
     out.note=nlGrabAfter(rest,'on')||nlGrabAfter(rest,'for')||'';
     if(intent==='income'){ var inc=nlGrabAfter(rest,'from'); out.client=nlGenericParty(inc)?'':inc; }
   }
   return out;
+}
+/* split one message into several entries when it clearly lists more than one
+   ("spent 500 on ads and 300 on grab", "5000 rent and 2000 electricity") */
+function nlSplitClauses(text){
+  return String(text).split(/\s*(?:;|\n|\+|&|\band\b|\bthen\b|\btapos\b|\bsaka\b|,)\s*/i).map(function(s){return s.trim();}).filter(Boolean);
+}
+/* a clause that is just a small count + a noun ("2 boxes") is a quantity fragment,
+   not its own money entry — don't log it as a peso amount */
+function nlBareQty(c){
+  var nums=String(c).match(/\d[\d,]*(?:\.\d+)?/g)||[];
+  if(nums.length!==1) return false;
+  if(/[₱$]|php|peso|usd|dollar|total|each|@|\bx\b/i.test(c)) return false;
+  return parseFloat(nums[0].replace(/,/g,''))<=20 && /\b\d+\s+[a-z]{2,}/i.test(c);
+}
+function nlParseMulti(text, today, learn){
+  var whole=nlParse(text, today, learn); whole.src=text;
+  if(!whole.intent || whole.intent==='task' || whole.intent==='client') return [whole];
+  var clauses=nlSplitClauses(text);
+  if(clauses.length<2) return [whole];
+  var results=[], dom=whole.intent;
+  clauses.forEach(function(c){
+    if(!/\d/.test(c) || nlBareQty(c)) return; // need a money number, not a bare quantity
+    var r=nlParse(c, today, learn);
+    if(!r.intent || r.intent==='task' || r.intent==='client'){ r=nlParse(dom+' '+c, today, learn); } // inherit the leading intent
+    if(r.intent && r.intent!=='task' && r.intent!=='client' && r.amount!=null){ r.src=c; results.push(r); }
+  });
+  return results.length>=2 ? results : [whole];
+}
+/* match a wallet/account by name so "paid 500 from gcash" pre-selects that account */
+function nlMatchAccount(text, accounts){
+  if(!accounts || !accounts.length) return '';
+  var s=' '+String(text).toLowerCase()+' ';
+  for(var i=0;i<accounts.length;i++){
+    var nm=String(accounts[i].name||'').toLowerCase().trim();
+    if(nm && nm.length>=2 && new RegExp('\\b'+nm.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b').test(s)) return accounts[i].id;
+  }
+  return '';
 }
 
 /* ---- assistant view + chat plumbing ---- */
@@ -3143,7 +3344,8 @@ function assistantExamples(){
   return ['Spent ₱500 on Facebook ads today',
     'Received ₱10,000 from Acme for website',
     'Create invoice for John Doe, amount ₱100, due July 21 2026',
-    'Paid 12,000 for rent yesterday'];
+    'Remind me to follow up with Maria on Friday',
+    'Add client Dela Cruz Trading'];
 }
 function assistantChipsHTML(){
   return '<div class="asst-examples">'+assistantExamples().map(function(x){
@@ -3152,7 +3354,7 @@ function assistantChipsHTML(){
 }
 function assistantWelcomeHTML(){
   return '<div class="asst-msg bot"><span class="asst-avatar">'+icon('chat')+'</span><div class="asst-bubble">'+
-    '<b>Hi! I’m your logging assistant.</b><br>Tell me what you spent, earned, or who to bill — in plain words. I’ll read the amount, date and details, then show a draft for you to confirm before anything saves.'+
+    '<b>Hi! I’m your logging assistant.</b><br>Tell me what you spent, earned, who to bill, a task to remember, or a new client — in plain words (English or Taglish). I’ll read the details and show a draft for you to confirm before anything saves, and I get better as you use me.'+
     assistantChipsHTML()+
     '<div class="asst-hint">Runs entirely on your device — nothing is sent anywhere.</div>'+
   '</div></div>';
@@ -3163,7 +3365,17 @@ function assistantResolvedHTML(m){
 function assistantPreviewHTML(m){
   var p=m.parsed||{};
   var box='<div class="asst-preview" id="apv-'+esc(m.id)+'">';
-  if(p.intent==='invoice'){
+  if(p.intent==='task'){
+    box+='<div class="asst-pv-title">'+icon('tasks',15)+' New task</div>'+
+      '<div class="field"><label>Task</label><input class="input" name="title" value="'+esc(p.title||'')+'" placeholder="What needs doing?"></div>'+
+      '<div class="form-row"><div class="field"><label>Deadline (optional)</label><input class="input" type="date" name="deadline" value="'+esc(p.deadline||'')+'"></div>'+
+        '<div class="field"><label>Priority</label><select class="input" name="priority">'+['Low','Medium','High'].map(function(s){return '<option'+((p.priority||'Medium')===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select></div></div>';
+  } else if(p.intent==='client'){
+    box+='<div class="asst-pv-title">'+icon('clients',15)+' New client</div>'+
+      '<div class="field"><label>Name</label><input class="input" name="name" value="'+esc(p.name||'')+'" placeholder="Client / customer name"></div>'+
+      '<div class="form-row"><div class="field"><label>Status</label><select class="input" name="status">'+['Lead','Active','Inactive'].map(function(s){return '<option'+((p.status||'Lead')===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select></div>'+
+        '<div class="field"><label>Contact (optional)</label><input class="input" name="contact" value="'+esc(p.contact||'')+'" placeholder="Phone / email"></div></div>';
+  } else if(p.intent==='invoice'){
     box+='<div class="asst-pv-title">'+icon('invoice',15)+' New invoice</div>'+
       '<div class="field"><label>Client</label><input class="input" name="client" value="'+esc(p.client||'')+'" placeholder="Who is billed?"></div>'+
       '<div class="form-row"><div class="field"><label>Amount</label><input class="input" type="number" step="any" min="0" name="amount" value="'+(p.amount!=null?p.amount:'')+'"></div>'+
@@ -3182,7 +3394,7 @@ function assistantPreviewHTML(m){
       '<div class="field"><label>Note</label><input class="input" name="note" value="'+esc(p.note||'')+'" placeholder="Optional"></div>';
     if(state.accounts && state.accounts.length){
       box+='<div class="field"><label>Account (optional)</label><select class="input" name="account"><option value="">—</option>'+
-        state.accounts.map(function(a){return '<option value="'+esc(a.id)+'">'+esc(a.name)+'</option>';}).join('')+'</select></div>';
+        state.accounts.map(function(a){return '<option value="'+esc(a.id)+'"'+(p.account===a.id?' selected':'')+'>'+esc(a.name)+'</option>';}).join('')+'</select></div>';
     }
   }
   box+='<div class="asst-pv-actions"><button type="button" class="btn btn-primary btn-sm" data-action="assistant-confirm" data-id="'+esc(m.id)+'">'+icon('check',15)+' Log it</button>'+
@@ -3197,42 +3409,101 @@ function assistantMsgHTML(m){
   if(m.kind==='preview') inner+= m.resolved ? assistantResolvedHTML(m) : assistantPreviewHTML(m);
   return '<div class="asst-msg bot"><span class="asst-avatar">'+icon('chat')+'</span><div class="asst-bubble">'+inner+'</div></div>';
 }
+function assistantLogInnerHTML(){
+  return (state.chat&&state.chat.length) ? state.chat.map(assistantMsgHTML).join('') : assistantWelcomeHTML();
+}
 function viewAssistant(){
-  var html=topbar('Assistant','Type what happened — I turn it into an invoice, income or expense for you to confirm.',
+  var html=topbar('Assistant','Type what happened — I turn it into an income, expense, invoice, task or client for you to confirm.',
     '<span class="asst-beta">Beta</span>'+
     ((state.chat&&state.chat.length)?'<button class="btn btn-ghost" data-action="assistant-clear" title="Clear conversation">'+icon('trash')+'<span class="btn-txt">Clear</span></button>':''));
-  html+='<div class="asst-wrap"><div class="asst-log" id="asst-log">';
-  html+= (state.chat&&state.chat.length) ? state.chat.map(assistantMsgHTML).join('') : assistantWelcomeHTML();
-  html+='</div>'+
+  html+='<div class="asst-wrap"><div class="asst-log" id="asst-log">'+assistantLogInnerHTML()+'</div>'+
     '<div class="asst-input-row">'+
       '<textarea class="input" id="asst-input" rows="1" placeholder="e.g. Spent ₱500 on Facebook ads today" aria-label="Message the assistant"></textarea>'+
       '<button class="btn btn-primary" data-action="assistant-send" aria-label="Send">'+icon('send')+'<span class="btn-txt">Send</span></button>'+
     '</div></div>';
   return html;
 }
-function assistantScroll(){ var l=byId('asst-log'); if(l) l.scrollTop=l.scrollHeight; }
+/* the same chat lives in the page view (#asst-input) and the floating popover
+   (#asst-pop-input) — helpers operate on whichever surface is mounted */
+function assistantInputEl(){ return byId('asst-input')||byId('asst-pop-input'); }
+function assistantPaint(){
+  [byId('asst-log'),byId('asst-pop-log')].forEach(function(l){ if(l){ l.innerHTML=assistantLogInnerHTML(); l.scrollTop=l.scrollHeight; } });
+}
+/* save + repaint the chat; full render only when the popover is closed (the page
+   view needs it), so chatting from the popover doesn't disturb the screen behind it */
+function assistantCommit(){
+  var pop=byId('asst-pop');
+  if(pop && pop.classList.contains('open')){ save(); assistantPaint(); }
+  else { commit(); assistantPaint(); }
+}
+function assistantTogglePop(){
+  var pop=byId('asst-pop'); if(!pop) return;
+  if(pop.classList.contains('open')){ assistantClosePop(); return; }
+  pop.innerHTML='<div class="asst-pop-head"><span class="asst-pop-title">'+icon('chat',16)+' Assistant <span class="asst-beta">Beta</span></span>'+
+      '<button class="btn-icon" data-action="assistant-toggle" aria-label="Close">'+icon('x')+'</button></div>'+
+    '<div class="asst-log" id="asst-pop-log">'+assistantLogInnerHTML()+'</div>'+
+    '<div class="asst-input-row"><textarea class="input" id="asst-pop-input" rows="1" placeholder="e.g. Spent ₱500 on grab today" aria-label="Message the assistant"></textarea>'+
+      '<button class="btn btn-primary" data-action="assistant-send" aria-label="Send">'+icon('send')+'</button></div>';
+  pop.hidden=false; pop.classList.add('open');
+  var cb=byId('chat-bubble'); if(cb) cb.classList.add('active');
+  var l=byId('asst-pop-log'); if(l) l.scrollTop=l.scrollHeight;
+  setTimeout(function(){ var i=byId('asst-pop-input'); if(i){ try{ i.focus(); }catch(_){ } } },50);
+}
+function assistantClosePop(){
+  var pop=byId('asst-pop'); if(!pop||!pop.classList.contains('open')) return;
+  pop.classList.remove('open'); pop.hidden=true; pop.innerHTML='';
+  var cb=byId('chat-bubble'); if(cb) cb.classList.remove('active');
+  if(typeof render==='function') render(); // surface anything logged from the popover
+}
+function assistantScroll(){ assistantPaint(); }
 function assistantFindMsg(id){ return (state.chat||[]).filter(function(m){return m.id===id;})[0]; }
 function assistantSend(){
-  var inp=byId('asst-input'); if(!inp) return;
+  var inp=assistantInputEl(); if(!inp) return;
   var text=(inp.value||'').replace(/\s+$/,'').trim(); if(!text) return;
+  inp.value='';
   state.chat=state.chat||[];
+  state.assistant=state.assistant||{terms:{}}; state.assistant.terms=state.assistant.terms||{};
   state.chat.push({id:uid(),role:'user',text:text,ts:Date.now()});
-  var parsed=nlParse(text, new Date());
-  if(!parsed.intent){
-    state.chat.push({id:uid(),role:'bot',kind:'examples',text:'I couldn’t tell if that’s an invoice, income or expense. Try wording it like one of these:',ts:Date.now()});
+  var parses=nlParseMulti(text, new Date(), state.assistant.terms);
+  if(!parses.length || (parses.length===1 && !parses[0].intent)){
+    state.chat.push({id:uid(),role:'bot',kind:'examples',text:'I couldn’t tell what to log. Try wording it like one of these:',ts:Date.now()});
   } else {
-    var lead = parsed.intent==='invoice' ? 'Here’s a draft invoice — check it and tap Log it.'
-      : (parsed.intent==='income' ? 'Looks like income — review and confirm.' : 'Looks like an expense — review and confirm.');
-    state.chat.push({id:uid(),role:'bot',kind:'preview',parsed:parsed,resolved:false,text:lead,ts:Date.now()});
+    var leads={invoice:'Here’s a draft invoice — check it and tap Log it.',income:'Looks like income — review and confirm.',expense:'Looks like an expense — review and confirm.',task:'Looks like a task — review and confirm.',client:'Looks like a new client — review and confirm.'};
+    if(parses.length>1) state.chat.push({id:uid(),role:'bot',text:'I found '+parses.length+' entries — review and confirm each:',ts:Date.now()});
+    parses.forEach(function(parsed){
+      // pre-select a wallet/account if the wording names one ("from gcash") — per clause
+      if((parsed.type==='income'||parsed.type==='expense')) parsed.account=nlMatchAccount(parsed.src||text, state.accounts);
+      state.chat.push({id:uid(),role:'bot',kind:'preview',parsed:parsed,srcText:text,resolved:false,text:(parses.length>1?'':(leads[parsed.intent]||'Review and confirm:')),ts:Date.now()});
+    });
   }
-  if(state.chat.length>60) state.chat=state.chat.slice(-60);
-  commit(); assistantScroll();
+  if(state.chat.length>80) state.chat=state.chat.slice(-80);
+  assistantCommit();
 }
 function assistantConfirm(id){
   var m=assistantFindMsg(id); if(!m||!m.parsed) return;
   var box=byId('apv-'+id);
   var g=function(n){ if(!box) return ''; var el=box.querySelector('[name="'+n+'"]'); return el?String(el.value).trim():''; };
   var p=m.parsed;
+  state.assistant=state.assistant||{terms:{}}; state.assistant.terms=state.assistant.terms||{};
+  if(p.intent==='task'){
+    var title=g('title')||p.title||'';
+    if(!title){ toast('Add a few words for the task.','error'); return; }
+    var lane=(state.settings.taskLanes&&state.settings.taskLanes[0])||'To do';
+    state.tasks.push({id:uid(),title:title,deadline:g('deadline')||p.deadline||'',priority:g('priority')||p.priority||'Medium',status:lane,bucket:'',done:false,createdAt:todayISO()});
+    nlLearnRecord(state.assistant.terms, m.srcText||title, 'task', null);
+    m.resolved=true; m.ok=true; m.result='Task “'+title+'”'+(g('deadline')||p.deadline?' (due '+fmtDate(g('deadline')||p.deadline)+')':'')+' added.';
+    state.chat.push({id:uid(),role:'bot',text:'Added to Tasks. Anything else?',ts:Date.now()});
+    assistantCommit(); return;
+  }
+  if(p.intent==='client'){
+    var name=g('name')||p.name||'';
+    if(!name){ toast('Add the client name.','error'); return; }
+    state.clients.push({id:uid(),name:name,status:g('status')||'Lead',contact:g('contact')||'',value:0,note:'',createdAt:todayISO()});
+    nlLearnRecord(state.assistant.terms, m.srcText||name, 'client', null);
+    m.resolved=true; m.ok=true; m.result='Client “'+name+'” added.';
+    state.chat.push({id:uid(),role:'bot',text:'Saved to Clients. Anything else?',ts:Date.now()});
+    assistantCommit(); return;
+  }
   if(p.intent==='invoice'){
     var amount=num(g('amount')||p.amount), client=g('client')||p.client||'';
     if(!client){ toast('Add the client name first.','error'); return; }
@@ -3245,6 +3516,7 @@ function assistantConfirm(id){
     if(inv.status==='Paid') inv.paidDate=todayISO();
     state.invoices.push(inv);
     if(inv.status==='Paid' && typeof recordInvoiceIncome==='function') recordInvoiceIncome(inv);
+    nlLearnRecord(state.assistant.terms, m.srcText||'', 'invoice', null);
     m.resolved=true; m.ok=true;
     m.result='Invoice '+inv.number+' for '+client+' — '+fmtMoney(amount)+(inv.dueDate?', due '+fmtDate(inv.dueDate):'')+' created.';
     state.chat.push({id:uid(),role:'bot',text:'Done! You’ll find it under Invoices.',ts:Date.now()});
@@ -3255,16 +3527,17 @@ function assistantConfirm(id){
     var entry={id:uid(),type:type,amount:amt,date:date,category:g('category')||p.category||(type==='income'?'Sales':'Other expense'),
       note:g('note'),client:(type==='income'?(p.client||''):''),offer:'',account:g('account')||'',receipt:''};
     state.finance.push(entry);
+    nlLearnRecord(state.assistant.terms, m.srcText||entry.note||'', type, entry.category);
     m.resolved=true; m.ok=true;
     m.result=(type==='income'?'Income':'Expense')+' of '+fmtMoney(amt)+' ('+entry.category+') logged for '+fmtDate(date)+'.';
     state.chat.push({id:uid(),role:'bot',text:'Saved to Finance. Anything else?',ts:Date.now()});
   }
-  commit(); assistantScroll();
+  assistantCommit();
 }
 function assistantCancel(id){
   var m=assistantFindMsg(id); if(!m) return;
   m.resolved=true; m.ok=false; m.result='Discarded — nothing was saved.';
-  commit(); assistantScroll();
+  assistantCommit();
 }
 
 /* ============================================================
@@ -5229,6 +5502,9 @@ function toggleTheme(){
 function findEntry(id){ return state.finance.find(function(x){return x.id===id;}); }
 
 document.addEventListener('click',function(e){
+  // close the floating quick-log popover when clicking outside it (and not the bubble)
+  var _pop=byId('asst-pop');
+  if(_pop&&_pop.classList.contains('open')&&!e.target.closest('#asst-pop')&&!e.target.closest('#chat-bubble')) assistantClosePop();
   var el=e.target.closest('[data-action]');
   if(!el) return;
   var action=el.getAttribute('data-action');
@@ -5260,8 +5536,9 @@ document.addEventListener('click',function(e){
   if(action==='close-modal-overlay'){ if(e.target===el) closeModal(); return; }
 
   /* assistant (beta) */
+  if(action==='assistant-toggle'){ assistantTogglePop(); return; }
   if(action==='assistant-send'){ assistantSend(); return; }
-  if(action==='assistant-example'){ var ai=byId('asst-input'); if(ai){ ai.value=el.getAttribute('data-text')||''; } assistantSend(); return; }
+  if(action==='assistant-example'){ var ai=assistantInputEl(); if(ai){ ai.value=el.getAttribute('data-text')||''; } assistantSend(); return; }
   if(action==='assistant-confirm'){ assistantConfirm(id); return; }
   if(action==='assistant-cancel'){ assistantCancel(id); return; }
   if(action==='assistant-clear'){ if(confirm('Clear the assistant conversation? Anything you already logged stays saved.')){ state.chat=[]; commit(); } return; }
