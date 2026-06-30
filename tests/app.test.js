@@ -681,6 +681,12 @@ async function main() {
     window.nlLearnRecord(window.state.assistant.terms, 'paid aqua station 200', 'expense', 'Water Refill');
     ok('a single correction adopts a custom category', (function(){ var r=window.nlParse('aqua station 200', T, window.state.assistant.terms); return r.intent==='expense' && r.category==='Water Refill'; })());
     ok('learning is persisted in state (survives save)', JSON.stringify(window.state.assistant.terms).indexOf('Water Refill') > -1);
+    // review fixes: a confident built-in category needs 2 corrections (not 1) to be overridden
+    ok('one learned token does NOT override a confident "Sales" match', (function(){ var s={}; window.nlLearnRecord(s,'sold cake 500','income','Catering'); return window.nlParse('sold cake 500', T, s).category==='Sales'; })());
+    ok('two corrections DO override a confident match', (function(){ var s={}; window.nlLearnRecord(s,'sold cake 500','income','Catering'); window.nlLearnRecord(s,'sold cake 500','income','Catering'); return window.nlParse('sold cake 500', T, s).category==='Catering'; })());
+    // review fix: soft reminder words don't hijack a clear money intent (amount not silently lost)
+    ok('"reminder: client paid 3000" logs income, not a task', window.nlParse('reminder: client paid 3000', T).intent === 'income');
+    ok('explicit "remind me…" is still a task', window.nlParse('Remind me to deposit cash tomorrow', T).intent === 'task');
 
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

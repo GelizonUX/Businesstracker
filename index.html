@@ -3084,7 +3084,7 @@ var NL_INC_CATS=[
   [/\b(commission|referral)\b/i,'Commissions'],
   [/\b(sold|sale[s]?|sell|benta|nabenta|paninda|product[s]?|order[s]?|item[s]?|downpayment|deposit|dp)\b/i,'Sales']
 ];
-function nlIncomeCategory(text){ for(var i=0;i<NL_INC_CATS.length;i++){ if(NL_INC_CATS[i][0].test(text)) return NL_INC_CATS[i][1]; } return 'Sales'; }
+function nlIncomeCategory(text){ for(var i=0;i<NL_INC_CATS.length;i++){ if(NL_INC_CATS[i][0].test(text)) return NL_INC_CATS[i][1]; } return 'Other income'; }
 /* nouns that, paired with a number, are clearly the owner's own spending even
    with no verb ("rent 15000", "load 300", "kuryente 2400") */
 var NL_EXP_NOUNS=/\b(rent|rental|renta|upa|load|prepaid|e-?load|salary|salaries|sahod|suweldo|sweldo|wage[s]?|electric\w*|kuryente|ilaw|water|tubig|utilit\w*|internet|wifi|meralco|grab|fuel|gasolina|gas|fare|pamasahe|toll|parking|supplies|supplier[s]?|paninda|inventory|stock|sangkap|snack[s]?|meal[s]?|grocery|groceries|packaging|allowance|buwis|permit)\b/i;
@@ -3094,14 +3094,17 @@ function nlGenericParty(name){
 }
 function nlIntent(text){
   var s=' '+String(text).toLowerCase()+' ';
-  // tasks/reminders take priority — "remind me to invoice John" is a to-do, not an invoice
-  if(/\b(?:remind me|reminder|to-?do|follow ?up|don'?t forget|chase up|set a task|new task|add task)\b/.test(s) || /\btask\s*:/.test(s)) return 'task';
+  // explicit task markers win outright — "remind me to invoice John" is a to-do, not an invoice
+  if(/\b(?:remind me|to-?do|don'?t forget|set a task|new task|add task)\b/.test(s) || /\btask\s*:/.test(s)) return 'task';
   if(/\binvoice\b/.test(s)) return 'invoice';
   if(/\b(?:add|new|create|save|register)\s+(?:a\s+)?(?:client|customer|contact|lead|supplier\s+contact)\b/.test(s)) return 'client';
   if(/\b(received|recieved|got\s+paid|get\s+paid|earned|earn|income|revenue|deposit\w*|collected|client\s+paid|paid\s+me|came\s+in|commission[s]?|bonus|tip[s]?|kita|kinita|tinanggap|natanggap|padala|benta|nabenta)\b/.test(s)) return 'income';
   if(/\bgot\b[^.!?]*(?:\bfrom\b|[\d₱$])/.test(s)) return 'income'; // "got 1500 from a customer"
   if(/\b(sold|sale[s]?|sell)\b/.test(s)) return 'income';
   if(/\b(spent|spend\w*|paid|pay|bought|buy|purchase\w*|expense|cost|withdrew|withdraw|gave|bumili|binili|bayad|binayaran|magbayad|gastos|gumastos|ginastos)\b/.test(s)) return 'expense';
+  // softer reminder words only become a task when no clear money intent matched above
+  // (so "reminder: client paid 3000" still logs income, not a task with the amount lost)
+  if(/\b(?:reminder|follow ?up|chase up)\b/.test(s)) return 'task';
   if(/\d/.test(s) && NL_EXP_NOUNS.test(s)) return 'expense'; // bare "rent 15000", "load 300", "kuryente 2400"
   if(/\bbill\b/.test(s)) return 'invoice'; // "bill Acme 5000" — bill used as a verb (last resort)
   return null;
@@ -3201,9 +3204,10 @@ function nlParse(text, today, learn){
     out.type=intent;
     out.date=dateInfo?dateInfo.iso:nlIsoToday(today);
     var cat=intent==='income'?nlIncomeCategory(text):nlExpenseCategory(text);
-    // learned category wins when the built-in guess is a generic default, or when
-    // the same correction has been confirmed at least twice
-    var isDefault=(cat==='Other expense'||cat==='Other income'||cat==='Sales');
+    // learned category wins only when the built-in guess is the generic fallback
+    // ("Other …"), or when the same correction has been confirmed at least twice —
+    // a confidently-matched category (e.g. "Sales", "Transport") needs 2 corrections
+    var isDefault=(cat==='Other expense'||cat==='Other income');
     if(learned.category && (isDefault || learned.category.n>=2)) cat=learned.category.key;
     out.category=cat;
     out.note=nlGrabAfter(rest,'on')||nlGrabAfter(rest,'for')||'';
