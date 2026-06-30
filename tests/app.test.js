@@ -688,6 +688,28 @@ async function main() {
     ok('"reminder: client paid 3000" logs income, not a task', window.nlParse('reminder: client paid 3000', T).intent === 'income');
     ok('explicit "remind me…" is still a task', window.nlParse('Remind me to deposit cash tomorrow', T).intent === 'task');
 
+    // ---------- floating chat bubble + quick-log popover ----------
+    ok('shell has a chat bubble + popover container', !!d.getElementById('chat-bubble') && !!d.getElementById('asst-pop'));
+    // open it from another view (dashboard) and confirm the popover mounts its own chat input
+    window.location.hash = '#/dashboard'; window.render();
+    ok('bubble is visible off the Assistant page', !d.body.classList.contains('route-assistant'));
+    click(d.getElementById('chat-bubble'));
+    ok('clicking the bubble opens the popover', d.getElementById('asst-pop').classList.contains('open') && !!d.getElementById('asst-pop-input'));
+    // log an expense entirely from the popover (send → preview → confirm)
+    const beforePop = window.state.finance.length;
+    d.getElementById('asst-pop-input').value = 'spent 320 on grab today';
+    click(d.getElementById('asst-pop').querySelector('[data-action="assistant-send"]'));
+    await waitFor(() => d.getElementById('asst-pop') && d.getElementById('asst-pop').querySelector('[data-action="assistant-confirm"]'));
+    click(d.getElementById('asst-pop').querySelector('[data-action="assistant-confirm"]'));
+    await waitFor(() => window.state.finance.length === beforePop + 1);
+    ok('popover logs an expense end-to-end', window.state.finance.length === beforePop + 1 && window.state.finance[window.state.finance.length-1].amount === 320);
+    // toggle closed
+    click(d.getElementById('chat-bubble'));
+    ok('clicking the bubble again closes the popover', !d.getElementById('asst-pop').classList.contains('open'));
+    // on the Assistant page the bubble is suppressed (you're already in the chat)
+    window.location.hash = '#/assistant'; window.render();
+    ok('bubble hidden on the Assistant page', d.body.classList.contains('route-assistant'));
+
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
   } catch (e) {

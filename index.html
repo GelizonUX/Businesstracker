@@ -1152,6 +1152,30 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 /* ===== standard-mobile shell: bottom tab bar + FAB (phones/tablets ≤860px) ===== */
 .tabbar{display:none}
 .fab{display:none}
+/* ----- floating chat bubble + quick-log popover (opens the assistant anywhere) ----- */
+.chat-bubble{position:fixed;right:20px;bottom:20px;width:54px;height:54px;border-radius:50%;display:grid;place-items:center;
+  background:var(--accent-grad);color:#fff;border:none;cursor:pointer;box-shadow:var(--shadow-lg);z-index:95;
+  transition:transform .14s var(--ease-snappy),box-shadow .2s}
+.chat-bubble:hover{transform:translateY(-2px)}
+.chat-bubble:active,.chat-bubble.active{transform:scale(.9)}
+.chat-bubble:empty{display:none} /* hidden until the icon is mounted on first render */
+.chat-bubble svg{width:25px;height:25px}
+.route-assistant .chat-bubble,.route-assistant .asst-pop{display:none}
+.asst-pop{position:fixed;right:20px;bottom:84px;width:380px;max-width:calc(100vw - 32px);height:540px;max-height:calc(100vh - 130px);
+  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--shadow-lg);z-index:96;
+  display:flex;flex-direction:column;overflow:hidden;animation:abPop .2s var(--ease) both}
+.asst-pop[hidden]{display:none}
+.asst-pop-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 12px 11px 14px;
+  border-bottom:1px solid var(--border);background:var(--bg-sunken)}
+.asst-pop-title{display:flex;align-items:center;gap:8px;font-weight:700;font-size:.92rem}
+.asst-pop .asst-log{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:13px;padding:13px 12px 8px}
+.asst-pop .asst-input-row{margin:0;padding:10px 12px;border-top:1px solid var(--border)}
+.asst-pop .asst-input-row textarea.input{min-height:42px;max-height:120px}
+@media (max-width:860px){
+  .chat-bubble{right:auto;left:16px;bottom:calc(82px + env(safe-area-inset-bottom,0));width:50px;height:50px;z-index:59}
+  .chat-bubble svg{width:23px;height:23px}
+  .asst-pop{left:12px;right:12px;width:auto;bottom:calc(82px + env(safe-area-inset-bottom,0));height:auto;max-height:62vh;z-index:60}
+}
 @media (max-width:860px){
   .tabbar{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:58;
     background:var(--bg-card);border-top:1.5px solid var(--border-2,var(--border));box-shadow:0 -6px 26px rgba(2,6,23,.14);
@@ -1405,6 +1429,8 @@ body.greeting-on{overflow:hidden}
   <nav class="tabbar" id="tabbar" aria-label="Primary"></nav>
 </div>
 <div id="advisor-bubble"></div>
+<button class="chat-bubble" id="chat-bubble" data-action="assistant-toggle" aria-label="Open the assistant to quickly log something" title="Quick log with the assistant"></button>
+<div class="asst-pop" id="asst-pop" hidden></div>
 <div id="modal-root"></div>
 <div class="toast-root" id="toast-root"></div>
 <div id="print-area"></div>
@@ -2003,10 +2029,11 @@ document.addEventListener('keydown',function(e){
   if(t.matches&&t.matches('input,textarea,select,button,a[href]')) return; // let native controls handle it
   e.preventDefault(); rb.click();
 });
-/* assistant: Enter sends, Shift+Enter makes a new line */
+/* assistant: Enter sends, Shift+Enter makes a new line; Esc closes the popover */
 document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){ var ap=byId('asst-pop'); if(ap&&ap.classList.contains('open')){ assistantClosePop(); return; } }
   if(e.key!=='Enter'||e.shiftKey) return;
-  if(e.target&&e.target.id==='asst-input'){ e.preventDefault(); if(typeof assistantSend==='function') assistantSend(); }
+  if(e.target&&(e.target.id==='asst-input'||e.target.id==='asst-pop-input')){ e.preventDefault(); if(typeof assistantSend==='function') assistantSend(); }
 });
 /* keep keyboard focus inside the open modal (WCAG focus trap) */
 document.addEventListener('keydown',function(e){
@@ -2540,6 +2567,10 @@ function renderTabbar(route){
   html+='<button class="tab-item" data-action="open-sidebar" aria-label="Open menu">'+icon('menu')+'<span>Menu</span></button>';
   tb.innerHTML=html;
   var fab=document.querySelector('.fab'); if(fab&&!fab.firstChild) fab.innerHTML=icon('plus');
+  var cb=byId('chat-bubble'); if(cb&&!cb.firstChild) cb.innerHTML=icon('chat');
+  // hide the bubble on the Assistant page itself (you're already in the chat there)
+  document.body.classList.toggle('route-assistant', route==='assistant');
+  if(route==='assistant'){ var pp=byId('asst-pop'); if(pp&&pp.classList.contains('open')){ pp.classList.remove('open'); pp.hidden=true; pp.innerHTML=''; if(cb) cb.classList.remove('active'); } }
 }
 /* close the mobile header overflow menu on outside click or after picking an action */
 document.addEventListener('click',function(e){
@@ -3286,24 +3317,58 @@ function assistantMsgHTML(m){
   if(m.kind==='preview') inner+= m.resolved ? assistantResolvedHTML(m) : assistantPreviewHTML(m);
   return '<div class="asst-msg bot"><span class="asst-avatar">'+icon('chat')+'</span><div class="asst-bubble">'+inner+'</div></div>';
 }
+function assistantLogInnerHTML(){
+  return (state.chat&&state.chat.length) ? state.chat.map(assistantMsgHTML).join('') : assistantWelcomeHTML();
+}
 function viewAssistant(){
   var html=topbar('Assistant','Type what happened — I turn it into an income, expense, invoice, task or client for you to confirm.',
     '<span class="asst-beta">Beta</span>'+
     ((state.chat&&state.chat.length)?'<button class="btn btn-ghost" data-action="assistant-clear" title="Clear conversation">'+icon('trash')+'<span class="btn-txt">Clear</span></button>':''));
-  html+='<div class="asst-wrap"><div class="asst-log" id="asst-log">';
-  html+= (state.chat&&state.chat.length) ? state.chat.map(assistantMsgHTML).join('') : assistantWelcomeHTML();
-  html+='</div>'+
+  html+='<div class="asst-wrap"><div class="asst-log" id="asst-log">'+assistantLogInnerHTML()+'</div>'+
     '<div class="asst-input-row">'+
       '<textarea class="input" id="asst-input" rows="1" placeholder="e.g. Spent ₱500 on Facebook ads today" aria-label="Message the assistant"></textarea>'+
       '<button class="btn btn-primary" data-action="assistant-send" aria-label="Send">'+icon('send')+'<span class="btn-txt">Send</span></button>'+
     '</div></div>';
   return html;
 }
-function assistantScroll(){ var l=byId('asst-log'); if(l) l.scrollTop=l.scrollHeight; }
+/* the same chat lives in the page view (#asst-input) and the floating popover
+   (#asst-pop-input) — helpers operate on whichever surface is mounted */
+function assistantInputEl(){ return byId('asst-input')||byId('asst-pop-input'); }
+function assistantPaint(){
+  [byId('asst-log'),byId('asst-pop-log')].forEach(function(l){ if(l){ l.innerHTML=assistantLogInnerHTML(); l.scrollTop=l.scrollHeight; } });
+}
+/* save + repaint the chat; full render only when the popover is closed (the page
+   view needs it), so chatting from the popover doesn't disturb the screen behind it */
+function assistantCommit(){
+  var pop=byId('asst-pop');
+  if(pop && pop.classList.contains('open')){ save(); assistantPaint(); }
+  else { commit(); assistantPaint(); }
+}
+function assistantTogglePop(){
+  var pop=byId('asst-pop'); if(!pop) return;
+  if(pop.classList.contains('open')){ assistantClosePop(); return; }
+  pop.innerHTML='<div class="asst-pop-head"><span class="asst-pop-title">'+icon('chat',16)+' Assistant <span class="asst-beta">Beta</span></span>'+
+      '<button class="btn-icon" data-action="assistant-toggle" aria-label="Close">'+icon('x')+'</button></div>'+
+    '<div class="asst-log" id="asst-pop-log">'+assistantLogInnerHTML()+'</div>'+
+    '<div class="asst-input-row"><textarea class="input" id="asst-pop-input" rows="1" placeholder="e.g. Spent ₱500 on grab today" aria-label="Message the assistant"></textarea>'+
+      '<button class="btn btn-primary" data-action="assistant-send" aria-label="Send">'+icon('send')+'</button></div>';
+  pop.hidden=false; pop.classList.add('open');
+  var cb=byId('chat-bubble'); if(cb) cb.classList.add('active');
+  var l=byId('asst-pop-log'); if(l) l.scrollTop=l.scrollHeight;
+  setTimeout(function(){ var i=byId('asst-pop-input'); if(i){ try{ i.focus(); }catch(_){ } } },50);
+}
+function assistantClosePop(){
+  var pop=byId('asst-pop'); if(!pop||!pop.classList.contains('open')) return;
+  pop.classList.remove('open'); pop.hidden=true; pop.innerHTML='';
+  var cb=byId('chat-bubble'); if(cb) cb.classList.remove('active');
+  if(typeof render==='function') render(); // surface anything logged from the popover
+}
+function assistantScroll(){ assistantPaint(); }
 function assistantFindMsg(id){ return (state.chat||[]).filter(function(m){return m.id===id;})[0]; }
 function assistantSend(){
-  var inp=byId('asst-input'); if(!inp) return;
+  var inp=assistantInputEl(); if(!inp) return;
   var text=(inp.value||'').replace(/\s+$/,'').trim(); if(!text) return;
+  inp.value='';
   state.chat=state.chat||[];
   state.assistant=state.assistant||{terms:{}}; state.assistant.terms=state.assistant.terms||{};
   state.chat.push({id:uid(),role:'user',text:text,ts:Date.now()});
@@ -3315,7 +3380,7 @@ function assistantSend(){
     state.chat.push({id:uid(),role:'bot',kind:'preview',parsed:parsed,srcText:text,resolved:false,text:leads[parsed.intent]||'Review and confirm:',ts:Date.now()});
   }
   if(state.chat.length>60) state.chat=state.chat.slice(-60);
-  commit(); assistantScroll();
+  assistantCommit();
 }
 function assistantConfirm(id){
   var m=assistantFindMsg(id); if(!m||!m.parsed) return;
@@ -3331,7 +3396,7 @@ function assistantConfirm(id){
     nlLearnRecord(state.assistant.terms, m.srcText||title, 'task', null);
     m.resolved=true; m.ok=true; m.result='Task “'+title+'”'+(g('deadline')||p.deadline?' (due '+fmtDate(g('deadline')||p.deadline)+')':'')+' added.';
     state.chat.push({id:uid(),role:'bot',text:'Added to Tasks. Anything else?',ts:Date.now()});
-    commit(); assistantScroll(); return;
+    assistantCommit(); return;
   }
   if(p.intent==='client'){
     var name=g('name')||p.name||'';
@@ -3340,7 +3405,7 @@ function assistantConfirm(id){
     nlLearnRecord(state.assistant.terms, m.srcText||name, 'client', null);
     m.resolved=true; m.ok=true; m.result='Client “'+name+'” added.';
     state.chat.push({id:uid(),role:'bot',text:'Saved to Clients. Anything else?',ts:Date.now()});
-    commit(); assistantScroll(); return;
+    assistantCommit(); return;
   }
   if(p.intent==='invoice'){
     var amount=num(g('amount')||p.amount), client=g('client')||p.client||'';
@@ -3370,12 +3435,12 @@ function assistantConfirm(id){
     m.result=(type==='income'?'Income':'Expense')+' of '+fmtMoney(amt)+' ('+entry.category+') logged for '+fmtDate(date)+'.';
     state.chat.push({id:uid(),role:'bot',text:'Saved to Finance. Anything else?',ts:Date.now()});
   }
-  commit(); assistantScroll();
+  assistantCommit();
 }
 function assistantCancel(id){
   var m=assistantFindMsg(id); if(!m) return;
   m.resolved=true; m.ok=false; m.result='Discarded — nothing was saved.';
-  commit(); assistantScroll();
+  assistantCommit();
 }
 
 /* ============================================================
@@ -5340,6 +5405,9 @@ function toggleTheme(){
 function findEntry(id){ return state.finance.find(function(x){return x.id===id;}); }
 
 document.addEventListener('click',function(e){
+  // close the floating quick-log popover when clicking outside it (and not the bubble)
+  var _pop=byId('asst-pop');
+  if(_pop&&_pop.classList.contains('open')&&!e.target.closest('#asst-pop')&&!e.target.closest('#chat-bubble')) assistantClosePop();
   var el=e.target.closest('[data-action]');
   if(!el) return;
   var action=el.getAttribute('data-action');
@@ -5371,8 +5439,9 @@ document.addEventListener('click',function(e){
   if(action==='close-modal-overlay'){ if(e.target===el) closeModal(); return; }
 
   /* assistant (beta) */
+  if(action==='assistant-toggle'){ assistantTogglePop(); return; }
   if(action==='assistant-send'){ assistantSend(); return; }
-  if(action==='assistant-example'){ var ai=byId('asst-input'); if(ai){ ai.value=el.getAttribute('data-text')||''; } assistantSend(); return; }
+  if(action==='assistant-example'){ var ai=assistantInputEl(); if(ai){ ai.value=el.getAttribute('data-text')||''; } assistantSend(); return; }
   if(action==='assistant-confirm'){ assistantConfirm(id); return; }
   if(action==='assistant-cancel'){ assistantCancel(id); return; }
   if(action==='assistant-clear'){ if(confirm('Clear the assistant conversation? Anything you already logged stays saved.')){ state.chat=[]; commit(); } return; }
