@@ -853,7 +853,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .hero h2{background:linear-gradient(90deg,var(--text),var(--accent) 60%,var(--accent-2));-webkit-background-clip:text;background-clip:text}
 .brand-logo{transition:transform .35s var(--ease),box-shadow .35s var(--ease)}
 .brand:hover .brand-logo{transform:rotate(-6deg) scale(1.06);box-shadow:0 6px 20px rgba(99,102,241,.6)}
-.nav-item{transition:background .15s,color .15s,transform .12s var(--ease)}
+.nav-item{transition:background .15s,color .15s,transform .12s var(--ease),padding .22s var(--ease)}
 .nav-item:hover{transform:translateX(3px)}
 .nav-item.active::before{animation:ringPulse 2s ease-out 1}
 .btn-primary{background-size:140% 140%;transition:all .2s var(--ease),background-position .5s var(--ease)}
@@ -1030,6 +1030,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .app.nav-collapsed .nav-badge{position:absolute;top:2px;right:9px;margin:0;padding:0 4px;min-width:13px;font-size:.54rem;line-height:1.5}
 .app.nav-collapsed .biz-chip{justify-content:center}
 .app.nav-collapsed .sidebar-foot{padding:12px 0 2px}
+.app.nav-collapsed .nav-edit-open,.app.nav-collapsed .nav-edit-bar{display:none}
 @media (max-width:860px){.app.nav-collapsed .sidebar{width:232px;padding:20px 12px}.app.nav-collapsed .main{margin-left:0}}
 
 /* per-card draggable dashboard grid */
@@ -4001,7 +4002,7 @@ function hrCustomizeModal(){
     '<div class="field"><label>Default cards</label>'+defs.map(function(d){return '<label class="checkrow" style="font-size:.86rem"><input type="checkbox" data-action-change="hr-card-toggle" data-id="'+d[0]+'"'+(hidden.indexOf(d[0])<0?' checked':'')+'> '+d[1]+'</label>';}).join('')+'</div>'+
     (custom.length?'<div class="field"><label>Your custom cards</label>'+custom.map(function(c){return '<div class="list-row"><span style="flex:1;font-size:.86rem">'+esc(c.label)+' <span class="sub">('+esc(c.metric)+(c.field?' '+esc(c.field):'')+')</span></span><button class="btn-icon danger" data-action="hr-card-del" data-id="'+esc(c.id)+'">'+icon('trash')+'</button></div>';}).join('')+'</div>':'')+
     '<div class="field" style="border-top:1px solid var(--border);padding-top:12px"><label>Add a custom card</label>'+
-      '<input class="input" id="hrc-label" placeholder="Card title (e.g. Riders, Total allowances)" style="margin-bottom:6px">'+
+      '<input class="input" id="hrc-label" placeholder="Card title (e.g. Riders)" style="margin-bottom:6px">'+
       '<div class="form-row"><select class="input" id="hrc-metric"><option value="count">Count</option><option value="sum">Sum</option><option value="avg">Average</option></select>'+
         '<select class="input" id="hrc-field"><option value="payRate">Pay rate</option><option value="monthly">Monthly pay</option><option value="vale">Vale balance</option></select>'+
         '<select class="input" id="hrc-filter"><option value="all">All</option><option>Active</option><option>Inactive</option>'+HR_TYPES.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select></div>'+
@@ -4929,7 +4930,7 @@ document.addEventListener('click',function(e){
   if(action==='nav-size'){ setNavScale(el.getAttribute('data-dir')==='1'?1:-1); return; }
   if(action==='go-import'){ ui.settingsTab='data'; nav('settings'); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); setTimeout(function(){ var c=document.querySelector('[data-action="csv-import"]'); if(c&&c.scrollIntoView) c.scrollIntoView({behavior:'smooth',block:'center'}); },120); return; }
   if(action==='open-sidebar'){ byId('sidebar').classList.add('open'); byId('scrim').classList.add('show'); document.body.classList.add('drawer-open'); return; }
-  if(action==='toggle-nav-collapse'){ state.settings.navCollapsed=!state.settings.navCollapsed; save(); applyNavCollapse(); render(); return; }
+  if(action==='toggle-nav-collapse'){ state.settings.navCollapsed=!state.settings.navCollapsed; if(state.settings.navCollapsed) ui.navEdit=false; save(); applyNavCollapse(); renderSidebar(); var _tg=document.querySelector('.nav-toggle'); if(_tg){ _tg.innerHTML=icon(state.settings.navCollapsed?'collapseR':'collapseL'); _tg.setAttribute('title',state.settings.navCollapsed?'Expand sidebar':'Collapse sidebar'); } return; }
   if(action==='pin-set'){ pinModal('set'); return; }
   if(action==='pin-change'){ pinModal('change'); return; }
   if(action==='pin-remove'){ pinModal('remove'); return; }
@@ -4941,6 +4942,7 @@ document.addEventListener('click',function(e){
   if(action==='dash-reset'){ state.settings.dashOrder=null; state.settings.dashHidden=[]; save(); closeModal(); nav('dashboard'); render(); toast('Dashboard layout reset.'); return; }
   if(action==='close-sidebar'){ byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); document.body.classList.remove('drawer-open'); return; }
   if(action==='toggle-theme'){ toggleTheme(); return; }
+  if(action==='set-theme'){ var _tv=el.getAttribute('data-theme'); state.settings.theme=_tv||''; save(); applyTheme(); render(); return; }
   if(action==='toggle-topbar-actions'){ var ta=byId('topbar-actions'); if(ta){ var op=ta.classList.toggle('open'); el.setAttribute('aria-expanded',op?'true':'false'); } return; }
   if(action==='close-modal'){ closeModal(); return; }
   if(action==='close-modal-overlay'){ if(e.target===el) closeModal(); return; }
@@ -5852,6 +5854,13 @@ function customizationCardHTML(){
     '<button class="swatch'+(!s.accent?' active':'')+'" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)" data-action="set-accent" data-color="" title="Default"></button>'+
     ACCENTS.map(function(c){return '<button class="swatch'+(s.accent===c?' active':'')+'" style="background:'+c+'" data-action="set-accent" data-color="'+c+'"></button>';}).join('')+
     '</div></div>';
+  // theme — same control as the topbar toggle, where users expect to find it
+  html+='<div class="field"><label>Theme</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+
+    [['light','Light'],['dark','Dark'],['','System']].map(function(p){
+      var on=(s.theme||'')===p[0];
+      return '<button type="button" class="btn btn-sm '+(on?'':'btn-ghost')+'" data-action="set-theme" data-theme="'+p[0]+'">'+esc(p[1])+'</button>';
+    }).join('')+'</div>'+
+    '<p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Switch between light and dark, or follow your device.</p></div>';
   // sidebar sections: color + rename
   html+='<div class="field"><label>Sidebar menu — color &amp; name each section</label><div class="sec-edit">'+
     sectionList().map(function(name){
@@ -7801,7 +7810,7 @@ document.addEventListener('keydown',function(e){
    v9 additions: Accounts & Cash — banks, e-wallets, cash box,
    transfers, reconciliation, true cash position
    ============================================================ */
-var ACCOUNT_TYPES=['Bank','E-wallet','Cash','Other'];
+var ACCOUNT_TYPES=['Bank','E-wallet','Cash','Credit card','Other'];
 function findAccount(id){ return (state.accounts||[]).find(function(a){return a.id===id;}); }
 function accountBalance(a){
   var bal=a.opening||0;
