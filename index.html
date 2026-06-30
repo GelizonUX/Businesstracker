@@ -3064,11 +3064,54 @@ function nlParseDate(text, today){
   if(/\byesterday\b/.test(low)){ var yd=new Date(today.getTime()-864e5); return {iso:nlIsoFrom(yd.getFullYear(),yd.getMonth(),yd.getDate()), source:'yesterday'}; }
   m=low.match(/\bin\s+(\d{1,2})\s+days?\b/);
   if(m){ var ti=new Date(today.getTime()+(+m[1])*864e5); return {iso:nlIsoFrom(ti.getFullYear(),ti.getMonth(),ti.getDate()), source:m[0].trim()}; }
+  m=low.match(/\blast\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/);
+  if(m){ var ds=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+    var tg=ds.indexOf(m[1]), cu=today.getDay(), dl=(cu-tg+7)%7; if(dl===0) dl=7;
+    var lp=new Date(today.getTime()-dl*864e5); return {iso:nlIsoFrom(lp.getFullYear(),lp.getMonth(),lp.getDate()), source:m[0].trim()}; }
   m=low.match(/\b(?:next|this|on|by)\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/);
   if(m){ var days=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
     var target=days.indexOf(m[1]), cur=today.getDay(), delta=(target-cur+7)%7; if(delta===0) delta=7;
     var tn=new Date(today.getTime()+delta*864e5); return {iso:nlIsoFrom(tn.getFullYear(),tn.getMonth(),tn.getDate()), source:m[1]}; }
+  m=low.match(/\bin\s+(\d{1,2})\s+weeks?\b/);
+  if(m){ var tw=new Date(today.getTime()+(+m[1])*7*864e5); return {iso:nlIsoFrom(tw.getFullYear(),tw.getMonth(),tw.getDate()), source:m[0].trim()}; }
+  if(/\bnext\s+week\b/.test(low)){ var nw=new Date(today.getTime()+7*864e5); return {iso:nlIsoFrom(nw.getFullYear(),nw.getMonth(),nw.getDate()), source:'next week'}; }
+  if(/\b(?:end\s+of\s+(?:the\s+)?month|month\s*end|eom)\b/.test(low)) return {iso:nlIsoFrom(today.getFullYear(),today.getMonth(),new Date(today.getFullYear(),today.getMonth()+1,0).getDate()), source:'end of month'};
+  if(/\b(?:start|beginning)\s+of\s+(?:the\s+)?month\b/.test(low)) return {iso:nlIsoFrom(today.getFullYear(),today.getMonth(),1), source:'start of month'};
+  if(/\bnext\s+month\b/.test(low)){ var nm=new Date(today.getFullYear(),today.getMonth()+1,Math.min(today.getDate(),new Date(today.getFullYear(),today.getMonth()+2,0).getDate())); return {iso:nlIsoFrom(nm.getFullYear(),nm.getMonth(),nm.getDate()), source:'next month'}; }
   return null;
+}
+/* quantity × unit price → the real total. Only multiplies when the wording means
+   a per-unit price ("3 x 250", "2 @ 1500", "5 boxes at 120 each"); a bare "for"
+   means a total ("3 candles for 900" = 900, not 2700). */
+function nlQtyMul(m){ return Math.round(parseFloat(m[1])*parseFloat(m[2].replace(/,/g,''))*100)/100; }
+function nlQtyMath(text){
+  var s=' '+String(text).toLowerCase()+' ', m;
+  m=s.match(/\b(\d+(?:\.\d+)?)\s*(?:x|×|\*|@)\s*[₱$]?\s*([\d,]+(?:\.\d+)?)\b/);          // 3 x 250, 2 @ 1500
+  if(m) return nlQtyMul(m);
+  m=s.match(/\b(\d+(?:\.\d+)?)\s+[a-z]+\s+at\s+[₱$]?\s*([\d,]+(?:\.\d+)?)\s*(?:each|per|ea|apiece)?\b/); // N units at PRICE [each]
+  if(m) return nlQtyMul(m);
+  m=s.match(/\b(\d+(?:\.\d+)?)\s+[a-z]+\s+(?:for\s+)?[₱$]?\s*([\d,]+(?:\.\d+)?)\s*(?:each|per|ea|apiece)\b/); // N units (for) PRICE each
+  if(m) return nlQtyMul(m);
+  m=s.match(/\b(\d+(?:\.\d+)?)\s+(?:pcs|pieces|units|boxes|items|pax|kg|kilos?)\b[^\d₱$]*[₱$]?\s*([\d,]+(?:\.\d+)?)\s*(?:each|per|ea)\b/);
+  if(m) return nlQtyMul(m);
+  return null;
+}
+/* spelled-out amounts: "two thousand", "five hundred", "fifteen thousand five hundred" */
+var NL_WORDNUM={zero:0,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12,thirteen:13,fourteen:14,fifteen:15,sixteen:16,seventeen:17,eighteen:18,nineteen:19,twenty:20,thirty:30,forty:40,fifty:50,sixty:60,seventy:70,eighty:80,ninety:90};
+function nlWordsToNumber(text){
+  var toks=String(text).toLowerCase().replace(/[,-]/g,' ').split(/\s+/).filter(Boolean);
+  var total=0, cur=0, used=false;
+  for(var i=0;i<toks.length;i++){
+    var w=toks[i];
+    if(NL_WORDNUM[w]!=null){ cur+=NL_WORDNUM[w]; used=true; }
+    else if(w==='hundred'){ cur=(cur||1)*100; used=true; }
+    else if(w==='thousand'){ total+=(cur||1)*1000; cur=0; used=true; }
+    else if(w==='million'){ total+=(cur||1)*1000000; cur=0; used=true; }
+    else if(w==='and'&&used){ /* skip */ }
+    else { if(used) break; } // stop at the first non-number word once we've started
+  }
+  var n=total+cur;
+  return (used&&n>0)?n:null;
 }
 function nlParseAmount(text){
   var s=' '+String(text)+' ', m;
@@ -3079,13 +3122,15 @@ function nlParseAmount(text){
     || s.match(/\b([\d,]+(?:\.\d+)?)\s*(k|m)?\s*(?:₱|\$|php|usd|peso[s]?|dollar[s]?)\b/i)
     || s.match(/\b(?:php|usd)\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\b/i);
   if(m) return nlApplyMult(m[1],m[2]);
+  var qm=nlQtyMath(s); if(qm!=null) return qm; // 3 x 250 → 750
   m=s.match(/\b(?:amount|cost|price|worth|sum|for|at)\s*(?:is|of|was|:|=|to)?\s*[\$₱]?\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\b/i);
   if(m) return nlApplyMult(m[1],m[2]);
   m=s.match(/\b([\d,]+(?:\.\d+)?)\s*(k|m)\b/i);
   if(m) return nlApplyMult(m[1],m[2]);
   var nums=s.match(/\b\d[\d,]*(?:\.\d+)?\b/g), best=null;
   if(nums) nums.forEach(function(x){ var v=nlApplyMult(x,''); if(v!=null&&(best==null||v>best)) best=v; });
-  return best;
+  if(best!=null) return best;
+  return nlWordsToNumber(s); // "two thousand" → 2000
 }
 function nlGrabAfter(text, prep){
   var re=new RegExp('\\b'+prep+'\\s+([^,$₱]+?)(?=,|\\bamount\\b|\\bdue\\b|\\bpayment\\b|\\bworth\\b|\\bfor\\s|\\bon\\s|\\bwith\\b|[\\$₱]|\\s\\d|$)','i');
@@ -3246,6 +3291,35 @@ function nlParse(text, today, learn){
   }
   return out;
 }
+/* split one message into several entries when it clearly lists more than one
+   ("spent 500 on ads and 300 on grab", "5000 rent and 2000 electricity") */
+function nlSplitClauses(text){
+  return String(text).split(/\s*(?:;|\n|\+|&|\band\b|\bthen\b|,)\s*/i).map(function(s){return s.trim();}).filter(Boolean);
+}
+function nlParseMulti(text, today, learn){
+  var whole=nlParse(text, today, learn);
+  if(!whole.intent || whole.intent==='task' || whole.intent==='client') return [whole];
+  var clauses=nlSplitClauses(text);
+  if(clauses.length<2) return [whole];
+  var results=[], dom=whole.intent;
+  clauses.forEach(function(c){
+    if(!/\d/.test(c)) return;            // each separate entry needs its own number
+    var r=nlParse(c, today, learn);
+    if(!r.intent || r.intent==='task' || r.intent==='client'){ r=nlParse(dom+' '+c, today, learn); } // inherit the leading intent
+    if(r.intent && r.intent!=='task' && r.intent!=='client' && r.amount!=null) results.push(r);
+  });
+  return results.length>=2 ? results : [whole];
+}
+/* match a wallet/account by name so "paid 500 from gcash" pre-selects that account */
+function nlMatchAccount(text, accounts){
+  if(!accounts || !accounts.length) return '';
+  var s=' '+String(text).toLowerCase()+' ';
+  for(var i=0;i<accounts.length;i++){
+    var nm=String(accounts[i].name||'').toLowerCase().trim();
+    if(nm && nm.length>=2 && new RegExp('\\b'+nm.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b').test(s)) return accounts[i].id;
+  }
+  return '';
+}
 
 /* ---- assistant view + chat plumbing ---- */
 function assistantExamples(){
@@ -3302,7 +3376,7 @@ function assistantPreviewHTML(m){
       '<div class="field"><label>Note</label><input class="input" name="note" value="'+esc(p.note||'')+'" placeholder="Optional"></div>';
     if(state.accounts && state.accounts.length){
       box+='<div class="field"><label>Account (optional)</label><select class="input" name="account"><option value="">—</option>'+
-        state.accounts.map(function(a){return '<option value="'+esc(a.id)+'">'+esc(a.name)+'</option>';}).join('')+'</select></div>';
+        state.accounts.map(function(a){return '<option value="'+esc(a.id)+'"'+(p.account===a.id?' selected':'')+'>'+esc(a.name)+'</option>';}).join('')+'</select></div>';
     }
   }
   box+='<div class="asst-pv-actions"><button type="button" class="btn btn-primary btn-sm" data-action="assistant-confirm" data-id="'+esc(m.id)+'">'+icon('check',15)+' Log it</button>'+
@@ -3372,14 +3446,19 @@ function assistantSend(){
   state.chat=state.chat||[];
   state.assistant=state.assistant||{terms:{}}; state.assistant.terms=state.assistant.terms||{};
   state.chat.push({id:uid(),role:'user',text:text,ts:Date.now()});
-  var parsed=nlParse(text, new Date(), state.assistant.terms);
-  if(!parsed.intent){
+  var parses=nlParseMulti(text, new Date(), state.assistant.terms);
+  if(!parses.length || (parses.length===1 && !parses[0].intent)){
     state.chat.push({id:uid(),role:'bot',kind:'examples',text:'I couldn’t tell what to log. Try wording it like one of these:',ts:Date.now()});
   } else {
     var leads={invoice:'Here’s a draft invoice — check it and tap Log it.',income:'Looks like income — review and confirm.',expense:'Looks like an expense — review and confirm.',task:'Looks like a task — review and confirm.',client:'Looks like a new client — review and confirm.'};
-    state.chat.push({id:uid(),role:'bot',kind:'preview',parsed:parsed,srcText:text,resolved:false,text:leads[parsed.intent]||'Review and confirm:',ts:Date.now()});
+    if(parses.length>1) state.chat.push({id:uid(),role:'bot',text:'I found '+parses.length+' entries — review and confirm each:',ts:Date.now()});
+    parses.forEach(function(parsed){
+      // pre-select a wallet/account if the wording names one ("from gcash")
+      if((parsed.type==='income'||parsed.type==='expense')) parsed.account=nlMatchAccount(text, state.accounts);
+      state.chat.push({id:uid(),role:'bot',kind:'preview',parsed:parsed,srcText:text,resolved:false,text:(parses.length>1?'':(leads[parsed.intent]||'Review and confirm:')),ts:Date.now()});
+    });
   }
-  if(state.chat.length>60) state.chat=state.chat.slice(-60);
+  if(state.chat.length>80) state.chat=state.chat.slice(-80);
   assistantCommit();
 }
 function assistantConfirm(id){

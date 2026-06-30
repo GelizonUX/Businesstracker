@@ -710,6 +710,33 @@ async function main() {
     window.location.hash = '#/assistant'; window.render();
     ok('bubble hidden on the Assistant page', d.body.classList.contains('route-assistant'));
 
+    // ---------- smarter v2: qty-math, word-numbers, smart dates, account routing, multi-entry ----------
+    ok('quantity math: "3 boxes at 250 each" → 750', window.nlParse('sold 3 boxes at 250 each', T).amount === 750);
+    ok('"3 x 250" → 750', window.nlQtyMath('3 x 250') === 750);
+    ok('"3 candles for 900" stays 900 (total, not multiplied)', window.nlParse('sold 3 candles for 900', T).amount === 900);
+    ok('word-number: "spent two thousand on rent" → 2000', window.nlParse('spent two thousand on rent', T).amount === 2000);
+    ok('smart date: "last friday"', window.nlParseDate('last friday', T).iso === '2026-06-26');
+    ok('smart date: "end of month"', window.nlParseDate('due end of month', T).iso === '2026-06-30');
+    ok('smart date: "in 2 weeks"', window.nlParseDate('in 2 weeks', T).iso === '2026-07-14');
+    // account routing: name a wallet → it pre-selects on the draft
+    window.state.accounts = [{ id: 'wGcash', name: 'GCash', type: 'E-wallet', opening: 0, adjust: [] }, { id: 'wCash', name: 'Cash', type: 'Cash', opening: 0, adjust: [] }];
+    ok('account match: "from gcash" → wallet id', window.nlMatchAccount('paid 500 from gcash', window.state.accounts) === 'wGcash');
+    // multi-entry end-to-end: one message → two drafts → confirm both → two finance entries
+    window.state.chat = []; const beforeMulti = window.state.finance.length;
+    window.location.hash = '#/assistant'; window.render();
+    d.getElementById('asst-input').value = 'spent 500 on facebook ads and 300 on grab today';
+    click(d.querySelector('[data-action="assistant-send"]'));
+    await waitFor(() => window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).length >= 2);
+    ok('one message yields two drafts', window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).length === 2);
+    window.render();
+    { const b = d.querySelectorAll('[data-action="assistant-confirm"]'); click(b[0]); }
+    await waitFor(() => window.state.finance.length === beforeMulti + 1);
+    window.render();
+    { const b = d.querySelectorAll('[data-action="assistant-confirm"]'); click(b[b.length - 1]); }
+    await waitFor(() => window.state.finance.length === beforeMulti + 2);
+    ok('confirming both logs two separate expenses', window.state.finance.length === beforeMulti + 2);
+    (function(){ const last2 = window.state.finance.slice(-2).map(e => e.amount).sort((a,b)=>a-b); ok('the two amounts are 300 and 500', last2[0] === 300 && last2[1] === 500, last2); })();
+
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
   } catch (e) {
