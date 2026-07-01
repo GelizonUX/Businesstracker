@@ -3608,6 +3608,7 @@ function assistantConfirm(id){
 }
 function assistantCancel(id){
   var m=assistantFindMsg(id); if(!m) return;
+  if(m.parsed){ m.parsed.receipt=''; m.parsed.items=null; } // free any attached receipt image
   m.resolved=true; m.ok=false; m.result='Discarded — nothing was saved.';
   assistantCommit();
 }
@@ -3655,6 +3656,7 @@ function assistantScanReceipt(file){
   state.chat=state.chat||[];
   var msgId=uid();
   state.chat.push({id:msgId,role:'bot',kind:'scanning',text:'Reading your receipt…',ts:Date.now()});
+  if(state.chat.length>80) state.chat=state.chat.slice(-80); // keep base64 receipts from piling up
   assistantCommit();
   processUploadFile(file,function(dataURL,name,err){
     if(err){ assistantScanFail(msgId,err); return; }
@@ -5908,7 +5910,7 @@ document.addEventListener('click',function(e){
 
   /* data management */
   if(action==='export-data'){ exportData(); return; }
-  if(action==='enable-autobackup'){ state.settings.autoBackupDays=state.settings.autoBackupDays||7; state.settings.backupSnooze=null; save(); render(); toast('Auto-backup on — a backup will download every '+state.settings.autoBackupDays+' days when you open the app. You can still export anytime.'); return; }
+  if(action==='enable-autobackup'){ state.settings.autoBackupDays=state.settings.autoBackupDays||7; state.settings.backupSnooze=null; exportData(); toast('Auto-backup on — I’ll back up every '+state.settings.autoBackupDays+' days when you open the app.'); return; }
   if(action==='snooze-backup'){ state.settings.backupSnooze=todayISO(); save(); render(); toast('Reminder snoozed. Tip: turn on auto-backup so you never have to think about it.'); return; }
   if(action==='import-data'){ byId('import-file').click(); return; }
   if(action==='csv-import'){ byId('csv-file').click(); return; }
