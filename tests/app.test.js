@@ -748,6 +748,61 @@ async function main() {
     // DST-safety: the date math must not drift across a transition (uses calendar days, not ms)
     ok('"in 2 weeks" is exactly 14 calendar days out', (function(){ var base=new Date(2026,9,19,0,30,0); var d=window.nlParseDate('in 2 weeks', base); var exp=new Date(2026,10,2); return d.iso === (exp.getFullYear()+'-'+String(exp.getMonth()+1).padStart(2,'0')+'-'+String(exp.getDate()).padStart(2,'0')); })());
 
+    // ================= new features: onboarding wizard, receipt scan, dashboard, backup =================
+
+    // ---- first-run section picker (choose which modules show in the sidebar) ----
+    (function(){ const picker = window.wizardSectionPickerHTML();
+      ok('setup wizard offers a section picker', picker.indexOf('Which sections do you want') > -1 && /data-mod="invoices"/.test(picker) && /data-mod="products"/.test(picker));
+      ok('essentials are not in the picker (always shown)', picker.indexOf('data-mod="dashboard"') < 0 && picker.indexOf('data-mod="settings"') < 0);
+    })();
+    window.state.settings.hiddenModules = ['products','orders','roadmap'];
+    (function(){ const ids = window.visibleRoutes().map(r => r.id);
+      ok('chosen-hidden modules leave the sidebar', ids.indexOf('products') < 0 && ids.indexOf('orders') < 0 && ids.indexOf('dashboard') >= 0 && ids.indexOf('finance') >= 0); })();
+    window.state.settings.hiddenModules = [];
+
+    // ---- dashboard: a fresh/sparse dashboard shows only populated cards ----
+    window.state.finance = []; window.state.goals = []; window.state.tasks = []; window.state.invoices = [];
+    window.state.clients = []; window.state.products = []; window.state.orders = []; window.state.notes = [];
+    window.state.roadmaps = []; window.state.phases = [];
+    window.state.settings.dashHidden = []; window.state.settings.dashOrder = null;
+    window.location.hash = '#/dashboard'; window.render();
+    (function(){ const wids = [].map.call(d.querySelectorAll('.dash-widget'), w => w.getAttribute('data-widget'));
+      ok('fresh dashboard shows only KPI tiles, no empty placeholders', wids.length > 0 && wids.every(id => ['rev','exp','prof','margin'].indexOf(id) >= 0), wids); })();
+
+    // ---- receipt scan: parser + draft + attach button + end-to-end (stubbed OCR) ----
+    (function(){ const items = window.parseReceiptItems('SUPER MART\nMILK 2 @ 55  110.00\nBREAD  45.00\nEGGS x12  84.00\nSUBTOTAL 239.00\nTOTAL  239.00\nCASH 300.00');
+      ok('receipt line items are extracted (name/qty/total)', items.length >= 3 && items.some(i => /milk/i.test(i.name) && i.qty === 2), items); })();
+    (function(){ const dr = window.buildReceiptDraft('GROCERY MART\nRICE  250.00\nOIL  120.00\nTOTAL  370.00\n02/03/2026', 'data:image/jpeg;base64,AAAA');
+      ok('receipt → expense draft (total, date, image)', dr.intent === 'expense' && dr.amount === 370 && dr.date === '2026-02-03' && dr.receipt.indexOf('data:') === 0 && dr.items.length === 2, {a:dr.amount,d:dr.date,n:dr.items.length}); })();
+    window.location.hash = '#/assistant'; window.render();
+    ok('assistant input row has a receipt-attach button', !!d.querySelector('[data-action="assistant-attach"]'));
+    // end-to-end: stub OCR, run the scan pipeline, confirm it logs an expense with the receipt
+    window.loadTesseract = function(){ return Promise.resolve({ recognize: function(){ return Promise.resolve({ data: { text: 'GROCERY MART\nRICE 5kg  250.00\nOIL 1L  120.00\nTOTAL  370.00\n02/03/2026' } }); } }); };
+    window.state.chat = [{ id: 'rc1', role: 'bot', kind: 'scanning', text: 'Reading…', ts: 1 }];
+    window.assistantRunReceiptOcr('rc1', 'data:image/jpeg;base64,ZZZ');
+    await waitFor(() => window.state.chat.some(m => m.id === 'rc1' && m.kind === 'preview'));
+    (function(){ const m = window.state.chat.filter(x => x.id === 'rc1')[0];
+      ok('scan turns into an expense draft (total 370)', m.kind === 'preview' && m.parsed.intent === 'expense' && m.parsed.amount === 370 && !!m.parsed.receipt); })();
+    window.location.hash = '#/assistant'; window.render();
+    const beforeRcp = window.state.finance.length;
+    click(d.getElementById('apv-rc1').querySelector('[data-action="assistant-confirm"]'));
+    await waitFor(() => window.state.finance.length === beforeRcp + 1);
+    (function(){ const e = window.state.finance[window.state.finance.length-1];
+      ok('confirming a scanned receipt logs an expense with the image', e.type === 'expense' && e.amount === 370 && e.receipt.indexOf('data:') === 0); })();
+
+    // ---- backup safety system ----
+    window.state.finance = Array.from({length:6}, (_,i) => ({ id:'bk'+i, type:'expense', amount:100, date:'2026-01-01', category:'Other expense' }));
+    window.state.settings.lastBackup = null; window.state.settings.sync = { enabled:false, lastSync:null }; window.state.settings.backupSnooze = null;
+    ok('dataAtRisk() is true with records and no backup/sync', window.dataAtRisk() === true);
+    window.location.hash = '#/dashboard'; window.render();
+    ok('safety banner shows on the dashboard when at risk', !!d.querySelector('.backup-banner'));
+    click(d.querySelector('[data-action="snooze-backup"]'));
+    ok('snoozing hides the banner', !d.querySelector('.backup-banner') && !!window.state.settings.backupSnooze);
+    window.state.settings.backupSnooze = null; window.state.settings.lastBackup = window.todayISO(); window.render();
+    ok('a fresh backup clears the risk (no banner)', window.dataAtRisk() === false && !d.querySelector('.backup-banner'));
+    (function(){ window.state.settings.lastBackup = null; window.state.settings.sync = { enabled:true, lastSync: window.todayISO()+'T00:00:00' };
+      ok('active cloud sync also clears the risk', window.dataAtRisk() === false); })();
+
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
   } catch (e) {
