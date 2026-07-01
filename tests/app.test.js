@@ -774,6 +774,15 @@ async function main() {
       ok('receipt line items are extracted (name/qty/total)', items.length >= 3 && items.some(i => /milk/i.test(i.name) && i.qty === 2), items); })();
     (function(){ const dr = window.buildReceiptDraft('GROCERY MART\nRICE  250.00\nOIL  120.00\nTOTAL  370.00\n02/03/2026', 'data:image/jpeg;base64,AAAA');
       ok('receipt → expense draft (total, date, image)', dr.intent === 'expense' && dr.amount === 370 && dr.date === '2026-02-03' && dr.receipt.indexOf('data:') === 0 && dr.items.length === 2, {a:dr.amount,d:dr.date,n:dr.items.length}); })();
+    // items-only receipt (no printed TOTAL) must SUM the items, not take the largest one
+    (function(){ const dr = window.buildReceiptDraft('SARI-SARI STORE\nCoke  20.00\nLucky Me x3  39.00\nLoad card  30.00\nCandle wax  320.00', '');
+      ok('items-only receipt sums the items (not the largest)', dr.amount === 409, dr.amount); })();
+    // a printed total stays authoritative (includes tax) even if item sum differs
+    (function(){ const dr = window.buildReceiptDraft('RESTO\nSiopao  60.00\nCoffee  50.00\nService Charge 11.00\nVAT 13.20\nTOTAL  134.20', '');
+      ok('printed TOTAL wins over item sum', dr.amount === 134.20, dr.amount);
+      ok('VAT / service charge are not listed as items', !dr.items.some(i => /vat|service/i.test(i.name)), dr.items.map(i=>i.name)); })();
+    (function(){ const items = window.parseReceiptItems('Ministop\nSiopao  35.00\nCoffee  45.00\nVATable Sales  71.43\nTOTAL  80.00');
+      ok('"VATable Sales" is excluded from line items', !items.some(i => /vatable/i.test(i.name)), items.map(i=>i.name)); })();
     window.location.hash = '#/assistant'; window.render();
     ok('assistant input row has a receipt-attach button', !!d.querySelector('[data-action="assistant-attach"]'));
     // end-to-end: stub OCR, run the scan pipeline, confirm it logs an expense with the receipt

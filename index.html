@@ -3618,7 +3618,7 @@ function parseReceiptItems(text){
   var lines=(text||'').split('\n').map(function(s){return s.trim();}).filter(Boolean), items=[];
   lines.forEach(function(line){
     if(!/[a-z]/i.test(line)) return; // needs a product name
-    if(/sub\s*total|grand\s*total|\btotal\b|\bvat\b|\btax\b|change|cash\b|tender|amount\s*due|balance|receipt|invoice|\btin\b|cashier|official|thank|discount/i.test(line)) return;
+    if(/sub\s*total|grand\s*total|\btotal\b|\bvat\b|vat[- ]?able|vat[- ]?exempt|zero[- ]?rated|\btax\b|change|cash\b|tender|amount\s*due|balance|receipt|invoice|\btin\b|cashier|official|thank|discount|service\s*charge|gratuity|\btip\b|rounding|points?\b|loyalty|senior|pwd/i.test(line)) return;
     var pm=line.match(/(\d{1,3}(?:[.,]\d{3})*[.,]\d{2}|\d+[.,]\d{2})\s*[A-Za-z*]{0,3}\s*$/); // trailing money (opt. tax flag)
     if(!pm) return;
     var lineTotal=nlRcNum(pm[1]);
@@ -3637,8 +3637,12 @@ function parseReceiptItems(text){
 /* build an expense draft from OCR text (+ the image) — pure, unit-tested */
 function buildReceiptDraft(ocrText, dataURL){
   var base=parseReceiptText(ocrText||''), items=parseReceiptItems(ocrText||'');
-  var sum=items.reduce(function(a,it){ return a+(it.total||0); },0);
-  var amount=base.amount!=null?base.amount:(sum>0?Math.round(sum*100)/100:null);
+  var sum=Math.round(items.reduce(function(a,it){ return a+(it.total||0); },0)*100)/100;
+  // a printed total is authoritative (it includes tax); without one, sum the line
+  // items rather than trust the largest single number parseReceiptText fell back to
+  var hasTotal=/(grand\s*total|total\s*amount|amount\s*due|\btotal\b)/i.test(ocrText||'');
+  var amount = hasTotal ? (base.amount!=null?base.amount:(sum>0?sum:null))
+                        : (sum>0?sum:base.amount);
   var noteBits=[];
   if(base.merchant) noteBits.push(base.merchant);
   if(items.length) noteBits.push(items.map(function(it){ return it.name+(it.qty>1?' ×'+it.qty:''); }).join(', '));
