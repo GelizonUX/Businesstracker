@@ -819,6 +819,38 @@ async function main() {
     (function(){ window.state.settings.lastBackup = null; window.state.settings.sync = { enabled:true, lastSync: window.todayISO()+'T00:00:00' };
       ok('active cloud sync also clears the risk', window.dataAtRisk() === false); })();
 
+    // ---------- island top navigation (desktop shell) ----------
+    window.location.hash = '#/dashboard'; window.render();
+    const isl = d.getElementById('island-bar');
+    ok('island bar renders brand + menu + utility cluster', !!isl && !!isl.querySelector('.isl-brand') && !!isl.querySelector('.island') && !!isl.querySelector('.isl-right'));
+    ok('dashboard is a standalone active pill', (function(){ var b=isl.querySelector('.isl-item.active'); return !!b && /Dashboard/.test(b.textContent); })());
+    ok('sections render as dropdown groups', isl.querySelectorAll('.isl-group').length >= 4);
+    ok('a dropdown lists its section routes', (function(){ var g=isl.querySelector('.isl-group[data-isl-sec="Money"]'); return !!g && g.querySelectorAll('.isl-drop [data-action="nav"]').length >= 5; })());
+    (function(){
+      var g=isl.querySelector('.isl-group[data-isl-sec="Money"]'), t=g.querySelector('[data-action="isl-toggle"]');
+      click(t);
+      ok('clicking a menu opens its dropdown (aria-expanded true)', g.classList.contains('open') && t.getAttribute('aria-expanded')==='true');
+      var g2=isl.querySelector('.isl-group[data-isl-sec="Shop"]'), t2=g2.querySelector('[data-action="isl-toggle"]');
+      click(t2);
+      ok('opening another menu closes the first (single-open discipline)', g2.classList.contains('open') && !g.classList.contains('open'));
+      click(d.getElementById('main'));
+      ok('outside click closes all island dropdowns', !isl.querySelector('.isl-group.open'));
+    })();
+    window.state.settings.hiddenModules = ['utang']; window.render();
+    ok('hidden modules stay out of the island', !d.getElementById('island-bar').querySelector('[data-route="utang"]'));
+    window.state.settings.hiddenModules = [];
+    window.state.customModules = [{id:'cmx1', name:'Suppliers', icon:'box', fields:[], records:[]}]; window.render();
+    ok('custom modules appear in a My Modules island group', (function(){ var g=d.getElementById('island-bar').querySelector('.isl-group[data-isl-sec="My Modules"]'); return !!g && !!g.querySelector('[data-route="custom-cmx1"]'); })());
+    window.state.customModules = []; window.render();
+    (function(){
+      var isl2=d.getElementById('island-bar');
+      var g=isl2.querySelector('.isl-group[data-isl-sec="Money"]'); click(g.querySelector('[data-action="isl-toggle"]'));
+      click(g.querySelector('[data-route="finance"]'));
+      ok('navigating from a dropdown closes it and routes', window.location.hash === '#/finance');
+    })();
+    ok('desktop CSS swaps sidebar for the island (min-width:861px)', /@media \(min-width:861px\)\{[\s\S]{0,400}\.sidebar\{display:none\}/.test(html) && /\.island-bar\{position:fixed/.test(html));
+    ok('design language untouched: paper canvas + Ledger radii intact', /--bg:#f3f3ef/.test(html) && /--r-sm:8px; --r:11px; --r-lg:14px; --r-xl:18px;/.test(html));
+
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
   } catch (e) {
