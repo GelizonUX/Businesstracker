@@ -66,7 +66,7 @@
 
   --income:#0c7d5c; --expense:#cd352d;
 
-  --r-sm:8px; --r:11px; --r-lg:14px; --r-xl:18px;
+  --r-sm:8px; --r:11px; --r-lg:16px; --r-xl:22px;
   /* type scale — one set of steps for value/heading/body roles (snap new CSS to these) */
   --fs-xs:.72rem; --fs-sm:.82rem; --fs-md:.92rem; --fs-base:1rem; --fs-lg:1.12rem; --fs-xl:1.3rem; --fs-2xl:1.72rem; --fs-3xl:2.1rem;
   --grid-gap:14px; /* one consistent gutter for the card grids */
@@ -151,6 +151,47 @@ a{color:var(--accent);text-decoration:none}
 ::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:8px;border:2px solid transparent;background-clip:content-box}
 ::-webkit-scrollbar-thumb:hover{background:var(--text-3);border:2px solid transparent;background-clip:content-box}
 
+/* ============================================================
+   island top navigation (desktop) — the floating command bar.
+   Three detached islands: brand · menu pill · utility cluster.
+   Each menu item opens a dropdown; the active section is an
+   ink-filled pill. Hidden ≤860px where the drawer + tab bar live.
+   ============================================================ */
+.island-bar{position:fixed;top:0;left:0;right:0;z-index:70;display:none;align-items:center;gap:14px;
+  padding:14px 22px 10px;pointer-events:none}
+.island-bar>*{pointer-events:auto}
+.isl-brand{display:flex;align-items:center;gap:9px;background:var(--bg-card);border:1px solid var(--border);
+  border-radius:999px;padding:7px 16px 7px 8px;box-shadow:var(--shadow-sm);cursor:pointer;flex-shrink:0}
+.isl-brand .brand-logo{width:28px;height:28px;border-radius:999px}
+.isl-brand b{font-family:var(--font-display);font-size:.95rem;letter-spacing:-.015em;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.island{display:flex;align-items:center;gap:2px;background:var(--bg-card);border:1px solid var(--border);
+  border-radius:999px;padding:5px;box-shadow:var(--shadow-sm);margin:0 auto;max-width:calc(100vw - 420px);overflow-x:auto;scrollbar-width:none}
+.island::-webkit-scrollbar{display:none}
+.isl-group{position:relative}
+.isl-item{display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:999px;font-size:.88rem;font-weight:600;
+  color:var(--text-2);white-space:nowrap;transition:background .15s,color .15s;cursor:pointer}
+.isl-item:hover{background:var(--bg-sunken);color:var(--text)}
+.isl-item.active{background:var(--text);color:var(--bg-card)}
+.isl-item .isl-chev{display:inline-flex;transition:transform .18s var(--ease);opacity:.6}
+.isl-item .isl-chev svg{width:11px;height:11px}
+.isl-group.open .isl-chev{transform:rotate(180deg)}
+.isl-drop{position:absolute;top:calc(100% + 10px);left:50%;transform:translateX(-50%);min-width:224px;
+  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-lg);
+  padding:6px;display:none;z-index:75}
+.isl-group.open .isl-drop{display:block;animation:fadeUp .16s var(--ease)}
+.isl-drop button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 12px;border-radius:10px;
+  font-size:.88rem;font-weight:500;color:var(--text-2);transition:background .12s,color .12s}
+.isl-drop button:hover{background:var(--bg-sunken);color:var(--text)}
+.isl-drop button.active{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.isl-drop button svg{width:15px;height:15px;opacity:.8;flex-shrink:0}
+.isl-drop .isl-badge{margin-left:auto;background:var(--risk);color:#fff;font-size:.62rem;font-weight:700;padding:1px 7px;border-radius:99px}
+.isl-right{display:flex;align-items:center;gap:6px;background:var(--bg-card);border:1px solid var(--border);
+  border-radius:999px;padding:5px;box-shadow:var(--shadow-sm);flex-shrink:0}
+.isl-icon{width:34px;height:34px;border-radius:999px;display:grid;place-items:center;color:var(--text-2);transition:background .15s,color .15s}
+.isl-icon:hover{background:var(--bg-sunken);color:var(--text)}
+.isl-icon svg{width:16px;height:16px}
+.isl-avatar{width:34px;height:34px;border-radius:999px;background:var(--accent-cta);color:var(--accent-cta-ink);
+  display:grid;place-items:center;font-weight:700;font-size:.82rem;cursor:pointer}
 /* ============================================================
    layout: sidebar + main
    ============================================================ */
@@ -715,7 +756,9 @@ details.calc .calc-body{margin-top:10px}
 /* depth & polish */
 /* ambient colour mesh — subtle, fixed so the frosted glass surfaces have something to refract
    (a flat background makes backdrop-blur look like a dull grey panel instead of real glass) */
-/* canvas stays a clean, calm paper surface — data provides the colour */
+/* canvas: calm paper with a whisper of warm light at the top (no mesh) */
+body{background-image:linear-gradient(180deg,rgba(70,83,232,.035),transparent 340px)}
+html[data-theme="dark"] body{background-image:linear-gradient(180deg,rgba(138,146,255,.05),transparent 340px)}
 .stat-icon{width:29px;height:29px;border-radius:9px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);flex-shrink:0}
 .stat-icon svg{width:16px;height:16px}
 .stat-card .stat-value{margin-top:10px}
@@ -1451,10 +1494,20 @@ body.greeting-on{overflow:hidden}
   .advisor-bubble{padding:8px 12px 8px 8px}.ab-text{font-size:.8rem}
   .onb-dots{gap:12px}.onb-dot{width:10px;height:10px}.onb-dot.on{width:26px}
 }
+@media (min-width:861px){
+  .island-bar{display:flex}
+  .sidebar{display:none}
+  .main{margin-left:0;padding:76px 30px 60px}
+  .hamburger,.nav-toggle{display:none!important}
+  /* island owns global search/theme on desktop — the per-view copies retire */
+  .topbar .theme-toggle{display:none}
+  .page-title h1{font-size:var(--fs-3xl)}
+}
 </style>
 </head>
 <body>
 <div class="app" id="app">
+  <header class="island-bar" id="island-bar"></header>
   <div class="scrim" id="scrim" data-action="close-sidebar"></div>
   <aside class="sidebar" id="sidebar"></aside>
   <main class="main" id="main"></main>
@@ -2066,7 +2119,7 @@ document.addEventListener('keydown',function(e){
 });
 /* assistant: Enter sends, Shift+Enter makes a new line; Esc closes the popover */
 document.addEventListener('keydown',function(e){
-  if(e.key==='Escape'){ var ap=byId('asst-pop'); if(ap&&ap.classList.contains('open')){ assistantClosePop(); return; } }
+  if(e.key==='Escape'){ islandCloseAll(); var ap=byId('asst-pop'); if(ap&&ap.classList.contains('open')){ assistantClosePop(); return; } }
   if(e.key!=='Enter'||e.shiftKey) return;
   if(e.target&&(e.target.id==='asst-input'||e.target.id==='asst-pop-input')){ e.preventDefault(); if(typeof assistantSend==='function') assistantSend(); }
 });
@@ -2559,6 +2612,7 @@ var ui={
 var lastRenderRoute=null;
 function render(){
   renderSidebar();
+  renderIsland();
   var route=currentRoute();
   var main=byId('main');
   var views={
@@ -2771,6 +2825,57 @@ function renderSidebar(){
   if(typeof enhanceA11y==='function') enhanceA11y(sb);
 }
 
+function islandSections(){
+  var route=currentRoute();
+  var vis=visibleRoutes().filter(function(r){ return r.id!=='dashboard'&&r.section!=='System'; });
+  var sections=[];
+  vis.forEach(function(r){
+    var sc=sections[sections.length-1];
+    if(!sc||sc.name!==r.section){ sc={name:r.section,items:[]}; sections.push(sc); }
+    sc.items.push(r);
+  });
+  var secOrder=state.settings.sectionOrder||[];
+  if(secOrder.length) sections.sort(function(a,b){ var ia=secOrder.indexOf(a.name), ib=secOrder.indexOf(b.name); return (ia<0?999:ia)-(ib<0?999:ib); });
+  if((state.customModules||[]).length){
+    sections.push({name:'My Modules',items:(state.customModules||[]).map(function(m){ return {id:'custom-'+m.id,label:m.name,icon:m.icon||'notes',section:'My Modules'}; })});
+  }
+  return sections;
+}
+function renderIsland(){
+  var bar=byId('island-bar'); if(!bar) return;
+  var route=currentRoute();
+  var openTasks=state.tasks.filter(function(t){ var d=daysUntil(t.deadline); return !t.done&&d!=null&&d<0; }).length;
+  var bl=state.settings.bizLogo;
+  var html='<div class="isl-brand" data-action="nav" data-route="dashboard" role="button" tabindex="0" title="'+esc(state.settings.businessName||'Trakora')+'">'+
+    (bl?'<img src="'+esc(bl)+'" alt="" style="width:28px;height:28px;border-radius:999px;object-fit:cover">':'<div class="brand-logo">'+icon('logo')+'</div>')+
+    '<b>'+esc(state.settings.businessName||'Trakora')+'</b></div>';
+  html+='<nav class="island" aria-label="Primary">';
+  html+='<button class="isl-item'+(route==='dashboard'?' active':'')+'" data-action="nav" data-route="dashboard">'+esc(tr((state.settings.moduleLabels||{}).dashboard||'Dashboard'))+'</button>';
+  islandSections().forEach(function(sec){
+    var hasActive=sec.items.some(function(r){ return r.id===route; });
+    html+='<div class="isl-group" data-isl-sec="'+esc(sec.name)+'">'+
+      '<button class="isl-item'+(hasActive?' active':'')+'" data-action="isl-toggle" aria-haspopup="true" aria-expanded="false">'+esc(tr(sectionLabelOf(sec.name)))+
+        '<span class="isl-chev">'+icon('down-chev')+'</span></button>'+
+      '<div class="isl-drop" role="menu">'+sec.items.map(function(r){
+        var lbl=(state.settings.moduleLabels||{})[r.id]||r.label;
+        return '<button role="menuitem" class="'+(route===r.id?'active':'')+'" data-action="nav" data-route="'+esc(r.id)+'">'+icon(r.icon)+esc(tr(lbl))+
+          (r.id==='tasks'&&openTasks>0?'<span class="isl-badge">'+openTasks+'</span>':'')+'</button>';
+      }).join('')+'</div></div>';
+  });
+  html+='</nav>';
+  var initial=esc((state.settings.businessName||'T').trim().charAt(0).toUpperCase());
+  html+='<div class="isl-right">'+
+    '<button class="isl-icon" data-action="open-palette" aria-label="Search everything (Ctrl+K)" title="Search (Ctrl+K)">'+icon('search')+'</button>'+
+    '<button class="isl-icon" data-action="toggle-theme" aria-label="Toggle theme">'+icon(document.documentElement.getAttribute('data-theme')==='dark'?'sun':'moon')+'</button>'+
+    '<button class="isl-icon'+(route==='settings'?' active':'')+'" data-action="nav" data-route="settings" aria-label="Settings">'+icon('settings')+'</button>'+
+    '<span class="isl-avatar" data-action="nav" data-route="settings" role="button" tabindex="0" title="'+esc(state.settings.businessName||'Trakora')+'">'+initial+'</span>'+
+    '</div>';
+  bar.innerHTML=html;
+}
+function islandCloseAll(){
+  var bar=byId('island-bar'); if(!bar) return;
+  bar.querySelectorAll('.isl-group.open').forEach(function(g){ g.classList.remove('open'); var b=g.querySelector('[aria-expanded]'); if(b) b.setAttribute('aria-expanded','false'); });
+}
 function topbar(title,subtitle,actionsHTML){
   return '<div class="topbar">'+
     '<button class="hamburger" data-action="open-sidebar" aria-label="Menu">'+icon('menu')+'</button>'+
@@ -2854,7 +2959,8 @@ function backupSafetyBannerHTML(){
 function viewDashboard(){
   var t=financeTotals();
   var hasData=state.finance.length>0;
-  var html=topbar('Dashboard','Hello! Here is how '+(state.settings.businessName||'your business')+' is doing today.',
+  var _gt=greetingTime(), _who=(state.settings.displayName||'').trim();
+  var html=topbar(_who?(_gt.label+', '+_who):'Dashboard','Hello! Here is how '+(state.settings.businessName||'your business')+' is doing today.',
     '<button class="btn btn-ghost" data-action="dash-customize" title="Show, hide & reorder cards">'+icon('palette')+'<span class="btn-txt">Customize</span></button>'+
     '<button class="btn btn-primary" data-action="open-entry-modal">'+icon('plus')+'<span class="btn-txt">Add entry</span></button>');
   html+=backupSafetyBannerHTML();
@@ -5689,6 +5795,8 @@ function toggleTheme(){
 function findEntry(id){ return state.finance.find(function(x){return x.id===id;}); }
 
 document.addEventListener('click',function(e){
+  // island dropdowns close on any outside click
+  if(!e.target.closest('.isl-group')) islandCloseAll();
   // close the floating quick-log popover when clicking outside it (and not the bubble)
   var _pop=byId('asst-pop');
   if(_pop&&_pop.classList.contains('open')&&!e.target.closest('#asst-pop')&&!e.target.closest('#chat-bubble')) assistantClosePop();
@@ -5698,7 +5806,14 @@ document.addEventListener('click',function(e){
   var id=el.getAttribute('data-id');
 
   /* navigation & shell */
-  if(action==='nav'){ nav(el.getAttribute('data-route')); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); document.body.classList.remove('drawer-open'); return; }
+  if(action==='nav'){ nav(el.getAttribute('data-route')); islandCloseAll(); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); document.body.classList.remove('drawer-open'); return; }
+  if(action==='isl-toggle'){
+    var grp=el.closest('.isl-group'); if(!grp) return;
+    var was=grp.classList.contains('open');
+    islandCloseAll();
+    if(!was){ grp.classList.add('open'); el.setAttribute('aria-expanded','true'); }
+    return;
+  }
   if(action==='fav-toggle'){ e.stopPropagation(); var fid=el.getAttribute('data-route'); var f=state.settings.favorites=state.settings.favorites||[]; var ix=f.indexOf(fid); if(ix>=0){ f.splice(ix,1); toast('Removed from Favorites.'); } else { f.push(fid); toast('Pinned to Favorites ★'); } save(); renderSidebar(); return; }
   if(action==='sec-move'){ var sn=el.getAttribute('data-sec'), dir=el.getAttribute('data-dir')==='up'?-1:1; moveSidebarSection(sn,dir); return; }
   if(action==='nav-edit-toggle'){ ui.navEdit=!ui.navEdit; renderSidebar(); return; }
