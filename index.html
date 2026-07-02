@@ -721,7 +721,7 @@ details.calc .calc-body{margin-top:10px}
 .stat-card .stat-value{margin-top:10px}
 /* .card hover unified above */
 /* account cards are FILLED with the user's chosen colour (soft tint), not striped */
-.acct-card{position:relative;overflow:hidden;background:var(--bg-card);border-left:3px solid var(--acct-color,var(--border-2))}
+.acct-card{position:relative;overflow:hidden;background:var(--bg-card)}
 .acct-logo{width:34px;height:34px;border-radius:9px;object-fit:cover;border:1px solid var(--border);cursor:zoom-in}
 .acct-chip{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex-shrink:0}
 .acct-chip svg{width:16px;height:16px}
@@ -2459,6 +2459,30 @@ function safeColor(c,fb){
   c=String(c==null?'':c).trim();
   return /^(#[0-9a-fA-F]{3,8}|[a-zA-Z]{1,20}|rgba?\([0-9.,%\s/]+\)|hsla?\([0-9.,%\s/]+\))$/.test(c)?c:(fb||'#4653e8');
 }
+/* designer's colour discipline: user-picked colours never hit the UI raw.
+   Saturation is capped and lightness pinned per theme, so a pure red reads
+   as muted brick and a pure blue as slate — decorative accents stay in the
+   palette's register. (Sanitises via safeColor first.) */
+function tameColor(c,fb){
+  c=safeColor(c,fb||'#4653e8');
+  var m=/^#([0-9a-f]{6})$/i.exec(c); if(!m){ var m3=/^#([0-9a-f]{3})$/i.exec(c); if(!m3) return c; m=[0,m3[1].replace(/(.)/g,'$1$1')]; }
+  var n=parseInt(m[1],16), r=(n>>16&255)/255, g=(n>>8&255)/255, b=(n&255)/255;
+  var mx=Math.max(r,g,b), mn=Math.min(r,g,b), l=(mx+mn)/2, d=mx-mn;
+  var sat=d===0?0:d/(1-Math.abs(2*l-1));
+  var h=0;
+  if(d!==0){
+    if(mx===r) h=((g-b)/d)%6; else if(mx===g) h=(b-r)/d+2; else h=(r-g)/d+4;
+    h*=60; if(h<0) h+=360;
+  }
+  sat=Math.min(sat,.52);
+  var dark=document.documentElement.getAttribute('data-theme')==='dark';
+  l=dark?Math.max(.58,Math.min(.7,l)):Math.max(.34,Math.min(.46,l));
+  var c1=(1-Math.abs(2*l-1))*sat, x=c1*(1-Math.abs((h/60)%2-1)), mm=l-c1/2, rr,gg,bb;
+  if(h<60){rr=c1;gg=x;bb=0}else if(h<120){rr=x;gg=c1;bb=0}else if(h<180){rr=0;gg=c1;bb=x}
+  else if(h<240){rr=0;gg=x;bb=c1}else if(h<300){rr=x;gg=0;bb=c1}else{rr=c1;gg=0;bb=x}
+  var hex=function(v){ v=Math.round((v+mm)*255); return ('0'+v.toString(16)).slice(-2); };
+  return '#'+hex(rr)+hex(gg)+hex(bb);
+}
 function sectionColorOf(name){
   var o=(state.settings&&state.settings.sectionColors)||{};
   return safeColor(o[name]||SECTION_COLORS[name],'#4653e8');
@@ -4149,7 +4173,7 @@ function viewRoadmap(){
   if(rms.length){
     html+='<div class="chips" style="margin-bottom:16px">'+rms.map(function(r){
       var rs=roadmapStats(r);
-      var rc=safeColor(r.color||sectionColorOf('Execution'),'#7c5cd6');
+      var rc=tameColor(r.color||sectionColorOf('Execution'),'#7c5cd6');
       return '<button class="chip rm-chip '+(rm&&rm.id===r.id?'active':'')+'" data-action="roadmap-switch" data-id="'+r.id+'" style="--rc:'+rc+'"><span class="chip-dot" style="background:'+rc+'"></span>'+esc(r.name)+' · '+fmtPct(rs.pct,0)+'</button>';
     }).join('')+
     (rm?'<button class="chip" data-action="roadmap-rename" data-id="'+rm.id+'" title="Edit name & color">'+icon('edit',11)+'</button>'+
@@ -4403,7 +4427,7 @@ function viewManpower(){
   }
   html+='<div class="hr-grid mt">';
   emps.slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'');}).forEach(function(e){
-    var col=safeColor(e.colorTag||'#4653e8'), bal=hrValeBalance(e.id), on=(e.status||'Active')==='Active';
+    var col=tameColor(e.colorTag||'#4653e8'), bal=hrValeBalance(e.id), on=(e.status||'Active')==='Active';
     var av=e.photo?'<img class="hr-emp-photo" src="'+esc(e.photo)+'" alt="">':'<span class="hr-emp-initial" style="background:'+hexA(col,.18)+';color:'+col+'">'+esc((e.name||'?').charAt(0).toUpperCase())+'</span>';
     html+='<button class="hr-emp-card" data-action="hr-view" data-id="'+e.id+'">'+
       '<span class="hr-emp-status '+(on?'on':'off')+'">'+(on?'Active':'Inactive')+'</span>'+av+
@@ -4467,7 +4491,7 @@ function employeeModal(emp){
 }
 function employeeDetail(emp){
   if(!emp) return;
-  var col=safeColor(emp.colorTag||'#4653e8'), bal=hrValeBalance(emp.id);
+  var col=tameColor(emp.colorTag||'#4653e8'), bal=hrValeBalance(emp.id);
   var advs=(state.hrAdvances||[]).filter(function(a){return a.employeeId===emp.id;}).slice().reverse();
   var pays=(state.hrPayouts||[]).filter(function(p){return p.employeeId===emp.id;}).slice().reverse();
   var dHead=emp.photo?'<img class="hr-detail-photo" src="'+esc(emp.photo)+'" alt="">':'<span class="hr-avatar" style="width:44px;height:44px;border-radius:50%;font-size:1.05rem;background:'+hexA(col,.18)+';color:'+col+'">'+esc((emp.name||'?').charAt(0).toUpperCase())+'</span>';
@@ -8644,13 +8668,15 @@ function viewAccounts(){
   accts.forEach(function(a){
     var bal=accountBalance(a);
     var flow=accountMonthFlow(a,mk);
-    var col=safeColor(a.color||brandColorFor(a.name));
-    html+='<div class="card acct-card" style="--acct-color:'+col+';--acct-fill:'+hexA(col,.10)+';--acct-glow:'+hexA(col,.22)+'">'+
+    var col=tameColor(a.color||brandColorFor(a.name));
+    html+='<div class="card acct-card">'+
       '<div style="display:flex;align-items:flex-start;gap:8px">'+
       (a.logo?'<img class="acct-logo" src="'+esc(a.logo)+'" alt="">':'<span class="acct-chip" style="background:'+col+'22;color:'+col+'">'+icon(a.type==='Cash'?'cash':'bank')+'</span>')+
       '<div style="flex:1;min-width:0"><b class="acct-name" style="font-size:.95rem;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(a.name)+'</b><span class="badge" style="background:'+col+'1d;color:'+col+'">'+esc(a.type)+'</span></div></div>'+
       '<div class="acct-balance" style="margin-top:12px;color:'+(bal>=0?'var(--text)':'var(--risk)')+'">'+fmtMoney(bal)+'</div>'+
-      '<div style="font-size:.74rem;color:var(--text-3);margin-top:2px">this month: <span style="color:var(--good)">+'+fmtMoney(flow.inn)+'</span> · <span style="color:var(--risk)">−'+fmtMoney(flow.out)+'</span></div>'+
+      ((flow.inn||flow.out)
+        ?'<div style="font-size:.74rem;color:var(--text-3);margin-top:2px">this month: <span style="color:'+(flow.inn?'var(--good)':'var(--text-3)')+'">+'+fmtMoney(flow.inn)+'</span> · <span style="color:'+(flow.out?'var(--risk)':'var(--text-3)')+'">−'+fmtMoney(flow.out)+'</span></div>'
+        :'<div style="font-size:.74rem;color:var(--text-3);margin-top:2px">no activity this month</div>')+
       (a.note?'<div style="font-size:.74rem;color:var(--text-3);margin-top:4px">'+esc(a.note)+'</div>':'')+
       '<div style="display:flex;gap:4px;margin-top:12px;flex-wrap:wrap">'+
         '<button class="btn btn-sm btn-ghost" data-action="account-reconcile" data-id="'+a.id+'">'+icon('check')+' Reconcile</button>'+
@@ -9727,7 +9753,7 @@ function taskTableHTML(){
   list.forEach(function(t){
     var d=daysUntil(t.deadline);
     var late=!t.done&&d!=null&&d<0;
-    html+='<tr style="'+(t.color?'box-shadow:inset 3px 0 0 '+safeColor(t.color):'')+'">'+
+    html+='<tr style="'+(t.color?'box-shadow:inset 3px 0 0 '+tameColor(t.color):'')+'">'+
       '<td><button class="task-check'+(t.done?' checked':'')+'" data-action="toggle-task" data-id="'+t.id+'">'+icon('check')+'</button></td>'+
       '<td style="font-weight:600;'+(t.done?'text-decoration:line-through;color:var(--text-3)':'')+'">'+esc(t.title)+'</td>'+
       '<td><select class="input" style="width:auto;padding:3px 28px 3px 8px;font-size:.74rem;font-weight:600" data-action-change="task-status" data-id="'+t.id+'">'+
@@ -9764,7 +9790,7 @@ function taskCalendarHTML(){
     var tasks=byDay[day]||[];
     html+='<div class="cal-cell'+(isToday?' cal-today':'')+'" data-action="cal-day-add" data-date="'+iso+'" style="cursor:pointer" title="Add a task on '+iso+'"><div class="cal-num">'+day+'</div>'+
       tasks.slice(0,3).map(function(t){
-        var tcol=t.color?safeColor(t.color):'var(--accent)';
+        var tcol=t.color?tameColor(t.color):'var(--accent)';
         return '<button class="cal-chip" data-action="edit-task" data-id="'+t.id+'" style="background:'+tcol+'22;color:'+tcol+';'+(t.done?'text-decoration:line-through;opacity:.55':'')+'" title="'+esc(t.title)+'">'+esc(t.title)+'</button>';
       }).join('')+
       (tasks.length>3?'<div style="font-size:.62rem;color:var(--text-3)">+'+(tasks.length-3)+' more</div>':'')+'</div>';
@@ -9773,7 +9799,7 @@ function taskCalendarHTML(){
   var noDeadline=state.tasks.filter(function(t){return !t.deadline&&!t.done;});
   if(noDeadline.length){
     html+='<div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)"><b style="font-size:.8rem">No deadline ('+noDeadline.length+')</b><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">'+
-      noDeadline.slice(0,10).map(function(t){var tcol=t.color?safeColor(t.color):'var(--accent)';return '<button class="cal-chip" data-action="edit-task" data-id="'+t.id+'" style="background:'+tcol+'22;color:'+tcol+'">'+esc(t.title)+'</button>';}).join('')+'</div></div>';
+      noDeadline.slice(0,10).map(function(t){var tcol=t.color?tameColor(t.color):'var(--accent)';return '<button class="cal-chip" data-action="edit-task" data-id="'+t.id+'" style="background:'+tcol+'22;color:'+tcol+'">'+esc(t.title)+'</button>';}).join('')+'</div></div>';
   }
   html+='</div>';
   return html;

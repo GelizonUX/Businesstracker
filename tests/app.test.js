@@ -64,9 +64,9 @@ async function main() {
     ok('malicious bizLogo is escaped (no raw onerror)', d.getElementById('sidebar').innerHTML.indexOf('onerror="alert(1)"') === -1);
     window.state.settings.bizLogo = '';
     // user-chosen colors are sanitized before going into style="" attributes (no CSS/attr injection)
-    ok('account color sanitized at source', /var col=safeColor\(a\.color/.test(html));
-    ok('task table color sanitized', html.indexOf("'box-shadow:inset 3px 0 0 '+safeColor(t.color)") > -1);
-    ok('calendar task color sanitized', /tcol=\s*t\.color\?safeColor\(t\.color\)/.test(html));
+    ok('account color tamed + sanitized at source', /var col=tameColor\(a\.color/.test(html) && /c=safeColor\(c,fb\|\|'#4653e8'\)/.test(html));
+    ok('task table color tamed (sanitizes via safeColor inside)', html.indexOf("'box-shadow:inset 3px 0 0 '+tameColor(t.color)") > -1);
+    ok('calendar task color tamed', /tcol=\s*t\.color\?tameColor\(t\.color\)/.test(html));
     // file-attachment href is scheme-allowlisted (no javascript: / attribute breakout)
     ok('attachment href is scheme-allowlisted', html.indexOf('/^(data:|https?:|blob:)/i.test(v.data') > -1);
     // behavioral: a malicious account color cannot break out of the style attribute
@@ -231,7 +231,7 @@ async function main() {
     // macOS Control-Center liquid glass on the KPI stat tiles + wallet tiles, over an ambient mesh
     ok('Ledger design: canvas is a clean paper surface (no ambient mesh)', !/body\{background-image:\s*radial-gradient/.test(html) && /--bg:#f3f3ef/.test(html));
     ok('Ledger design: stat values use the embedded display face (tables keep tabular numerals)', /\.stat-card \.stat-value\{font-family:var\(--font-display\)/.test(html) && /font-family:'Schibsted Grotesk'/.test(html) && /font-family:'Instrument Sans'/.test(html) && /td\{[^}]*font-variant-numeric:tabular-nums\}/.test(html));
-    ok('wallet tiles are flat premium cards with a colour bar (no gradient wash)', /\.acct-card\{position:relative;overflow:hidden;background:var\(--bg-card\);border-left:3px solid var\(--acct-color,var\(--border-2\)\)\}/.test(html));
+    ok('wallet tiles are flat premium cards (identity lives in the tamed icon chip, no stripe)', /\.acct-card\{position:relative;overflow:hidden;background:var\(--bg-card\)\}/.test(html) && /function tameColor/.test(html));
     // standard-mobile shell: bottom tab bar + FAB + header overflow menu + tables→cards
     ok('shell has a FAB and a bottom tab bar container', /class="fab"/.test(html) && /id="tabbar"/.test(html));
     (function () {
@@ -590,6 +590,13 @@ async function main() {
 
     // ---------- assistant (beta): NL parser + log-through ----------
     const T = new Date('2026-06-30T08:00:00');
+    // designer colour discipline: raw user colours are tamed before decorating the UI
+    (function(){
+      var t=window.tameColor('#ff0000');
+      ok('tameColor mutes a pure red (no traffic-light accents)', /^#[0-9a-f]{6}$/i.test(t) && t.toLowerCase()!=='#ff0000');
+      ok('tameColor sanitizes injection attempts', /^#[0-9a-f]{6}$/i.test(window.tameColor('red"><img onerror=x>')));
+      ok('tameColor keeps hue family (red stays warm)', (function(){ var n=parseInt(t.slice(1),16); return (n>>16&255) > (n&255); })());
+    })();
     ok('assistant nav route registered', html.indexOf("{id:'assistant'") > -1);
     ok('assistant view in render map', /assistant:viewAssistant/.test(html));
     ok('chat state key in DEFAULT_STATE', /chat:\[\]/.test(html));
