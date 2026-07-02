@@ -58,7 +58,7 @@ async function main() {
     ok('no unescaped image src in source', html.match(/src="'\+(?!esc\()/g) === null);
     ok('CSP meta present', !!d.querySelector('meta[http-equiv="Content-Security-Policy"]'));
     ok('CSP blocks objects + framing', /object-src 'none'/.test(html) && /frame-ancestors 'none'/.test(html));
-    ok('safeColor rejects injection', window.safeColor('red"><img>') === '#6366f1' && window.safeColor('#10b981') === '#10b981');
+    ok('safeColor rejects injection', window.safeColor('red"><img>') === '#4653e8' && window.safeColor('#10b981') === '#10b981');
     window.state.settings.bizLogo = 'x" onerror="alert(1)';
     window.renderSidebar();
     ok('malicious bizLogo is escaped (no raw onerror)', d.getElementById('sidebar').innerHTML.indexOf('onerror="alert(1)"') === -1);
@@ -229,9 +229,9 @@ async function main() {
     ok('floating chrome gets frosted glass only where backdrop-filter is supported', /@supports \(\(-webkit-backdrop-filter:blur\(12px\)\) or \(backdrop-filter:blur\(12px\)\)\)/.test(html));
     ok('glass tab bar is translucent + blurred in both themes, FAB is accent glass', /\.tabbar\{background:rgba\(255,255,255,\.7\);[\s\S]{0,160}backdrop-filter:blur\(20px\)/.test(html) && /html\[data-theme="dark"\] \.tabbar\{background:rgba\(18,20,29,\.58\)/.test(html) && /\.fab\{background:linear-gradient\(140deg,color-mix\(in srgb,var\(--accent\)/.test(html));
     // macOS Control-Center liquid glass on the KPI stat tiles + wallet tiles, over an ambient mesh
-    ok('ambient colour mesh exists so the frosted glass has something to refract', /body\{background-image:\s*radial-gradient\([^;]*var\(--accent-soft\)[\s\S]*var\(--info-soft\)[\s\S]*var\(--good-soft\)[\s\S]*background-attachment:fixed\}/.test(html));
-    ok('stat tiles get frosted glass (both themes) only where backdrop-filter is supported', /@supports[^{]*\{\s*\.stat-card\{background:rgba\(255,255,255,\.5\);[\s\S]{0,160}backdrop-filter:blur\(22px\)/.test(html) && /html\[data-theme="dark"\] \.stat-card\{background:rgba\(32,36,54,\.46\)/.test(html));
-    ok('wallet tiles become colour-tinted glass (translucent base under the colour fill)', /\.acct-card\{background:linear-gradient\(var\(--acct-fill,transparent\),var\(--acct-fill,transparent\)\),rgba\(255,255,255,\.5\)/.test(html) && /html\[data-theme="dark"\] \.acct-card\{background:linear-gradient\(var\(--acct-fill,transparent\),var\(--acct-fill,transparent\)\),rgba\(32,36,54,\.46\)/.test(html));
+    ok('Ledger design: canvas is a clean paper surface (no ambient mesh)', !/body\{background-image:\s*radial-gradient/.test(html) && /--bg:#f3f3ef/.test(html));
+    ok('Ledger design: stat values use the embedded display face (tables keep tabular numerals)', /\.stat-card \.stat-value\{font-family:var\(--font-display\)/.test(html) && /font-family:'Schibsted Grotesk'/.test(html) && /font-family:'Instrument Sans'/.test(html) && /td\{[^}]*font-variant-numeric:tabular-nums\}/.test(html));
+    ok('wallet tiles are flat premium cards with a colour bar (no gradient wash)', /\.acct-card\{position:relative;overflow:hidden;background:var\(--bg-card\);border-left:3px solid var\(--acct-color,var\(--border-2\)\)\}/.test(html));
     // standard-mobile shell: bottom tab bar + FAB + header overflow menu + tables→cards
     ok('shell has a FAB and a bottom tab bar container', /class="fab"/.test(html) && /id="tabbar"/.test(html));
     (function () {
@@ -513,8 +513,8 @@ async function main() {
     ok('dismissing hides the bubble + persists', window.state.settings.advisorBubbleOff === true && d.getElementById('advisor-bubble').innerHTML === '');
 
     // ---------- sidebar default white text + white icons ----------
-    ok('sidebar nav text is white by default', html.indexOf('color:#fff;font-size:.9rem') > -1 || /\.nav-item\{[^}]*color:#fff/.test(html));
-    ok('sidebar nav icons are white by default', /\.nav-item svg\{color:#fff\}/.test(html));
+    ok('sidebar nav text uses the themed rail token (light rail in light mode)', /\.nav-item\{[\s\S]{0,220}color:var\(--sidebar-text\)/.test(html) && /--bg-sidebar:#fbfbf9/.test(html) && /html\[data-theme="dark"\]\{[\s\S]{0,400}--bg-sidebar:#121317/.test(html));
+    ok('sidebar nav icons follow the themed text colour', /\.nav-item svg\{color:currentColor\}/.test(html));
 
     // ---------- print hygiene: floating overlays must NOT bleed into printed docs ----------
     // (regression: the advisor bubble appeared on a printed invoice)
@@ -579,7 +579,7 @@ async function main() {
     window.toast('hello world');
     const tEl = d.getElementById('toast-root').querySelector('.toast');
     ok('toast is announced to screen readers (role=alert)', tEl && tEl.getAttribute('role') === 'alert' && !!tEl.getAttribute('aria-live'));
-    ok('AA contrast: --text-3 darkened (light #646b82 / dark #828bac)', html.indexOf('--text-3:#646b82') > -1 && html.indexOf('--text-3:#828bac') > -1);
+    ok('AA contrast: --text-3 verified 4.5:1+ (light #5d5f6a / dark #9b9dad)', html.indexOf('--text-3:#5d5f6a') > -1 && html.indexOf('--text-3:#9b9dad') > -1);
     ok('focus-visible covers custom controls', /\.chip:focus-visible,\.seg button:focus-visible/.test(html));
     ok('snappy easing token added', html.indexOf('--ease-snappy:') > -1);
     ok('modal focus trap + return-focus wired', html.indexOf('modalReturnFocus') > -1 && /e\.key!=='Tab'/.test(html));
