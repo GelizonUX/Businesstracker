@@ -231,7 +231,7 @@ async function main() {
     // macOS Control-Center liquid glass on the KPI stat tiles + wallet tiles, over an ambient mesh
     ok('Ledger design: canvas is a clean paper surface (no ambient mesh)', !/body\{background-image:\s*radial-gradient/.test(html) && /--bg:#f7f7f4/.test(html));
     ok('Ledger design: stat values use the embedded display face (tables keep tabular numerals)', /\.stat-card \.stat-value\{font-family:var\(--font-display\)/.test(html) && /font-family:'Schibsted Grotesk'/.test(html) && /font-family:'Instrument Sans'/.test(html) && /td\{[^}]*font-variant-numeric:tabular-nums\}/.test(html));
-    ok('wallet tiles keep the colour tint over a solid card base (no glass in Ledger)', /\.acct-card\{position:relative;overflow:hidden;background:linear-gradient\(var\(--acct-fill,transparent\),var\(--acct-fill,transparent\)\),var\(--bg-card\)\}/.test(html));
+    ok('wallet tiles are flat premium cards with a colour bar (no gradient wash)', /\.acct-card\{position:relative;overflow:hidden;background:var\(--bg-card\);border-left:3px solid var\(--acct-color,var\(--border-2\)\)\}/.test(html));
     // standard-mobile shell: bottom tab bar + FAB + header overflow menu + tables→cards
     ok('shell has a FAB and a bottom tab bar container', /class="fab"/.test(html) && /id="tabbar"/.test(html));
     (function () {
