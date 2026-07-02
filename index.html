@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Trakora — a local-first business command center: finance, goals, roadmap, tasks, notes, CRM, metrics and smart insights. All data stays in your browser.">
 <title>Trakora — Business Command Center</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%234653e8'/%3E%3Cstop offset='1' stop-color='%233a43cf'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpath d='M8 22l5-6 4 3 7-9' stroke='%23fff' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2326241f'/%3E%3Cstop offset='1' stop-color='%231b1a17'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpath d='M8 22l5-6 4 3 7-9' stroke='%23fff' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>
 /* ============================================================
    Trakora design system v2 — "Ledger"
@@ -32,32 +32,34 @@
   --font-display:'Schibsted Grotesk',var(--font);
   --mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
 
-  --bg:#f3f3ef;
-  --bg-card:#ffffff;
-  --bg-card-glass:rgba(255,255,255,.82);
-  --bg-sunken:#efefeb;
-  --bg-hover:rgba(70,83,232,.05);
-  --bg-input:#ffffff;
-  --bg-sidebar:#fbfbf9;
-  --sidebar-border:#e6e6e1;
-  --sidebar-text:#5d5f6a;
-  --sidebar-text-active:#16171d;
-  --sidebar-hover:rgba(22,23,29,.045);
-  --sidebar-active:rgba(70,83,232,.08);
+  --bg:#f2eee4;
+  --bg-card:#fdfcf9;
+  --bg-card-glass:rgba(253,252,249,.82);
+  --bg-sunken:#e9e4d6;
+  --bg-hover:rgba(27,26,23,.05);
+  --bg-input:#fdfcf9;
+  --bg-sidebar:#faf8f2;
+  --sidebar-border:#e6e0d0;
+  --sidebar-text:#676357;
+  --sidebar-text-active:#1b1a17;
+  --sidebar-hover:rgba(27,26,23,.05);
+  --sidebar-active:rgba(245,195,59,.22);
 
-  --text:#16171d;
-  --text-2:#4e5058;
-  --text-3:#5d5f6a;
+  --text:#1b1a17;
+  --text-2:#57544b;
+  --text-3:#676357;
 
-  --border:#ebebe6;
-  --border-2:#d9d9d2;
+  --border:#e8e2d3;
+  --border-2:#d4cdb9;
 
-  --accent:#4653e8;
-  --accent-2:#3a43cf;
-  --accent-cta:#4653e8;
+  --accent:#7f6200;
+  --accent-2:#33312c;
+  --accent-cta:#1b1a17;
   --accent-cta-ink:#ffffff;
-  --accent-soft:rgba(70,83,232,.08);
-  --accent-grad:linear-gradient(135deg,#4653e8,#3a43cf);
+  --accent-soft:rgba(245,195,59,.22);
+  --accent-grad:linear-gradient(135deg,#26241f,#1b1a17);
+  --sun:#f5c33b;
+  --sun-soft:rgba(245,195,59,.28);
 
   --good:#0c7d5c;  --good-soft:rgba(12,125,92,.09);
   --warn:#a85900;  --warn-soft:rgba(168,89,0,.10);
@@ -66,7 +68,7 @@
 
   --income:#0c7d5c; --expense:#cd352d;
 
-  --r-sm:8px; --r:11px; --r-lg:16px; --r-xl:22px;
+  --r-sm:9px; --r:12px; --r-lg:20px; --r-xl:26px;
   /* type scale — one set of steps for value/heading/body roles (snap new CSS to these) */
   --fs-xs:.72rem; --fs-sm:.82rem; --fs-md:.92rem; --fs-base:1rem; --fs-lg:1.12rem; --fs-xl:1.3rem; --fs-2xl:1.72rem; --fs-3xl:2.1rem;
   --grid-gap:14px; /* one consistent gutter for the card grids */
@@ -75,36 +77,38 @@
   --shadow-lg:0 2px 6px rgba(22,23,29,.05),0 24px 48px rgba(22,23,29,.13);
   --ease:cubic-bezier(.4,0,.2,1);
   --ease-snappy:cubic-bezier(.25,.46,.45,.94);
-  --chart-grid:#ecece7;
+  --chart-grid:#e9e3d4;
 }
 html[data-theme="dark"]{
   color-scheme:dark;
-  --bg:#0e0f13;
-  --bg-card:#17181d;
-  --bg-card-glass:rgba(23,24,29,.82);
-  --bg-sunken:#121317;
-  --bg-hover:rgba(138,146,255,.07);
-  --bg-input:#1c1d24;
-  --bg-sidebar:#121317;
-  --sidebar-border:#26272e;
-  --sidebar-text:#9b9dad;
-  --sidebar-text-active:#ededf3;
+  --bg:#131210;
+  --bg-card:#1b1a17;
+  --bg-card-glass:rgba(27,26,23,.82);
+  --bg-sunken:#161512;
+  --bg-hover:rgba(242,193,78,.07);
+  --bg-input:#211f1b;
+  --bg-sidebar:#161512;
+  --sidebar-border:#2b2924;
+  --sidebar-text:#a29e90;
+  --sidebar-text-active:#f0eee7;
   --sidebar-hover:rgba(255,255,255,.05);
-  --sidebar-active:rgba(138,146,255,.10);
+  --sidebar-active:rgba(242,193,78,.13);
 
-  --text:#ededf3;
-  --text-2:#a8aab8;
-  --text-3:#9b9dad;
+  --text:#f0eee7;
+  --text-2:#b5b1a4;
+  --text-3:#a29e90;
 
-  --border:#26272e;
-  --border-2:#33343d;
+  --border:#2b2924;
+  --border-2:#38352e;
 
-  --accent:#8a92ff;
-  --accent-2:#6d76f5;
-  --accent-cta:#5b63ee;
-  --accent-cta-ink:#ffffff;
-  --accent-soft:rgba(138,146,255,.12);
-  --accent-grad:linear-gradient(135deg,#5b63ee,#4a51d6);
+  --accent:#f2c14e;
+  --accent-2:#e0b23c;
+  --accent-cta:#f2c14e;
+  --accent-cta-ink:#1b1a17;
+  --accent-soft:rgba(242,193,78,.13);
+  --accent-grad:linear-gradient(135deg,#35322b,#2a2722);
+  --sun:#f2c14e;
+  --sun-soft:rgba(242,193,78,.2);
 
   --good:#3fce9c; --good-soft:rgba(63,206,156,.11);
   --warn:#e8a93d; --warn-soft:rgba(232,169,61,.11);
@@ -115,7 +119,7 @@ html[data-theme="dark"]{
   --shadow-sm:0 1px 2px rgba(0,0,0,.35);
   --shadow:0 2px 8px rgba(0,0,0,.4),0 12px 32px rgba(0,0,0,.32);
   --shadow-lg:0 12px 24px rgba(0,0,0,.45),0 32px 64px rgba(0,0,0,.4);
-  --chart-grid:#1f2026;
+  --chart-grid:#26241f;
 }
 
 /* ============================================================
@@ -248,6 +252,8 @@ a{color:var(--accent);text-decoration:none}
 /* topbar */
 .topbar{display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap}
 .page-title h1{font-size:var(--fs-2xl);font-weight:700;letter-spacing:-.028em;line-height:1.15}
+.topbar-hero .page-title h1{font-size:2.2rem;letter-spacing:-.035em}
+.topbar-hero .page-title p{font-size:.95rem}
 .page-title p{color:var(--text-2);font-size:.88rem;margin-top:2px}
 .topbar-actions{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .topbar-more{display:none;width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);box-shadow:var(--shadow-sm);color:var(--text-2);align-items:center;justify-content:center;flex-shrink:0;cursor:pointer}
@@ -261,7 +267,7 @@ a{color:var(--accent);text-decoration:none}
    ============================================================ */
 .btn{
   display:inline-flex;align-items:center;gap:6px;
-  padding:8px 16px;border-radius:10px;
+  padding:8px 17px;border-radius:999px;
   font-size:.88rem;font-weight:600;
   border:1px solid transparent;
   transition:transform .12s var(--ease-snappy),box-shadow .18s var(--ease),background .18s var(--ease),border-color .18s var(--ease),color .18s var(--ease);
@@ -277,8 +283,8 @@ a{color:var(--accent);text-decoration:none}
 .btn-danger:hover{background:var(--risk);color:#fff}
 .btn-good{background:var(--good-soft);color:var(--good)}
 .btn-good:hover{background:var(--good);color:#fff}
-.btn-sm{padding:4px 12px;font-size:.8rem;border-radius:8px}
-.btn-icon{width:30px;height:30px;padding:0;justify-content:center;border-radius:var(--r-sm);color:var(--text-3);background:transparent}
+.btn-sm{padding:4px 13px;font-size:.8rem;border-radius:999px}
+.btn-icon{width:30px;height:30px;padding:0;justify-content:center;border-radius:999px;color:var(--text-3);background:transparent}
 .btn-icon:hover{background:var(--bg-hover);color:var(--accent)}
 .btn-icon.danger:hover{background:var(--risk-soft);color:var(--risk)}
 .btn-icon svg{width:15px;height:15px}
@@ -414,7 +420,7 @@ html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--
 
 /* progress bars */
 .progress{height:8px;background:var(--bg-sunken);border-radius:99px;overflow:hidden;position:relative}
-.progress .bar{height:100%;border-radius:99px;background:var(--accent-grad);transition:width .8s var(--ease);position:relative;min-width:0}
+.progress .bar{position:absolute;inset:0 auto 0 0;border-radius:99px;background:var(--sun);transition:width .5s var(--ease)}
 .progress .bar.good{background:linear-gradient(90deg,#10b981,#34d399)}
 .progress .bar.warn{background:var(--warn)}
 .progress .bar.risk{background:var(--risk)}
@@ -757,8 +763,8 @@ details.calc .calc-body{margin-top:10px}
 /* ambient colour mesh — subtle, fixed so the frosted glass surfaces have something to refract
    (a flat background makes backdrop-blur look like a dull grey panel instead of real glass) */
 /* canvas: calm paper with a whisper of warm light at the top (no mesh) */
-body{background-image:linear-gradient(180deg,rgba(70,83,232,.035),transparent 340px)}
-html[data-theme="dark"] body{background-image:linear-gradient(180deg,rgba(138,146,255,.05),transparent 340px)}
+body{background-image:radial-gradient(900px 380px at 70% -80px,rgba(245,195,59,.16),transparent 70%)}
+html[data-theme="dark"] body{background-image:radial-gradient(900px 380px at 70% -80px,rgba(242,193,78,.07),transparent 70%)}
 .stat-icon{width:29px;height:29px;border-radius:9px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);flex-shrink:0}
 .stat-icon svg{width:16px;height:16px}
 .stat-card .stat-value{margin-top:10px}
@@ -773,6 +779,17 @@ html[data-theme="dark"] body{background-image:linear-gradient(180deg,rgba(138,14
 .color-dot.active{border-color:var(--text);transform:scale(1.12)}
 .color-dot.active::after{content:'✓';color:#fff;font-size:.7rem;font-weight:900;text-shadow:0 1px 2px rgba(0,0,0,.55)}
 /* Ledger: wallet cards are flat — colour lives in the left bar + icon chip */
+/* the signature ink panel — one dramatic dark card on the light canvas (the
+   inspiration's contrast move). Scoped token overrides restyle every child. */
+.card-ink{--text:#f4f2ec;--text-2:#cfccc0;--text-3:#a6a294;
+  --bg-sunken:rgba(255,255,255,.08);--bg-hover:rgba(255,255,255,.06);
+  --border:rgba(255,255,255,.12);--border-2:rgba(255,255,255,.22);
+  --chart-grid:rgba(255,255,255,.16);--accent-soft:rgba(245,195,59,.2);
+  --good:#3fce9c;--warn:#e8a93d;--risk:#f37e72;--income:#3fce9c;--expense:#f37e72;
+  background:#191817;border-color:#191817;color:var(--text)}
+.card-ink:hover{border-color:#191817;box-shadow:var(--shadow)}
+html[data-theme="dark"] .card-ink{background:#242219;border-color:#38352e}
+html[data-theme="dark"] .card-ink:hover{border-color:#38352e}
 .acct-balance{font-size:var(--fs-2xl);font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
 /* inline modal errors */
 .modal-error{background:var(--risk-soft);color:var(--risk);border:1.5px solid var(--risk);border-radius:10px;padding:10px 16px;font-size:.86rem;font-weight:600;margin-bottom:16px;animation:fadeUp .25s var(--ease)}
@@ -1250,8 +1267,8 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .tabbar{display:none}
 .fab{display:none}
 /* ----- floating chat bubble + quick-log popover (opens the assistant anywhere) ----- */
-.chat-bubble{position:fixed;right:20px;bottom:20px;width:54px;height:54px;border-radius:50%;display:grid;place-items:center;
-  background:var(--accent-grad);color:#fff;border:none;cursor:pointer;box-shadow:var(--shadow-lg);z-index:95;
+.chat-bubble{color:var(--accent-cta-ink);position:fixed;right:20px;bottom:20px;width:54px;height:54px;border-radius:50%;display:grid;place-items:center;
+  background:var(--accent-cta);border:none;cursor:pointer;box-shadow:var(--shadow-lg);z-index:95;
   transition:transform .14s var(--ease-snappy),box-shadow .2s}
 .chat-bubble:hover{transform:translateY(-2px)}
 .chat-bubble:active,.chat-bubble.active{transform:scale(.9)}
@@ -1502,6 +1519,7 @@ body.greeting-on{overflow:hidden}
   /* island owns global search/theme on desktop — the per-view copies retire */
   .topbar .theme-toggle{display:none}
   .page-title h1{font-size:var(--fs-3xl)}
+  .topbar-hero .page-title h1{font-size:2.75rem}
 }
 </style>
 </head>
@@ -2460,7 +2478,7 @@ function svgRing(pct,size,color,labelTop,labelBottom){
     '<svg viewBox="0 0 '+size+' '+size+'" style="width:'+size+'px;height:'+size+'px">'+
       '<circle class="track" cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke-width="'+stroke+'"/>'+
       '<circle class="val" cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+(color||'url(#ringGrad)')+'" stroke-width="'+stroke+'" stroke-linecap="round" stroke-dasharray="'+circ+'" stroke-dashoffset="'+(circ*(1-p/100))+'" transform="rotate(-90 '+c+' '+c+')"/>'+
-      '<defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4653e8"/><stop offset="1" stop-color="#3a43cf"/></linearGradient></defs>'+
+      '<defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f5c33b"/><stop offset="1" stop-color="#d9a514"/></linearGradient></defs>'+
     '</svg>'+
     '<div class="ring-label"><b>'+esc(labelTop)+'</b><span>'+esc(labelBottom||'')+'</span></div></div>';
 }
@@ -2876,8 +2894,8 @@ function islandCloseAll(){
   var bar=byId('island-bar'); if(!bar) return;
   bar.querySelectorAll('.isl-group.open').forEach(function(g){ g.classList.remove('open'); var b=g.querySelector('[aria-expanded]'); if(b) b.setAttribute('aria-expanded','false'); });
 }
-function topbar(title,subtitle,actionsHTML){
-  return '<div class="topbar">'+
+function topbar(title,subtitle,actionsHTML,hero){
+  return '<div class="topbar'+(hero?' topbar-hero':'')+'">'+
     '<button class="hamburger" data-action="open-sidebar" aria-label="Menu">'+icon('menu')+'</button>'+
     '<button class="nav-toggle" data-action="toggle-nav-collapse" title="'+((state.settings&&state.settings.navCollapsed)?'Expand sidebar':'Collapse sidebar')+'" aria-label="Collapse or expand sidebar">'+icon((state.settings&&state.settings.navCollapsed)?'collapseR':'collapseL')+'</button>'+
     '<div class="page-title"><h1>'+esc(tr(title))+'</h1><p>'+esc(tr(subtitle||''))+'</p></div>'+
@@ -2962,7 +2980,7 @@ function viewDashboard(){
   var _gt=greetingTime(), _who=(state.settings.displayName||'').trim();
   var html=topbar(_who?(_gt.label+', '+_who):'Dashboard','Hello! Here is how '+(state.settings.businessName||'your business')+' is doing today.',
     '<button class="btn btn-ghost" data-action="dash-customize" title="Show, hide & reorder cards">'+icon('palette')+'<span class="btn-txt">Customize</span></button>'+
-    '<button class="btn btn-primary" data-action="open-entry-modal">'+icon('plus')+'<span class="btn-txt">Add entry</span></button>');
+    '<button class="btn btn-primary" data-action="open-entry-modal">'+icon('plus')+'<span class="btn-txt">Add entry</span></button>',true);
   html+=backupSafetyBannerHTML();
 
   if(!hasData && state.goals.length===0 && state.tasks.length===0 && state.settings.startDismissed){
@@ -2995,7 +3013,7 @@ function viewDashboard(){
 
   /* health + monthly chart */
   var hs=healthScore();
-  var healthBlk='<div class="card"><div class="card-head"><h3>Business health</h3></div>';
+  var healthBlk='<div class="card card-ink"><div class="card-head"><h3>Business health</h3></div>';
   if(hs){
     var hl=healthLabel(hs.score);
     healthBlk+='<div class="ring-wrap">'+svgRing(hs.score,128,null,String(hs.score),'/ 100')+
