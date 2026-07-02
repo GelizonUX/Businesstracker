@@ -32,7 +32,7 @@
   --font-display:'Schibsted Grotesk',var(--font);
   --mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
 
-  --bg:#f7f7f4;
+  --bg:#f3f3ef;
   --bg-card:#ffffff;
   --bg-card-glass:rgba(255,255,255,.82);
   --bg-sunken:#efefeb;
@@ -49,8 +49,8 @@
   --text-2:#4e5058;
   --text-3:#5d5f6a;
 
-  --border:#e6e6e1;
-  --border-2:#d5d5cd;
+  --border:#ebebe6;
+  --border-2:#d9d9d2;
 
   --accent:#4653e8;
   --accent-2:#3a43cf;
@@ -66,12 +66,12 @@
 
   --income:#0c7d5c; --expense:#cd352d;
 
-  --r-sm:7px; --r:10px; --r-lg:12px; --r-xl:16px;
+  --r-sm:8px; --r:11px; --r-lg:14px; --r-xl:18px;
   /* type scale — one set of steps for value/heading/body roles (snap new CSS to these) */
-  --fs-xs:.72rem; --fs-sm:.82rem; --fs-md:.92rem; --fs-base:1rem; --fs-lg:1.12rem; --fs-xl:1.3rem; --fs-2xl:1.62rem; --fs-3xl:2.05rem;
-  --grid-gap:12px; /* one consistent gutter for the card grids */
-  --shadow-sm:0 1px 2px rgba(22,23,29,.04);
-  --shadow:0 1px 2px rgba(22,23,29,.04),0 6px 16px rgba(22,23,29,.06);
+  --fs-xs:.72rem; --fs-sm:.82rem; --fs-md:.92rem; --fs-base:1rem; --fs-lg:1.12rem; --fs-xl:1.3rem; --fs-2xl:1.72rem; --fs-3xl:2.1rem;
+  --grid-gap:14px; /* one consistent gutter for the card grids */
+  --shadow-sm:0 1px 2px rgba(22,23,29,.03),0 4px 14px rgba(22,23,29,.045);
+  --shadow:0 2px 4px rgba(22,23,29,.04),0 10px 28px rgba(22,23,29,.07);
   --shadow-lg:0 2px 6px rgba(22,23,29,.05),0 24px 48px rgba(22,23,29,.13);
   --ease:cubic-bezier(.4,0,.2,1);
   --ease-snappy:cubic-bezier(.25,.46,.45,.94);
@@ -205,7 +205,7 @@ a{color:var(--accent);text-decoration:none}
 .main{flex:1;margin-left:calc(248px*var(--nav-scale,1));min-width:0;height:100vh;height:100dvh;overflow-y:auto;overscroll-behavior:contain;padding:20px 28px 60px;animation:fadeIn .35s var(--ease)}
 
 /* topbar */
-.topbar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.topbar{display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap}
 .page-title h1{font-size:var(--fs-2xl);font-weight:700;letter-spacing:-.028em;line-height:1.15}
 .page-title p{color:var(--text-2);font-size:.88rem;margin-top:2px}
 .topbar-actions{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -253,7 +253,7 @@ a{color:var(--accent);text-decoration:none}
    ============================================================ */
 .card{
   background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);
-  padding:16px 20px;box-shadow:var(--shadow-sm);
+  padding:19px 22px;box-shadow:var(--shadow-sm);
   transition:box-shadow .25s var(--ease),transform .25s var(--ease),border-color .25s;
   animation:fadeUp .4s var(--ease) backwards;
 }
