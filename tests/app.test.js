@@ -229,7 +229,7 @@ async function main() {
     ok('floating chrome gets frosted glass only where backdrop-filter is supported', /@supports \(\(-webkit-backdrop-filter:blur\(12px\)\) or \(backdrop-filter:blur\(12px\)\)\)/.test(html));
     ok('glass tab bar is translucent + blurred in both themes, FAB is accent glass', /\.tabbar\{background:rgba\(255,255,255,\.7\);[\s\S]{0,160}backdrop-filter:blur\(20px\)/.test(html) && /html\[data-theme="dark"\] \.tabbar\{background:rgba\(18,20,29,\.58\)/.test(html) && /\.fab\{background:linear-gradient\(140deg,color-mix\(in srgb,var\(--accent\)/.test(html));
     // macOS Control-Center liquid glass on the KPI stat tiles + wallet tiles, over an ambient mesh
-    ok('warm canvas: single top glow, no triple ambient mesh', /--bg:#f2eee4/.test(html) && /body\{background-image:radial-gradient\(900px 380px/.test(html) && !/var\(--accent-soft\),transparent 60%\),\s*radial-gradient/.test(html));
+    ok('warm canvas: single top glow, no triple ambient mesh', /--bg:#f2efe6/.test(html) && /body\{background-image:radial-gradient\(900px 380px/.test(html) && !/var\(--accent-soft\),transparent 60%\),\s*radial-gradient/.test(html));
     ok('Ledger design: stat values use the embedded display face (tables keep tabular numerals)', /\.stat-card \.stat-value\{font-family:var\(--font-display\)/.test(html) && /font-family:'Schibsted Grotesk'/.test(html) && /font-family:'Instrument Sans'/.test(html) && /td\{[^}]*font-variant-numeric:tabular-nums\}/.test(html));
     ok('wallet tiles are flat premium cards (identity lives in the tamed icon chip, no stripe)', /\.acct-card\{position:relative;overflow:hidden;background:var\(--bg-card\)\}/.test(html) && /function tameColor/.test(html));
     // standard-mobile shell: bottom tab bar + FAB + header overflow menu + tables→cards
@@ -513,7 +513,7 @@ async function main() {
     ok('dismissing hides the bubble + persists', window.state.settings.advisorBubbleOff === true && d.getElementById('advisor-bubble').innerHTML === '');
 
     // ---------- sidebar default white text + white icons ----------
-    ok('sidebar nav text uses the themed rail token (light rail in light mode)', /\.nav-item\{[\s\S]{0,220}color:var\(--sidebar-text\)/.test(html) && /--bg-sidebar:#faf8f2/.test(html) && /html\[data-theme="dark"\]\{[\s\S]{0,500}--bg-sidebar:#161512/.test(html));
+    ok('sidebar nav text uses the themed rail token (light rail in light mode)', /\.nav-item\{[\s\S]{0,220}color:var\(--sidebar-text\)/.test(html) && /--bg-sidebar:#faf8f1/.test(html) && /html\[data-theme="dark"\]\{[\s\S]{0,500}--bg-sidebar:#121317/.test(html));
     ok('sidebar nav icons follow the themed text colour', /\.nav-item svg\{color:currentColor\}/.test(html));
 
     // ---------- print hygiene: floating overlays must NOT bleed into printed docs ----------
@@ -579,7 +579,7 @@ async function main() {
     window.toast('hello world');
     const tEl = d.getElementById('toast-root').querySelector('.toast');
     ok('toast is announced to screen readers (role=alert)', tEl && tEl.getAttribute('role') === 'alert' && !!tEl.getAttribute('aria-live'));
-    ok('AA contrast: --text-3 verified 4.5:1+ (light #676357 / dark #a29e90)', html.indexOf('--text-3:#676357') > -1 && html.indexOf('--text-3:#a29e90') > -1);
+    ok('AA contrast: --text-3 verified 4.5:1+ (light #5d5f6a / dark #9b9dad)', html.indexOf('--text-3:#5d5f6a') > -1 && html.indexOf('--text-3:#9b9dad') > -1);
     ok('focus-visible covers custom controls', /\.chip:focus-visible,\.seg button:focus-visible/.test(html));
     ok('snappy easing token added', html.indexOf('--ease-snappy:') > -1);
     ok('modal focus trap + return-focus wired', html.indexOf('modalReturnFocus') > -1 && /e\.key!=='Tab'/.test(html));
@@ -849,6 +849,20 @@ async function main() {
       ok('navigating from a dropdown closes it and routes', window.location.hash === '#/finance');
     })();
     ok('desktop CSS swaps sidebar for the island (min-width:861px)', /@media \(min-width:861px\)\{[\s\S]{0,400}\.sidebar\{display:none\}/.test(html) && /\.island-bar\{position:fixed/.test(html));
+    // hero zone: the reference's stat-pill strip + big number trio
+    window.location.hash = '#/dashboard'; window.render();
+    (function(){
+      var hz=d.querySelector('.hero-zone');
+      ok('hero zone renders on the dashboard', !!hz && hz.querySelectorAll('.hz-pill').length >= 3);
+      ok('hero zone shows the big number trio', hz && hz.querySelectorAll('.hz-num').length === 3);
+      ok('hero number matches account count', hz && hz.querySelector('.hz-num b').textContent === String(window.state.accounts.length));
+      var hadTarget = window.state.settings.monthlyTarget;
+      window.state.settings.monthlyTarget = 50000; window.render();
+      ok('hatched target bar appears when a monthly target is set', !!d.querySelector('.hero-zone .hz-bar .hz-fill'));
+      window.state.settings.monthlyTarget = hadTarget || 0; window.render();
+    })();
+    window.location.hash = '#/finance'; window.render();
+    ok('hero zone is dashboard-only', !d.querySelector('.hero-zone'));
     ok('dashboard greets by name when one is set', (function(){ window.state.settings.displayName='Ira'; window.location.hash='#/dashboard'; window.render(); var t=d.querySelector('.page-title h1').textContent; window.state.settings.displayName=''; window.render(); return /Good (morning|afternoon|evening), Ira/.test(t); })());
 
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
