@@ -1884,6 +1884,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
+var APP_BUILD='2026.07.03a'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -5145,7 +5146,7 @@ function viewSettings(){
   var s=state.settings;
   var entryCount=state.finance.length+state.goals.length+state.tasks.length+state.notes.length+state.clients.length;
   var tab=ui.settingsTab||'business';
-  var html=topbar('Settings & Data','Your business profile, plus full control of your data.');
+  var html=topbar('Settings & Data','Your business profile, plus full control of your data. · build '+APP_BUILD);
   html+='<div class="tabs">'+[['business','Business'],['custom','Customization'],['data','Data & Sync']].map(function(x){
     return '<button class="'+(tab===x[0]?'active':'')+'" data-action="settings-tab" data-tab="'+x[0]+'">'+esc(tr(x[1]))+'</button>';}).join('')+'</div>';
   if(tab==='custom'){ return html+'<div class="grid grid-2">'+customizationCardHTML()+customizationExtrasCardHTML()+'</div>'; }
@@ -11071,6 +11072,7 @@ document.addEventListener('click',function(e){
   if(e.target.closest&&e.target.closest('[data-greet-dismiss]')){ dismissGreeting(); return; }
 },true);
 function bootApp(){
+  try{ console.info('Trakora build', APP_BUILD); }catch(_){}
   if(hasLock() && !sessionUnlocked){ applyTheme(); renderLockScreen(); return; }
   processRecurring();
   processRecurringInvoices();
