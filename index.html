@@ -222,6 +222,44 @@ a{color:var(--accent);text-decoration:none}
 @media (prefers-reduced-motion:reduce){.island-bar{animation:none}.isl-drop{transition:none}}
 
 /* ============================================================
+   roadmap mind-map canvas
+   ============================================================ */
+.rm-canvas-card{position:relative;padding:0;overflow:hidden}
+.rm-canvas{position:relative;height:min(64vh,660px);overflow:auto;border-radius:inherit;
+  background-image:radial-gradient(var(--border-2) 1px,transparent 1px);background-size:22px 22px}
+.rm-board{position:relative;transform-origin:0 0}
+.rm-edges{position:absolute;inset:0;pointer-events:none}
+.rm-edges path{stroke-width:2;opacity:.55}
+.rm-node{position:absolute;transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:8px;
+  padding:9px 16px;border-radius:999px;background:var(--bg-card);border:1.5px solid var(--nc,var(--border-2));
+  box-shadow:var(--shadow-sm);font-size:.88rem;font-weight:600;color:var(--text);cursor:grab;user-select:none;
+  touch-action:none;white-space:nowrap;max-width:260px;transition:box-shadow .15s var(--ease)}
+.rm-node span:first-child{overflow:hidden;text-overflow:ellipsis}
+.rm-node:hover{box-shadow:var(--shadow);z-index:5}
+.rm-node.dragging{cursor:grabbing;box-shadow:var(--shadow-lg);z-index:9}
+.rm-node.rm-phase{background:color-mix(in srgb,var(--nc) 14%,var(--bg-card));border-color:var(--nc);font-weight:700}
+.rm-node.rm-leaf{font-weight:500;font-size:.84rem;border-style:solid}
+.rm-node.rm-leaf.done span:first-child{text-decoration:line-through;color:var(--text-3)}
+.rm-node.rm-center{flex-direction:column;gap:2px;padding:14px 22px;border-radius:var(--r-lg);
+  border-width:2px;border-color:var(--nc);background:var(--bg-card);box-shadow:var(--shadow);
+  font-family:var(--font-display);white-space:normal;text-align:center;min-width:180px;max-width:280px}
+.rm-center .rm-topic{font-size:.62rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--nc)}
+.rm-center b{font-size:1.05rem;letter-spacing:-.015em}
+.rm-count{font-size:.68rem;font-weight:700;background:var(--nc);color:#fff;border-radius:99px;padding:1px 7px;flex-shrink:0}
+.rm-tools{position:absolute;top:-15px;left:50%;transform:translateX(-50%);display:none;gap:2px;
+  background:var(--bg-card);border:1px solid var(--border);border-radius:99px;padding:2px;box-shadow:var(--shadow)}
+.rm-node:hover .rm-tools,.rm-node:focus-within .rm-tools{display:inline-flex}
+.rm-tool{width:24px;height:24px;border-radius:99px;display:grid;place-items:center;color:var(--text-2);cursor:pointer}
+.rm-tool:hover{background:var(--bg-sunken);color:var(--text)}
+.rm-tool.danger:hover{background:var(--risk-soft);color:var(--risk)}
+.rm-tool svg{width:12px;height:12px}
+.rm-zoom{position:absolute;right:14px;bottom:40px;display:flex;align-items:center;gap:4px;z-index:6;
+  background:var(--bg-card);border:1px solid var(--border);border-radius:999px;padding:3px 6px;box-shadow:var(--shadow-sm);
+  font-size:.76rem;font-weight:700;font-variant-numeric:tabular-nums}
+.rm-hint{padding:8px 16px;font-size:.72rem;color:var(--text-3);border-top:1px solid var(--border);margin:0}
+@media (max-width:560px){.rm-canvas{height:56vh}.rm-node{max-width:190px}}
+
+/* ============================================================
    layout: sidebar + main
    ============================================================ */
 .app{display:flex;height:100vh;height:100dvh;overflow:hidden}
@@ -1896,7 +1934,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
-var APP_BUILD='2026.07.03c'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
+var APP_BUILD='2026.07.03d'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -2648,7 +2686,9 @@ var ui={
   goalFilter:'open',
   entryFormType:'income',
   financeTab:'entries',
-  navEdit:false
+  navEdit:false,
+  roadmapMode:'map',
+  rmZoom:1
 };
 
 var lastRenderRoute=null;
@@ -2678,6 +2718,11 @@ function render(){
   enhanceA11y(main);
   labelizeTables(main);
   renderTabbar(route);
+  // mind-map canvas opens centred on the roadmap's centre node
+  var rmc=byId('rm-canvas');
+  if(rmc){ var rmm=currentRoadmap(); var z=ui.rmZoom||1;
+    var ccx=(rmm&&rmm.x!=null?rmm.x:RM_BOARD_W/2)*z, ccy=(rmm&&rmm.y!=null?rmm.y:RM_BOARD_H/2)*z;
+    rmc.scrollLeft=Math.max(0,ccx-rmc.clientWidth/2); rmc.scrollTop=Math.max(0,ccy-rmc.clientHeight/2); }
   main.scrollTop=0;
 }
 /* Auto-label every table cell from its column header so tables can render as clean
@@ -4309,6 +4354,135 @@ function roadmapStats(rm){
   });
   return {total:total,done:done,blocked:blocked,late:late,pct:total?done/total*100:0};
 }
+/* ---- roadmap mind-map: node canvas with connecting curves ----
+   roadmap = centre node, phases = branches, tasks = leaves. Positions are
+   remembered per node (x/y on the model) once dragged; until then a radial
+   auto-layout spreads branches around the centre like a real mind map. */
+var RM_BOARD_W=2200, RM_BOARD_H=1400;
+function rmNodeColor(kind,obj,rm){
+  if(kind==='task') return tameColor(obj.color||'', obj.status==='Completed'?'#0c7d5c':(rm.color||'#7c5cd6'));
+  if(kind==='phase') return tameColor(obj.color||rm.color||'#7c5cd6');
+  return tameColor(rm.color||'#4653e8');
+}
+function rmLayout(rm){
+  var cx=rm.x!=null?rm.x:RM_BOARD_W/2, cy=rm.y!=null?rm.y:RM_BOARD_H/2;
+  var pos={center:{x:cx,y:cy}};
+  var phases=(rm.phases||[]).slice().sort(function(a,b){return (a.order||0)-(b.order||0);});
+  var n=Math.max(phases.length,1);
+  phases.forEach(function(p,i){
+    var ang=(-90+i*(360/n))*Math.PI/180;
+    var px=p.x!=null?p.x:cx+Math.cos(ang)*300;
+    var py=p.y!=null?p.y:cy+Math.sin(ang)*210;
+    pos['p:'+p.id]={x:px,y:py};
+    var baseAng=Math.atan2(py-cy,px-cx);
+    var ts=(p.tasks||[]);
+    ts.forEach(function(t,j){
+      var spread=ts.length>1?(j/(ts.length-1)-0.5)*1.5:0;
+      var ta=baseAng+spread;
+      pos['t:'+t.id]={x:t.x!=null?t.x:px+Math.cos(ta)*220,y:t.y!=null?t.y:py+Math.sin(ta)*150};
+    });
+  });
+  return pos;
+}
+function rmEdgePath(a,b){
+  var mx=(a.x+b.x)/2;
+  return 'M'+a.x+' '+a.y+' C'+mx+' '+a.y+', '+mx+' '+b.y+', '+b.x+' '+b.y;
+}
+function rmMapHTML(rm){
+  var pos=rmLayout(rm);
+  var edges='', nodes='';
+  var c=pos.center, cCol=rmNodeColor('center',rm,rm);
+  (rm.phases||[]).forEach(function(p){
+    var pp=pos['p:'+p.id], pCol=rmNodeColor('phase',p,rm);
+    edges+='<path data-edge="p:'+p.id+'" d="'+rmEdgePath(c,pp)+'" stroke="'+pCol+'" />';
+    (p.tasks||[]).forEach(function(t){
+      var tp=pos['t:'+t.id], tCol=rmNodeColor('task',t,rm);
+      edges+='<path data-edge="t:'+t.id+'" data-from="p:'+p.id+'" d="'+rmEdgePath(pp,tp)+'" stroke="'+tCol+'" />';
+    });
+  });
+  nodes+='<div class="rm-node rm-center" data-nid="center" data-kind="center" style="left:'+c.x+'px;top:'+c.y+'px;--nc:'+cCol+'">'+
+    '<span class="rm-topic">'+esc(tr('Roadmap'))+'</span><b>'+esc(rm.name)+'</b>'+
+    '<span class="rm-tools"><button class="rm-tool" data-action="open-phase-modal" title="Add a branch (phase)">'+icon('plus')+'</button>'+
+    '<button class="rm-tool" data-action="roadmap-rename" data-id="'+rm.id+'" title="Edit">'+icon('edit')+'</button></span></div>';
+  (rm.phases||[]).forEach(function(p){
+    var pp=pos['p:'+p.id], pCol=rmNodeColor('phase',p,rm);
+    var ts=(p.tasks||[]), doneN=ts.filter(function(t){return t.status==='Completed';}).length;
+    nodes+='<div class="rm-node rm-phase" data-nid="p:'+p.id+'" data-kind="phase" data-id="'+p.id+'" style="left:'+pp.x+'px;top:'+pp.y+'px;--nc:'+pCol+'">'+
+      '<b>'+esc(p.name)+'</b>'+(ts.length?'<span class="rm-count">'+doneN+'/'+ts.length+'</span>':'')+
+      '<span class="rm-tools"><button class="rm-tool" data-action="open-phase-task-modal" data-phase="'+p.id+'" title="Add idea">'+icon('plus')+'</button>'+
+      '<button class="rm-tool" data-action="edit-phase" data-id="'+p.id+'" title="Edit">'+icon('edit')+'</button>'+
+      '<button class="rm-tool" data-action="rm-node-color" data-kind="phase" data-id="'+p.id+'" title="Colour">'+icon('palette')+'</button>'+
+      '<button class="rm-tool danger" data-action="delete-phase" data-id="'+p.id+'" title="Delete">'+icon('trash')+'</button></span></div>';
+    ts.forEach(function(t){
+      var tp=pos['t:'+t.id], tCol=rmNodeColor('task',t,rm);
+      var done=t.status==='Completed';
+      nodes+='<div class="rm-node rm-leaf'+(done?' done':'')+'" data-nid="t:'+t.id+'" data-kind="task" data-id="'+t.id+'" data-phase="'+p.id+'" style="left:'+tp.x+'px;top:'+tp.y+'px;--nc:'+tCol+'">'+
+        '<span>'+esc(t.title)+'</span>'+
+        '<span class="rm-tools"><button class="rm-tool" data-action="edit-phase-task" data-phase="'+p.id+'" data-task="'+t.id+'" title="Edit">'+icon('edit')+'</button>'+
+        '<button class="rm-tool" data-action="rm-node-color" data-kind="task" data-id="'+t.id+'" data-phase="'+p.id+'" title="Colour">'+icon('palette')+'</button>'+
+        '<button class="rm-tool danger" data-action="delete-phase-task" data-phase="'+p.id+'" data-task="'+t.id+'" title="Delete">'+icon('trash')+'</button></span></div>';
+    });
+  });
+  return '<div class="card mt rm-canvas-card"><div class="rm-canvas" id="rm-canvas">'+
+    '<div class="rm-board" id="rm-board" style="width:'+RM_BOARD_W+'px;height:'+RM_BOARD_H+'px;transform:scale('+(ui.rmZoom||1)+')">'+
+      '<svg class="rm-edges" width="'+RM_BOARD_W+'" height="'+RM_BOARD_H+'" viewBox="0 0 '+RM_BOARD_W+' '+RM_BOARD_H+'" fill="none">'+edges+'</svg>'+nodes+
+    '</div></div>'+
+    '<div class="rm-zoom"><button class="btn-icon" data-action="rm-zoom" data-dir="-1" aria-label="Zoom out">−</button>'+
+    '<span>'+Math.round((ui.rmZoom||1)*100)+'%</span>'+
+    '<button class="btn-icon" data-action="rm-zoom" data-dir="1" aria-label="Zoom in">+</button></div>'+
+    '<p class="rm-hint">'+esc(tr('Drag nodes to arrange · hover a node for actions · + adds a branch or idea'))+'</p></div>';
+}
+function rmSetNodePos(kind,id,x,y){
+  var rm=currentRoadmap(); if(!rm) return;
+  x=clamp(Math.round(x),40,RM_BOARD_W-40); y=clamp(Math.round(y),30,RM_BOARD_H-30);
+  if(kind==='center'){ rm.x=x; rm.y=y; }
+  else if(kind==='phase'){ var p=(rm.phases||[]).find(function(q){return q.id===id;}); if(p){ p.x=x; p.y=y; } }
+  else { (rm.phases||[]).forEach(function(q){ (q.tasks||[]).forEach(function(t){ if(t.id===id){ t.x=x; t.y=y; } }); }); }
+  save();
+}
+/* drag: pointer events cover mouse + touch; edges follow live */
+var rmDrag=null;
+document.addEventListener('pointerdown',function(e){
+  var node=e.target.closest&&e.target.closest('.rm-node');
+  if(!node||e.target.closest('.rm-tool')) return;
+  var board=byId('rm-board'); if(!board) return;
+  var scale=(ui.rmZoom||1);
+  rmDrag={node:node,kind:node.getAttribute('data-kind'),id:node.getAttribute('data-id')||'center',
+    nid:node.getAttribute('data-nid'),startX:e.clientX,startY:e.clientY,
+    origX:parseFloat(node.style.left),origY:parseFloat(node.style.top),scale:scale,moved:false};
+  node.classList.add('dragging');
+  e.preventDefault();
+});
+document.addEventListener('pointermove',function(e){
+  if(!rmDrag) return;
+  var dx=(e.clientX-rmDrag.startX)/rmDrag.scale, dy=(e.clientY-rmDrag.startY)/rmDrag.scale;
+  if(Math.abs(dx)+Math.abs(dy)>2) rmDrag.moved=true;
+  var x=rmDrag.origX+dx, y=rmDrag.origY+dy;
+  rmDrag.node.style.left=x+'px'; rmDrag.node.style.top=y+'px';
+  rmUpdateEdges(rmDrag.nid,x,y);
+});
+document.addEventListener('pointerup',function(){
+  if(!rmDrag) return;
+  rmDrag.node.classList.remove('dragging');
+  if(rmDrag.moved) rmSetNodePos(rmDrag.kind,rmDrag.id,parseFloat(rmDrag.node.style.left),parseFloat(rmDrag.node.style.top));
+  rmDrag=null;
+});
+function rmUpdateEdges(nid,x,y){
+  var board=byId('rm-board'); if(!board) return;
+  var moved={x:x,y:y};
+  board.querySelectorAll('path[data-edge]').forEach(function(pt){
+    var eid=pt.getAttribute('data-edge'), from=pt.getAttribute('data-from');
+    var touch=null;
+    if(eid===nid) touch='child';
+    else if(from===nid||(!from&&nid==='center')) touch='parent';
+    if(!touch) return;
+    var other=touch==='child'?(from||'center'):eid;
+    var on=board.querySelector('.rm-node[data-nid="'+other+'"]');
+    if(!on) return;
+    var op={x:parseFloat(on.style.left),y:parseFloat(on.style.top)};
+    pt.setAttribute('d', touch==='child'?rmEdgePath(op,moved):rmEdgePath(moved,op));
+  });
+}
 function viewRoadmap(){
   var rms=state.roadmaps||[];
   var rm=currentRoadmap();
@@ -4338,6 +4512,18 @@ function viewRoadmap(){
     statCard('Delayed',String(rs.late),rs.late?'<span class="stat-delta down">past deadline</span>':'','','clock')+
   '</div>';
   if(rs.total>0) html+='<div class="card mt"><div class="progress thick"><div class="bar good" style="width:'+rs.pct+'%"></div></div><p style="font-size:.78rem;color:var(--text-3);margin-top:8px">'+fmtPct(rs.pct,0)+' of "'+esc(rm.name)+'" completed</p></div>';
+  // view mode: mind-map canvas (default) or the classic phase list
+  var mode=ui.roadmapMode||'map';
+  html+='<div class="seg" style="margin-top:14px"><button class="'+(mode==='map'?'active':'')+'" data-action="roadmap-mode" data-mode="map">'+esc(tr('Map'))+'</button>'+
+    '<button class="'+(mode==='list'?'active':'')+'" data-action="roadmap-mode" data-mode="list">'+esc(tr('List'))+'</button></div>';
+  if(mode==='map'){
+    if(!(rm.phases||[]).length){
+      html+='<div class="card mt">'+emptyState('roadmap','"'+rm.name+'" has no branches yet','Add your first branch (a phase like "Prepare" or "Launch") and grow the map from there.','<button class="btn btn-sm btn-primary" data-action="open-phase-modal">'+icon('plus')+' First branch</button>')+'</div>';
+      return html;
+    }
+    html+=rmMapHTML(rm);
+    return html;
+  }
   var phases=(rm.phases||[]);
   if(!phases.length){
     html+='<div class="card mt">'+emptyState('roadmap','"'+rm.name+'" has no phases yet','Break it into stages (e.g. "Prepare", "Launch", "Scale") and add milestone tasks under each.','<button class="btn btn-sm btn-primary" data-action="open-phase-modal">'+icon('plus')+' First phase</button>')+'</div>';
@@ -5958,6 +6144,17 @@ document.addEventListener('click',function(e){
 
   /* roadmap */
   if(action==='open-phase-modal'){ phaseModal(); return; }
+  if(action==='roadmap-mode'){ ui.roadmapMode=el.getAttribute('data-mode'); render(); return; }
+  if(action==='rm-zoom'){ var z=(ui.rmZoom||1)+(el.getAttribute('data-dir')==='1'?0.15:-0.15); ui.rmZoom=Math.round(clamp(z,0.55,1.6)*100)/100; render(); return; }
+  if(action==='rm-node-color'){
+    var rmv=currentRoadmap(); if(!rmv) return;
+    var kind=el.getAttribute('data-kind'), nid=el.getAttribute('data-id');
+    var cycle=ROADMAP_COLORS;
+    function nextC(cur){ var i=cycle.indexOf(cur); return cycle[(i+1)%cycle.length]; }
+    if(kind==='phase'){ var ph=(rmv.phases||[]).find(function(q){return q.id===nid;}); if(ph) ph.color=nextC(ph.color||rmv.color||cycle[0]); }
+    else { (rmv.phases||[]).forEach(function(q){ (q.tasks||[]).forEach(function(t){ if(t.id===nid) t.color=nextC(t.color||cycle[0]); }); }); }
+    commit(); return;
+  }
   if(action==='rm-color'){ var f=byId('modal-form'); if(f&&f.elements['color']){ f.elements['color'].value=el.getAttribute('data-color'); f.querySelectorAll('.swatch').forEach(function(s){ s.classList.toggle('on',s===el); }); } return; }
   if(action==='roadmap-new'){ roadmapModal(); return; }
   if(action==='roadmap-switch'){ ui.roadmapId=id; render(); return; }

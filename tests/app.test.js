@@ -864,6 +864,39 @@ async function main() {
     // build beacon: instantly answers "did the deploy update?"
     ok('build stamp exists and is surfaced in Settings', typeof window.APP_BUILD === 'string' && window.APP_BUILD.length >= 8 && (function(){ window.location.hash='#/settings'; window.render(); return d.querySelector('.page-title p').textContent.indexOf(window.APP_BUILD) > -1; })());
 
+    // ---------- roadmap mind-map canvas ----------
+    window.loadSampleData(); await wait(30);
+    window.location.hash = '#/roadmap'; window.render();
+    (function(){
+      const m = d.getElementById('main');
+      ok('roadmap defaults to the Map mode with a canvas', !!m.querySelector('.rm-canvas') && !!m.querySelector('#rm-board'));
+      const center = m.querySelector('.rm-node.rm-center');
+      const phases = m.querySelectorAll('.rm-node.rm-phase');
+      const leaves = m.querySelectorAll('.rm-node.rm-leaf');
+      ok('map renders centre + branch + leaf nodes', !!center && phases.length >= 1 && leaves.length >= 1);
+      ok('every non-centre node has a connecting edge', m.querySelectorAll('.rm-edges path').length === phases.length + leaves.length);
+      ok('auto-layout positions every node', Array.prototype.every.call(m.querySelectorAll('.rm-node'), n => parseFloat(n.style.left) > 0 && parseFloat(n.style.top) > 0));
+      const p0 = window.state.roadmaps[0].phases[0];
+      window.rmSetNodePos('phase', p0.id, 500, 400);
+      ok('dragged position persists on the model', window.state.roadmaps[0].phases[0].x === 500 && window.state.roadmaps[0].phases[0].y === 400);
+      window.render();
+      const pn = d.querySelector('.rm-node.rm-phase[data-id="' + p0.id + '"]');
+      ok('persisted position wins over auto-layout on re-render', pn && parseFloat(pn.style.left) === 500 && parseFloat(pn.style.top) === 400);
+      const before = p0.color || null;
+      click(d.querySelector('.rm-tool[data-action="rm-node-color"][data-kind="phase"][data-id="' + p0.id + '"]'));
+      ok('node colour cycle persists a new colour', window.state.roadmaps[0].phases[0].color && window.state.roadmaps[0].phases[0].color !== before);
+      window.render();
+      click(d.querySelector('.rm-node.rm-phase .rm-tool[data-action="open-phase-task-modal"]'));
+      ok('+ on a branch opens the task modal', d.getElementById('modal-root').innerHTML.indexOf('modal') > -1 && d.getElementById('modal-root').innerHTML.length > 100);
+      window.closeModal();
+      click(d.querySelector('[data-action="roadmap-mode"][data-mode="list"]'));
+      ok('List mode still renders the classic phase rows', !!d.querySelector('.rm-task-row'));
+      click(d.querySelector('[data-action="roadmap-mode"][data-mode="map"]'));
+      click(d.querySelector('[data-action="rm-zoom"][data-dir="1"]'));
+      ok('zoom control scales the board', /scale\(1\.15\)/.test(d.getElementById('rm-board').getAttribute('style')));
+      window.ui.rmZoom = 1;
+    })();
+
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
   } catch (e) {
