@@ -180,7 +180,13 @@ a{color:var(--accent);text-decoration:none}
   opacity:0;visibility:hidden;pointer-events:none;
   transform:translateX(-50%) translateY(-6px) scale(.96);transform-origin:top center;
   transition:opacity .18s var(--ease),transform .22s cubic-bezier(.34,1.56,.64,1),visibility .18s}
-.isl-group.open .isl-drop{opacity:1;visibility:visible;pointer-events:auto;transform:translateX(-50%) translateY(0) scale(1)}
+.isl-group.open .isl-drop,
+.isl-group:hover .isl-drop,
+.isl-group:focus-within .isl-drop{opacity:1;visibility:visible;pointer-events:auto;transform:translateX(-50%) translateY(0) scale(1);transition-delay:0s}
+/* grace period + invisible bridge so diagonal mouse travel across the 10px gap never closes the panel */
+.isl-drop{transition-delay:.12s}
+.isl-drop::after{content:'';position:absolute;top:-12px;left:0;right:0;height:12px}
+.isl-group:hover .isl-chev,.isl-group:focus-within .isl-chev{transform:rotate(180deg)}
 .isl-drop::before{content:'';position:absolute;top:-5px;left:50%;transform:translateX(-50%) rotate(45deg);width:9px;height:9px;
   background:var(--bg-card);border-left:1px solid var(--border);border-top:1px solid var(--border);border-radius:2px 0 0 0}
 .isl-drop button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 12px;border-radius:10px;
@@ -199,9 +205,21 @@ a{color:var(--accent);text-decoration:none}
 
 @supports ((-webkit-backdrop-filter:blur(14px)) or (backdrop-filter:blur(14px))){
   .isl-brand,.island,.isl-right{background:var(--bg-card);background:color-mix(in srgb,var(--bg-card) 72%,transparent);
-    -webkit-backdrop-filter:blur(14px) saturate(1.5);backdrop-filter:blur(14px) saturate(1.5)}
+    -webkit-backdrop-filter:blur(14px) saturate(1.5);backdrop-filter:blur(14px) saturate(1.5);
+    transition:background .35s var(--ease),box-shadow .35s var(--ease),border-color .35s var(--ease)}
   .isl-drop{background:var(--bg-card);background:color-mix(in srgb,var(--bg-card) 88%,transparent);
     -webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
+  /* liquid glass: once content flows beneath the bar, the islands go clearer, blur
+     deepens, and a specular rim lights up — the Apple "material" feel */
+  body.isl-scrolled .isl-brand,body.isl-scrolled .island,body.isl-scrolled .isl-right{
+    background:var(--bg-card);background:color-mix(in srgb,var(--bg-card) 55%,transparent);
+    -webkit-backdrop-filter:blur(26px) saturate(1.9);backdrop-filter:blur(26px) saturate(1.9);
+    border-color:color-mix(in srgb,var(--border) 60%,transparent);
+    box-shadow:0 10px 30px rgba(22,23,29,.10),inset 0 1px 0 rgba(255,255,255,.45)}
+  html[data-theme="dark"] body.isl-scrolled .isl-brand,
+  html[data-theme="dark"] body.isl-scrolled .island,
+  html[data-theme="dark"] body.isl-scrolled .isl-right{
+    box-shadow:0 10px 32px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.09)}
 }
 /* island entrance — one gentle settle on first load (the bar persists across
    renders; its children are rebuilt, so the animation lives on the bar) */
@@ -1884,7 +1902,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
-var APP_BUILD='2026.07.03a'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
+var APP_BUILD='2026.07.03b'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -11071,8 +11089,13 @@ document.addEventListener('click',function(e){
   if(e.target.closest&&e.target.closest('[data-greet-skip]')){ state.settings.greetDone=true; save(); dismissGreeting(); return; }
   if(e.target.closest&&e.target.closest('[data-greet-dismiss]')){ dismissGreeting(); return; }
 },true);
+function islandScrollSync(){
+  var m=byId('main'); if(!m) return;
+  document.body.classList.toggle('isl-scrolled', m.scrollTop>8);
+}
 function bootApp(){
   try{ console.info('Trakora build', APP_BUILD); }catch(_){}
+  var _m=byId('main'); if(_m) _m.addEventListener('scroll', islandScrollSync, {passive:true});
   if(hasLock() && !sessionUnlocked){ applyTheme(); renderLockScreen(); return; }
   processRecurring();
   processRecurringInvoices();
