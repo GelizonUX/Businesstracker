@@ -163,8 +163,8 @@ a{color:var(--accent);text-decoration:none}
   border-radius:999px;padding:7px 16px 7px 8px;box-shadow:var(--shadow-sm);cursor:pointer;flex-shrink:0}
 .isl-brand .brand-logo{width:28px;height:28px;border-radius:999px}
 .isl-brand b{font-family:var(--font-display);font-size:.95rem;letter-spacing:-.015em;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.island{display:flex;align-items:center;gap:2px;background:var(--bg-card);border:1px solid var(--border);
-  border-radius:999px;padding:5px;box-shadow:var(--shadow-sm);margin:0 auto;flex-wrap:nowrap}
+.island{display:flex;align-items:center;justify-content:center;gap:2px;background:var(--bg-card);border:1px solid var(--border);
+  border-radius:24px;padding:5px;box-shadow:var(--shadow-sm);margin:0 auto;flex-wrap:wrap;min-width:0;max-width:calc(100vw - 400px)}
 .isl-group{position:relative}
 .isl-item{position:relative;display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:999px;font-size:.88rem;font-weight:600;
   color:var(--text-2);white-space:nowrap;transition:background .18s var(--ease),color .18s var(--ease),transform .12s var(--ease-snappy);cursor:pointer}
@@ -202,9 +202,6 @@ a{color:var(--accent);text-decoration:none}
     -webkit-backdrop-filter:blur(14px) saturate(1.5);backdrop-filter:blur(14px) saturate(1.5)}
   .isl-drop{background:var(--bg-card);background:color-mix(in srgb,var(--bg-card) 88%,transparent);
     -webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
-}
-@supports ((-webkit-backdrop-filter:blur(14px)) or (backdrop-filter:blur(14px))){
-  .card{-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 }
 /* island entrance — one gentle settle on first load (the bar persists across
    renders; its children are rebuilt, so the animation lives on the bar) */
@@ -1527,6 +1524,14 @@ body.greeting-on{overflow:hidden}
   .isl-icon{width:31px;height:31px}
   .isl-avatar{width:31px;height:31px}
 }
+@media (min-width:861px) and (max-width:1040px){
+  .island-bar{gap:6px;padding:10px 8px 6px}
+  .isl-brand{padding:7px 8px}
+  .isl-brand b{display:none}
+  .isl-item{padding:7px 8px;font-size:.78rem}
+  .isl-item .isl-chev{display:none}
+  .isl-brand{flex-shrink:1;min-width:44px;overflow:hidden}
+}
 </style>
 </head>
 <body>
@@ -2484,7 +2489,7 @@ function svgRing(pct,size,color,labelTop,labelBottom){
     '<svg viewBox="0 0 '+size+' '+size+'" style="width:'+size+'px;height:'+size+'px">'+
       '<circle class="track" cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke-width="'+stroke+'"/>'+
       '<circle class="val" cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+(color||'url(#ringGrad)')+'" stroke-width="'+stroke+'" stroke-linecap="round" stroke-dasharray="'+circ+'" stroke-dashoffset="'+(circ*(1-p/100))+'" transform="rotate(-90 '+c+' '+c+')"/>'+
-      '<defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4653e8"/><stop offset="1" stop-color="#3a43cf"/></linearGradient></defs>'+
+      '<defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--accent-cta,#4653e8)"/><stop offset="1" style="stop-color:color-mix(in srgb,var(--accent-cta,#4653e8) 82%,#000)"/></linearGradient></defs>'+
     '</svg>'+
     '<div class="ring-label"><b>'+esc(labelTop)+'</b><span>'+esc(labelBottom||'')+'</span></div></div>';
 }
