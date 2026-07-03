@@ -850,6 +850,14 @@ async function main() {
     })();
     ok('desktop CSS swaps sidebar for the island (min-width:861px)', /@media \(min-width:861px\)\{[\s\S]{0,400}\.sidebar\{display:none\}/.test(html) && /\.island-bar\{position:fixed/.test(html));
     ok('design language untouched: paper canvas + Ledger radii intact', /--bg:#f3f3ef/.test(html) && /--r-sm:8px; --r:11px; --r-lg:14px; --r-xl:18px;/.test(html));
+    // island polish: the production dropdown-clip bug + adaptive active pill + glass
+    ok('island can never clip its dropdowns (no overflow/contain on the pill bar)', !/\.island\{[^}]*(overflow|contain)/.test(html));
+    ok('island wraps gracefully when user labels/custom modules overflow the row', /\.island\{[^}]*flex-wrap:wrap/.test(html) && /\.island\{[^}]*max-width:calc\(100vw - 400px\)/.test(html));
+    ok('dropdowns reveal via opacity/visibility spring (clip-proof)', /\.isl-drop\{[^}]*opacity:0;visibility:hidden/.test(html) && /\.isl-group\.open \.isl-drop\{opacity:1;visibility:visible/.test(html));
+    ok('active island pill adapts to the user accent (CTA tokens, not hard ink)', /\.isl-item\.active\{background:var\(--accent-cta\);color:var\(--accent-cta-ink\)\}/.test(html));
+    ok('cards sit at ~86% opacity with a solid fallback (no per-card blur cost)', /\.card\{\s*background:var\(--bg-card\);background:color-mix\(in srgb,var\(--bg-card\) 86%,transparent\)/.test(html) && !/\.card\{-webkit-backdrop-filter/.test(html));
+    ok('island squeezes on medium desktops (two tiers, fits down to 861px)', /@media \(min-width:861px\) and \(max-width:1180px\)/.test(html) && /@media \(min-width:861px\) and \(max-width:1040px\)/.test(html) && /\.isl-brand b\{display:none\}/.test(html));
+    ok('health ring follows the user accent (no hardcoded gradient stops)', /stop-color:var\(--accent-cta,#4653e8\)/.test(html) && !/<stop offset="0" stop-color="#4653e8"/.test(html));
 
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

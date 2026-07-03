@@ -163,21 +163,26 @@ a{color:var(--accent);text-decoration:none}
   border-radius:999px;padding:7px 16px 7px 8px;box-shadow:var(--shadow-sm);cursor:pointer;flex-shrink:0}
 .isl-brand .brand-logo{width:28px;height:28px;border-radius:999px}
 .isl-brand b{font-family:var(--font-display);font-size:.95rem;letter-spacing:-.015em;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.island{display:flex;align-items:center;gap:2px;background:var(--bg-card);border:1px solid var(--border);
-  border-radius:999px;padding:5px;box-shadow:var(--shadow-sm);margin:0 auto;max-width:calc(100vw - 420px);overflow-x:auto;scrollbar-width:none}
-.island::-webkit-scrollbar{display:none}
+.island{display:flex;align-items:center;justify-content:center;gap:2px;background:var(--bg-card);border:1px solid var(--border);
+  border-radius:24px;padding:5px;box-shadow:var(--shadow-sm);margin:0 auto;flex-wrap:wrap;min-width:0;max-width:calc(100vw - 400px)}
 .isl-group{position:relative}
-.isl-item{display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:999px;font-size:.88rem;font-weight:600;
-  color:var(--text-2);white-space:nowrap;transition:background .15s,color .15s;cursor:pointer}
+.isl-item{position:relative;display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:999px;font-size:.88rem;font-weight:600;
+  color:var(--text-2);white-space:nowrap;transition:background .18s var(--ease),color .18s var(--ease),transform .12s var(--ease-snappy);cursor:pointer}
+.isl-item:active{transform:scale(.96)}
 .isl-item:hover{background:var(--bg-sunken);color:var(--text)}
-.isl-item.active{background:var(--text);color:var(--bg-card)}
+.isl-item.active{background:var(--accent-cta);color:var(--accent-cta-ink)}
 .isl-item .isl-chev{display:inline-flex;transition:transform .18s var(--ease);opacity:.6}
 .isl-item .isl-chev svg{width:11px;height:11px}
 .isl-group.open .isl-chev{transform:rotate(180deg)}
-.isl-drop{position:absolute;top:calc(100% + 10px);left:50%;transform:translateX(-50%);min-width:224px;
+.isl-drop{position:absolute;top:calc(100% + 10px);left:50%;min-width:224px;
   background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-lg);
-  padding:6px;display:none;z-index:75}
-.isl-group.open .isl-drop{display:block;animation:fadeUp .16s var(--ease)}
+  padding:6px;z-index:75;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transform:translateX(-50%) translateY(-6px) scale(.96);transform-origin:top center;
+  transition:opacity .18s var(--ease),transform .22s cubic-bezier(.34,1.56,.64,1),visibility .18s}
+.isl-group.open .isl-drop{opacity:1;visibility:visible;pointer-events:auto;transform:translateX(-50%) translateY(0) scale(1)}
+.isl-drop::before{content:'';position:absolute;top:-5px;left:50%;transform:translateX(-50%) rotate(45deg);width:9px;height:9px;
+  background:var(--bg-card);border-left:1px solid var(--border);border-top:1px solid var(--border);border-radius:2px 0 0 0}
 .isl-drop button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 12px;border-radius:10px;
   font-size:.88rem;font-weight:500;color:var(--text-2);transition:background .12s,color .12s}
 .isl-drop button:hover{background:var(--bg-sunken);color:var(--text)}
@@ -191,6 +196,18 @@ a{color:var(--accent);text-decoration:none}
 .isl-icon svg{width:16px;height:16px}
 .isl-avatar{width:34px;height:34px;border-radius:999px;background:var(--accent-cta);color:var(--accent-cta-ink);
   display:grid;place-items:center;font-weight:700;font-size:.82rem;cursor:pointer}
+
+@supports ((-webkit-backdrop-filter:blur(14px)) or (backdrop-filter:blur(14px))){
+  .isl-brand,.island,.isl-right{background:var(--bg-card);background:color-mix(in srgb,var(--bg-card) 72%,transparent);
+    -webkit-backdrop-filter:blur(14px) saturate(1.5);backdrop-filter:blur(14px) saturate(1.5)}
+  .isl-drop{background:var(--bg-card);background:color-mix(in srgb,var(--bg-card) 88%,transparent);
+    -webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
+}
+/* island entrance — one gentle settle on first load (the bar persists across
+   renders; its children are rebuilt, so the animation lives on the bar) */
+@keyframes islIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+.island-bar{animation:islIn .55s var(--ease) backwards}
+@media (prefers-reduced-motion:reduce){.island-bar{animation:none}.isl-drop{transition:none}}
 
 /* ============================================================
    layout: sidebar + main
@@ -293,7 +310,7 @@ a{color:var(--accent);text-decoration:none}
    cards & grids
    ============================================================ */
 .card{
-  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);
+  background:var(--bg-card);background:color-mix(in srgb,var(--bg-card) 86%,transparent);border:1px solid var(--border);border-radius:var(--r-lg);
   padding:19px 22px;box-shadow:var(--shadow-sm);
   transition:box-shadow .25s var(--ease),transform .25s var(--ease),border-color .25s;
   animation:fadeUp .4s var(--ease) backwards;
@@ -1500,6 +1517,21 @@ body.greeting-on{overflow:hidden}
   /* island owns global search/theme on desktop — the per-view copies retire */
   .topbar .theme-toggle{display:none}
 }
+@media (min-width:861px) and (max-width:1180px){
+  .island-bar{gap:8px;padding:12px 12px 8px}
+  .isl-item{padding:7px 11px;font-size:.82rem}
+  .isl-brand b{max-width:90px}
+  .isl-icon{width:31px;height:31px}
+  .isl-avatar{width:31px;height:31px}
+}
+@media (min-width:861px) and (max-width:1040px){
+  .island-bar{gap:6px;padding:10px 8px 6px}
+  .isl-brand{padding:7px 8px}
+  .isl-brand b{display:none}
+  .isl-item{padding:7px 8px;font-size:.78rem}
+  .isl-item .isl-chev{display:none}
+  .isl-brand{flex-shrink:1;min-width:44px;overflow:hidden}
+}
 </style>
 </head>
 <body>
@@ -2457,7 +2489,7 @@ function svgRing(pct,size,color,labelTop,labelBottom){
     '<svg viewBox="0 0 '+size+' '+size+'" style="width:'+size+'px;height:'+size+'px">'+
       '<circle class="track" cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke-width="'+stroke+'"/>'+
       '<circle class="val" cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+(color||'url(#ringGrad)')+'" stroke-width="'+stroke+'" stroke-linecap="round" stroke-dasharray="'+circ+'" stroke-dashoffset="'+(circ*(1-p/100))+'" transform="rotate(-90 '+c+' '+c+')"/>'+
-      '<defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4653e8"/><stop offset="1" stop-color="#3a43cf"/></linearGradient></defs>'+
+      '<defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--accent-cta,#4653e8)"/><stop offset="1" style="stop-color:color-mix(in srgb,var(--accent-cta,#4653e8) 82%,#000)"/></linearGradient></defs>'+
     '</svg>'+
     '<div class="ring-label"><b>'+esc(labelTop)+'</b><span>'+esc(labelBottom||'')+'</span></div></div>';
 }
