@@ -850,6 +850,12 @@ async function main() {
     })();
     ok('desktop CSS swaps sidebar for the island (min-width:861px)', /@media \(min-width:861px\)\{[\s\S]{0,400}\.sidebar\{display:none\}/.test(html) && /\.island-bar\{position:fixed/.test(html));
     ok('design language untouched: paper canvas + Ledger radii intact', /--bg:#f3f3ef/.test(html) && /--r-sm:8px; --r:11px; --r-lg:14px; --r-xl:18px;/.test(html));
+    // island polish: the production dropdown-clip bug + adaptive active pill + glass
+    ok('island no longer clips its dropdowns (no overflow-x on the pill bar)', !/\.island\{[^}]*overflow-x:auto/.test(html));
+    ok('dropdowns reveal via opacity/visibility spring (clip-proof)', /\.isl-drop\{[^}]*opacity:0;visibility:hidden/.test(html) && /\.isl-group\.open \.isl-drop\{opacity:1;visibility:visible/.test(html));
+    ok('active island pill adapts to the user accent (CTA tokens, not hard ink)', /\.isl-item\.active\{background:var\(--accent-cta\);color:var\(--accent-cta-ink\)\}/.test(html));
+    ok('cards sit at ~86% opacity with a solid fallback + progressive blur', /\.card\{\s*background:var\(--bg-card\);background:color-mix\(in srgb,var\(--bg-card\) 86%,transparent\)/.test(html) && /\.card\{-webkit-backdrop-filter:blur\(10px\)/.test(html));
+    ok('island squeezes on medium desktops (861–1180px) so the bar always fits', /@media \(min-width:861px\) and \(max-width:1180px\)/.test(html));
 
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
