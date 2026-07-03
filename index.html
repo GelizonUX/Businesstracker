@@ -180,13 +180,7 @@ a{color:var(--accent);text-decoration:none}
   opacity:0;visibility:hidden;pointer-events:none;
   transform:translateX(-50%) translateY(-6px) scale(.96);transform-origin:top center;
   transition:opacity .18s var(--ease),transform .22s cubic-bezier(.34,1.56,.64,1),visibility .18s}
-.isl-group.open .isl-drop,
-.isl-group:hover .isl-drop,
-.isl-group:focus-within .isl-drop{opacity:1;visibility:visible;pointer-events:auto;transform:translateX(-50%) translateY(0) scale(1);transition-delay:0s}
-/* grace period + invisible bridge so diagonal mouse travel across the 10px gap never closes the panel */
-.isl-drop{transition-delay:.12s}
-.isl-drop::after{content:'';position:absolute;top:-12px;left:0;right:0;height:12px}
-.isl-group:hover .isl-chev,.isl-group:focus-within .isl-chev{transform:rotate(180deg)}
+.isl-group.open .isl-drop{opacity:1;visibility:visible;pointer-events:auto;transform:translateX(-50%) translateY(0) scale(1)}
 .isl-drop::before{content:'';position:absolute;top:-5px;left:50%;transform:translateX(-50%) rotate(45deg);width:9px;height:9px;
   background:var(--bg-card);border-left:1px solid var(--border);border-top:1px solid var(--border);border-radius:2px 0 0 0}
 .isl-drop button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 12px;border-radius:10px;
@@ -1902,7 +1896,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
-var APP_BUILD='2026.07.03b'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
+var APP_BUILD='2026.07.03c'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,

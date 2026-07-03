@@ -853,8 +853,8 @@ async function main() {
     // island polish: the production dropdown-clip bug + adaptive active pill + glass
     ok('island can never clip its dropdowns (no overflow/contain on the pill bar)', !/\.island\{[^}]*(overflow|contain)/.test(html));
     ok('island wraps gracefully when user labels/custom modules overflow the row', /\.island\{[^}]*flex-wrap:wrap/.test(html) && /\.island\{[^}]*max-width:calc\(100vw - 400px\)/.test(html));
-    ok('dropdowns reveal via opacity/visibility spring (clip-proof)', /\.isl-drop\{[^}]*opacity:0;visibility:hidden/.test(html) && /\.isl-group\.open \.isl-drop,\s*\.isl-group:hover \.isl-drop,\s*\.isl-group:focus-within \.isl-drop\{opacity:1;visibility:visible/.test(html));
-    ok('dropdowns open on hover/keyboard even with zero JavaScript (CSS fallback)', /\.isl-group:hover \.isl-drop/.test(html) && /\.isl-group:focus-within \.isl-drop/.test(html) && /\.isl-drop::after\{content:'';position:absolute;top:-12px/.test(html));
+    ok('dropdowns reveal via opacity/visibility spring (clip-proof)', /\.isl-drop\{[^}]*opacity:0;visibility:hidden/.test(html) && /\.isl-group\.open \.isl-drop\{opacity:1;visibility:visible/.test(html));
+    ok('standard UX: dropdowns are click-only — no hover/focus auto-open', !/\.isl-group:hover \.isl-drop/.test(html) && !/\.isl-group:focus-within \.isl-drop/.test(html));
     ok('liquid glass: islands react to scroll with deeper blur + specular rim', /body\.isl-scrolled \.isl-brand,body\.isl-scrolled \.island,body\.isl-scrolled \.isl-right\{/.test(html) && /function islandScrollSync/.test(html) && /addEventListener\('scroll', islandScrollSync, \{passive:true\}\)/.test(html));
     ok('active island pill adapts to the user accent (CTA tokens, not hard ink)', /\.isl-item\.active\{background:var\(--accent-cta\);color:var\(--accent-cta-ink\)\}/.test(html));
     ok('cards sit at ~86% opacity with a solid fallback (no per-card blur cost)', /\.card\{\s*background:var\(--bg-card\);background:color-mix\(in srgb,var\(--bg-card\) 86%,transparent\)/.test(html) && !/\.card\{-webkit-backdrop-filter/.test(html));
