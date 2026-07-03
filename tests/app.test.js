@@ -859,6 +859,9 @@ async function main() {
     ok('island squeezes on medium desktops (two tiers, fits down to 861px)', /@media \(min-width:861px\) and \(max-width:1180px\)/.test(html) && /@media \(min-width:861px\) and \(max-width:1040px\)/.test(html) && /\.isl-brand b\{display:none\}/.test(html));
     ok('health ring follows the user accent (no hardcoded gradient stops)', /stop-color:var\(--accent-cta,#4653e8\)/.test(html) && !/<stop offset="0" stop-color="#4653e8"/.test(html));
 
+    // build beacon: instantly answers "did the deploy update?"
+    ok('build stamp exists and is surfaced in Settings', typeof window.APP_BUILD === 'string' && window.APP_BUILD.length >= 8 && (function(){ window.location.hash='#/settings'; window.render(); return d.querySelector('.page-title p').textContent.indexOf(window.APP_BUILD) > -1; })());
+
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
   } catch (e) {
