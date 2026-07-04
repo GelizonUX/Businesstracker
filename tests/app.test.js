@@ -911,6 +911,25 @@ async function main() {
         var np=window.state.roadmaps[0].phases[window.state.roadmaps[0].phases.length-1];
         ok('double-click-to-create drops the branch at the clicked point', window.state.roadmaps[0].phases.length===n0+1 && np.x===1234 && np.y===888);
       })();
+      // premium polish from the 3-agent canvas validation ---------------------
+      (function(){ var css=''; d.querySelectorAll('style').forEach(function(s){ css+=s.textContent; });
+        ok('done tasks are not struck through (premium done-state, not "deleted")', !/rm-leaf\.done[^{]*\{[^}]*line-through/.test(css) && /rm-leaf\.done::before/.test(css));
+        ok('minimap is anchored bottom-left, clear of the toast/chat corner', /\.rm-mini\{[^}]*left:14px/.test(css) && !/\.rm-mini\{[^}]*right:14px/.test(css));
+      })();
+      // camera keys only fire when the canvas is the intended target (M1 fix)
+      (function(){ var btn=d.querySelector('button');
+        d.body.classList.remove('rm-grabbing');
+        if(btn){ btn.focus();
+          d.dispatchEvent(new window.KeyboardEvent('keydown',{code:'Space',key:' ',bubbles:true,cancelable:true}));
+          ok('Space is not hijacked while a non-canvas control is focused', !d.body.classList.contains('rm-grabbing'));
+          d.dispatchEvent(new window.KeyboardEvent('keyup',{code:'Space',key:' ',bubbles:true}));
+          if(btn.blur) btn.blur();
+        }
+        d.body.classList.remove('rm-grabbing');
+        d.dispatchEvent(new window.KeyboardEvent('keydown',{code:'Space',key:' ',bubbles:true,cancelable:true}));
+        ok('Space pans the canvas when nothing else holds focus', d.body.classList.contains('rm-grabbing'));
+        d.dispatchEvent(new window.KeyboardEvent('keyup',{code:'Space',key:' ',bubbles:true}));
+      })();
       window.ui.rmCam = null;
     })();
 

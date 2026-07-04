@@ -249,7 +249,10 @@ body.rm-grabbing .rm-canvas{cursor:grabbing}
 .rm-node.dragging{cursor:grabbing;box-shadow:var(--shadow-lg);z-index:9}
 .rm-node.rm-phase{background:color-mix(in srgb,var(--nc) 14%,var(--bg-card));border-color:var(--nc);font-weight:700}
 .rm-node.rm-leaf{font-weight:500;font-size:.84rem;border-style:solid}
-.rm-node.rm-leaf.done span:first-child{text-decoration:line-through;color:var(--text-3)}
+.rm-node.rm-leaf.done{opacity:.72;border-color:color-mix(in srgb,var(--good) 45%,var(--border-2))}
+.rm-node.rm-leaf.done span:first-child{color:var(--text-2)}
+.rm-node.rm-leaf.done::before{content:"\2713";flex-shrink:0;width:15px;height:15px;border-radius:50%;
+  background:var(--good);color:#fff;font-size:9px;font-weight:800;display:grid;place-items:center;line-height:1}
 .rm-node.rm-center{flex-direction:column;gap:2px;padding:14px 22px;border-radius:var(--r-lg);
   border-width:2px;border-color:var(--nc);background:var(--bg-card);box-shadow:var(--shadow);
   font-family:var(--font-display);white-space:normal;text-align:center;min-width:180px;max-width:280px}
@@ -275,12 +278,12 @@ body.rm-grabbing .rm-canvas{cursor:grabbing}
 .rm-cam-pct{min-width:52px}
 .rm-cam-div{width:1px;height:20px;background:var(--border);margin:0 3px}
 /* minimap */
-.rm-mini{position:absolute;right:14px;bottom:52px;z-index:8;width:150px;height:100px;border-radius:12px;overflow:hidden;
+.rm-mini{position:absolute;left:14px;bottom:52px;z-index:8;width:150px;height:100px;border-radius:12px;overflow:hidden;
   border:1px solid var(--border);box-shadow:var(--shadow);cursor:pointer;
   background:var(--bg-card);background:color-mix(in srgb,var(--bg-card) 82%,transparent);
   -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
 .rm-mini-inner{position:relative;width:150px;height:100px}
-.rm-mini-dot{position:absolute;width:5px;height:5px;border-radius:50%;background:var(--text-3);transform:translate(-50%,-50%)}
+.rm-mini-dot{position:absolute;width:6px;height:6px;border-radius:50%;background:var(--text-2);transform:translate(-50%,-50%)}
 .rm-mini-dot.p{background:var(--accent);width:6px;height:6px}
 .rm-mini-dot.c{background:var(--text);width:8px;height:8px;border-radius:3px}
 .rm-mini-view{position:absolute;border:1.5px solid var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:3px;pointer-events:none}
@@ -1964,7 +1967,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
-var APP_BUILD='2026.07.04a'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
+var APP_BUILD='2026.07.04b'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -4521,6 +4524,7 @@ function rmZoomTo(z,cx,cy){
 function rmZoomAnim(target){ // smooth zoom to centre for button clicks
   var cam=rmCam(), from=cam.z, t0=null;
   target=clamp(target,0.12,4);
+  if(typeof matchMedia==='function' && matchMedia('(prefers-reduced-motion:reduce)').matches){ rmZoomTo(target); return; }
   function step(ts){ if(t0==null)t0=ts; var k=Math.min((ts-t0)/180,1); var e=1-Math.pow(1-k,3);
     rmZoomTo(from+(target-from)*e); if(k<1) requestAnimationFrame(step); }
   requestAnimationFrame(step);
@@ -4555,7 +4559,11 @@ function rmScreenToWorld(cx,cy){ var cam=rmCam(), cv=byId('rm-canvas'), r=cv.get
 /* drag nodes + pan the camera — pointer events (mouse + touch) */
 var rmDrag=null, rmPan=null, rmSpace=false, rmHand=false;
 document.addEventListener('keydown',function(e){
-  if(!byId('rm-canvas')) return;
+  var cv=byId('rm-canvas'); if(!cv) return;
+  // only claim camera keys when the canvas is the intended target — otherwise a
+  // focused button keeps its Space activation and typing keys stay untouched
+  var ae=document.activeElement;
+  if(ae && ae!==document.body && ae!==cv && !cv.contains(ae)) return;
   var typing=/^(INPUT|TEXTAREA|SELECT)$/.test((e.target.tagName||''))||e.target.isContentEditable;
   if(e.code==='Space'&&!typing){ rmSpace=true; document.body.classList.add('rm-grabbing'); e.preventDefault(); }
   if(typing) return;
