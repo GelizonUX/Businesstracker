@@ -892,9 +892,45 @@ async function main() {
       click(d.querySelector('[data-action="roadmap-mode"][data-mode="list"]'));
       ok('List mode still renders the classic phase rows', !!d.querySelector('.rm-task-row'));
       click(d.querySelector('[data-action="roadmap-mode"][data-mode="map"]'));
-      click(d.querySelector('[data-action="rm-zoom"][data-dir="1"]'));
-      ok('zoom control scales the board', /scale\(1\.15\)/.test(d.getElementById('rm-board').getAttribute('style')));
-      window.ui.rmZoom = 1;
+      // camera engine: cursor-centred zoom writes a full transform + keeps world point fixed
+      window.render();
+      window.rmZoomTo(2, 400, 300);
+      ok('zoom writes a translate+scale camera transform', /translate\([^)]*\) scale\(2\)/.test(d.getElementById('rm-board').getAttribute('style')) && window.ui.rmCam.z === 2);
+      ok('cursor-centred zoom keeps the point under the cursor fixed', (function(){ var w=window.rmScreenToWorld(400,300); window.rmZoomTo(3,400,300); var w2=window.rmScreenToWorld(400,300); return Math.abs(w.x-w2.x)<0.5 && Math.abs(w.y-w2.y)<0.5; })());
+      // fit-to-screen frames all nodes within the viewport
+      window.rmFit();
+      ok('fit-to-screen produces a sane camera (all nodes visible)', window.ui.rmCam.z >= 0.12 && window.ui.rmCam.z <= 1.4 && isFinite(window.ui.rmCam.x) && isFinite(window.ui.rmCam.y));
+      // minimap + grid cycle
+      ok('minimap renders node dots + a viewport rect', !!d.getElementById('rm-mini') && d.querySelectorAll('.rm-mini-dot').length >= 3 && !!d.getElementById('rm-mini-view'));
+      click(d.querySelector('[data-action="rm-grid-cycle"]'));
+      ok('grid style cycles (dots → lines → none)', /rm-grid-lines/.test(d.querySelector('.rm-canvas-card').className));
+      // double-click empty canvas drops a new branch at that world point
+      (function(){ var n0=window.state.roadmaps[0].phases.length; window.rmPendingPos={x:1234,y:888}; window.phaseModal();
+        var f=d.getElementById('modal-form'); f.elements['name'].value='DblClick Branch';
+        f.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
+        var np=window.state.roadmaps[0].phases[window.state.roadmaps[0].phases.length-1];
+        ok('double-click-to-create drops the branch at the clicked point', window.state.roadmaps[0].phases.length===n0+1 && np.x===1234 && np.y===888);
+      })();
+      // premium polish from the 3-agent canvas validation ---------------------
+      (function(){ var css=''; d.querySelectorAll('style').forEach(function(s){ css+=s.textContent; });
+        ok('done tasks are not struck through (premium done-state, not "deleted")', !/rm-leaf\.done[^{]*\{[^}]*line-through/.test(css) && /rm-leaf\.done::before/.test(css));
+        ok('minimap is anchored bottom-left, clear of the toast/chat corner', /\.rm-mini\{[^}]*left:14px/.test(css) && !/\.rm-mini\{[^}]*right:14px/.test(css));
+      })();
+      // camera keys only fire when the canvas is the intended target (M1 fix)
+      (function(){ var btn=d.querySelector('button');
+        d.body.classList.remove('rm-grabbing');
+        if(btn){ btn.focus();
+          d.dispatchEvent(new window.KeyboardEvent('keydown',{code:'Space',key:' ',bubbles:true,cancelable:true}));
+          ok('Space is not hijacked while a non-canvas control is focused', !d.body.classList.contains('rm-grabbing'));
+          d.dispatchEvent(new window.KeyboardEvent('keyup',{code:'Space',key:' ',bubbles:true}));
+          if(btn.blur) btn.blur();
+        }
+        d.body.classList.remove('rm-grabbing');
+        d.dispatchEvent(new window.KeyboardEvent('keydown',{code:'Space',key:' ',bubbles:true,cancelable:true}));
+        ok('Space pans the canvas when nothing else holds focus', d.body.classList.contains('rm-grabbing'));
+        d.dispatchEvent(new window.KeyboardEvent('keyup',{code:'Space',key:' ',bubbles:true}));
+      })();
+      window.ui.rmCam = null;
     })();
 
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
