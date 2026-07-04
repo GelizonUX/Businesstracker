@@ -1019,6 +1019,75 @@ async function main() {
         ok('deselecting clears the connector spotlight', !card.classList.contains('rm-has-sel'));
         window.ui.rmSel = null;
       })();
+      // ===== Milestone 4 · multi-select, delete, duplicate, context menu, cursors =====
+      (function(){
+        var pe = function(type, el, x, y, opt){ var o = Object.assign({ bubbles: true, cancelable: true, clientX: x || 0, clientY: y || 0, button: 0 }, opt || {}); (el || d).dispatchEvent(new window.MouseEvent(type, o)); };
+        window.render(); window.rmZoomTo(1); window.ui.rmSelSet = null; window.ui.rmSel = null;
+        var rm = window.state.roadmaps[0];
+        var total = 0; rm.phases.forEach(function(p){ total += 1 + (p.tasks || []).length; });
+        // select all
+        window.rmSelectAll();
+        ok('select-all selects every phase + task (not the centre)', window.rmSelCount() === total);
+        window.rmDeselect();
+        ok('deselect clears the whole selection', window.rmSelCount() === 0);
+        // shift-click toggles a node into/out of the selection
+        window.render();
+        var pnodes = d.querySelectorAll('.rm-node.rm-phase');
+        var a = pnodes[0], aid = a.getAttribute('data-nid');
+        pe('pointerdown', a, 10, 10, { shiftKey: true }); pe('pointerup', d, 10, 10, { shiftKey: true });
+        ok('Shift+click adds a node to the selection', window.rmSelHas(aid) && window.rmSelCount() === 1);
+        pe('pointerdown', a, 10, 10, { shiftKey: true }); pe('pointerup', d, 10, 10, { shiftKey: true });
+        ok('Shift+click again removes it', !window.rmSelHas(aid));
+        // duplicate → new copy is added and selected
+        window.rmSelectOnly(aid);
+        var pc0 = window.state.roadmaps[0].phases.length;
+        window.rmDuplicateSel();
+        ok('duplicate clones the selection with an offset', window.state.roadmaps[0].phases.length === pc0 + 1 && window.rmSelCount() === 1);
+        // delete removes the selected node(s) from the model
+        window.rmDeleteSel();
+        ok('delete removes the selected node(s)', window.state.roadmaps[0].phases.length === pc0);
+        // group drag: two selected nodes move together
+        window.render(); window.rmZoomTo(1);
+        var pp = d.querySelectorAll('.rm-node.rm-phase');
+        if (pp.length >= 2) {
+          var n1 = pp[0].getAttribute('data-nid'), n2 = pp[1].getAttribute('data-nid');
+          window.rmSelectOnly(n1); window.rmSelSet()[n2] = true; window.rmApplySelDom();
+          var e1 = d.querySelector('.rm-node[data-nid="' + n1 + '"]'), l1 = parseFloat(e1.style.left), t1 = parseFloat(e1.style.top);
+          var l2 = parseFloat(d.querySelector('.rm-node[data-nid="' + n2 + '"]').style.left);
+          pe('pointerdown', e1, l1, t1); pe('pointermove', d, l1 + 60, t1 + 20); pe('pointerup', d, l1 + 60, t1 + 20);
+          var m1 = window.rmNodeRef(n1).node, m2 = window.rmNodeRef(n2).node;
+          ok('group drag moves every selected node together', Math.round(m1.x - l1) === 60 && Math.round(m2.x - l2) === 60);
+        } else { ok('group drag moves every selected node together (skipped: <2 phases)', true); }
+        window.rmDeselect();
+        // marquee: Shift+drag a box over the whole board selects the nodes inside
+        window.render(); window.rmZoomTo(1); window.rmCam().x = 0; window.rmCam().y = 0;
+        var board = d.getElementById('rm-board');
+        pe('pointerdown', board, -99999, -99999, { shiftKey: true });
+        pe('pointermove', d, 99999, 99999, { shiftKey: true });
+        pe('pointerup', d, 99999, 99999, { shiftKey: true });
+        ok('Shift+drag marquee selects the nodes inside the box', window.rmSelCount() >= 1);
+        window.rmDeselect();
+        // right-click opens a context menu offering Delete
+        window.render();
+        var pn = d.querySelector('.rm-node.rm-phase');
+        pn.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 6, clientY: 6 }));
+        var ctx = d.getElementById('rm-ctx');
+        ok('right-click opens a context menu with Delete', !!ctx && /rm-ctx-del/.test(ctx.innerHTML));
+        window.rmCtxClose();
+        ok('context menu closes on demand', !d.getElementById('rm-ctx'));
+        // keybindings actually fire: Cmd/Ctrl+A selects, Delete removes
+        window.render();
+        d.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'a', metaKey: true, bubbles: true, cancelable: true }));
+        ok('Cmd/Ctrl+A keybinding selects all', window.rmSelCount() >= 1);
+        var pcx = window.state.roadmaps[0].phases.length;
+        window.rmSelectOnly(d.querySelector('.rm-node.rm-phase').getAttribute('data-nid'));
+        d.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+        ok('Delete keybinding removes the selected node', window.state.roadmaps[0].phases.length === pcx - 1);
+        // standard cursors: empty canvas = grab hand, nodes = move
+        var css = ''; d.querySelectorAll('style').forEach(function(s){ css += s.textContent; });
+        ok('empty canvas shows a grab hand; nodes show a move cursor', /\.rm-canvas\{[^}]*cursor:grab/.test(css) && /\.rm-node\{[^}]*cursor:move/.test(css));
+        window.ui.rmSelSet = null; window.ui.rmSel = null;
+      })();
       window.ui.rmCam = null;
     })();
 
