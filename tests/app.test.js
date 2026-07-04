@@ -874,7 +874,7 @@ async function main() {
       const phases = m.querySelectorAll('.rm-node.rm-phase');
       const leaves = m.querySelectorAll('.rm-node.rm-leaf');
       ok('map renders centre + branch + leaf nodes', !!center && phases.length >= 1 && leaves.length >= 1);
-      ok('every non-centre node has a connecting edge', m.querySelectorAll('.rm-edges path').length === phases.length + leaves.length);
+      ok('every non-centre node has a connecting edge', m.querySelectorAll('.rm-edges path[data-edge]').length === phases.length + leaves.length);
       ok('auto-layout positions every node', Array.prototype.every.call(m.querySelectorAll('.rm-node'), n => parseFloat(n.style.left) > 0 && parseFloat(n.style.top) > 0));
       const p0 = window.state.roadmaps[0].phases[0];
       window.rmSetNodePos('phase', p0.id, 500, 400);
@@ -998,6 +998,25 @@ async function main() {
         click(d.querySelector('[data-action="roadmap-mode"][data-mode="list"]'));
         ok('switching mode cancels an in-progress placement', !d.body.classList.contains('rm-placing') && !d.getElementById('rm-ghost'));
         click(d.querySelector('[data-action="roadmap-mode"][data-mode="map"]'));
+        window.ui.rmSel = null;
+      })();
+      // ===== Milestone 3 · connectors — ports, arrowheads, spotlight =====
+      (function(){
+        // port-trimming: the path no longer starts at the parent's centre
+        var pth = window.rmEdgePath({ x: 0, y: 0 }, { x: 100, y: 0 });
+        var m = pth.match(/^M(-?\d+) (-?\d+) C/);
+        ok('connectors are port-trimmed off the node centre', !!m && Number(m[1]) >= 40 && Number(m[1]) <= 46 && Number(m[2]) === 0);
+        window.render();
+        var svg = d.querySelector('.rm-edges');
+        ok('connectors define + reference an arrowhead marker', !!svg.querySelector('#rm-arrow') && /marker-end="url\(#rm-arrow\)"/.test(svg.innerHTML));
+        // selection spotlight: incident edge lit, card marked so the rest dim
+        var ph = window.state.roadmaps[0].phases[0];
+        window.rmSelect('p:' + ph.id);
+        var card = d.querySelector('.rm-canvas-card');
+        var onEdge = d.querySelector('.rm-edges path[data-edge="p:' + ph.id + '"]');
+        ok('selecting a node spotlights its connector, dims the rest', card.classList.contains('rm-has-sel') && onEdge.classList.contains('rm-edge-on'));
+        window.rmDeselect();
+        ok('deselecting clears the connector spotlight', !card.classList.contains('rm-has-sel'));
         window.ui.rmSel = null;
       })();
       window.ui.rmCam = null;

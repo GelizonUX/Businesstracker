@@ -239,7 +239,10 @@ body.rm-grabbing .rm-canvas,body.rm-hand .rm-canvas{cursor:grab}
 body.rm-grabbing .rm-canvas{cursor:grabbing}
 .rm-board{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
 .rm-edges{position:absolute;inset:0;pointer-events:none}
-.rm-edges path{stroke-width:2;opacity:.55}
+.rm-edges path{stroke-width:2.4;opacity:.62;stroke-linecap:round;transition:opacity .15s var(--ease),stroke-width .15s var(--ease)}
+/* when a node is selected, spotlight its connectors and dim the rest */
+.rm-canvas-card.rm-has-sel .rm-edges path{opacity:.16}
+.rm-canvas-card.rm-has-sel .rm-edges path.rm-edge-on{opacity:1;stroke-width:3.2}
 .rm-node{position:absolute;transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:8px;
   padding:9px 16px;border-radius:999px;background:var(--bg-card);border:1.5px solid var(--nc,var(--border-2));
   box-shadow:var(--shadow-sm);font-size:.88rem;font-weight:600;color:var(--text);cursor:grab;user-select:none;
@@ -2051,7 +2054,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
-var APP_BUILD='2026.07.04d'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
+var APP_BUILD='2026.07.04e'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -2841,6 +2844,7 @@ function render(){
     if(ui.rmCam) requestAnimationFrame(rmApplyCam);
     else requestAnimationFrame(function(){ if(byId('rm-canvas')) rmFit(); });
     if(typeof rmConsumeEdit==='function') rmConsumeEdit();
+    if(ui.rmSel && typeof rmEdgeHighlight==='function') requestAnimationFrame(function(){ if(ui.rmSel) rmEdgeHighlight(ui.rmSel); });
   } else { if(typeof rmPlaceCancel==='function') rmPlaceCancel(); if(ui.roadmapMode!=='map'){ ui.rmCam=null; ui.rmSel=null; } }
   main.scrollTop=0;
 }
@@ -4503,9 +4507,15 @@ function rmLayout(rm){
   });
   return pos;
 }
+var RM_EDGE_DEFS='<defs><marker id="rm-arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M1 1L9 5L1 9z" fill="context-stroke" stroke="none"/></marker></defs>';
 function rmEdgePath(a,b){
-  var mx=(a.x+b.x)/2;
-  return 'M'+a.x+' '+a.y+' C'+mx+' '+a.y+', '+mx+' '+b.y+', '+b.x+' '+b.y;
+  // trim both ends toward the node borders so the line never plunges into a
+  // node centre, and leave a gap at the child end for the arrowhead
+  var dx=b.x-a.x, dy=b.y-a.y, len=Math.sqrt(dx*dx+dy*dy)||1, ux=dx/len, uy=dy/len;
+  var pad0=Math.min(46,len*0.42), pad1=Math.min(38,len*0.42);
+  var ax=Math.round(a.x+ux*pad0), ay=Math.round(a.y+uy*pad0), bx=Math.round(b.x-ux*pad1), by=Math.round(b.y-uy*pad1);
+  var mx=Math.round((ax+bx)/2); // horizontal-tangent cubic — smooth organic branch curve
+  return 'M'+ax+' '+ay+' C'+mx+' '+ay+', '+mx+' '+by+', '+bx+' '+by;
 }
 function rmMapHTML(rm){
   var pos=rmLayout(rm);
@@ -4513,10 +4523,10 @@ function rmMapHTML(rm){
   var c=pos.center, cCol=rmNodeColor('center',rm,rm);
   (rm.phases||[]).forEach(function(p){
     var pp=pos['p:'+p.id], pCol=rmNodeColor('phase',p,rm);
-    edges+='<path data-edge="p:'+p.id+'" d="'+rmEdgePath(c,pp)+'" stroke="'+pCol+'" />';
+    edges+='<path data-edge="p:'+p.id+'" d="'+rmEdgePath(c,pp)+'" stroke="'+pCol+'" marker-end="url(#rm-arrow)" />';
     (p.tasks||[]).forEach(function(t){
       var tp=pos['t:'+t.id], tCol=rmNodeColor('task',t,rm);
-      edges+='<path data-edge="t:'+t.id+'" data-from="p:'+p.id+'" d="'+rmEdgePath(pp,tp)+'" stroke="'+tCol+'" />';
+      edges+='<path data-edge="t:'+t.id+'" data-from="p:'+p.id+'" d="'+rmEdgePath(pp,tp)+'" stroke="'+tCol+'" marker-end="url(#rm-arrow)" />';
     });
   });
   nodes+='<div class="rm-node rm-center'+rmSelCls('center')+'" data-nid="center" data-kind="center" style="left:'+c.x+'px;top:'+c.y+'px;--nc:'+cCol+'">'+
@@ -4548,7 +4558,7 @@ function rmMapHTML(rm){
   return '<div class="card mt rm-canvas-card rm-grid-'+(ui.rmGrid||'dots')+'"'+hStyle+'><div class="rm-canvas" id="rm-canvas" tabindex="0">'+
     rmRailHTML()+rmMapsHTML(rm)+
     '<div class="rm-board" id="rm-board" style="width:'+RM_BOARD_W+'px;height:'+RM_BOARD_H+'px">'+
-      '<svg class="rm-edges" width="'+RM_BOARD_W+'" height="'+RM_BOARD_H+'" viewBox="0 0 '+RM_BOARD_W+' '+RM_BOARD_H+'" fill="none">'+edges+'</svg>'+nodes+
+      '<svg class="rm-edges" width="'+RM_BOARD_W+'" height="'+RM_BOARD_H+'" viewBox="0 0 '+RM_BOARD_W+' '+RM_BOARD_H+'" fill="none">'+RM_EDGE_DEFS+edges+'</svg>'+nodes+
     '</div>'+
     '<div class="rm-mini" id="rm-mini" data-action="rm-mini-jump" title="Minimap — click to jump"><div class="rm-mini-inner" id="rm-mini-inner">'+mm+'<div class="rm-mini-view" id="rm-mini-view"></div></div></div>'+
     '<div class="rm-resize" title="Drag to resize the canvas"></div>'+
@@ -4834,8 +4844,19 @@ function rmSelect(nid){
   ui.rmSel=nid; var b=byId('rm-board'); if(!b) return;
   b.querySelectorAll('.rm-node.rm-sel').forEach(function(n){ n.classList.remove('rm-sel'); });
   var el=b.querySelector('.rm-node[data-nid="'+nid+'"]'); if(el) el.classList.add('rm-sel');
+  rmEdgeHighlight(nid);
 }
-function rmDeselect(){ ui.rmSel=null; var b=byId('rm-board'); if(b) b.querySelectorAll('.rm-node.rm-sel').forEach(function(n){ n.classList.remove('rm-sel'); }); }
+function rmDeselect(){ ui.rmSel=null; var b=byId('rm-board'); if(b) b.querySelectorAll('.rm-node.rm-sel').forEach(function(n){ n.classList.remove('rm-sel'); }); rmEdgeHighlight(null); }
+/* spotlight the connectors touching the selected node, dim the rest */
+function rmEdgeHighlight(nid){
+  var b=byId('rm-board'); if(!b) return;
+  var card=byId('rm-canvas')&&byId('rm-canvas').closest('.rm-canvas-card');
+  b.querySelectorAll('path[data-edge]').forEach(function(pt){
+    var eid=pt.getAttribute('data-edge'), from=pt.getAttribute('data-from')||(eid.indexOf('p:')===0?'center':null);
+    pt.classList.toggle('rm-edge-on', !!(nid&&(eid===nid||from===nid)));
+  });
+  if(card) card.classList.toggle('rm-has-sel',!!nid);
+}
 function rmSyncToolButtons(){
   document.querySelectorAll('[data-action="rm-tool-select"]').forEach(function(b){
     var isHand=b.getAttribute('data-tool')==='hand'; b.classList.toggle('on',isHand?rmHand:!rmHand);
