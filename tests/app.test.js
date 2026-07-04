@@ -886,9 +886,12 @@ async function main() {
       click(d.querySelector('.rm-tool[data-action="rm-node-color"][data-kind="phase"][data-id="' + p0.id + '"]'));
       ok('node colour cycle persists a new colour', window.state.roadmaps[0].phases[0].color && window.state.roadmaps[0].phases[0].color !== before);
       window.render();
-      click(d.querySelector('.rm-node.rm-phase .rm-tool[data-action="open-phase-task-modal"]'));
-      ok('+ on a branch opens the task modal', d.getElementById('modal-root').innerHTML.indexOf('modal') > -1 && d.getElementById('modal-root').innerHTML.length > 100);
-      window.closeModal();
+      // M2: quick-add slot on a branch spawns a connected task directly — no modal/form
+      (function(){ var n0 = (window.state.roadmaps[0].phases[0].tasks || []).length;
+        click(d.querySelector('.rm-node.rm-phase[data-id="' + p0.id + '"] .rm-qadd[data-dir="r"]'));
+        ok('quick-add on a branch spawns a connected task (no modal)',
+          (window.state.roadmaps[0].phases[0].tasks || []).length === n0 + 1 && d.getElementById('modal-root').innerHTML.length < 100);
+      })();
       click(d.querySelector('[data-action="roadmap-mode"][data-mode="list"]'));
       ok('List mode still renders the classic phase rows', !!d.querySelector('.rm-task-row'));
       click(d.querySelector('[data-action="roadmap-mode"][data-mode="map"]'));
@@ -929,6 +932,47 @@ async function main() {
         d.dispatchEvent(new window.KeyboardEvent('keydown',{code:'Space',key:' ',bubbles:true,cancelable:true}));
         ok('Space pans the canvas when nothing else holds focus', d.body.classList.contains('rm-grabbing'));
         d.dispatchEvent(new window.KeyboardEvent('keyup',{code:'Space',key:' ',bubbles:true}));
+      })();
+      // ===== Milestone 2 · direct-manipulation canvas =====
+      (function(){
+        window.render();
+        var rm = window.state.roadmaps[0];
+        ok('canvas has an upper-left tool rail (add · shape · hand)', !!d.querySelector('.rm-canvas .rm-rail [data-action="rm-place-start"]') && !!d.querySelector('.rm-rail [data-action="rm-shape-flyout"]'));
+        ok('boards panel lists the roadmap on the side', !!d.querySelector('.rm-maps [data-action="roadmap-switch"][data-id="' + rm.id + '"]'));
+        var pnode = d.querySelector('.rm-node.rm-phase');
+        ok('phase nodes carry a shape class + inline label + 4 quick-add slots', /rm-s-/.test(pnode.className) && !!pnode.querySelector('.rm-node-label') && pnode.querySelectorAll('.rm-qadd').length === 4);
+        // placement mode — faint predictive ghost, positioned by clicking, no form
+        window.ui.rmShape = 'diamond';
+        window.rmPlaceStart('phase');
+        ok('placement mode shows a predictive ghost, not a form', !!d.getElementById('rm-ghost') && d.body.classList.contains('rm-placing') && d.getElementById('modal-root').innerHTML.length < 100);
+        var pc0 = rm.phases.length;
+        window.rmPlaceCommit({ x: 2222, y: 1111 });
+        var placed = window.state.roadmaps[0].phases.slice(-1)[0];
+        ok('placement drops a shaped branch exactly where clicked (no modal)', window.state.roadmaps[0].phases.length === pc0 + 1 && placed.x === 2222 && placed.y === 1111 && placed.shape === 'diamond' && !d.getElementById('rm-ghost'));
+        // predictive quick-add — spawn a connected node toward a chosen side
+        window.render();
+        var qc0 = window.state.roadmaps[0].phases.length;
+        click(d.querySelector('.rm-node.rm-center .rm-qadd[data-dir="t"]'));
+        ok('quick-add on the centre spawns a connected phase', window.state.roadmaps[0].phases.length === qc0 + 1);
+        // selection + shape switch on the selected node
+        window.render();
+        var target = window.state.roadmaps[0].phases[0];
+        window.rmSelect('p:' + target.id);
+        ok('clicking a node selects it (selection ring)', window.ui.rmSel === 'p:' + target.id && !!d.querySelector('.rm-node.rm-sel[data-id="' + target.id + '"]'));
+        window.rmPickShape('sticky');
+        ok('picking a shape restyles the selected node', window.state.roadmaps[0].phases.find(function(p){return p.id===target.id;}).shape === 'sticky');
+        // inline rename — editable label, commit to model, no modal
+        window.render();
+        window.rmStartInlineEdit('p:' + target.id);
+        var lbl = d.querySelector('.rm-node[data-nid="p:' + target.id + '"] .rm-node-label');
+        ok('inline rename opens a contenteditable label (no modal)', !!lbl && lbl.getAttribute('contenteditable') === 'true');
+        lbl.textContent = 'Renamed Inline';
+        lbl.dispatchEvent(new window.Event('blur'));
+        ok('committing the inline edit renames the node on the model', window.state.roadmaps[0].phases.find(function(p){return p.id===target.id;}).name === 'Renamed Inline');
+        // canvas height is user-adjustable (persisted --rm-h)
+        window.state.settings.rmCanvasH = 560; window.render();
+        ok('canvas height is adjustable via a persisted --rm-h', /--rm-h:560px/.test(d.querySelector('.rm-canvas-card').getAttribute('style') || ''));
+        window.ui.rmSel = null; window.ui.rmShape = 'capsule'; delete window.state.settings.rmCanvasH;
       })();
       window.ui.rmCam = null;
     })();
