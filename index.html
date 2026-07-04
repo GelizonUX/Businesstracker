@@ -385,9 +385,19 @@ body.rm-placing .rm-canvas{cursor:copy}
 .rm-ctx-item:hover{background:var(--bg-sunken);color:var(--text)}
 .rm-ctx-item.danger{color:var(--risk)}.rm-ctx-item.danger:hover{background:var(--risk-soft);color:var(--risk)}
 .rm-ctx-sep{height:1px;background:var(--border);margin:4px 6px}
-/* multi-select count badge (top-centre) */
-.rm-selcount{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:9;padding:5px 12px;border-radius:999px;
-  font-size:.76rem;font-weight:700;color:#fff;background:var(--accent);box-shadow:var(--shadow);pointer-events:none}
+/* floating selection toolbar (top-centre) — surfaces duplicate/shape/delete */
+.rm-selbar{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:11;display:flex;align-items:center;gap:3px;padding:4px 5px 4px 12px;border-radius:999px;
+  box-shadow:var(--shadow-lg);border:1px solid var(--border);background:color-mix(in srgb,var(--bg-card) 88%,transparent);
+  -webkit-backdrop-filter:blur(16px) saturate(1.6);backdrop-filter:blur(16px) saturate(1.6)}
+.rm-selbar-n{font-size:.76rem;font-weight:700;color:var(--text);white-space:nowrap}
+.rm-selbar-div{width:1px;height:18px;background:var(--border);margin:0 3px}
+.rm-selbar-btn{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--text-2);cursor:pointer}
+.rm-selbar-btn:hover{background:var(--bg-sunken);color:var(--text)}
+.rm-selbar-btn.danger:hover{background:var(--risk-soft);color:var(--risk)}
+/* cursor honesty: hand-tool shows grab over nodes too; chrome panels are default */
+body.rm-hand .rm-node,body.rm-grabbing .rm-node{cursor:grab}
+.rm-rail,.rm-maps,.rm-cam-bar,.rm-selbar{cursor:default}
+body.rm-shift .rm-canvas{cursor:crosshair}
 
 /* ============================================================
    layout: sidebar + main
@@ -1852,7 +1862,8 @@ var ICONS = {
   receipt:'<path d="M4 2v20l2-1.5L8 22l2-1.5L12 22l2-1.5L16 22l2-1.5L20 22V2l-2 1.5L16 2l-2 1.5L12 2l-2 1.5L8 2 6 3.5z"/><path d="M8 7h8M8 11h8M8 15h5"/>',
   cursor:'<path d="M4 3l6.4 16 2.4-6.4 6.4-2.4z"/>',
   shapes:'<rect x="3" y="3" width="9.5" height="9.5" rx="2"/><circle cx="16.5" cy="16" r="5"/>',
-  layers:'<path d="M12 2l9 5-9 5-9-5 9-5z"/><path d="M3 12l9 5 9-5M3 17l9 5 9-5"/>'
+  layers:'<path d="M12 2l9 5-9 5-9-5 9-5z"/><path d="M3 12l9 5 9-5M3 17l9 5 9-5"/>',
+  copy:'<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>'
 };
 function icon(name,size){
   return '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'+(size?' style="width:'+size+'px;height:'+size+'px"':'')+'>'+(ICONS[name]||'')+'</svg>';
@@ -2068,7 +2079,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
-var APP_BUILD='2026.07.04f'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
+var APP_BUILD='2026.07.04g'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -4570,7 +4581,7 @@ function rmMapHTML(rm){
   var mm=rmMiniDots(pos);
   var hStyle=(state.settings&&state.settings.rmCanvasH)?' style="--rm-h:'+state.settings.rmCanvasH+'px"':'';
   return '<div class="card mt rm-canvas-card rm-grid-'+(ui.rmGrid||'dots')+'"'+hStyle+'><div class="rm-canvas" id="rm-canvas" tabindex="0">'+
-    rmRailHTML()+rmMapsHTML(rm)+'<div class="rm-selcount" id="rm-selcount" style="display:none"></div>'+
+    rmRailHTML()+rmMapsHTML(rm)+'<div class="rm-selbar" id="rm-selbar" style="display:none"></div>'+
     '<div class="rm-board" id="rm-board" style="width:'+RM_BOARD_W+'px;height:'+RM_BOARD_H+'px">'+
       '<svg class="rm-edges" width="'+RM_BOARD_W+'" height="'+RM_BOARD_H+'" viewBox="0 0 '+RM_BOARD_W+' '+RM_BOARD_H+'" fill="none">'+RM_EDGE_DEFS+edges+'</svg>'+nodes+
     '</div>'+
@@ -4587,7 +4598,7 @@ function rmMapHTML(rm){
       '<button class="rm-cam-btn" data-action="rm-fit" title="Fit to screen (Shift+1)">'+icon('search',14)+'</button>'+
       '<button class="rm-cam-btn" data-action="rm-grid-cycle" title="Grid style">'+icon('dashboard',14)+'</button>'+
     '</div>'+
-    '<p class="rm-hint">'+esc(tr('Drag to pan · click to select · Shift+click or Shift+drag to multi-select · ⌘/Ctrl+A all · ⌘/Ctrl+D duplicate · Delete to remove · double-click to rename · right-click for more'))+'</p></div>';
+    '<p class="rm-hint">'+esc(tr('Drag to pan · Shift+drag to lasso · ⌘/Ctrl+A all · ⌘D duplicate · ⌘C/⌘V copy · ⌘Z undo · arrows nudge · Del remove · double-click rename · right-click for more'))+'</p></div>';
 }
 function rmMiniDots(pos){
   var xs=[],ys=[]; for(var k in pos){ xs.push(pos[k].x); ys.push(pos[k].y); }
@@ -4678,11 +4689,18 @@ document.addEventListener('keydown',function(e){
   if(ae && ae!==document.body && ae!==cv && !cv.contains(ae)) return;
   var typing=/^(INPUT|TEXTAREA|SELECT)$/.test((e.target.tagName||''))||e.target.isContentEditable;
   if(e.code==='Space'&&!typing){ rmSpace=true; document.body.classList.add('rm-grabbing'); e.preventDefault(); }
+  if(e.key==='Shift'&&!typing) document.body.classList.add('rm-shift');
   if(typing) return;
   var mod=e.metaKey||e.ctrlKey;
   // selection & editing shortcuts (Figma/Miro standard)
   if(mod&&(e.key==='a'||e.key==='A')){ rmSelectAll(); e.preventDefault(); return; }
   if(mod&&(e.key==='d'||e.key==='D')){ rmDuplicateSel(); e.preventDefault(); return; }
+  if(mod&&(e.key==='z'||e.key==='Z')){ if(e.shiftKey) rmRedo(); else rmUndoRoad(); e.preventDefault(); return; }
+  if(mod&&(e.key==='y'||e.key==='Y')){ rmRedo(); e.preventDefault(); return; }
+  if(mod&&(e.key==='c'||e.key==='C')){ rmCopySel(); e.preventDefault(); return; }
+  if(mod&&(e.key==='x'||e.key==='X')){ if(rmSelCount()>0){ rmCopySel(); rmDeleteSel(); } e.preventDefault(); return; }
+  if(mod&&(e.key==='v'||e.key==='V')){ rmPasteClip(); e.preventDefault(); return; }
+  if(/^Arrow(Up|Down|Left|Right)$/.test(e.key)&&rmSelCount()>0){ rmNudgeSel(e.key,e.shiftKey?10:1); e.preventDefault(); return; }
   if((e.key==='Delete'||e.key==='Backspace')&&rmSelCount()>0){ rmDeleteSel(); e.preventDefault(); return; }
   if(e.key==='h'||e.key==='H'){ rmHand=!rmHand; document.body.classList.toggle('rm-hand',rmHand); rmSyncToolButtons(); }
   else if(e.key==='v'||e.key==='V'){ if(rmHand){ rmHand=false; document.body.classList.remove('rm-hand'); rmSyncToolButtons(); } }
@@ -4691,7 +4709,7 @@ document.addEventListener('keydown',function(e){
   else if(e.key==='1'&&e.shiftKey){ rmFit(); e.preventDefault(); }
   else if(e.key==='0'&&mod){ rmZoomTo(1); e.preventDefault(); }
 });
-document.addEventListener('keyup',function(e){ if(e.code==='Space'){ rmSpace=false; document.body.classList.remove('rm-grabbing'); } });
+document.addEventListener('keyup',function(e){ if(e.code==='Space'){ rmSpace=false; document.body.classList.remove('rm-grabbing'); } if(e.key==='Shift') document.body.classList.remove('rm-shift'); });
 document.addEventListener('pointerdown',function(e){
   var cv=e.target.closest&&e.target.closest('#rm-canvas'); if(!cv) return;
   if(rmPlace) return; // in placement mode a single click drops the node — never drag/pan
@@ -4746,9 +4764,11 @@ function rmMarqueeCommit(e){
   var x0=Math.min(rmMarquee.sx,e.clientX), y0=Math.min(rmMarquee.sy,e.clientY), x1=Math.max(rmMarquee.sx,e.clientX), y1=Math.max(rmMarquee.sy,e.clientY);
   if(x1-x0<4&&y1-y0<4){ rmDeselect(); return; }
   var cr=cv.getBoundingClientRect(), s={};
+  Object.keys(rmSelSet()).forEach(function(k){ s[k]=true; }); // additive — marquee is Shift-driven, so it unions
   cv.querySelectorAll('.rm-node').forEach(function(n){
-    var sx=cr.left+cam.x+parseFloat(n.style.left)*cam.z, sy=cr.top+cam.y+parseFloat(n.style.top)*cam.z;
-    if(sx>=x0&&sx<=x1&&sy>=y0&&sy<=y1) s[n.getAttribute('data-nid')]=true;
+    var hw=(n.offsetWidth||0)*cam.z/2, hh=(n.offsetHeight||0)*cam.z/2; // select any node the box TOUCHES (intersect)
+    var cxp=cr.left+cam.x+parseFloat(n.style.left)*cam.z, cyp=cr.top+cam.y+parseFloat(n.style.top)*cam.z;
+    if(cxp+hw>=x0&&cxp-hw<=x1&&cyp+hh>=y0&&cyp-hh<=y1) s[n.getAttribute('data-nid')]=true;
   });
   ui.rmSelSet=s; ui.rmSel=Object.keys(s)[0]||null; rmApplySelDom();
 }
@@ -4772,8 +4792,12 @@ function rmShowContextMenu(clientX,clientY,nid){
   }
   var el=document.createElement('div'); el.className='rm-ctx'; el.id='rm-ctx'; el.innerHTML=items;
   var cr=cv.getBoundingClientRect();
-  el.style.left=Math.min(clientX-cr.left,cr.width-176)+'px'; el.style.top=(clientY-cr.top)+'px';
+  el.style.left=Math.max(4,Math.min(clientX-cr.left,cr.width-178))+'px'; el.style.top='0px'; el.style.visibility='hidden';
   cv.appendChild(el); rmCtxEl=el; rmCtxWorld=rmScreenToWorld(clientX,clientY);
+  // clamp/flip vertically so the menu never spills out of the clipped canvas
+  var mh=el.offsetHeight||210, top=clientY-cr.top;
+  if(top+mh>cr.height-6) top=Math.max(6,(clientY-cr.top)-mh);
+  el.style.top=top+'px'; el.style.visibility='';
 }
 document.addEventListener('contextmenu',function(e){
   var cv=e.target.closest&&e.target.closest('#rm-canvas'); if(!cv) return;
@@ -4844,7 +4868,7 @@ function rmRailHTML(){
   var fly='<div class="rm-flyout" id="rm-flyout"><span class="rm-flyout-cap">'+esc(ui.rmSel?'Shape of selection':'Shape for new nodes')+'</span>'+
     RM_SHAPES.map(function(s){ return '<div class="rm-shape-opt'+(sh===s[0]?' on':'')+'" data-action="rm-shape-pick" data-shape="'+s[0]+'" title="'+s[1]+'"><span class="rm-shape-glyph '+s[0]+'"></span></div>'; }).join('')+'</div>';
   return '<div class="rm-rail">'+
-    '<button class="rm-rail-btn'+(!rmHand?' on':'')+'" data-action="rm-tool-select" data-tool="select" title="Select / move (V)">'+icon('cursor',16)+'</button>'+
+    '<button class="rm-rail-btn'+(!rmHand?' on':'')+'" data-action="rm-tool-select" data-tool="select" title="Move — drag to pan, click to select, Shift+drag to lasso (V)">'+icon('cursor',16)+'</button>'+
     '<button class="rm-rail-btn'+(rmHand?' on':'')+'" data-action="rm-tool-select" data-tool="hand" title="Hand — pan (H, or hold Space)">'+icon('grip',16)+'</button>'+
     '<span class="rm-rail-div"></span>'+
     '<button class="rm-rail-btn" data-action="rm-place-start" data-mode="phase" title="Add a branch — then click to place (N)">'+icon('plus',16)+'</button>'+
@@ -4922,7 +4946,14 @@ function rmApplySelDom(){
   var b=byId('rm-board'); if(b){ var set=rmSelSet();
     b.querySelectorAll('.rm-node').forEach(function(n){ n.classList.toggle('rm-sel',!!set[n.getAttribute('data-nid')]); }); }
   rmEdgeHighlight();
-  var c=byId('rm-selcount'); if(c){ var n=rmSelCount(); c.textContent=n>1?(n+' selected'):''; c.style.display=n>1?'':'none'; }
+  var bar=byId('rm-selbar'); if(bar){ var n=rmSelCount();
+    if(n>0){ bar.style.display='';
+      bar.innerHTML='<span class="rm-selbar-n">'+n+' selected</span><span class="rm-selbar-div"></span>'+
+        '<button class="rm-selbar-btn" data-action="rm-ctx-dup" title="Duplicate (⌘/Ctrl+D)">'+icon('copy',15)+'</button>'+
+        '<button class="rm-selbar-btn" data-action="rm-shape-flyout" title="Change shape">'+icon('shapes',15)+'</button>'+
+        '<button class="rm-selbar-btn danger" data-action="rm-ctx-del" title="Delete (Del)">'+icon('trash',15)+'</button>';
+    } else { bar.style.display='none'; bar.innerHTML=''; }
+  }
 }
 function rmSelectOnly(nid){ ui.rmSelSet={}; if(nid){ ui.rmSelSet[nid]=true; ui.rmSel=nid; } else ui.rmSel=null; rmApplySelDom(); }
 function rmSelectToggle(nid){ var s=rmSelSet(); if(s[nid]){ delete s[nid]; if(ui.rmSel===nid) ui.rmSel=Object.keys(s)[0]||null; } else { s[nid]=true; ui.rmSel=nid; } rmApplySelDom(); }
@@ -4944,25 +4975,68 @@ function rmDeleteSel(){
   var rm=currentRoadmap(); if(!rm) return; var ids=Object.keys(rmSelSet()); if(!ids.length) return;
   if(typeof snapshotForUndo==='function') snapshotForUndo();
   var delP={},delT={}; ids.forEach(function(nid){ if(nid.indexOf('p:')===0) delP[nid.slice(2)]=true; else if(nid.indexOf('t:')===0) delT[nid.slice(2)]=true; });
+  var nDel=Object.keys(delP).length+Object.keys(delT).length;
+  if(!nDel){ ui.rmSelSet={}; ui.rmSel=null; rmApplySelDom(); return; } // nothing deletable (e.g. only the centre)
   rm.phases=(rm.phases||[]).filter(function(p){ if(delP[p.id]) return false; p.tasks=(p.tasks||[]).filter(function(t){return !delT[t.id];}); return true; });
   ui.rmSelSet={}; ui.rmSel=null;
-  commit(); toast(ids.length+' item'+(ids.length>1?'s':'')+' deleted.','warn',{undo:true});
+  commit(); toast(nDel+' item'+(nDel>1?'s':'')+' deleted.','warn',{undo:true});
 }
 /* duplicate the selection with a small offset; new copies become the selection */
 function rmDuplicateSel(){
   var rm=currentRoadmap(); if(!rm) return; var ids=Object.keys(rmSelSet()); if(!ids.length) return;
   if(typeof snapshotForUndo==='function') snapshotForUndo();
-  var sel={},last=null;
+  var sel={},last=null,lay=rmLayout(rm),selSet=rmSelSet();
   ids.forEach(function(nid){ var ref=rmNodeRef(nid); if(!ref||ref.type==='center') return;
+    var base=lay[nid]||{x:RM_BOARD_W/2,y:RM_BOARD_H/2}; // offset from the node's RENDERED spot, even if never dragged
     if(ref.type==='phase'){ var np=JSON.parse(JSON.stringify(ref.node)); np.id=uid(); np.name=(ref.node.name||'Branch')+' copy'; np.order=(rm.phases||[]).length;
-      np.x=(ref.node.x!=null?ref.node.x:RM_BOARD_W/2)+44; np.y=(ref.node.y!=null?ref.node.y:RM_BOARD_H/2)+44; (np.tasks||[]).forEach(function(t){ t.id=uid(); });
+      np.x=(ref.node.x!=null?ref.node.x:base.x)+44; np.y=(ref.node.y!=null?ref.node.y:base.y)+44; (np.tasks||[]).forEach(function(t){ t.id=uid(); });
       rm.phases.push(np); sel['p:'+np.id]=true; last='p:'+np.id; }
     else { var owner=null; (rm.phases||[]).forEach(function(q){ (q.tasks||[]).forEach(function(t){ if(t.id===ref.node.id) owner=q; }); });
-      if(owner){ var nt=JSON.parse(JSON.stringify(ref.node)); nt.id=uid(); nt.title=(ref.node.title||'Task')+' copy';
-        nt.x=(ref.node.x!=null?ref.node.x:0)+44; nt.y=(ref.node.y!=null?ref.node.y:0)+44; owner.tasks.push(nt); sel['t:'+nt.id]=true; last='t:'+nt.id; } }
+      // skip a task whose parent phase is also selected — it's already copied inside the new phase
+      if(owner&&!selSet['p:'+owner.id]){ var nt=JSON.parse(JSON.stringify(ref.node)); nt.id=uid(); nt.title=(ref.node.title||'Task')+' copy';
+        nt.x=(ref.node.x!=null?ref.node.x:base.x)+44; nt.y=(ref.node.y!=null?ref.node.y:base.y)+44; owner.tasks.push(nt); sel['t:'+nt.id]=true; last='t:'+nt.id; } }
   });
   if(!last){ return; }
   ui.rmSelSet=sel; ui.rmSel=last; commit(); toast('Duplicated '+Object.keys(sel).length+' item'+(Object.keys(sel).length>1?'s':'')+'.','info');
+}
+/* ---- undo / redo (roadmap keyboard) — single level over the app undo buffer ---- */
+var rmRedoBuf=null, rmClip=null;
+function rmUndoRoad(){ if(!undoBuf){ toast('Nothing to undo.','warn'); return; } try{ rmRedoBuf=JSON.stringify(state); }catch(_){ rmRedoBuf=null; } doUndo(); }
+function rmRedo(){ if(!rmRedoBuf){ toast('Nothing to redo.','warn'); return; } var snap=rmRedoBuf; rmRedoBuf=null;
+  try{ undoBuf=JSON.stringify(state); }catch(_){ undoBuf=null; }
+  try{ state=deepMerge(JSON.parse(JSON.stringify(DEFAULT_STATE)),JSON.parse(snap)); }catch(_){ return; } save(); render(); toast('Redone.','info'); }
+/* ---- copy / paste selected nodes ---- */
+function rmPhaseOfTask(taskId){ var rm=currentRoadmap(),r=null; if(rm)(rm.phases||[]).forEach(function(q){ (q.tasks||[]).forEach(function(t){ if(t.id===taskId) r=q; }); }); return r; }
+function rmCopySel(){ var rm=currentRoadmap(); if(!rm) return; var ids=Object.keys(rmSelSet()).filter(function(n){return n!=='center';}); if(!ids.length) return;
+  var lay=rmLayout(rm), selSet=rmSelSet(), clip=[];
+  ids.forEach(function(nid){ var ref=rmNodeRef(nid); if(!ref) return; var base=lay[nid]||{x:RM_BOARD_W/2,y:RM_BOARD_H/2};
+    if(ref.type==='phase'){ var p=JSON.parse(JSON.stringify(ref.node)); p._x=(ref.node.x!=null?ref.node.x:base.x); p._y=(ref.node.y!=null?ref.node.y:base.y); clip.push({type:'phase',data:p}); }
+    else if(ref.type==='task'){ var owner=rmPhaseOfTask(ref.node.id); if(owner&&selSet['p:'+owner.id]) return; var t=JSON.parse(JSON.stringify(ref.node)); t._x=(ref.node.x!=null?ref.node.x:base.x); t._y=(ref.node.y!=null?ref.node.y:base.y); clip.push({type:'task',data:t}); }
+  });
+  if(clip.length){ rmClip=clip; toast('Copied '+clip.length+' item'+(clip.length>1?'s':'')+'.','info'); }
+}
+function rmPasteClip(){ var rm=currentRoadmap(); if(!rm||!rmClip||!rmClip.length) return;
+  if(typeof snapshotForUndo==='function') snapshotForUndo();
+  var off=28, sel={}, last=null, targetPhase=null;
+  if(ui.rmSel&&ui.rmSel.indexOf('p:')===0) targetPhase=(rm.phases||[]).find(function(p){return p.id===ui.rmSel.slice(2);});
+  if(!targetPhase) targetPhase=(rm.phases||[])[0]||null;
+  rmClip.forEach(function(it){
+    if(it.type==='phase'){ var np=JSON.parse(JSON.stringify(it.data)); np.id=uid(); np.order=(rm.phases||[]).length; np.x=(np._x||RM_BOARD_W/2)+off; np.y=(np._y||RM_BOARD_H/2)+off; delete np._x; delete np._y; (np.tasks||[]).forEach(function(t){ t.id=uid(); }); rm.phases.push(np); sel['p:'+np.id]=true; last='p:'+np.id; }
+    else if(it.type==='task'&&targetPhase){ var nt=JSON.parse(JSON.stringify(it.data)); nt.id=uid(); nt.x=(nt._x||0)+off; nt.y=(nt._y||0)+off; delete nt._x; delete nt._y; targetPhase.tasks=targetPhase.tasks||[]; targetPhase.tasks.push(nt); sel['t:'+nt.id]=true; last='t:'+nt.id; }
+  });
+  if(!last) return; ui.rmSelSet=sel; ui.rmSel=last; commit(); toast('Pasted '+Object.keys(sel).length+' item'+(Object.keys(sel).length>1?'s':'')+'.','info');
+}
+/* ---- arrow-key nudge of the selection (1px, Shift = 10px) ---- */
+function rmNudgeSel(key,step){ var rm=currentRoadmap(); if(!rm) return;
+  var dx=key==='ArrowLeft'?-step:key==='ArrowRight'?step:0, dy=key==='ArrowUp'?-step:key==='ArrowDown'?step:0;
+  var lay=rmLayout(rm), b=byId('rm-board');
+  Object.keys(rmSelSet()).forEach(function(nid){ var ref=rmNodeRef(nid); if(!ref) return; var base=lay[nid]||{x:0,y:0};
+    var isC=nid==='center', kind=isC?'center':(nid.indexOf('p:')===0?'phase':'task'), id=isC?'center':nid.slice(2);
+    var srcX=isC?(rm.x!=null?rm.x:base.x):(ref.node.x!=null?ref.node.x:base.x);
+    var srcY=isC?(rm.y!=null?rm.y:base.y):(ref.node.y!=null?ref.node.y:base.y);
+    rmSetNodePos(kind,id,srcX+dx,srcY+dy);
+    if(b){ var el=b.querySelector('.rm-node[data-nid="'+nid+'"]'); if(el){ var nx=isC?rm.x:ref.node.x, ny=isC?rm.y:ref.node.y; el.style.left=nx+'px'; el.style.top=ny+'px'; rmUpdateEdges(nid,nx,ny); } }
+  });
 }
 function rmSelCls(nid){ return rmSelHas(nid)?' rm-sel':''; }
 function rmSyncToolButtons(){

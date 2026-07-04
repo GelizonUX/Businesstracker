@@ -1088,6 +1088,61 @@ async function main() {
         ok('empty canvas shows a grab hand; nodes show a move cursor', /\.rm-canvas\{[^}]*cursor:grab/.test(css) && /\.rm-node\{[^}]*cursor:move/.test(css));
         window.ui.rmSelSet = null; window.ui.rmSel = null;
       })();
+      // ===== Final-polish fixes (2-agent audit) =====
+      (function(){
+        var pe = function(type, el, x, y, opt){ var o = Object.assign({ bubbles: true, cancelable: true, clientX: x || 0, clientY: y || 0, button: 0 }, opt || {}); (el || d).dispatchEvent(new window.MouseEvent(type, o)); };
+        window.render(); window.rmZoomTo(1); window.ui.rmSelSet = null; window.ui.rmSel = null;
+        // HIGH #1: select-all + duplicate must not inject stray tasks into the originals
+        var rm = window.state.roadmaps[0];
+        var origCount = rm.phases.length, origTasks = rm.phases.map(function(p){ return (p.tasks || []).length; });
+        window.rmSelectAll(); window.rmDuplicateSel();
+        var rm2 = window.state.roadmaps[0], intact = rm2.phases.length === origCount * 2;
+        for (var i = 0; i < origCount; i++) { if ((rm2.phases[i].tasks || []).length !== origTasks[i]) intact = false; }
+        ok('duplicate of select-all clones cleanly (no stray tasks in originals)', intact);
+        // reset by undo
+        window.rmUndoRoad();
+        // HIGH #2: duplicating a never-dragged node offsets from its RENDERED layout spot, not board centre
+        window.render(); var p0 = window.state.roadmaps[0].phases[0]; delete p0.x; delete p0.y;
+        var lay = window.rmLayout(window.state.roadmaps[0])['p:' + p0.id];
+        window.rmSelectOnly('p:' + p0.id); window.rmDuplicateSel();
+        var copy = window.state.roadmaps[0].phases.slice(-1)[0];
+        ok('duplicate offsets from the layout position, not the board centre', Math.abs(copy.x - (lay.x + 44)) < 2 && Math.abs(copy.y - (lay.y + 44)) < 2);
+        window.rmUndoRoad();
+        // undo / redo keybinding path
+        window.render(); var pcU = window.state.roadmaps[0].phases.length;
+        window.rmSelectOnly('p:' + window.state.roadmaps[0].phases[0].id); window.rmDeleteSel();
+        window.rmUndoRoad();
+        ok('delete → undo restores the node', window.state.roadmaps[0].phases.length === pcU);
+        window.rmRedo();
+        ok('redo re-applies the delete', window.state.roadmaps[0].phases.length === pcU - 1);
+        window.rmUndoRoad();
+        // copy / paste
+        window.render(); var pcC = window.state.roadmaps[0].phases.length;
+        window.rmSelectOnly('p:' + window.state.roadmaps[0].phases[0].id); window.rmCopySel(); window.rmDeselect(); window.rmPasteClip();
+        ok('copy + paste adds a new node', window.state.roadmaps[0].phases.length === pcC + 1);
+        window.rmUndoRoad();
+        // arrow-key nudge
+        window.render(); var pn = window.state.roadmaps[0].phases[0];
+        window.rmSetNodePos('phase', pn.id, 1000, 1000); window.rmSelectOnly('p:' + pn.id);
+        window.rmNudgeSel('ArrowRight', 10); window.rmNudgeSel('ArrowDown', 10);
+        ok('arrow-key nudges the selection on both axes', window.rmNodeRef('p:' + pn.id).node.x === 1010 && window.rmNodeRef('p:' + pn.id).node.y === 1010);
+        // additive marquee keeps the prior selection
+        window.render(); window.rmZoomTo(1); window.rmCam().x = 0; window.rmCam().y = 0;
+        var f = window.state.roadmaps[0].phases[0]; window.rmSelectOnly('p:' + f.id);
+        var board = d.getElementById('rm-board');
+        pe('pointerdown', board, -99999, -99999, { shiftKey: true }); pe('pointermove', d, 99999, 99999, { shiftKey: true }); pe('pointerup', d, 99999, 99999, { shiftKey: true });
+        ok('marquee is additive (keeps prior selection, adds the box)', window.rmSelHas('p:' + f.id) && window.rmSelCount() > 1);
+        window.rmDeselect();
+        // deleting only the centre is a safe no-op (no phantom "1 deleted")
+        window.render(); var pcCenter = window.state.roadmaps[0].phases.length;
+        window.rmSelectOnly('center'); window.rmDeleteSel();
+        ok('deleting only the centre is a safe no-op', window.state.roadmaps[0].phases.length === pcCenter);
+        // floating selection toolbar surfaces duplicate + delete
+        window.render(); window.rmSelectOnly('p:' + window.state.roadmaps[0].phases[0].id);
+        var bar = d.getElementById('rm-selbar');
+        ok('selection shows a floating toolbar (duplicate + delete)', !!bar && bar.style.display !== 'none' && /rm-ctx-dup/.test(bar.innerHTML) && /rm-ctx-del/.test(bar.innerHTML));
+        window.ui.rmSelSet = null; window.ui.rmSel = null;
+      })();
       window.ui.rmCam = null;
     })();
 
