@@ -225,9 +225,19 @@ a{color:var(--accent);text-decoration:none}
    roadmap mind-map canvas
    ============================================================ */
 .rm-canvas-card{position:relative;padding:0;overflow:hidden}
-.rm-canvas{position:relative;height:min(64vh,660px);overflow:auto;border-radius:inherit;
-  background-image:radial-gradient(var(--border-2) 1px,transparent 1px);background-size:22px 22px}
-.rm-board{position:relative;transform-origin:0 0}
+.rm-modebar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;flex-wrap:wrap}
+.rm-modebar .seg button{display:inline-flex;align-items:center;gap:6px}
+.rm-stat-strip{display:flex;align-items:center;gap:16px;font-size:.82rem;color:var(--text-2);font-weight:600;flex-wrap:wrap}
+.rm-stat-strip span{display:inline-flex;align-items:center;gap:5px}
+.rm-stat-strip svg{opacity:.7}
+.rm-canvas{position:relative;height:calc(100dvh - 250px);min-height:440px;max-height:820px;overflow:hidden;border-radius:inherit;
+  touch-action:none;cursor:default;background-color:var(--bg-sunken)}
+.rm-grid-dots .rm-canvas{background-image:radial-gradient(var(--border-2) 1.1px,transparent 1.1px);background-size:22px 22px}
+.rm-grid-lines .rm-canvas{background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:22px 22px}
+.rm-grid-none .rm-canvas{background-image:none}
+body.rm-grabbing .rm-canvas,body.rm-hand .rm-canvas{cursor:grab}
+body.rm-grabbing .rm-canvas{cursor:grabbing}
+.rm-board{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
 .rm-edges{position:absolute;inset:0;pointer-events:none}
 .rm-edges path{stroke-width:2;opacity:.55}
 .rm-node{position:absolute;transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:8px;
@@ -253,10 +263,29 @@ a{color:var(--accent);text-decoration:none}
 .rm-tool:hover{background:var(--bg-sunken);color:var(--text)}
 .rm-tool.danger:hover{background:var(--risk-soft);color:var(--risk)}
 .rm-tool svg{width:12px;height:12px}
-.rm-zoom{position:absolute;right:14px;bottom:40px;display:flex;align-items:center;gap:4px;z-index:6;
-  background:var(--bg-card);border:1px solid var(--border);border-radius:999px;padding:3px 6px;box-shadow:var(--shadow-sm);
-  font-size:.76rem;font-weight:700;font-variant-numeric:tabular-nums}
-.rm-hint{padding:8px 16px;font-size:.72rem;color:var(--text-3);border-top:1px solid var(--border);margin:0}
+/* floating glass camera bar (Figma-style) */
+.rm-cam-bar{position:absolute;left:50%;transform:translateX(-50%);bottom:52px;z-index:8;display:flex;align-items:center;gap:2px;
+  padding:5px;border-radius:999px;border:1px solid var(--border);box-shadow:var(--shadow-lg);
+  background:var(--bg-card);background:color-mix(in srgb,var(--bg-card) 82%,transparent);
+  -webkit-backdrop-filter:blur(16px) saturate(1.6);backdrop-filter:blur(16px) saturate(1.6)}
+.rm-cam-btn{height:32px;min-width:32px;padding:0 6px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;
+  color:var(--text-2);font-size:.78rem;font-weight:700;font-variant-numeric:tabular-nums;cursor:pointer;transition:background .12s,color .12s}
+.rm-cam-btn:hover{background:var(--bg-sunken);color:var(--text)}
+.rm-cam-btn.on{background:var(--accent-soft);color:var(--accent)}
+.rm-cam-pct{min-width:52px}
+.rm-cam-div{width:1px;height:20px;background:var(--border);margin:0 3px}
+/* minimap */
+.rm-mini{position:absolute;right:14px;bottom:52px;z-index:8;width:150px;height:100px;border-radius:12px;overflow:hidden;
+  border:1px solid var(--border);box-shadow:var(--shadow);cursor:pointer;
+  background:var(--bg-card);background:color-mix(in srgb,var(--bg-card) 82%,transparent);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.rm-mini-inner{position:relative;width:150px;height:100px}
+.rm-mini-dot{position:absolute;width:5px;height:5px;border-radius:50%;background:var(--text-3);transform:translate(-50%,-50%)}
+.rm-mini-dot.p{background:var(--accent);width:6px;height:6px}
+.rm-mini-dot.c{background:var(--text);width:8px;height:8px;border-radius:3px}
+.rm-mini-view{position:absolute;border:1.5px solid var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:3px;pointer-events:none}
+.rm-hint{padding:8px 16px;font-size:.72rem;color:var(--text-3);border-top:1px solid var(--border);margin:0;text-align:center}
+@media (max-width:640px){.rm-mini{display:none}.rm-cam-bar{bottom:46px}}
 @media (max-width:560px){.rm-canvas{height:56vh}.rm-node{max-width:190px}}
 
 /* ============================================================
@@ -1676,6 +1705,7 @@ var ICONS = {
   reviews:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M9 16l2 2 4-4"/>',
   settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>',
   plus:'<path d="M12 5v14M5 12h14"/>',
+  minus:'<path d="M5 12h14"/>',
   edit:'<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/>',
   trash:'<path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"/>',
   check:'<path d="M20 6L9 17l-5-5"/>',
@@ -1934,7 +1964,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
-var APP_BUILD='2026.07.03d'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
+var APP_BUILD='2026.07.04a'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -2688,7 +2718,8 @@ var ui={
   financeTab:'entries',
   navEdit:false,
   roadmapMode:'map',
-  rmZoom:1
+  rmCam:null,
+  rmGrid:'dots'
 };
 
 var lastRenderRoute=null;
@@ -2718,11 +2749,11 @@ function render(){
   enhanceA11y(main);
   labelizeTables(main);
   renderTabbar(route);
-  // mind-map canvas opens centred on the roadmap's centre node
-  var rmc=byId('rm-canvas');
-  if(rmc){ var rmm=currentRoadmap(); var z=ui.rmZoom||1;
-    var ccx=(rmm&&rmm.x!=null?rmm.x:RM_BOARD_W/2)*z, ccy=(rmm&&rmm.y!=null?rmm.y:RM_BOARD_H/2)*z;
-    rmc.scrollLeft=Math.max(0,ccx-rmc.clientWidth/2); rmc.scrollTop=Math.max(0,ccy-rmc.clientHeight/2); }
+  // camera: keep the current view across in-page re-renders; fit when the map first mounts
+  if(byId('rm-canvas')){
+    if(ui.rmCam) requestAnimationFrame(rmApplyCam);
+    else requestAnimationFrame(function(){ if(byId('rm-canvas')) rmFit(); });
+  } else if(ui.roadmapMode!=='map') { ui.rmCam=null; }
   main.scrollTop=0;
 }
 /* Auto-label every table cell from its column header so tables can render as clean
@@ -4358,7 +4389,7 @@ function roadmapStats(rm){
    roadmap = centre node, phases = branches, tasks = leaves. Positions are
    remembered per node (x/y on the model) once dragged; until then a radial
    auto-layout spreads branches around the centre like a real mind map. */
-var RM_BOARD_W=2200, RM_BOARD_H=1400;
+var RM_BOARD_W=6000, RM_BOARD_H=4000;
 function rmNodeColor(kind,obj,rm){
   if(kind==='task') return tameColor(obj.color||'', obj.status==='Completed'?'#0c7d5c':(rm.color||'#7c5cd6'));
   if(kind==='phase') return tameColor(obj.color||rm.color||'#7c5cd6');
@@ -4423,50 +4454,162 @@ function rmMapHTML(rm){
         '<button class="rm-tool danger" data-action="delete-phase-task" data-phase="'+p.id+'" data-task="'+t.id+'" title="Delete">'+icon('trash')+'</button></span></div>';
     });
   });
-  return '<div class="card mt rm-canvas-card"><div class="rm-canvas" id="rm-canvas">'+
-    '<div class="rm-board" id="rm-board" style="width:'+RM_BOARD_W+'px;height:'+RM_BOARD_H+'px;transform:scale('+(ui.rmZoom||1)+')">'+
+  // minimap dots (world → mini space), computed once per structure
+  var mm=rmMiniDots(pos);
+  return '<div class="card mt rm-canvas-card rm-grid-'+(ui.rmGrid||'dots')+'"><div class="rm-canvas" id="rm-canvas" tabindex="0">'+
+    '<div class="rm-board" id="rm-board" style="width:'+RM_BOARD_W+'px;height:'+RM_BOARD_H+'px">'+
       '<svg class="rm-edges" width="'+RM_BOARD_W+'" height="'+RM_BOARD_H+'" viewBox="0 0 '+RM_BOARD_W+' '+RM_BOARD_H+'" fill="none">'+edges+'</svg>'+nodes+
-    '</div></div>'+
-    '<div class="rm-zoom"><button class="btn-icon" data-action="rm-zoom" data-dir="-1" aria-label="Zoom out">−</button>'+
-    '<span>'+Math.round((ui.rmZoom||1)*100)+'%</span>'+
-    '<button class="btn-icon" data-action="rm-zoom" data-dir="1" aria-label="Zoom in">+</button></div>'+
-    '<p class="rm-hint">'+esc(tr('Drag nodes to arrange · hover a node for actions · + adds a branch or idea'))+'</p></div>';
+    '</div>'+
+    '<div class="rm-mini" id="rm-mini" data-action="rm-mini-jump" title="Minimap — click to jump"><div class="rm-mini-inner" id="rm-mini-inner">'+mm+'<div class="rm-mini-view" id="rm-mini-view"></div></div></div>'+
+    '</div>'+
+    '<div class="rm-cam-bar">'+
+      '<button class="rm-cam-btn" data-action="rm-tool-toggle" data-tool="hand" title="Hand tool — pan (H, or hold Space)">'+icon('grip',14)+'</button>'+
+      '<span class="rm-cam-div"></span>'+
+      '<button class="rm-cam-btn" data-action="rm-zoom" data-dir="-1" title="Zoom out (−)">'+icon('minus',14)+'</button>'+
+      '<button class="rm-cam-btn rm-cam-pct" data-action="rm-reset" id="rm-zoom-val" title="Reset to 100%">100%</button>'+
+      '<button class="rm-cam-btn" data-action="rm-zoom" data-dir="1" title="Zoom in (+)">'+icon('plus',14)+'</button>'+
+      '<span class="rm-cam-div"></span>'+
+      '<button class="rm-cam-btn" data-action="rm-fit" title="Fit to screen (Shift+1)">'+icon('search',14)+'</button>'+
+      '<button class="rm-cam-btn" data-action="rm-grid-cycle" title="Grid style">'+icon('dashboard',14)+'</button>'+
+    '</div>'+
+    '<p class="rm-hint">'+esc(tr('Scroll to pan · ⌘/Ctrl+scroll or pinch to zoom · Space+drag or middle-drag to pan · double-click empty canvas for a branch'))+'</p></div>';
+}
+function rmMiniDots(pos){
+  var xs=[],ys=[]; for(var k in pos){ xs.push(pos[k].x); ys.push(pos[k].y); }
+  if(!xs.length) return '';
+  var minX=Math.min.apply(null,xs), maxX=Math.max.apply(null,xs), minY=Math.min.apply(null,ys), maxY=Math.max.apply(null,ys);
+  var bw=Math.max(maxX-minX,1), bh=Math.max(maxY-minY,1);
+  var MW=150, MH=100, sc=Math.min(MW/bw, MH/bh)*0.82, ox=(MW-bw*sc)/2, oy=(MH-bh*sc)/2;
+  window._rmMini={minX:minX,minY:minY,sc:sc,ox:ox,oy:oy,MW:MW,MH:MH};
+  var out='';
+  for(var id in pos){ var isC=id==='center', isP=id.indexOf('p:')===0;
+    out+='<span class="rm-mini-dot'+(isC?' c':(isP?' p':''))+'" style="left:'+(ox+(pos[id].x-minX)*sc)+'px;top:'+(oy+(pos[id].y-minY)*sc)+'px"></span>'; }
+  return out;
 }
 function rmSetNodePos(kind,id,x,y){
   var rm=currentRoadmap(); if(!rm) return;
-  x=clamp(Math.round(x),40,RM_BOARD_W-40); y=clamp(Math.round(y),30,RM_BOARD_H-30);
+  x=clamp(Math.round(x),40,RM_BOARD_W-40); y=clamp(Math.round(y),30,RM_BOARD_H-30); // world bounds
   if(kind==='center'){ rm.x=x; rm.y=y; }
   else if(kind==='phase'){ var p=(rm.phases||[]).find(function(q){return q.id===id;}); if(p){ p.x=x; p.y=y; } }
   else { (rm.phases||[]).forEach(function(q){ (q.tasks||[]).forEach(function(t){ if(t.id===id){ t.x=x; t.y=y; } }); }); }
   save();
 }
-/* drag: pointer events cover mouse + touch; edges follow live */
-var rmDrag=null;
+/* ============================================================
+   roadmap camera engine — Figma-style viewport
+   cam: {x,y,z} where  screen = world*z + (x,y)  (canvas-local px)
+   Pan/zoom mutate the DOM directly (no re-render) for 60fps.
+   ============================================================ */
+function rmCam(){ if(!ui.rmCam) ui.rmCam={x:0,y:0,z:1}; return ui.rmCam; }
+function rmApplyCam(){
+  var cam=rmCam(), b=byId('rm-board'), cv=byId('rm-canvas'); if(!b||!cv) return;
+  b.style.transform='translate('+cam.x+'px,'+cam.y+'px) scale('+cam.z+')';
+  var g=22*cam.z;
+  cv.style.backgroundPosition=cam.x+'px '+cam.y+'px';
+  cv.style.backgroundSize=g+'px '+g+'px';
+  var zl=byId('rm-zoom-val'); if(zl) zl.textContent=Math.round(cam.z*100)+'%';
+  rmSyncMiniView();
+}
+function rmZoomTo(z,cx,cy){
+  var cam=rmCam(), cv=byId('rm-canvas'); if(!cv) return;
+  var r=cv.getBoundingClientRect();
+  var px=(cx==null?r.width/2:cx-r.left), py=(cy==null?r.height/2:cy-r.top);
+  var wx=(px-cam.x)/cam.z, wy=(py-cam.y)/cam.z;
+  z=clamp(z,0.12,4);
+  cam.z=z; cam.x=px-wx*z; cam.y=py-wy*z;
+  rmApplyCam();
+}
+function rmZoomAnim(target){ // smooth zoom to centre for button clicks
+  var cam=rmCam(), from=cam.z, t0=null;
+  target=clamp(target,0.12,4);
+  function step(ts){ if(t0==null)t0=ts; var k=Math.min((ts-t0)/180,1); var e=1-Math.pow(1-k,3);
+    rmZoomTo(from+(target-from)*e); if(k<1) requestAnimationFrame(step); }
+  requestAnimationFrame(step);
+}
+function rmBBox(){
+  var rm=currentRoadmap(); if(!rm) return null;
+  var pos=rmLayout(rm), xs=[],ys=[]; for(var k in pos){ xs.push(pos[k].x); ys.push(pos[k].y); }
+  if(!xs.length) return null;
+  return {minX:Math.min.apply(null,xs),maxX:Math.max.apply(null,xs),minY:Math.min.apply(null,ys),maxY:Math.max.apply(null,ys)};
+}
+function rmFit(){
+  var cv=byId('rm-canvas'), bb=rmBBox(); if(!cv||!bb) return;
+  var pad=150, bw=(bb.maxX-bb.minX)+pad*2, bh=(bb.maxY-bb.minY)+pad*2;
+  var r=cv.getBoundingClientRect();
+  var z=clamp(Math.min(r.width/bw, r.height/bh),0.12,1.4), cam=rmCam();
+  cam.z=z;
+  cam.x=(r.width - bw*z)/2 - (bb.minX-pad)*z;
+  cam.y=(r.height- bh*z)/2 - (bb.minY-pad)*z;
+  rmApplyCam();
+}
+function rmSyncMiniView(){
+  var v=byId('rm-mini-view'), cv=byId('rm-canvas'), M=window._rmMini; if(!v||!cv||!M) return;
+  var cam=rmCam(), r=cv.getBoundingClientRect();
+  var wx0=(0-cam.x)/cam.z, wy0=(0-cam.y)/cam.z, wx1=(r.width-cam.x)/cam.z, wy1=(r.height-cam.y)/cam.z;
+  var x=M.ox+(wx0-M.minX)*M.sc, y=M.oy+(wy0-M.minY)*M.sc, w=(wx1-wx0)*M.sc, h=(wy1-wy0)*M.sc;
+  v.style.left=clamp(x,0,M.MW)+'px'; v.style.top=clamp(y,0,M.MH)+'px';
+  v.style.width=clamp(w,4,M.MW)+'px'; v.style.height=clamp(h,4,M.MH)+'px';
+}
+function rmScreenToWorld(cx,cy){ var cam=rmCam(), cv=byId('rm-canvas'), r=cv.getBoundingClientRect();
+  return {x:(cx-r.left-cam.x)/cam.z, y:(cy-r.top-cam.y)/cam.z}; }
+
+/* drag nodes + pan the camera — pointer events (mouse + touch) */
+var rmDrag=null, rmPan=null, rmSpace=false, rmHand=false;
+document.addEventListener('keydown',function(e){
+  if(!byId('rm-canvas')) return;
+  var typing=/^(INPUT|TEXTAREA|SELECT)$/.test((e.target.tagName||''))||e.target.isContentEditable;
+  if(e.code==='Space'&&!typing){ rmSpace=true; document.body.classList.add('rm-grabbing'); e.preventDefault(); }
+  if(typing) return;
+  if(e.key==='h'||e.key==='H'){ rmHand=!rmHand; document.body.classList.toggle('rm-hand',rmHand); }
+  else if((e.key==='='||e.key==='+')){ rmZoomAnim(rmCam().z*1.2); e.preventDefault(); }
+  else if(e.key==='-'||e.key==='_'){ rmZoomAnim(rmCam().z/1.2); e.preventDefault(); }
+  else if(e.key==='1'&&e.shiftKey){ rmFit(); e.preventDefault(); }
+  else if(e.key==='0'&&(e.metaKey||e.ctrlKey)){ rmZoomTo(1); e.preventDefault(); }
+});
+document.addEventListener('keyup',function(e){ if(e.code==='Space'){ rmSpace=false; document.body.classList.remove('rm-grabbing'); } });
 document.addEventListener('pointerdown',function(e){
-  var node=e.target.closest&&e.target.closest('.rm-node');
-  if(!node||e.target.closest('.rm-tool')) return;
-  var board=byId('rm-board'); if(!board) return;
-  var scale=(ui.rmZoom||1);
-  rmDrag={node:node,kind:node.getAttribute('data-kind'),id:node.getAttribute('data-id')||'center',
-    nid:node.getAttribute('data-nid'),startX:e.clientX,startY:e.clientY,
-    origX:parseFloat(node.style.left),origY:parseFloat(node.style.top),scale:scale,moved:false};
-  node.classList.add('dragging');
-  e.preventDefault();
+  var cv=e.target.closest&&e.target.closest('#rm-canvas'); if(!cv) return;
+  var node=e.target.closest('.rm-node');
+  var panning=(e.button===1)||(e.button===0&&(rmSpace||rmHand))||(!node&&e.button===0&&e.target===cv.firstElementChild)||(!node&&e.button===0&&e.target.id==='rm-canvas');
+  if(node&&!e.target.closest('.rm-tool')&&!rmSpace&&!rmHand){
+    var cam=rmCam();
+    rmDrag={node:node,kind:node.getAttribute('data-kind'),id:node.getAttribute('data-id')||'center',
+      nid:node.getAttribute('data-nid'),startX:e.clientX,startY:e.clientY,
+      origX:parseFloat(node.style.left),origY:parseFloat(node.style.top),z:cam.z,moved:false};
+    node.classList.add('dragging'); e.preventDefault(); return;
+  }
+  if(panning){ var c=rmCam(); rmPan={sx:e.clientX,sy:e.clientY,ox:c.x,oy:c.y}; document.body.classList.add('rm-grabbing'); e.preventDefault(); }
 });
 document.addEventListener('pointermove',function(e){
-  if(!rmDrag) return;
-  var dx=(e.clientX-rmDrag.startX)/rmDrag.scale, dy=(e.clientY-rmDrag.startY)/rmDrag.scale;
-  if(Math.abs(dx)+Math.abs(dy)>2) rmDrag.moved=true;
-  var x=rmDrag.origX+dx, y=rmDrag.origY+dy;
-  rmDrag.node.style.left=x+'px'; rmDrag.node.style.top=y+'px';
-  rmUpdateEdges(rmDrag.nid,x,y);
+  if(rmDrag){
+    var dx=(e.clientX-rmDrag.startX)/rmDrag.z, dy=(e.clientY-rmDrag.startY)/rmDrag.z;
+    if(Math.abs(dx)+Math.abs(dy)>2) rmDrag.moved=true;
+    var x=rmDrag.origX+dx, y=rmDrag.origY+dy;
+    rmDrag.node.style.left=x+'px'; rmDrag.node.style.top=y+'px';
+    rmUpdateEdges(rmDrag.nid,x,y); return;
+  }
+  if(rmPan){ var c=rmCam(); c.x=rmPan.ox+(e.clientX-rmPan.sx); c.y=rmPan.oy+(e.clientY-rmPan.sy); rmApplyCam(); }
 });
 document.addEventListener('pointerup',function(){
-  if(!rmDrag) return;
-  rmDrag.node.classList.remove('dragging');
-  if(rmDrag.moved) rmSetNodePos(rmDrag.kind,rmDrag.id,parseFloat(rmDrag.node.style.left),parseFloat(rmDrag.node.style.top));
-  rmDrag=null;
+  if(rmDrag){ rmDrag.node.classList.remove('dragging');
+    if(rmDrag.moved) rmSetNodePos(rmDrag.kind,rmDrag.id,parseFloat(rmDrag.node.style.left),parseFloat(rmDrag.node.style.top));
+    rmDrag=null; }
+  if(rmPan){ rmPan=null; if(!rmSpace) document.body.classList.remove('rm-grabbing'); }
 });
+var rmPendingPos=null;
+document.addEventListener('dblclick',function(e){
+  var cv=e.target.closest&&e.target.closest('#rm-canvas'); if(!cv) return;
+  if(e.target.closest('.rm-node')||e.target.closest('.rm-mini')) return;
+  rmPendingPos=rmScreenToWorld(e.clientX,e.clientY);
+  phaseModal();
+});
+/* wheel: pan by default, ⌘/Ctrl+wheel or trackpad-pinch = cursor-centred zoom */
+document.addEventListener('wheel',function(e){
+  var cv=e.target.closest&&e.target.closest('#rm-canvas'); if(!cv) return;
+  e.preventDefault();
+  var cam=rmCam();
+  if(e.ctrlKey||e.metaKey){ rmZoomTo(cam.z*Math.exp(-e.deltaY*0.0016), e.clientX, e.clientY); }
+  else { cam.x-=e.deltaX; cam.y-=e.deltaY; rmApplyCam(); }
+},{passive:false});
 function rmUpdateEdges(nid,x,y){
   var board=byId('rm-board'); if(!board) return;
   var moved={x:x,y:y};
@@ -4505,17 +4648,23 @@ function viewRoadmap(){
     return html;
   }
   var rs=roadmapStats(rm);
-  html+='<div class="grid grid-4">'+
-    statCard('Progress — '+rm.name,fmtPct(rs.pct,0),'','','roadmap')+
-    statCard('Milestones',rs.done+' / '+rs.total,'','','flag')+
-    statCard('Blocked',String(rs.blocked),rs.blocked?'<span class="stat-delta down">unblock these first</span>':'','','alert')+
-    statCard('Delayed',String(rs.late),rs.late?'<span class="stat-delta down">past deadline</span>':'','','clock')+
-  '</div>';
-  if(rs.total>0) html+='<div class="card mt"><div class="progress thick"><div class="bar good" style="width:'+rs.pct+'%"></div></div><p style="font-size:.78rem;color:var(--text-3);margin-top:8px">'+fmtPct(rs.pct,0)+' of "'+esc(rm.name)+'" completed</p></div>';
-  // view mode: mind-map canvas (default) or the classic phase list
   var mode=ui.roadmapMode||'map';
-  html+='<div class="seg" style="margin-top:14px"><button class="'+(mode==='map'?'active':'')+'" data-action="roadmap-mode" data-mode="map">'+esc(tr('Map'))+'</button>'+
-    '<button class="'+(mode==='list'?'active':'')+'" data-action="roadmap-mode" data-mode="list">'+esc(tr('List'))+'</button></div>';
+  // Map | List toggle + a slim live stat strip (the big cards belong to List/analytics)
+  html+='<div class="rm-modebar"><div class="seg"><button class="'+(mode==='map'?'active':'')+'" data-action="roadmap-mode" data-mode="map">'+icon('roadmap',13)+' '+esc(tr('Map'))+'</button>'+
+    '<button class="'+(mode==='list'?'active':'')+'" data-action="roadmap-mode" data-mode="list">'+icon('tasks',13)+' '+esc(tr('List'))+'</button></div>'+
+    '<div class="rm-stat-strip"><span>'+icon('roadmap',13)+' <b>'+fmtPct(rs.pct,0)+'</b> done</span>'+
+      '<span>'+icon('flag',13)+' '+rs.done+'/'+rs.total+'</span>'+
+      (rs.blocked?'<span class="t-risk">'+icon('alert',13)+' '+rs.blocked+' blocked</span>':'')+
+      (rs.late?'<span class="t-risk">'+icon('clock',13)+' '+rs.late+' delayed</span>':'')+'</div></div>';
+  if(mode==='list'){
+    html+='<div class="grid grid-4 mt">'+
+      statCard('Progress — '+rm.name,fmtPct(rs.pct,0),'','','roadmap')+
+      statCard('Milestones',rs.done+' / '+rs.total,'','','flag')+
+      statCard('Blocked',String(rs.blocked),rs.blocked?'<span class="stat-delta down">unblock these first</span>':'','','alert')+
+      statCard('Delayed',String(rs.late),rs.late?'<span class="stat-delta down">past deadline</span>':'','','clock')+
+    '</div>';
+    if(rs.total>0) html+='<div class="card mt"><div class="progress thick"><div class="bar good" style="width:'+rs.pct+'%"></div></div><p style="font-size:.78rem;color:var(--text-3);margin-top:8px">'+fmtPct(rs.pct,0)+' of "'+esc(rm.name)+'" completed</p></div>';
+  }
   if(mode==='map'){
     if(!(rm.phases||[]).length){
       html+='<div class="card mt">'+emptyState('roadmap','"'+rm.name+'" has no branches yet','Add your first branch (a phase like "Prepare" or "Launch") and grow the map from there.','<button class="btn btn-sm btn-primary" data-action="open-phase-modal">'+icon('plus')+' First branch</button>')+'</div>';
@@ -5665,7 +5814,9 @@ function phaseModal(phase){
     } else {
       var rm=currentRoadmap();
       if(!rm){ rm={id:uid(),name:'Main roadmap',phases:[]}; state.roadmaps.push(rm); ui.roadmapId=rm.id; }
-      rm.phases.push({id:uid(),name:name,desc:form.elements['desc'].value,order:rm.phases.length,tasks:[]});
+      var _np={id:uid(),name:name,desc:form.elements['desc'].value,order:rm.phases.length,tasks:[]};
+      if(rmPendingPos){ _np.x=rmPendingPos.x; _np.y=rmPendingPos.y; rmPendingPos=null; }
+      rm.phases.push(_np);
       toast('Phase added to "'+rm.name+'".');
     }
     return true;
@@ -6144,8 +6295,19 @@ document.addEventListener('click',function(e){
 
   /* roadmap */
   if(action==='open-phase-modal'){ phaseModal(); return; }
-  if(action==='roadmap-mode'){ ui.roadmapMode=el.getAttribute('data-mode'); render(); return; }
-  if(action==='rm-zoom'){ var z=(ui.rmZoom||1)+(el.getAttribute('data-dir')==='1'?0.15:-0.15); ui.rmZoom=Math.round(clamp(z,0.55,1.6)*100)/100; render(); return; }
+  if(action==='roadmap-mode'){ ui.roadmapMode=el.getAttribute('data-mode'); ui.rmCam=null; render(); return; }
+  if(action==='rm-zoom'){ rmZoomAnim(rmCam().z*(el.getAttribute('data-dir')==='1'?1.25:0.8)); return; }
+  if(action==='rm-fit'){ rmFit(); return; }
+  if(action==='rm-reset'){ rmZoomAnim(1); return; }
+  if(action==='rm-tool-toggle'){ rmHand=!rmHand; document.body.classList.toggle('rm-hand',rmHand); el.classList.toggle('on',rmHand); return; }
+  if(action==='rm-grid-cycle'){ ui.rmGrid=(ui.rmGrid==='dots'?'lines':(ui.rmGrid==='lines'?'none':'dots')); var cc=el.closest('.rm-canvas-card'); if(cc){ cc.className='card mt rm-canvas-card rm-grid-'+ui.rmGrid; } return; }
+  if(action==='rm-mini-jump'){
+    var M=window._rmMini, mm=byId('rm-mini-inner'), cv=byId('rm-canvas'); if(!M||!mm||!cv) return;
+    var r=mm.getBoundingClientRect(), lx=e.clientX-r.left, ly=e.clientY-r.top;
+    var wx=(lx-M.ox)/M.sc+M.minX, wy=(ly-M.oy)/M.sc+M.minY;
+    var cr=cv.getBoundingClientRect(), cam=rmCam();
+    cam.x=cr.width/2-wx*cam.z; cam.y=cr.height/2-wy*cam.z; rmApplyCam(); return;
+  }
   if(action==='rm-node-color'){
     var rmv=currentRoadmap(); if(!rmv) return;
     var kind=el.getAttribute('data-kind'), nid=el.getAttribute('data-id');
@@ -6157,7 +6319,7 @@ document.addEventListener('click',function(e){
   }
   if(action==='rm-color'){ var f=byId('modal-form'); if(f&&f.elements['color']){ f.elements['color'].value=el.getAttribute('data-color'); f.querySelectorAll('.swatch').forEach(function(s){ s.classList.toggle('on',s===el); }); } return; }
   if(action==='roadmap-new'){ roadmapModal(); return; }
-  if(action==='roadmap-switch'){ ui.roadmapId=id; render(); return; }
+  if(action==='roadmap-switch'){ ui.rmCam=null; ui.roadmapId=id; render(); return; }
   if(action==='roadmap-rename'){ var rmr=(state.roadmaps||[]).find(function(r){return r.id===id;}); if(rmr) roadmapModal(rmr); return; }
   if(action==='roadmap-delete'){
     var rmd=(state.roadmaps||[]).find(function(r){return r.id===id;});
