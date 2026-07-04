@@ -974,6 +974,32 @@ async function main() {
         ok('canvas height is adjustable via a persisted --rm-h', /--rm-h:560px/.test(d.querySelector('.rm-canvas-card').getAttribute('style') || ''));
         window.ui.rmSel = null; window.ui.rmShape = 'capsule'; delete window.state.settings.rmCanvasH;
       })();
+      // ===== M2 audit fixes — regressions caught by the code audit =====
+      (function(){
+        var pe = function(type, el, x, y){ (el || d).dispatchEvent(new window.MouseEvent(type, { bubbles: true, cancelable: true, clientX: x || 0, clientY: y || 0, button: 0 })); };
+        window.render(); window.rmZoomTo(1);
+        var board = d.getElementById('rm-board');
+        // HIGH: dragging empty background pans the camera again (broke when the rail moved to be firstElementChild)
+        var cx0 = window.rmCam().x, cy0 = window.rmCam().y;
+        pe('pointerdown', board, 300, 300); pe('pointermove', d, 366, 344); pe('pointerup', d);
+        ok('background drag pans the camera in Select mode', Math.abs(window.rmCam().x - cx0) > 10 && Math.abs(window.rmCam().y - cy0) > 10);
+        // HIGH: clicking empty canvas clears the selection
+        window.rmSelect('center');
+        pe('pointerdown', board, 300, 300); pe('pointerup', d);
+        ok('clicking empty canvas clears the selection', window.ui.rmSel === null);
+        // MED: a small click while zoomed out selects (screen-space threshold), never a drag
+        window.render(); window.rmZoomTo(0.3);
+        var pn = d.querySelector('.rm-node.rm-phase'), nid = pn.getAttribute('data-nid');
+        pe('pointerdown', pn, 200, 200); pe('pointermove', d, 202, 201); pe('pointerup', d);
+        ok('a tiny click while zoomed out selects, not drags', window.ui.rmSel === nid);
+        window.rmZoomTo(1);
+        // MED: switching mode/board cancels an in-progress placement (no leaked ghost / stuck copy cursor)
+        window.rmPlaceStart('phase');
+        click(d.querySelector('[data-action="roadmap-mode"][data-mode="list"]'));
+        ok('switching mode cancels an in-progress placement', !d.body.classList.contains('rm-placing') && !d.getElementById('rm-ghost'));
+        click(d.querySelector('[data-action="roadmap-mode"][data-mode="map"]'));
+        window.ui.rmSel = null;
+      })();
       window.ui.rmCam = null;
     })();
 

@@ -2051,7 +2051,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
-var APP_BUILD='2026.07.04c'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
+var APP_BUILD='2026.07.04d'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -2841,7 +2841,7 @@ function render(){
     if(ui.rmCam) requestAnimationFrame(rmApplyCam);
     else requestAnimationFrame(function(){ if(byId('rm-canvas')) rmFit(); });
     if(typeof rmConsumeEdit==='function') rmConsumeEdit();
-  } else if(ui.roadmapMode!=='map') { ui.rmCam=null; ui.rmSel=null; }
+  } else { if(typeof rmPlaceCancel==='function') rmPlaceCancel(); if(ui.roadmapMode!=='map'){ ui.rmCam=null; ui.rmSel=null; } }
   main.scrollTop=0;
 }
 /* Auto-label every table cell from its column header so tables can render as clean
@@ -4667,7 +4667,7 @@ document.addEventListener('pointerdown',function(e){
   if(rmPlace) return; // in placement mode a single click drops the node — never drag/pan
   if(e.target.closest('.rm-qadd')||e.target.closest('.rm-rail')||e.target.closest('.rm-maps')||e.target.closest('.rm-resize')) return;
   var node=e.target.closest('.rm-node');
-  var panning=(e.button===1)||(e.button===0&&(rmSpace||rmHand))||(!node&&e.button===0&&e.target===cv.firstElementChild)||(!node&&e.button===0&&e.target.id==='rm-canvas');
+  var panning=(e.button===1)||(e.button===0&&(rmSpace||rmHand))||(!node&&e.button===0&&(e.target.id==='rm-canvas'||(e.target.closest&&e.target.closest('#rm-board'))));
   if(node&&!e.target.closest('.rm-tool')&&!e.target.closest('.rm-node-label[contenteditable="true"]')&&!rmSpace&&!rmHand){
     var cam=rmCam();
     rmDrag={node:node,kind:node.getAttribute('data-kind'),id:node.getAttribute('data-id')||'center',
@@ -4680,7 +4680,8 @@ document.addEventListener('pointerdown',function(e){
 document.addEventListener('pointermove',function(e){
   if(rmDrag){
     var dx=(e.clientX-rmDrag.startX)/rmDrag.z, dy=(e.clientY-rmDrag.startY)/rmDrag.z;
-    if(Math.abs(dx)+Math.abs(dy)>2) rmDrag.moved=true;
+    // threshold in SCREEN px so a click never registers as a drag when zoomed out
+    if(Math.abs(e.clientX-rmDrag.startX)+Math.abs(e.clientY-rmDrag.startY)>3) rmDrag.moved=true;
     var x=rmDrag.origX+dx, y=rmDrag.origY+dy;
     rmDrag.node.style.left=x+'px'; rmDrag.node.style.top=y+'px';
     rmUpdateEdges(rmDrag.nid,x,y); return;
@@ -4700,7 +4701,7 @@ var rmPendingPos=null;
 document.addEventListener('dblclick',function(e){
   var cv=e.target.closest&&e.target.closest('#rm-canvas'); if(!cv) return;
   if(e.target.closest('.rm-node')||e.target.closest('.rm-mini')||e.target.closest('.rm-rail')||e.target.closest('.rm-maps')) return;
-  if(rmPlace) return;
+  if(rmPlace||(Date.now()-rmLastPlace<500)) return; // don't double-create right after a placement click
   // double-click empty canvas drops a branch right there and opens inline rename — no modal
   var rm=currentRoadmap(); if(!rm) return;
   var w=rmScreenToWorld(e.clientX,e.clientY);
@@ -4805,8 +4806,10 @@ function rmPlaceCommit(world){
     var np={id:uid(),name:'New branch',desc:'',order:(rm.phases||[]).length,tasks:[],x:x,y:y,shape:rmShape()};
     rm.phases.push(np); ui.rmEditNid='p:'+np.id; ui.rmSel='p:'+np.id;
   }
+  rmLastPlace=Date.now();
   rmPlaceCancel(); commit();
 }
+var rmLastPlace=0;
 /* predictive quick-add — spawn a connected node toward the chosen side */
 function rmQuickAdd(nid,dir){
   var rm=currentRoadmap(); if(!rm) return;
@@ -4860,7 +4863,7 @@ function rmStartInlineEdit(nid){
     if(ref.type==='task') ref.node.title=v; else ref.node.name=v;
     el.removeEventListener('keydown',keyH); save();
   }
-  function keyH(ev){ if(ev.key==='Enter'||ev.key==='Escape'){ ev.preventDefault(); el.blur(); } }
+  function keyH(ev){ if(ev.key==='Enter'||ev.key==='Escape'){ ev.preventDefault(); ev.stopPropagation(); el.blur(); } }
   el.addEventListener('blur',done,{once:true});
   el.addEventListener('keydown',keyH);
 }
@@ -6578,7 +6581,7 @@ document.addEventListener('click',function(e){
 
   /* roadmap */
   if(action==='open-phase-modal'){ phaseModal(); return; }
-  if(action==='roadmap-mode'){ ui.roadmapMode=el.getAttribute('data-mode'); ui.rmCam=null; render(); return; }
+  if(action==='roadmap-mode'){ if(typeof rmPlaceCancel==='function') rmPlaceCancel(); ui.roadmapMode=el.getAttribute('data-mode'); ui.rmCam=null; ui.rmSel=null; render(); return; }
   if(action==='rm-zoom'){ rmZoomAnim(rmCam().z*(el.getAttribute('data-dir')==='1'?1.25:0.8)); return; }
   if(action==='rm-fit'){ rmFit(); return; }
   if(action==='rm-reset'){ rmZoomAnim(1); return; }
@@ -6608,7 +6611,7 @@ document.addEventListener('click',function(e){
   }
   if(action==='rm-color'){ var f=byId('modal-form'); if(f&&f.elements['color']){ f.elements['color'].value=el.getAttribute('data-color'); f.querySelectorAll('.swatch').forEach(function(s){ s.classList.toggle('on',s===el); }); } return; }
   if(action==='roadmap-new'){ roadmapModal(); return; }
-  if(action==='roadmap-switch'){ ui.rmCam=null; ui.roadmapId=id; render(); return; }
+  if(action==='roadmap-switch'){ if(typeof rmPlaceCancel==='function') rmPlaceCancel(); ui.rmCam=null; ui.rmSel=null; ui.rmEditNid=null; ui.roadmapId=id; render(); return; }
   if(action==='roadmap-rename'){ var rmr=(state.roadmaps||[]).find(function(r){return r.id===id;}); if(rmr) roadmapModal(rmr); return; }
   if(action==='roadmap-delete'){
     var rmd=(state.roadmaps||[]).find(function(r){return r.id===id;});
