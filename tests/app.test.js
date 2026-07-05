@@ -1202,6 +1202,50 @@ async function main() {
         window.rmPopClose();
         window.ui.rmSelSet = null; window.ui.rmSel = null;
       })();
+      // ===== Power features: Tidy · collapse/expand · emoji · keyboard outline · snap · reconcile =====
+      (function(){
+        window.render(); window.rmZoomTo(1); window.ui.rmSelSet = null; window.ui.rmSel = null;
+        var rm = window.state.roadmaps[0];
+        // Tidy drops stored positions → auto-layout takes over
+        var pT = rm.phases[0]; window.rmSetNodePos('phase', pT.id, 1234, 999);
+        ok('a node can hold a fixed position', window.rmNodeRef('p:' + pT.id).node.x === 1234);
+        window.rmTidy();
+        ok('Tidy clears stored positions (auto-layout)', window.state.roadmaps[0].phases[0].x == null);
+        window.rmUndoRoad();
+        // collapse/expand a branch that has children
+        window.render(); var pc = window.state.roadmaps[0].phases[0];
+        if (!(pc.tasks || []).length) { window.rmQuickAdd('p:' + pc.id, 'r'); window.render(); pc = window.state.roadmaps[0].phases[0]; }
+        var childNid = 't:' + pc.tasks[0].id;
+        click(d.querySelector('.rm-node[data-nid="p:' + pc.id + '"] .rm-fold'));
+        ok('fold collapses a branch (children hidden)', window.state.roadmaps[0].phases[0].collapsed === true && !d.querySelector('.rm-node[data-nid="' + childNid + '"]'));
+        ok('collapsed branch shows a +N count pill', /^\+\d+/.test(d.querySelector('.rm-node[data-nid="p:' + pc.id + '"] .rm-count').textContent));
+        click(d.querySelector('.rm-node[data-nid="p:' + pc.id + '"] .rm-fold'));
+        ok('fold expands again (children shown)', !window.state.roadmaps[0].phases[0].collapsed && !!d.querySelector('.rm-node[data-nid="' + childNid + '"]'));
+        // emoji/icon via popover renders on the node
+        window.rmNodeSetProp('p:' + pc.id, 'icon', '🚀');
+        ok('node icon renders as an emoji glyph', !!d.querySelector('.rm-node[data-nid="p:' + pc.id + '"] .rm-emoji'));
+        // keyboard outline: Tab = child, Enter = sibling, Shift+Tab = outdent
+        window.render(); var pk = window.state.roadmaps[0].phases[0]; window.rmSelectOnly('p:' + pk.id);
+        var kb0 = (pk.tasks || []).length;
+        d.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+        ok('Tab adds a child to the selected node', (window.state.roadmaps[0].phases[0].tasks || []).length === kb0 + 1 && window.ui.rmSel.indexOf('t:') === 0);
+        var childSel = window.ui.rmSel, sibList = window.rmNodeRef(childSel).list, sib0 = sibList.length;
+        d.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+        ok('Enter adds a sibling', window.rmNodeRef(window.ui.rmSel).list.length === sib0 + 1 && window.ui.rmSel !== childSel);
+        // build depth then outdent a grandchild up one level
+        window.rmSelectOnly(childSel); window.rmQuickAdd(childSel, 'r'); var gc = window.ui.rmSel;
+        var beforeParentKids = window.rmNodeRef(childSel).node.children.length;
+        window.rmOutdent(gc);
+        ok('Shift+Tab/outdent lifts a node up one level', window.rmNodeRef(childSel).node.children.length === beforeParentKids - 1);
+        // reconcile keeps the SAME node element on a colour edit (no re-create → no blink) and updates --nc
+        window.render(); var pcolor = window.state.roadmaps[0].phases[0];
+        var elBefore = d.querySelector('.rm-node[data-nid="p:' + pcolor.id + '"]');
+        var ncBefore = elBefore.style.getPropertyValue('--nc');
+        window.rmNodeSetProp('p:' + pcolor.id, 'color', '#123456');
+        var elAfter = d.querySelector('.rm-node[data-nid="p:' + pcolor.id + '"]');
+        ok('colour edit patches the node in place (same element reused, --nc updated, no blink)', elBefore === elAfter && elAfter.style.getPropertyValue('--nc') !== ncBefore && window.state.roadmaps[0].phases[0].color === '#123456');
+        window.ui.rmSelSet = null; window.ui.rmSel = null;
+      })();
       window.ui.rmCam = null;
     })();
 
