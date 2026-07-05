@@ -1285,6 +1285,51 @@ async function main() {
         ok('adding a section is a surgical update (board element reused)', d.getElementById('rm-board') === boardEl && !!d.querySelector('.rm-frame'));
         window.ui.rmSelSet = null; window.ui.rmSel = null; window.ui.rmShape = 'capsule';
       })();
+      // ===== FigJam parity round 2: free connectors · property bar · align · placement-undo =====
+      (function(){
+        window.render(); window.rmZoomTo(1);
+        var rm = window.state.roadmaps[0];
+        // ensure at least 2 phases to connect
+        if (rm.phases.length < 2) { window.rmQuickAdd('center', 'r'); window.rmQuickAdd('center', 'l'); window.render(); rm = window.state.roadmaps[0]; }
+        var A = 'p:' + rm.phases[0].id, B = 'p:' + rm.phases[1].id;
+        // free connector: click node A then node B → a link is created and rendered as a dashed edge
+        window.rmConnectStart(d.querySelector('.rm-rail-btn'));
+        ok('connector tool arms connect mode', !!window.rmConnect && d.body.classList.contains('rm-connecting'));
+        window.rmConnectPick(A); window.rmConnectPick(B);
+        ok('clicking two nodes creates a free connector link', (window.state.roadmaps[0].links || []).length === 1 && !window.rmConnect);
+        ok('free connector renders as a dashed link edge', !!d.querySelector('.rm-edges path.rm-link[data-edge^="link:"]'));
+        // duplicate link is prevented
+        window.rmConnectStart(d.querySelector('.rm-rail-btn')); window.rmConnectPick(A); window.rmConnectPick(B);
+        ok('duplicate connector is not created', (window.state.roadmaps[0].links || []).length === 1);
+        // link delete + undo
+        var lid = 'link:' + window.state.roadmaps[0].links[0].id;
+        window.rmLinkDelete(lid);
+        ok('a connector can be removed', (window.state.roadmaps[0].links || []).length === 0);
+        window.rmUndoRoad();
+        ok('removing a connector is undoable', (window.state.roadmaps[0].links || []).length === 1);
+        // property bar anchors to the selection with colour swatches + duplicate + delete
+        window.rmSelectOnly(A);
+        var sb = d.getElementById('rm-selbar');
+        ok('selection shows an anchored property bar with colours', !!sb && sb.style.display !== 'none' && !!sb.querySelector('[data-action="rm-selbar-color"]') && !!sb.querySelector('[data-action="rm-ctx-dup"]'));
+        // quick colour from the bar
+        var beforeCol = window.rmNodeRef(A).node.color || null;
+        click(sb.querySelector('[data-action="rm-selbar-color"]'));
+        ok('property-bar swatch recolours the selection', window.rmNodeRef(A).node.color && window.rmNodeRef(A).node.color !== beforeCol);
+        // alignment on a multi-selection
+        window.rmSetNodePos('phase', rm.phases[0].id, 800, 500); window.rmSetNodePos('phase', rm.phases[1].id, 1200, 900);
+        window.rmSelectOnly(A); window.rmSelSet()[B] = true; window.rmApplySelDom();
+        window.rmAlign('left');
+        var lx0 = window.rmNodeRef(A).node.x - (d.querySelector('.rm-node[data-nid="' + A + '"]').offsetWidth || 90) / 2;
+        var lx1 = window.rmNodeRef(B).node.x - (d.querySelector('.rm-node[data-nid="' + B + '"]').offsetWidth || 90) / 2;
+        ok('align-left lines up the selected nodes\' left edges', Math.abs(lx0 - lx1) < 2);
+        // placement is now individually undoable (the tester bug)
+        window.render(); var st0 = (window.state.roadmaps[0].stamps || []).length;
+        window.rmStampStart('🔥'); window.rmPlaceCommit({ x: 1700, y: 1400 });
+        ok('a stamp placement lands', (window.state.roadmaps[0].stamps || []).length === st0 + 1);
+        window.rmUndoRoad();
+        ok('stamp placement is individually undoable (tester fix)', (window.state.roadmaps[0].stamps || []).length === st0);
+        window.ui.rmSelSet = null; window.ui.rmSel = null;
+      })();
       window.ui.rmCam = null;
     })();
 
