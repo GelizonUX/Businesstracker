@@ -1246,6 +1246,90 @@ async function main() {
         ok('colour edit patches the node in place (same element reused, --nc updated, no blink)', elBefore === elAfter && elAfter.style.getPropertyValue('--nc') !== ncBefore && window.state.roadmaps[0].phases[0].color === '#123456');
         window.ui.rmSelSet = null; window.ui.rmSel = null;
       })();
+      // ===== FigJam layer: bottom toolbar · sections · stamps · text tool =====
+      (function(){
+        window.render(); window.rmZoomTo(1);
+        // bottom toolbar exposes the full tool set at once
+        var tb = d.querySelector('.rm-canvas .rm-rail.rm-toolbar');
+        ok('FigJam-style bottom toolbar renders all tools at once',
+          !!tb && !!tb.querySelector('[data-action="rm-tool-select"][data-tool="select"]') && !!tb.querySelector('[data-shape="sticky"]') &&
+          !!tb.querySelector('[data-action="rm-shape-flyout"]') && !!tb.querySelector('[data-shape="text"]') &&
+          !!tb.querySelector('[data-action="rm-section-start"]') && !!tb.querySelector('[data-action="rm-stamp-flyout"]') &&
+          !!tb.querySelector('[data-action="rm-tidy"]') && !!tb.querySelector('[data-action="rm-fit"]'));
+        // Section (frame): add renders a draggable/resizable/labelled/deletable frame
+        var rm = window.state.roadmaps[0]; var nf0 = (rm.frames || []).length;
+        window.rmSectionAdd();
+        ok('Section tool adds a frame object', (window.state.roadmaps[0].frames || []).length === nf0 + 1);
+        var fid = window.state.roadmaps[0].frames.slice(-1)[0].id;
+        var fEl = d.querySelector('.rm-frame[data-frame="' + fid + '"]');
+        ok('frame renders with label, resize handle and delete', !!fEl && !!fEl.querySelector('.rm-frame-label') && !!fEl.querySelector('.rm-frame-rz') && !!fEl.querySelector('.rm-frame-del'));
+        click(d.querySelector('.rm-frame-del[data-frame="' + fid + '"]'));
+        ok('frame delete removes the section', !(window.state.roadmaps[0].frames || []).some(function(f){ return f.id === fid; }));
+        // Stamp: pick emoji → placement → drop → renders; double-click removes
+        window.rmStampStart('🔥');
+        ok('stamp tool enters placement mode', !!window.rmPlace && window.rmPlace.mode === 'stamp' && d.body.classList.contains('rm-placing'));
+        var ns0 = (window.state.roadmaps[0].stamps || []).length;
+        window.rmPlaceCommit({ x: 1500, y: 1200 });
+        ok('placing drops a stamp on the board', (window.state.roadmaps[0].stamps || []).length === ns0 + 1 && !window.rmPlace);
+        var sid = window.state.roadmaps[0].stamps.slice(-1)[0].id;
+        ok('stamp renders as an emoji object', !!d.querySelector('.rm-stamp[data-stamp="' + sid + '"]'));
+        window.rmStampDelete(sid);
+        ok('stamp can be removed', !(window.state.roadmaps[0].stamps || []).some(function(s){ return s.id === sid; }));
+        // Text tool: places a node with the text shape (no fill/border)
+        window.ui.rmShape = 'text'; window.rmPlaceStart('phase'); window.rmPlaceCommit({ x: 900, y: 900 });
+        var tn = window.rmNodeRef(window.ui.rmSel);
+        ok('text tool places a text-shaped node', tn && tn.node.shape === 'text' && !!d.querySelector('.rm-node.rm-s-text'));
+        // frames/stamps survive the soft reconciler (added without a full re-render)
+        var boardEl = d.getElementById('rm-board');
+        window.rmSectionAdd();
+        ok('adding a section is a surgical update (board element reused)', d.getElementById('rm-board') === boardEl && !!d.querySelector('.rm-frame'));
+        window.ui.rmSelSet = null; window.ui.rmSel = null; window.ui.rmShape = 'capsule';
+      })();
+      // ===== FigJam parity round 2: free connectors · property bar · align · placement-undo =====
+      (function(){
+        window.render(); window.rmZoomTo(1);
+        var rm = window.state.roadmaps[0];
+        // ensure at least 2 phases to connect
+        if (rm.phases.length < 2) { window.rmQuickAdd('center', 'r'); window.rmQuickAdd('center', 'l'); window.render(); rm = window.state.roadmaps[0]; }
+        var A = 'p:' + rm.phases[0].id, B = 'p:' + rm.phases[1].id;
+        // free connector: click node A then node B → a link is created and rendered as a dashed edge
+        window.rmConnectStart(d.querySelector('.rm-rail-btn'));
+        ok('connector tool arms connect mode', !!window.rmConnect && d.body.classList.contains('rm-connecting'));
+        window.rmConnectPick(A); window.rmConnectPick(B);
+        ok('clicking two nodes creates a free connector link', (window.state.roadmaps[0].links || []).length === 1 && !window.rmConnect);
+        ok('free connector renders as a dashed link edge', !!d.querySelector('.rm-edges path.rm-link[data-edge^="link:"]'));
+        // duplicate link is prevented
+        window.rmConnectStart(d.querySelector('.rm-rail-btn')); window.rmConnectPick(A); window.rmConnectPick(B);
+        ok('duplicate connector is not created', (window.state.roadmaps[0].links || []).length === 1);
+        // link delete + undo
+        var lid = 'link:' + window.state.roadmaps[0].links[0].id;
+        window.rmLinkDelete(lid);
+        ok('a connector can be removed', (window.state.roadmaps[0].links || []).length === 0);
+        window.rmUndoRoad();
+        ok('removing a connector is undoable', (window.state.roadmaps[0].links || []).length === 1);
+        // property bar anchors to the selection with colour swatches + duplicate + delete
+        window.rmSelectOnly(A);
+        var sb = d.getElementById('rm-selbar');
+        ok('selection shows an anchored property bar with colours', !!sb && sb.style.display !== 'none' && !!sb.querySelector('[data-action="rm-selbar-color"]') && !!sb.querySelector('[data-action="rm-ctx-dup"]'));
+        // quick colour from the bar
+        var beforeCol = window.rmNodeRef(A).node.color || null;
+        click(sb.querySelector('[data-action="rm-selbar-color"]'));
+        ok('property-bar swatch recolours the selection', window.rmNodeRef(A).node.color && window.rmNodeRef(A).node.color !== beforeCol);
+        // alignment on a multi-selection
+        window.rmSetNodePos('phase', rm.phases[0].id, 800, 500); window.rmSetNodePos('phase', rm.phases[1].id, 1200, 900);
+        window.rmSelectOnly(A); window.rmSelSet()[B] = true; window.rmApplySelDom();
+        window.rmAlign('left');
+        var lx0 = window.rmNodeRef(A).node.x - (d.querySelector('.rm-node[data-nid="' + A + '"]').offsetWidth || 90) / 2;
+        var lx1 = window.rmNodeRef(B).node.x - (d.querySelector('.rm-node[data-nid="' + B + '"]').offsetWidth || 90) / 2;
+        ok('align-left lines up the selected nodes\' left edges', Math.abs(lx0 - lx1) < 2);
+        // placement is now individually undoable (the tester bug)
+        window.render(); var st0 = (window.state.roadmaps[0].stamps || []).length;
+        window.rmStampStart('🔥'); window.rmPlaceCommit({ x: 1700, y: 1400 });
+        ok('a stamp placement lands', (window.state.roadmaps[0].stamps || []).length === st0 + 1);
+        window.rmUndoRoad();
+        ok('stamp placement is individually undoable (tester fix)', (window.state.roadmaps[0].stamps || []).length === st0);
+        window.ui.rmSelSet = null; window.ui.rmSel = null;
+      })();
       window.ui.rmCam = null;
     })();
 
