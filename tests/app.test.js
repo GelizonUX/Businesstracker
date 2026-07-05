@@ -883,8 +883,11 @@ async function main() {
       const pn = d.querySelector('.rm-node.rm-phase[data-id="' + p0.id + '"]');
       ok('persisted position wins over auto-layout on re-render', pn && parseFloat(pn.style.left) === 500 && parseFloat(pn.style.top) === 400);
       const before = p0.color || null;
-      click(d.querySelector('.rm-tool[data-action="rm-node-color"][data-kind="phase"][data-id="' + p0.id + '"]'));
-      ok('node colour cycle persists a new colour', window.state.roadmaps[0].phases[0].color && window.state.roadmaps[0].phases[0].color !== before);
+      // inline popover: customize → pick a colour swatch (no modal, no cycle)
+      click(d.querySelector('.rm-node.rm-phase[data-id="' + p0.id + '"] .rm-tool[data-action="rm-node-pop"]'));
+      var swatch = d.querySelector('#rm-pop .rm-pop-sw:not(.on)') || d.querySelector('#rm-pop .rm-pop-sw');
+      click(swatch);
+      ok('inline popover sets a node colour (no form)', window.state.roadmaps[0].phases[0].color && window.state.roadmaps[0].phases[0].color !== before);
       window.render();
       // M2: quick-add slot on a branch spawns a connected task directly — no modal/form
       (function(){ var n0 = (window.state.roadmaps[0].phases[0].tasks || []).length;
@@ -1141,6 +1144,106 @@ async function main() {
         window.render(); window.rmSelectOnly('p:' + window.state.roadmaps[0].phases[0].id);
         var bar = d.getElementById('rm-selbar');
         ok('selection shows a floating toolbar (duplicate + delete)', !!bar && bar.style.display !== 'none' && /rm-ctx-dup/.test(bar.innerHTML) && /rm-ctx-del/.test(bar.innerHTML));
+        window.ui.rmSelSet = null; window.ui.rmSel = null;
+      })();
+      // ===== Unlimited nesting + smooth (no-blink) surgical updates + inline popover =====
+      (function(){
+        window.render(); window.rmZoomTo(1); window.ui.rmSelSet = null; window.ui.rmSel = null;
+        var rm = window.state.roadmaps[0];
+        // quick-add now works on ANY node — build a 3-deep chain: phase → task → child → grandchild
+        var p = rm.phases[0], pnid = 'p:' + p.id;
+        window.rmQuickAdd(pnid, 'r');
+        var t1 = window.rmNodeRef(window.ui.rmSel); var t1nid = window.ui.rmSel;
+        ok('quick-add on a branch creates a task node', t1 && t1.type === 'task' && t1nid.indexOf('t:') === 0);
+        window.rmQuickAdd(t1nid, 'r');
+        var t2nid = window.ui.rmSel;
+        ok('quick-add on a TASK creates a child (unlimited depth) — 2 deep', (t1.node.children || []).length === 1 && t2nid.indexOf('t:') === 0);
+        window.rmQuickAdd(t2nid, 'b');
+        var t2 = window.rmNodeRef(t2nid);
+        ok('quick-add keeps nesting — 3 deep grandchild', (t2.node.children || []).length === 1);
+        // the deep node renders with its own quick-add slots (can keep going)
+        window.render();
+        var deepEl = d.querySelector('.rm-node[data-nid="' + t2nid + '"]');
+        ok('deep nodes render their own quick-add slots (unlimited)', !!deepEl && deepEl.querySelectorAll('.rm-qadd').length === 4);
+        // SMOOTH: a quick-add patches the board in place — the #rm-board element is NOT replaced (no full re-render → no blink)
+        window.render();
+        var boardBefore = d.getElementById('rm-board');
+        window.rmSelectOnly('p:' + rm.phases[0].id);
+        window.rmQuickAdd('p:' + rm.phases[0].id, 'l');
+        ok('canvas edits are surgical — board element is reused, no full re-render (no blink)', d.getElementById('rm-board') === boardBefore);
+        // recursive delete removes the whole subtree
+        window.render();
+        var pcnt = (function count(list){ var n = 0; (list || []).forEach(function(t){ n += 1 + count(t.children); }); return n; });
+        var phaseA = rm.phases[0]; var beforeTotal = pcnt(phaseA.tasks);
+        window.rmSelectOnly('p:' + phaseA.id); window.rmDeleteSel();
+        ok('deleting a branch removes its whole subtree', !window.state.roadmaps[0].phases.some(function(x){ return x.id === phaseA.id; }));
+        window.rmUndoRoad();
+        // recursive duplicate clones a subtree (parent + descendants) with fresh ids
+        window.render(); var pB = window.state.roadmaps[0].phases[0];
+        if (!(pB.tasks || []).length) { window.rmQuickAdd('p:' + pB.id, 'r'); }
+        pB = window.state.roadmaps[0].phases[0];
+        var subCount = pcnt(pB.tasks);
+        window.rmSelectOnly('p:' + pB.id); window.rmDuplicateSel();
+        var dup = window.state.roadmaps[0].phases.slice(-1)[0];
+        ok('duplicating a branch clones its subtree', pcnt(dup.tasks) === subCount && dup.id !== pB.id);
+        window.rmUndoRoad();
+        // inline popover: shape + status change, no modal
+        window.render(); var pop0 = window.state.roadmaps[0].phases[0];
+        window.rmNodePop('p:' + pop0.id, d.querySelector('.rm-node[data-nid="p:' + pop0.id + '"]'));
+        ok('customize opens an inline popover (colour + shape, no modal)', !!d.getElementById('rm-pop') && /rm-pop-shape/.test(d.getElementById('rm-pop').innerHTML) && d.getElementById('modal-root').innerHTML.length < 100);
+        window.rmNodeSetProp('p:' + pop0.id, 'shape', 'diamond');
+        ok('popover changes shape inline', window.state.roadmaps[0].phases[0].shape === 'diamond');
+        // status cycle on a task
+        var pT = window.state.roadmaps[0].phases[0]; if (!(pT.tasks || []).length) window.rmQuickAdd('p:' + pT.id, 'r');
+        var tnid = 't:' + window.state.roadmaps[0].phases[0].tasks[0].id;
+        var st0 = window.rmNodeRef(tnid).node.status;
+        window.rmNodeCycleStatus(tnid);
+        ok('popover cycles task status inline', window.rmNodeRef(tnid).node.status !== st0);
+        window.rmPopClose();
+        window.ui.rmSelSet = null; window.ui.rmSel = null;
+      })();
+      // ===== Power features: Tidy · collapse/expand · emoji · keyboard outline · snap · reconcile =====
+      (function(){
+        window.render(); window.rmZoomTo(1); window.ui.rmSelSet = null; window.ui.rmSel = null;
+        var rm = window.state.roadmaps[0];
+        // Tidy drops stored positions → auto-layout takes over
+        var pT = rm.phases[0]; window.rmSetNodePos('phase', pT.id, 1234, 999);
+        ok('a node can hold a fixed position', window.rmNodeRef('p:' + pT.id).node.x === 1234);
+        window.rmTidy();
+        ok('Tidy clears stored positions (auto-layout)', window.state.roadmaps[0].phases[0].x == null);
+        window.rmUndoRoad();
+        // collapse/expand a branch that has children
+        window.render(); var pc = window.state.roadmaps[0].phases[0];
+        if (!(pc.tasks || []).length) { window.rmQuickAdd('p:' + pc.id, 'r'); window.render(); pc = window.state.roadmaps[0].phases[0]; }
+        var childNid = 't:' + pc.tasks[0].id;
+        click(d.querySelector('.rm-node[data-nid="p:' + pc.id + '"] .rm-fold'));
+        ok('fold collapses a branch (children hidden)', window.state.roadmaps[0].phases[0].collapsed === true && !d.querySelector('.rm-node[data-nid="' + childNid + '"]'));
+        ok('collapsed branch shows a +N count pill', /^\+\d+/.test(d.querySelector('.rm-node[data-nid="p:' + pc.id + '"] .rm-count').textContent));
+        click(d.querySelector('.rm-node[data-nid="p:' + pc.id + '"] .rm-fold'));
+        ok('fold expands again (children shown)', !window.state.roadmaps[0].phases[0].collapsed && !!d.querySelector('.rm-node[data-nid="' + childNid + '"]'));
+        // emoji/icon via popover renders on the node
+        window.rmNodeSetProp('p:' + pc.id, 'icon', '🚀');
+        ok('node icon renders as an emoji glyph', !!d.querySelector('.rm-node[data-nid="p:' + pc.id + '"] .rm-emoji'));
+        // keyboard outline: Tab = child, Enter = sibling, Shift+Tab = outdent
+        window.render(); var pk = window.state.roadmaps[0].phases[0]; window.rmSelectOnly('p:' + pk.id);
+        var kb0 = (pk.tasks || []).length;
+        d.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+        ok('Tab adds a child to the selected node', (window.state.roadmaps[0].phases[0].tasks || []).length === kb0 + 1 && window.ui.rmSel.indexOf('t:') === 0);
+        var childSel = window.ui.rmSel, sibList = window.rmNodeRef(childSel).list, sib0 = sibList.length;
+        d.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+        ok('Enter adds a sibling', window.rmNodeRef(window.ui.rmSel).list.length === sib0 + 1 && window.ui.rmSel !== childSel);
+        // build depth then outdent a grandchild up one level
+        window.rmSelectOnly(childSel); window.rmQuickAdd(childSel, 'r'); var gc = window.ui.rmSel;
+        var beforeParentKids = window.rmNodeRef(childSel).node.children.length;
+        window.rmOutdent(gc);
+        ok('Shift+Tab/outdent lifts a node up one level', window.rmNodeRef(childSel).node.children.length === beforeParentKids - 1);
+        // reconcile keeps the SAME node element on a colour edit (no re-create → no blink) and updates --nc
+        window.render(); var pcolor = window.state.roadmaps[0].phases[0];
+        var elBefore = d.querySelector('.rm-node[data-nid="p:' + pcolor.id + '"]');
+        var ncBefore = elBefore.style.getPropertyValue('--nc');
+        window.rmNodeSetProp('p:' + pcolor.id, 'color', '#123456');
+        var elAfter = d.querySelector('.rm-node[data-nid="p:' + pcolor.id + '"]');
+        ok('colour edit patches the node in place (same element reused, --nc updated, no blink)', elBefore === elAfter && elAfter.style.getPropertyValue('--nc') !== ncBefore && window.state.roadmaps[0].phases[0].color === '#123456');
         window.ui.rmSelSet = null; window.ui.rmSel = null;
       })();
       window.ui.rmCam = null;
