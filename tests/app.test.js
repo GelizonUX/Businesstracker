@@ -1330,6 +1330,49 @@ async function main() {
         ok('stamp placement is individually undoable (tester fix)', (window.state.roadmaps[0].stamps || []).length === st0);
         window.ui.rmSelSet = null; window.ui.rmSel = null;
       })();
+      // ===== FigJam parity round 3: deep undo · pen · templates · distribute · comments · tables · sticky =====
+      (function(){
+        window.render(); window.rmZoomTo(1);
+        var rm = window.state.roadmaps[0];
+        // DEEP multi-level undo: three edits, three undos, three redos
+        var base = rm.phases.length;
+        window.rmQuickAdd('center', 'r'); window.rmQuickAdd('center', 'l'); window.rmQuickAdd('center', 't');
+        ok('three adds land', window.state.roadmaps[0].phases.length === base + 3);
+        window.rmUndoRoad(); window.rmUndoRoad();
+        ok('deep undo steps back multiple levels', window.state.roadmaps[0].phases.length === base + 1);
+        window.rmRedo();
+        ok('deep redo steps forward', window.state.roadmaps[0].phases.length === base + 2);
+        // PEN: rm.ink stores a stroke; render + erase
+        rm = window.state.roadmaps[0]; var ink0 = (rm.ink || []).length;
+        rm.ink = rm.ink || []; window.rmSnapshot(); rm.ink.push({ id: 'ink_t', color: '#e0554e', w: 3, pts: [[100, 100], [140, 130], [180, 110]] }); window.rmCommitSoft();
+        ok('a pen stroke renders as an SVG polyline', !!d.querySelector('.rm-edges polyline.rm-ink[data-ink="ink_t"]'));
+        window.rmInkDelete('ink_t');
+        ok('a stroke can be erased', !(window.state.roadmaps[0].ink || []).some(function(k){ return k.id === 'ink_t'; }));
+        // TEMPLATES: create a board from a template with fresh ids
+        var boards0 = window.state.roadmaps.length;
+        click(d.querySelector('.rm-maps [data-action="rm-template"][data-tpl="0"]'));
+        ok('a template creates a new populated board', window.state.roadmaps.length === boards0 + 1 && window.currentRoadmap().phases.length >= 3);
+        // COMMENTS: place a pin, edit text, delete
+        window.render(); var rc = window.currentRoadmap(); var cm0 = (rc.comments || []).length;
+        window.rmStampStart && (window.rmPlace = { mode: 'comment' }); window.rmPlaceCommit({ x: 1500, y: 1500 });
+        rc = window.currentRoadmap();
+        ok('comment pin is placed and rendered', (rc.comments || []).length === cm0 + 1 && !!d.querySelector('.rm-comment'));
+        var cid = rc.comments.slice(-1)[0].id; rc.comments.slice(-1)[0].text = 'hello'; window.rmCommitSoft();
+        ok('a comment with text shows the has-text state', d.querySelector('.rm-comment[data-comment="' + cid + '"]').classList.contains('has-text'));
+        window.rmCommentDelete(cid);
+        ok('a comment can be removed', !(window.currentRoadmap().comments || []).some(function(c){ return c.id === cid; }));
+        // TABLES: add, edit a cell, add row + col, delete
+        window.rmTableAdd(); var rt = window.currentRoadmap(); var tb = rt.tables.slice(-1)[0];
+        ok('a table is added and rendered with editable cells', !!d.querySelector('.rm-table[data-table="' + tb.id + '"] .rm-tbl-cell[contenteditable="true"]'));
+        var r0 = tb.rows, c0 = tb.cols; window.rmTableRow(tb.id); window.rmTableCol(tb.id);
+        ok('table grows rows + cols', window.rmTableById(tb.id).rows === r0 + 1 && window.rmTableById(tb.id).cols === c0 + 1);
+        window.rmTableDelete(tb.id);
+        ok('a table can be deleted', !(window.currentRoadmap().tables || []).some(function(t){ return t.id === tb.id; }));
+        // STICKY polish: sticky shape gets its dedicated note styling class
+        var css = ''; d.querySelectorAll('style').forEach(function(s){ css += s.textContent; });
+        ok('sticky notes have first-class note styling', /\.rm-node\.rm-s-sticky\{[^}]*min-height/.test(css));
+        window.ui.rmSelSet = null; window.ui.rmSel = null;
+      })();
       window.ui.rmCam = null;
     })();
 
