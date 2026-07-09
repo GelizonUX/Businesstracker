@@ -2225,7 +2225,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
-var APP_BUILD='2026.07.05g'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
+var APP_BUILD='2026.07.05h'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -4761,7 +4761,7 @@ function rmTablesHTML(rm){ return (rm.tables||[]).map(rmTableHTML).join(''); }
 var RM_NOTE_COLORS=['#ffd54a','#ff8a80','#8ce0a6','#82b1ff','#c8a2ff','#ffffff'];
 function rmNoteHTML(n){ var kind=n.kind||'sticky', isShape=kind==='shape', w=n.w||(kind==='text'?200:(isShape?150:190)), h=n.h||(isShape?100:170), boxed=(kind==='sticky'||isShape);
   var cls='rm-note-obj rm-note-'+kind+(isShape?' rm-fshape-'+(n.shape||'rect'):'');
-  return '<div class="'+cls+'" data-note="'+n.id+'" style="left:'+n.x+'px;top:'+n.y+'px;width:'+w+'px;'+(boxed?'min-height:'+h+'px;height:'+h+'px;':'')+'--nc:'+(n.color||(isShape?'#82b1ff':'#ffd54a'))+'">'+
+  return '<div class="'+cls+'" data-note="'+n.id+'" style="left:'+n.x+'px;top:'+n.y+'px;width:'+w+'px;'+(boxed?'min-height:'+h+'px;':'')+'--nc:'+(n.color||(isShape?'#82b1ff':'#ffd54a'))+'">'+
     (isShape?'<span class="rm-fshape-bg"></span>':'')+
     '<div class="rm-note-body" data-note-body="'+n.id+'" contenteditable="false" spellcheck="false">'+esc(n.text||'')+'</div>'+
     '<div class="rm-note-bar">'+RM_NOTE_COLORS.map(function(c){ return '<button class="rm-note-sw'+((n.color||'#ffd54a')===c?' on':'')+'" data-action="rm-note-color" data-note="'+n.id+'" data-color="'+c+'" style="background:'+c+'" title="'+c+'"></button>'; }).join('')+
@@ -4801,7 +4801,7 @@ function rmMapHTML(rm){
       '<button class="rm-cam-btn" data-action="rm-tidy" title="Tidy — auto-arrange the map">'+icon('layers',14)+'</button>'+
       '<button class="rm-cam-btn" data-action="rm-grid-cycle" title="Grid style">'+icon('dashboard',14)+'</button>'+
     '</div>'+
-    '<p class="rm-hint">'+esc(tr('Drag to pan · Shift+drag to lasso · ⌘/Ctrl+A all · ⌘D duplicate · ⌘C/⌘V copy · ⌘Z undo · arrows nudge · Del remove · double-click rename · right-click for more'))+'</p></div>';
+    '<p class="rm-hint">'+esc(tr('Toolbar below: sticky · shapes · pen · text · connector · section · table · comment · stamp — drop then type. Drag to pan · Shift+drag to lasso · ⌘Z undo · double-click to edit · right-click for more'))+'</p></div>';
 }
 function rmMiniDots(pos){
   var xs=[],ys=[]; for(var k in pos){ xs.push(pos[k].x); ys.push(pos[k].y); }
