@@ -1460,6 +1460,24 @@ async function main() {
         var idx = window.rmEdgeIndex(board);
         ok('edge index maps every path by key and by source', !!idx.by[pnid] && !!idx.from.center && idx.from.center.length >= 1);
       })();
+      // ===== Engine M2 · material system — two translucent tiers, one design language =====
+      (function(){
+        var css = ''; d.querySelectorAll('style').forEach(function(s){ css += s.textContent; });
+        ok('material tokens are defined (float + panel tiers, border, highlight)',
+          /--mat-float-bg:/.test(css) && /--mat-panel-bg:/.test(css) && /--mat-border:/.test(css) && /--mat-hi:/.test(css));
+        ok('the dark theme re-tunes the material highlight', /html\[data-theme="dark"\][^{]*\{[\s\S]*?--mat-hi:/.test(css));
+        var rulesFor = function(sel){ var out = [], i = 0; while ((i = css.indexOf(sel, i)) > -1){ out.push(css.slice(i, css.indexOf('}', i))); i += sel.length; } return out; };
+        var floatSurfaces = ['.rm-rail{', '.rm-cam-bar{', '.rm-maps{', '.rm-mini{', '.rm-selbar{'];
+        ok('all persistent chrome consumes the float material', floatSurfaces.every(function(sel){
+          return rulesFor(sel).some(function(rule){ return rule.indexOf('var(--mat-float-bg)') > -1 && rule.indexOf('var(--mat-border)') > -1 && rule.indexOf('var(--mat-hi)') > -1; }); }));
+        var panelSurfaces = ['.rm-ctx{', '.rm-pop{', '.rm-flyout{', '.rm-comment-pop{', '.rm-note-bar{'];
+        ok('all transient chrome consumes the panel material', panelSurfaces.every(function(sel){
+          return rulesFor(sel).some(function(rule){ return rule.indexOf('var(--mat-panel-bg)') > -1 && rule.indexOf('var(--mat-border)') > -1; }); }));
+        ok('no hand-rolled glass recipes remain on canvas chrome', floatSurfaces.concat(panelSurfaces).every(function(sel){
+          return rulesFor(sel).every(function(rule){ return !/color-mix\(in srgb,var\(--bg-card\) \d+%,transparent\)/.test(rule); }); }));
+        ok('every material surface keeps a solid fallback for non-color-mix browsers', floatSurfaces.concat(panelSurfaces).every(function(sel){
+          return rulesFor(sel).some(function(rule){ return rule.indexOf('background:var(--bg-card)') > -1; }); }));
+      })();
       window.ui.rmCam = null;
     })();
 
