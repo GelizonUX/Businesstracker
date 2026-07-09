@@ -1478,6 +1478,39 @@ async function main() {
         ok('every material surface keeps a solid fallback for non-color-mix browsers', floatSurfaces.concat(panelSurfaces).every(function(sel){
           return rulesFor(sel).some(function(rule){ return rule.indexOf('background:var(--bg-card)') > -1; }); }));
       })();
+      // ===== Engine M3 · motion system — spring tokens, physical entrances, press physics, camera glide =====
+      (function(){
+        var css = ''; d.querySelectorAll('style').forEach(function(s){ css += s.textContent; });
+        // 1) motion tokens with progressive enhancement to a real spring curve
+        ok('motion tokens are defined (--spring fallback + --press)', /--spring:var\(--ease-snappy\)/.test(css) && /--press:cubic-bezier/.test(css));
+        ok('supporting browsers upgrade --spring to a real linear() spring', /@supports \(animation-timing-function:linear\(0,1\)\)/.test(css) && /--spring:linear\(/.test(css));
+        // 2) entrances overshoot (physical), instead of plain fades
+        ok('node entrance overshoots before settling (spring physics)', /@keyframes rmNodeIn\{[\s\S]{0,220}?scale\(1\.02\)/.test(css));
+        ok('popover entrance overshoots before settling', /@keyframes rmPopIn\{[\s\S]{0,220}?translateY\(1px\)/.test(css));
+        // 3) press compression is universal chrome physics, honouring reduced motion
+        ok('every chrome control compresses on press (one rule)', /\.rm-rail-btn:active,\.rm-cam-btn:active,\.rm-selbar-btn:active,\.rm-tool:active[^{]*\{transform:scale\(\.9\)\}/.test(css));
+        ok('reduced-motion disables press compression', /prefers-reduced-motion[\s\S]*?\.rm-rail-btn:active[^{]*\{transform:none\}/.test(css));
+        // 4) camera glide — programmatic moves interpolate, never teleport, and any input cancels
+        window.render(); window.rmZoomTo(1);
+        var cam = window.rmCam(); cam.x = 0; cam.y = 0; window.rmApplyCam();
+        var rafQ = [], origRaf = window.requestAnimationFrame;
+        window.requestAnimationFrame = function(fn){ rafQ.push(fn); return rafQ.length; };
+        window.rmCamGlideTo(300, 200, 1, 200);
+        ok('a camera glide schedules interpolation frames (no teleport)', rafQ.length === 1 && window.rmCam().x === 0);
+        rafQ.shift()(1000);            // first frame: t0 established
+        var midX = window.rmCam().x;
+        rafQ.shift()(1100);            // halfway: eased progress, strictly between
+        var halfX = window.rmCam().x;
+        ok('the glide eases through intermediate camera positions', midX === 0 && halfX > 0 && halfX < 300);
+        rafQ.shift()(1200);            // final frame: lands exactly on target
+        ok('the glide lands exactly on the target', Math.round(window.rmCam().x) === 300 && Math.round(window.rmCam().y) === 200 && !window.rmGlideActive());
+        window.rmCamGlideTo(900, 900, 1, 200);
+        ok('a new glide is active until interrupted', window.rmGlideActive());
+        window.rmMomentumCancel();
+        ok('any input takeover cancels the glide instantly', !window.rmGlideActive());
+        window.requestAnimationFrame = origRaf;
+        window.rmZoomTo(1);
+      })();
       window.ui.rmCam = null;
     })();
 
