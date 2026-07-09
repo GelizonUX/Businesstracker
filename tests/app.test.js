@@ -1252,8 +1252,8 @@ async function main() {
         // bottom toolbar exposes the full tool set at once
         var tb = d.querySelector('.rm-canvas .rm-rail.rm-toolbar');
         ok('FigJam-style bottom toolbar renders all tools at once',
-          !!tb && !!tb.querySelector('[data-action="rm-tool-select"][data-tool="select"]') && !!tb.querySelector('[data-shape="sticky"]') &&
-          !!tb.querySelector('[data-action="rm-shape-flyout"]') && !!tb.querySelector('[data-shape="text"]') &&
+          !!tb && !!tb.querySelector('[data-action="rm-tool-select"][data-tool="select"]') && !!tb.querySelector('[data-action="rm-note-start"][data-kind="sticky"]') &&
+          !!tb.querySelector('[data-action="rm-shape-flyout"]') && !!tb.querySelector('[data-action="rm-note-start"][data-kind="text"]') &&
           !!tb.querySelector('[data-action="rm-section-start"]') && !!tb.querySelector('[data-action="rm-stamp-flyout"]') &&
           !!tb.querySelector('[data-action="rm-tidy"]') && !!tb.querySelector('[data-action="rm-fit"]'));
         // Section (frame): add renders a draggable/resizable/labelled/deletable frame
@@ -1328,6 +1328,78 @@ async function main() {
         ok('a stamp placement lands', (window.state.roadmaps[0].stamps || []).length === st0 + 1);
         window.rmUndoRoad();
         ok('stamp placement is individually undoable (tester fix)', (window.state.roadmaps[0].stamps || []).length === st0);
+        window.ui.rmSelSet = null; window.ui.rmSel = null;
+      })();
+      // ===== FigJam parity round 3: deep undo · pen · templates · distribute · comments · tables · sticky =====
+      (function(){
+        window.render(); window.rmZoomTo(1);
+        var rm = window.state.roadmaps[0];
+        // DEEP multi-level undo: three edits, three undos, three redos
+        var base = rm.phases.length;
+        window.rmQuickAdd('center', 'r'); window.rmQuickAdd('center', 'l'); window.rmQuickAdd('center', 't');
+        ok('three adds land', window.state.roadmaps[0].phases.length === base + 3);
+        window.rmUndoRoad(); window.rmUndoRoad();
+        ok('deep undo steps back multiple levels', window.state.roadmaps[0].phases.length === base + 1);
+        window.rmRedo();
+        ok('deep redo steps forward', window.state.roadmaps[0].phases.length === base + 2);
+        // PEN: rm.ink stores a stroke; render + erase
+        rm = window.state.roadmaps[0]; var ink0 = (rm.ink || []).length;
+        rm.ink = rm.ink || []; window.rmSnapshot(); rm.ink.push({ id: 'ink_t', color: '#e0554e', w: 3, pts: [[100, 100], [140, 130], [180, 110]] }); window.rmCommitSoft();
+        ok('a pen stroke renders as an SVG polyline', !!d.querySelector('.rm-edges polyline.rm-ink[data-ink="ink_t"]'));
+        window.rmInkDelete('ink_t');
+        ok('a stroke can be erased', !(window.state.roadmaps[0].ink || []).some(function(k){ return k.id === 'ink_t'; }));
+        // TEMPLATES: create a board from a template with fresh ids
+        var boards0 = window.state.roadmaps.length;
+        click(d.querySelector('.rm-maps [data-action="rm-template"][data-tpl="0"]'));
+        ok('a template creates a new populated board', window.state.roadmaps.length === boards0 + 1 && window.currentRoadmap().phases.length >= 3);
+        // COMMENTS: place a pin, edit text, delete
+        window.render(); var rc = window.currentRoadmap(); var cm0 = (rc.comments || []).length;
+        window.rmStampStart && (window.rmPlace = { mode: 'comment' }); window.rmPlaceCommit({ x: 1500, y: 1500 });
+        rc = window.currentRoadmap();
+        ok('comment pin is placed and rendered', (rc.comments || []).length === cm0 + 1 && !!d.querySelector('.rm-comment'));
+        var cid = rc.comments.slice(-1)[0].id; rc.comments.slice(-1)[0].text = 'hello'; window.rmCommitSoft();
+        ok('a comment with text shows the has-text state', d.querySelector('.rm-comment[data-comment="' + cid + '"]').classList.contains('has-text'));
+        window.rmCommentDelete(cid);
+        ok('a comment can be removed', !(window.currentRoadmap().comments || []).some(function(c){ return c.id === cid; }));
+        // TABLES: add, edit a cell, add row + col, delete
+        window.rmTableAdd(); var rt = window.currentRoadmap(); var tb = rt.tables.slice(-1)[0];
+        ok('a table is added and rendered with editable cells', !!d.querySelector('.rm-table[data-table="' + tb.id + '"] .rm-tbl-cell[contenteditable="true"]'));
+        var r0 = tb.rows, c0 = tb.cols; window.rmTableRow(tb.id); window.rmTableCol(tb.id);
+        ok('table grows rows + cols', window.rmTableById(tb.id).rows === r0 + 1 && window.rmTableById(tb.id).cols === c0 + 1);
+        window.rmTableDelete(tb.id);
+        ok('a table can be deleted', !(window.currentRoadmap().tables || []).some(function(t){ return t.id === tb.id; }));
+        // STICKY polish: sticky shape gets its dedicated note styling class
+        var css = ''; d.querySelectorAll('style').forEach(function(s){ css += s.textContent; });
+        ok('sticky notes have first-class note styling', /\.rm-node\.rm-s-sticky\{[^}]*min-height/.test(css));
+        // REAL freeform sticky notes: drop → type immediately → drag/recolour/delete, NOT wired to the tree
+        window.render(); var rmn = window.currentRoadmap(); var n0 = (rmn.notes || []).length;
+        window.rmNoteStart(d.querySelector('.rm-rail-btn'), 'sticky');
+        ok('sticky tool arms a freeform note placement', !!window.rmPlace && window.rmPlace.mode === 'note' && window.rmPlace.kind === 'sticky');
+        window.rmPlaceCommit({ x: 2000, y: 1500 });
+        rmn = window.currentRoadmap();
+        ok('dropping creates a standalone sticky note (no tree edge)', (rmn.notes || []).length === n0 + 1);
+        var note = rmn.notes.slice(-1)[0];
+        var noteEl = d.querySelector('.rm-note-obj[data-note="' + note.id + '"]');
+        ok('the sticky renders as a real note with an editable body + colour bar + resize', !!noteEl && !!noteEl.querySelector('.rm-note-body') && !!noteEl.querySelector('.rm-note-sw') && !!noteEl.querySelector('.rm-note-rz'));
+        window.rmNoteEdit(note.id);
+        ok('the note opens straight into text editing (type immediately)', noteEl.querySelector('.rm-note-body').getAttribute('contenteditable') === 'true');
+        noteEl.querySelector('.rm-note-body').textContent = 'Buy milk'; noteEl.querySelector('.rm-note-body').dispatchEvent(new window.Event('blur'));
+        ok('typing on the sticky saves its text', window.currentRoadmap().notes.slice(-1)[0].text === 'Buy milk');
+        window.rmNoteColor(note.id, '#8ce0a6');
+        ok('the sticky can be recoloured', window.currentRoadmap().notes.slice(-1)[0].color === '#8ce0a6');
+        var undoTgt = window.currentRoadmap().notes.length; window.rmNoteDelete(note.id);
+        ok('the sticky can be deleted (and undo brings it back)', window.currentRoadmap().notes.length === undoTgt - 1 && (window.rmUndoRoad(), window.currentRoadmap().notes.length === undoTgt));
+        // a text note is transparent (no sticky fill)
+        window.rmNoteStart(d.querySelector('.rm-rail-btn'), 'text'); window.rmPlaceCommit({ x: 2200, y: 1600 });
+        ok('the text tool drops a transparent text note', window.currentRoadmap().notes.slice(-1)[0].kind === 'text' && !!d.querySelector('.rm-note-obj.rm-note-text'));
+        // shapes are now FREEFORM objects (drop anywhere, typeable) — not tree nodes wired to centre
+        window.render();
+        var shapesPhases0 = window.currentRoadmap().phases.length, notes0 = (window.currentRoadmap().notes || []).length;
+        click(d.querySelector('.rm-flyout [data-action="rm-place-shape"][data-shape="diamond"]'));
+        ok('a shape tool arms a freeform shape (not a tree node)', window.rmPlace && window.rmPlace.mode === 'note' && window.rmPlace.kind === 'shape' && window.rmPlace.shape === 'diamond');
+        window.rmPlaceCommit({ x: 2400, y: 1500 });
+        ok('dropping a shape adds a freeform shape object, adds NO phase to the tree', (window.currentRoadmap().notes || []).length === notes0 + 1 && window.currentRoadmap().phases.length === shapesPhases0);
+        ok('the freeform diamond renders with its shape fill + editable body', !!d.querySelector('.rm-note-obj.rm-note-shape.rm-fshape-diamond .rm-fshape-bg') && !!d.querySelector('.rm-note-obj.rm-note-shape .rm-note-body'));
         window.ui.rmSelSet = null; window.ui.rmSel = null;
       })();
       window.ui.rmCam = null;
