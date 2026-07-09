@@ -85,6 +85,12 @@
   --mat-panel-blur:blur(12px);
   --mat-border:color-mix(in srgb,var(--border) 88%,transparent);
   --mat-hi:inset 0 1px 0 rgba(255,255,255,.5); /* top-edge light catch */
+  /* motion tokens — one vocabulary for every animation in the product */
+  --spring:var(--ease-snappy);              /* upgraded to a real spring below when linear() is supported */
+  --press:cubic-bezier(.34,1.56,.64,1);     /* back-out: button release snaps past rest, settles */
+}
+@supports (animation-timing-function:linear(0,1)){
+  :root{ --spring:linear(0,.006,.025 2.8%,.101 6.1%,.539 18.9%,.721 25.3%,.849 31.5%,.937 38.1%,.968 41.8%,.991 45.7%,1.006 50.1%,1.015 55%,1.017 63.9%,1.001) }
 }
 html[data-theme="dark"]{
   color-scheme:dark;
@@ -334,7 +340,6 @@ body.rm-resizing{cursor:ns-resize!important;user-select:none}
 .rm-rail-btn{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;color:var(--text-2);cursor:pointer;
   transition:background .12s,color .12s,transform .1s;position:relative}
 .rm-rail-btn:hover{background:var(--bg-sunken);color:var(--text)}
-.rm-rail-btn:active{transform:scale(.92)}
 .rm-rail-btn.on{background:var(--accent);color:#fff}
 .rm-rail-btn svg{width:18px;height:18px}
 .rm-rail-div{width:1px;height:22px;background:var(--border);margin:0 4px}
@@ -422,14 +427,19 @@ body.rm-placing .rm-canvas{cursor:copy}
 .rm-sdot.prog{background:var(--warn,#e0a020)}.rm-sdot.done{background:var(--good)}
 .rm-pop-del{display:flex;align-items:center;gap:7px;width:100%;padding:7px 9px;border-radius:9px;font-size:.8rem;font-weight:600;color:var(--risk);cursor:pointer}
 .rm-pop-del:hover{background:var(--risk-soft)}
-/* motion: new nodes fade+scale in; popover entrance; nodes glide on layout change */
-@keyframes rmNodeIn{from{opacity:0;transform:translate(-50%,-50%) scale(.8)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
-@keyframes rmPopIn{from{opacity:0;transform:translateY(-5px) scale(.97)}to{opacity:1;transform:none}}
-.rm-node.rm-in{animation:rmNodeIn .17s var(--ease-snappy) both}
+/* motion: entrances carry a small physical overshoot (spring), never plain fades */
+@keyframes rmNodeIn{0%{opacity:0;transform:translate(-50%,-50%) scale(.8)}70%{opacity:1;transform:translate(-50%,-50%) scale(1.02)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@keyframes rmPopIn{0%{opacity:0;transform:translateY(-6px) scale(.97)}75%{opacity:1;transform:translateY(1px) scale(1.003)}100%{opacity:1;transform:none}}
+.rm-node.rm-in{animation:rmNodeIn .2s var(--spring) both}
 .rm-node{transition:box-shadow .15s var(--ease),left .18s var(--ease),top .18s var(--ease)}
 .rm-node.dragging{transition:box-shadow .15s var(--ease)}
-.rm-pop,.rm-ctx{animation:rmPopIn .13s var(--ease-snappy) both}
-@media (prefers-reduced-motion:reduce){.rm-node.rm-in,.rm-pop,.rm-ctx{animation:none}.rm-node{transition:box-shadow .15s var(--ease)}}
+.rm-pop,.rm-ctx{animation:rmPopIn .16s var(--spring) both}
+/* press physics — every interactive chrome control compresses under the pointer
+   and springs back on release (back-out easing). One rule, whole product. */
+.rm-cam-btn,.rm-selbar-btn,.rm-tool,.rm-pop-shape,.rm-pop-sw,.rm-pop-icon,.rm-stamp-opt,.rm-map-item,.rm-fold{transition:background .12s,color .12s,opacity .12s,transform .14s var(--press)}
+.rm-rail-btn:active,.rm-cam-btn:active,.rm-selbar-btn:active,.rm-tool:active,.rm-pop-shape:active,.rm-pop-sw:active,.rm-pop-icon:active,.rm-stamp-opt:active,.rm-map-item:active,.rm-fold:active{transform:scale(.9)}
+@media (prefers-reduced-motion:reduce){.rm-node.rm-in,.rm-pop,.rm-ctx{animation:none}.rm-node{transition:box-shadow .15s var(--ease)}
+  .rm-rail-btn:active,.rm-cam-btn:active,.rm-selbar-btn:active,.rm-tool:active,.rm-pop-shape:active,.rm-pop-sw:active,.rm-pop-icon:active,.rm-stamp-opt:active,.rm-map-item:active,.rm-fold:active{transform:none}}
 /* emoji glyph inside a node */
 .rm-emoji{flex-shrink:0;font-size:1em;line-height:1}
 /* collapse / expand fold toggle + collapsed count pill */
@@ -2237,7 +2247,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
-var APP_BUILD='2026.07.09b'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
+var APP_BUILD='2026.07.09c'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -5210,9 +5220,30 @@ function rmCullView(){
    Physics is real input velocity, not a canned animation; any
    new input (pointer, wheel, key) interrupts it instantly.
    ============================================================ */
-var rmMomentumRaf=0;
+var rmMomentumRaf=0, rmGlideRaf=0;
 function rmMomentumActive(){ return !!rmMomentumRaf; }
-function rmMomentumCancel(){ if(rmMomentumRaf){ if(typeof cancelAnimationFrame==='function') cancelAnimationFrame(rmMomentumRaf); rmMomentumRaf=0; } }
+function rmGlideActive(){ return !!rmGlideRaf; }
+function rmMomentumCancel(){ // cancels ALL programmatic camera motion — any input takes over instantly
+  if(rmMomentumRaf){ if(typeof cancelAnimationFrame==='function') cancelAnimationFrame(rmMomentumRaf); rmMomentumRaf=0; }
+  if(rmGlideRaf){ if(typeof cancelAnimationFrame==='function') cancelAnimationFrame(rmGlideRaf); rmGlideRaf=0; }
+}
+/* eased camera interpolation for programmatic moves (minimap jump, focus) —
+   the camera never teleports; reduced-motion users get the instant jump */
+function rmCamGlideTo(tx,ty,tz,ms){
+  var cam=rmCam(); tz=(tz==null)?cam.z:clamp(tz,0.12,4); ms=ms||260;
+  var reduce=(typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion:reduce)').matches);
+  if(reduce||typeof requestAnimationFrame!=='function'){ cam.x=tx; cam.y=ty; cam.z=tz; rmApplyCam(); return; }
+  rmMomentumCancel();
+  var fx=cam.x, fy=cam.y, fz=cam.z, t0=null;
+  function step(ts){
+    if(t0==null) t0=ts;
+    var k=Math.min((ts-t0)/ms,1), e=1-Math.pow(1-k,3);
+    cam.x=fx+(tx-fx)*e; cam.y=fy+(ty-fy)*e; cam.z=fz+(tz-fz)*e;
+    rmApplyCam();
+    rmGlideRaf=(k<1)?requestAnimationFrame(step):0;
+  }
+  rmGlideRaf=requestAnimationFrame(step);
+}
 function rmMomentumStep(v,dt){ return v*Math.exp(-dt/325); } // pure decay, unit-tested
 function rmStartMomentum(vx,vy){
   if(typeof matchMedia==='function' && matchMedia('(prefers-reduced-motion:reduce)').matches) return;
@@ -7563,7 +7594,7 @@ document.addEventListener('click',function(e){
     var r=mm.getBoundingClientRect(), lx=e.clientX-r.left, ly=e.clientY-r.top;
     var wx=(lx-M.ox)/M.sc+M.minX, wy=(ly-M.oy)/M.sc+M.minY;
     var cr=cv.getBoundingClientRect(), cam=rmCam();
-    cam.x=cr.width/2-wx*cam.z; cam.y=cr.height/2-wy*cam.z; rmApplyCam(); return;
+    rmCamGlideTo(cr.width/2-wx*cam.z, cr.height/2-wy*cam.z, cam.z); return; // glide, never teleport
   }
   if(action==='rm-node-color'){
     var rmv=currentRoadmap(); if(!rmv) return;
