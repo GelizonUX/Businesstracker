@@ -2225,7 +2225,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
-var APP_BUILD='2026.07.05h'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
+var APP_BUILD='2026.07.09a'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -4780,6 +4780,7 @@ function rmReconcileList(parent,selector,keyAttr,items,makeFn,updFn){
 }
 function rmMapHTML(rm){
   var pos=rmLayout(rm);
+  if(typeof rmIndexBoard==='function'){ rmIndexBoard(pos); rmCull.on=false; rmCvRectInvalidate(); rmEdgeIdx=null; } // fresh board → fresh indexes
   var mm=rmMiniDots(pos);
   var hStyle=(state.settings&&state.settings.rmCanvasH)?' style="--rm-h:'+state.settings.rmCanvasH+'px"':'';
   return '<div class="card mt rm-canvas-card rm-grid-'+(ui.rmGrid||'dots')+'"'+hStyle+'><div class="rm-canvas" id="rm-canvas" tabindex="0">'+
@@ -4820,6 +4821,7 @@ function rmMiniDots(pos){
 function rmPatchBoard(){
   var rm=currentRoadmap(), board=byId('rm-board'); if(!rm||!board){ if(typeof render==='function') render(); return; }
   var pos=rmLayout(rm), col=rmCollect(rm,pos), svg=board.querySelector('svg.rm-edges');
+  rmCvRectInvalidate(); rmIndexBoard(pos); rmCull.on=false; rmEdgeIdx=null; // structure changed: fresh indexes, next apply re-culls
   if(!svg){ board.innerHTML=rmBoardInner(rm,pos); }
   else {
     var haveE={}; svg.querySelectorAll('path[data-edge]').forEach(function(p){ haveE[p.getAttribute('data-edge')]=p; });
@@ -5065,6 +5067,28 @@ function rmSetNodePos(kind,id,x,y){
    Pan/zoom mutate the DOM directly (no re-render) for 60fps.
    ============================================================ */
 function rmCam(){ if(!ui.rmCam) ui.rmCam={x:0,y:0,z:1}; return ui.rmCam; }
+/* viewport rect cache — one layout read per gesture window, not per frame.
+   Invalidated on resize / patch / canvas-height drag, with a 1s TTL backstop. */
+var rmCvRectCache=null, rmCvRectAt=0;
+function rmCanvasRect(){
+  var now=Date.now();
+  if(rmCvRectCache && now-rmCvRectAt<1000) return rmCvRectCache;
+  var cv=byId('rm-canvas'); if(!cv) return null;
+  rmCvRectCache=cv.getBoundingClientRect(); rmCvRectAt=now;
+  return rmCvRectCache;
+}
+function rmCvRectInvalidate(){ rmCvRectCache=null; }
+if(typeof window!=='undefined'){ window.addEventListener('resize',rmCvRectInvalidate);
+  document.addEventListener('scroll',rmCvRectInvalidate,true); } // any scroller moving the canvas refreshes the cache
+/* rAF-coalesced camera writes — high-frequency pan input (wheel deltas, pointer
+   moves, momentum) collapses to ONE style write per frame. Discrete ops
+   (zoom, fit) stay synchronous so interaction + tests read a settled DOM. */
+var rmCamRaf=0;
+function rmApplyCamSoon(){
+  if(rmCamRaf) return;
+  var raf=(typeof requestAnimationFrame==='function')?requestAnimationFrame:function(f){ return setTimeout(f,16); };
+  rmCamRaf=raf(function(){ rmCamRaf=0; rmApplyCam(); });
+}
 function rmApplyCam(){
   var cam=rmCam(), b=byId('rm-board'), cv=byId('rm-canvas'); if(!b||!cv) return;
   b.style.transform='translate('+cam.x+'px,'+cam.y+'px) scale('+cam.z+')';
@@ -5074,10 +5098,10 @@ function rmApplyCam(){
   var zl=byId('rm-zoom-val'); if(zl) zl.textContent=Math.round(cam.z*100)+'%';
   rmSyncMiniView();
   var sb=byId('rm-selbar'); if(sb&&sb.style.display!=='none'&&typeof rmSelCount==='function'&&rmSelCount()>0&&typeof rmPositionSelbar==='function') rmPositionSelbar(sb);
+  rmCullView();
 }
 function rmZoomTo(z,cx,cy){
-  var cam=rmCam(), cv=byId('rm-canvas'); if(!cv) return;
-  var r=cv.getBoundingClientRect();
+  var cam=rmCam(), r=rmCanvasRect(); if(!r) return;
   var px=(cx==null?r.width/2:cx-r.left), py=(cy==null?r.height/2:cy-r.top);
   var wx=(px-cam.x)/cam.z, wy=(py-cam.y)/cam.z;
   z=clamp(z,0.12,4);
@@ -5099,9 +5123,8 @@ function rmBBox(){
   return {minX:Math.min.apply(null,xs),maxX:Math.max.apply(null,xs),minY:Math.min.apply(null,ys),maxY:Math.max.apply(null,ys)};
 }
 function rmFit(){
-  var cv=byId('rm-canvas'), bb=rmBBox(); if(!cv||!bb) return;
+  var bb=rmBBox(), r=(rmCvRectInvalidate(),rmCanvasRect()); if(!r||!bb) return; // fresh rect: fit follows layout changes
   var pad=150, bw=(bb.maxX-bb.minX)+pad*2, bh=(bb.maxY-bb.minY)+pad*2;
-  var r=cv.getBoundingClientRect();
   var z=clamp(Math.min(r.width/bw, r.height/bh),0.12,1.4), cam=rmCam();
   cam.z=z;
   cam.x=(r.width - bw*z)/2 - (bb.minX-pad)*z;
@@ -5109,15 +5132,93 @@ function rmFit(){
   rmApplyCam();
 }
 function rmSyncMiniView(){
-  var v=byId('rm-mini-view'), cv=byId('rm-canvas'), M=window._rmMini; if(!v||!cv||!M) return;
-  var cam=rmCam(), r=cv.getBoundingClientRect();
+  var v=byId('rm-mini-view'), M=window._rmMini, r=rmCanvasRect(); if(!v||!M||!r) return;
+  var cam=rmCam();
   var wx0=(0-cam.x)/cam.z, wy0=(0-cam.y)/cam.z, wx1=(r.width-cam.x)/cam.z, wy1=(r.height-cam.y)/cam.z;
   var x=M.ox+(wx0-M.minX)*M.sc, y=M.oy+(wy0-M.minY)*M.sc, w=(wx1-wx0)*M.sc, h=(wy1-wy0)*M.sc;
   v.style.left=clamp(x,0,M.MW)+'px'; v.style.top=clamp(y,0,M.MH)+'px';
   v.style.width=clamp(w,4,M.MW)+'px'; v.style.height=clamp(h,4,M.MH)+'px';
 }
-function rmScreenToWorld(cx,cy){ var cam=rmCam(), cv=byId('rm-canvas'), r=cv.getBoundingClientRect();
+function rmScreenToWorld(cx,cy){ var cam=rmCam(), r=rmCanvasRect(); if(!r) return {x:0,y:0};
   return {x:(cx-r.left-cam.x)/cam.z, y:(cy-r.top-cam.y)/cam.z}; }
+/* ============================================================
+   spatial index + viewport culling — the board scales to
+   thousands of objects because offscreen nodes stop painting.
+   Uniform grid (512 world px cells) rebuilt on each patch;
+   culling re-runs only when the camera leaves a padded window
+   or zoom drifts >20% (hysteresis), so settled pans are free.
+   ============================================================ */
+var RM_CELL=512, rmGrid=null, rmCull={on:false,x0:0,y0:0,x1:0,y1:0,z:1};
+function rmIndexBoard(pos){
+  var cells={}, count=0;
+  for(var nid in pos){ var p=pos[nid], cx=Math.floor(p.x/RM_CELL), cy=Math.floor(p.y/RM_CELL), k=cx+','+cy;
+    (cells[k]||(cells[k]=[])).push(nid); count++; }
+  rmGrid={cells:cells,count:count};
+}
+function rmGridQuery(x0,y0,x1,y1){
+  var out={}; if(!rmGrid) return out;
+  var cx0=Math.floor(x0/RM_CELL), cy0=Math.floor(y0/RM_CELL), cx1=Math.floor(x1/RM_CELL), cy1=Math.floor(y1/RM_CELL);
+  for(var cx=cx0;cx<=cx1;cx++) for(var cy=cy0;cy<=cy1;cy++){
+    var list=rmGrid.cells[cx+','+cy]; if(list) for(var i=0;i<list.length;i++) out[list[i]]=true;
+  }
+  return out;
+}
+function rmCullReset(board){
+  board.querySelectorAll('.rm-node[data-culled]').forEach(function(el){ el.style.visibility=''; el.style.pointerEvents=''; el.removeAttribute('data-culled'); });
+  board.querySelectorAll('path[data-edge][data-eculled]').forEach(function(p){ p.style.visibility=''; p.removeAttribute('data-eculled'); });
+  rmCull.on=false;
+}
+function rmCullView(){
+  var board=byId('rm-board'), r=rmCanvasRect(), cam=rmCam(); if(!board||!r||r.width<10) return;
+  if(!rmGrid){ var rm=currentRoadmap(); if(!rm) return; rmIndexBoard(rmLayout(rm)); }
+  var MIN=window.RM_CULL_MIN||200;
+  if(rmGrid.count<MIN){ if(rmCull.on) rmCullReset(board); return; }
+  var vw=r.width/cam.z, vh=r.height/cam.z;
+  var wx0=(0-cam.x)/cam.z, wy0=(0-cam.y)/cam.z, wx1=wx0+vw, wy1=wy0+vh;
+  // hysteresis: skip while the view stays inside the padded window at similar zoom
+  if(rmCull.on && wx0>rmCull.x0 && wy0>rmCull.y0 && wx1<rmCull.x1 && wy1<rmCull.y1 && cam.z/rmCull.z>0.8 && cam.z/rmCull.z<1.25) return;
+  var px=vw*0.5, py=vh*0.5; // half-viewport padding buffers small pans
+  var qx0=wx0-px, qy0=wy0-py, qx1=wx1+px, qy1=wy1+py;
+  var vis=rmGridQuery(qx0,qy0,qx1,qy1);
+  board.querySelectorAll('.rm-node').forEach(function(el){
+    var show=!!vis[el.getAttribute('data-nid')];
+    if(show){ if(el.hasAttribute('data-culled')){ el.style.visibility=''; el.style.pointerEvents=''; el.removeAttribute('data-culled'); } }
+    else if(!el.hasAttribute('data-culled')){ el.style.visibility='hidden'; el.style.pointerEvents='none'; el.setAttribute('data-culled','1'); }
+  });
+  board.querySelectorAll('path[data-edge]').forEach(function(p){
+    var show=!!(vis[p.getAttribute('data-edge')]||vis[p.getAttribute('data-from')||'center']);
+    if(show){ if(p.hasAttribute('data-eculled')){ p.style.visibility=''; p.removeAttribute('data-eculled'); } }
+    else if(!p.hasAttribute('data-eculled')){ p.style.visibility='hidden'; p.setAttribute('data-eculled','1'); }
+  });
+  rmCull={on:true,x0:qx0,y0:qy0,x1:qx1,y1:qy1,z:cam.z};
+}
+/* ============================================================
+   momentum panning — release a pan with speed and the camera
+   glides out with exponential decay (tau ≈ 325ms, iOS-feel).
+   Physics is real input velocity, not a canned animation; any
+   new input (pointer, wheel, key) interrupts it instantly.
+   ============================================================ */
+var rmMomentumRaf=0;
+function rmMomentumActive(){ return !!rmMomentumRaf; }
+function rmMomentumCancel(){ if(rmMomentumRaf){ if(typeof cancelAnimationFrame==='function') cancelAnimationFrame(rmMomentumRaf); rmMomentumRaf=0; } }
+function rmMomentumStep(v,dt){ return v*Math.exp(-dt/325); } // pure decay, unit-tested
+function rmStartMomentum(vx,vy){
+  if(typeof matchMedia==='function' && matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+  var sp=Math.sqrt(vx*vx+vy*vy);
+  if(sp<0.25||sp>5) return; // px/ms — ignore twitches and impossible flings (also guards synthetic events)
+  if(typeof requestAnimationFrame!=='function'||typeof performance==='undefined') return;
+  rmMomentumCancel();
+  var last=performance.now();
+  function step(ts){
+    var dt=Math.min(ts-last,50); last=ts;
+    var c=rmCam(); c.x+=vx*dt; c.y+=vy*dt;
+    vx=rmMomentumStep(vx,dt); vy=rmMomentumStep(vy,dt);
+    rmApplyCam();
+    if(Math.abs(vx)+Math.abs(vy)>0.02) rmMomentumRaf=requestAnimationFrame(step);
+    else rmMomentumRaf=0;
+  }
+  rmMomentumRaf=requestAnimationFrame(step);
+}
 
 /* drag nodes + pan the camera — pointer events (mouse + touch) */
 var rmDrag=null, rmPan=null, rmSpace=false, rmHand=false, rmMarquee=null;
@@ -5158,6 +5259,7 @@ document.addEventListener('pointerdown',function(e){
   if(rmPlace) return; // in placement mode a single click drops the node — never drag/pan
   if(e.target.closest('.rm-qadd')||e.target.closest('.rm-rail')||e.target.closest('.rm-maps')||e.target.closest('.rm-resize')||e.target.closest('.rm-ctx')||e.target.closest('.rm-pop')||e.target.closest('.rm-selbar')||e.target.closest('.rm-table')||e.target.closest('.rm-comment')||e.target.closest('.rm-comment-pop')||e.target.closest('.rm-note-obj')) return;
   rmCtxClose(); if(!e.target.closest('.rm-tool')) rmPopClose();
+  rmMomentumCancel(); // any new touch takes over from a camera glide
   var node=e.target.closest('.rm-node');
   var onEmpty=!node&&e.button===0&&(e.target.id==='rm-canvas'||(e.target.closest&&e.target.closest('#rm-board')));
   // marquee rubber-band: Shift+drag on empty background (plain drag pans, Miro-style)
@@ -5178,7 +5280,9 @@ document.addEventListener('pointerdown',function(e){
     e.preventDefault(); return;
   }
   var panning=(e.button===1)||(e.button===0&&(rmSpace||rmHand))||onEmpty;
-  if(panning){ var c=rmCam(); rmPan={sx:e.clientX,sy:e.clientY,ox:c.x,oy:c.y,moved:false}; document.body.classList.add('rm-grabbing'); e.preventDefault(); }
+  if(panning){ var c=rmCam(); rmMomentumCancel();
+    rmPan={sx:e.clientX,sy:e.clientY,ox:c.x,oy:c.y,moved:false,px:e.clientX,py:e.clientY,pt:(typeof performance!=='undefined'?performance.now():0),vx:0,vy:0,vok:false};
+    document.body.classList.add('rm-grabbing'); e.preventDefault(); }
 });
 document.addEventListener('pointermove',function(e){
   if(rmMarquee){ var box=byId('rm-marquee'); if(box){
@@ -5197,7 +5301,13 @@ document.addEventListener('pointermove',function(e){
     return;
   }
   if(rmPan){ var c=rmCam(); if(Math.abs(e.clientX-rmPan.sx)+Math.abs(e.clientY-rmPan.sy)>2) rmPan.moved=true;
-    c.x=rmPan.ox+(e.clientX-rmPan.sx); c.y=rmPan.oy+(e.clientY-rmPan.sy); rmApplyCam(); }
+    c.x=rmPan.ox+(e.clientX-rmPan.sx); c.y=rmPan.oy+(e.clientY-rmPan.sy);
+    // input velocity (px/ms), low-pass filtered; dt guard rejects same-tick synthetic bursts
+    if(typeof performance!=='undefined'){ var now=performance.now(), dt=now-rmPan.pt;
+      if(dt>=8){ var ivx=(e.clientX-rmPan.px)/dt, ivy=(e.clientY-rmPan.py)/dt;
+        rmPan.vx=rmPan.vx*0.2+ivx*0.8; rmPan.vy=rmPan.vy*0.2+ivy*0.8; rmPan.vok=true;
+        rmPan.px=e.clientX; rmPan.py=e.clientY; rmPan.pt=now; } }
+    rmApplyCamSoon(); }
 });
 document.addEventListener('pointerup',function(e){
   if(rmMarquee){ rmMarqueeCommit(e); var box=byId('rm-marquee'); if(box) box.remove(); document.body.classList.remove('rm-selecting'); rmMarquee=null; return; }
@@ -5207,8 +5317,10 @@ document.addEventListener('pointerup',function(e){
     else if(rmDrag.shift) rmSelectToggle(rmDrag.nid);
     else rmSelectOnly(rmDrag.nid);
     rmDrag=null; }
-  if(rmPan){ var wasClick=!rmPan.moved; rmPan=null; if(!rmSpace) document.body.classList.remove('rm-grabbing');
-    if(wasClick&&!rmHand&&rmSelCount()) rmDeselect(); } // click empty canvas clears selection
+  if(rmPan){ var wasClick=!rmPan.moved, fvx=rmPan.vx, fvy=rmPan.vy, fvok=rmPan.vok&&rmPan.moved;
+    rmPan=null; if(!rmSpace) document.body.classList.remove('rm-grabbing');
+    if(wasClick&&!rmHand&&rmSelCount()) rmDeselect(); // click empty canvas clears selection
+    else if(fvok) rmStartMomentum(fvx,fvy); } // glide out with the release velocity
 });
 /* rubber-band → select every node whose centre falls inside the box */
 function rmMarqueeCommit(e){
@@ -5274,25 +5386,32 @@ document.addEventListener('dblclick',function(e){
 document.addEventListener('wheel',function(e){
   var cv=e.target.closest&&e.target.closest('#rm-canvas'); if(!cv) return;
   e.preventDefault();
+  rmMomentumCancel(); // any wheel input takes over from a glide
   var cam=rmCam();
   if(e.ctrlKey||e.metaKey){ rmZoomTo(cam.z*Math.exp(-e.deltaY*0.0016), e.clientX, e.clientY); }
-  else { cam.x-=e.deltaX; cam.y-=e.deltaY; rmApplyCam(); }
+  else { cam.x-=e.deltaX; cam.y-=e.deltaY; rmApplyCamSoon(); } // deltas coalesce to one write per frame
 },{passive:false});
+/* edge index — O(degree) live re-routing during drag instead of scanning every path.
+   Rebuilt lazily; nulled after any structural patch. */
+var rmEdgeIdx=null;
+function rmEdgeIndex(board){
+  if(rmEdgeIdx) return rmEdgeIdx;
+  var by={}, from={};
+  board.querySelectorAll('path[data-edge]').forEach(function(pt){
+    var k=pt.getAttribute('data-edge'), f=pt.getAttribute('data-from')||'center';
+    by[k]=pt; (from[f]||(from[f]=[])).push(pt);
+  });
+  rmEdgeIdx={by:by,from:from};
+  return rmEdgeIdx;
+}
 function rmUpdateEdges(nid,x,y){
   var board=byId('rm-board'); if(!board) return;
-  var moved={x:x,y:y};
-  board.querySelectorAll('path[data-edge]').forEach(function(pt){
-    var eid=pt.getAttribute('data-edge'), from=pt.getAttribute('data-from');
-    var touch=null;
-    if(eid===nid) touch='child';
-    else if(from===nid||(!from&&nid==='center')) touch='parent';
-    if(!touch) return;
-    var other=touch==='child'?(from||'center'):eid;
-    var on=board.querySelector('.rm-node[data-nid="'+other+'"]');
-    if(!on) return;
-    var op={x:parseFloat(on.style.left),y:parseFloat(on.style.top)};
-    pt.setAttribute('d', touch==='child'?rmEdgePath(op,moved):rmEdgePath(moved,op));
-  });
+  var moved={x:x,y:y}, idx=rmEdgeIndex(board);
+  function otherPos(onid){ var on=board.querySelector('.rm-node[data-nid="'+onid+'"]'); return on?{x:parseFloat(on.style.left),y:parseFloat(on.style.top)}:null; }
+  var childEdge=idx.by[nid]; // the edge arriving AT this node
+  if(childEdge){ var pp=otherPos(childEdge.getAttribute('data-from')||'center'); if(pp) childEdge.setAttribute('d',rmEdgePath(pp,moved)); }
+  var out=idx.from[nid]; // edges leaving this node (children + links it originates)
+  if(out) for(var i=0;i<out.length;i++){ var pt=out[i], op=otherPos(pt.getAttribute('data-edge')); if(op) pt.setAttribute('d',rmEdgePath(moved,op)); }
 }
 /* ============================================================
    M2 · direct-manipulation canvas engine
@@ -5678,7 +5797,7 @@ document.addEventListener('pointermove',function(e){
   if(rmPlace){ var g=byId('rm-ghost'); if(g){ var w=rmScreenToWorld(e.clientX,e.clientY); g.style.left=w.x+'px'; g.style.top=w.y+'px'; } }
   if(!rmResize) return;
   var nh=clamp(rmResize.sh+(e.clientY-rmResize.sy),320,1600);
-  rmResize.card.style.setProperty('--rm-h',nh+'px');
+  rmResize.card.style.setProperty('--rm-h',nh+'px'); rmCvRectInvalidate();
   if(typeof rmApplyCam==='function') rmApplyCam();
 });
 document.addEventListener('pointerup',function(){

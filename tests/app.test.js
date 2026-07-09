@@ -1402,6 +1402,64 @@ async function main() {
         ok('the freeform diamond renders with its shape fill + editable body', !!d.querySelector('.rm-note-obj.rm-note-shape.rm-fshape-diamond .rm-fshape-bg') && !!d.querySelector('.rm-note-obj.rm-note-shape .rm-note-body'));
         window.ui.rmSelSet = null; window.ui.rmSel = null;
       })();
+      // ===== Engine M1 · perf backbone: rect cache · rAF coalescing · momentum · spatial index · culling =====
+      (function(){
+        window.render(); window.rmZoomTo(1);
+        // 1) viewport rect cache — repeated reads hit the DOM once
+        var cv = d.getElementById('rm-canvas'), gbcrCalls = 0, origGbcr = cv.getBoundingClientRect.bind(cv);
+        window.rmCvRectInvalidate();
+        cv.getBoundingClientRect = function(){ gbcrCalls++; return origGbcr(); };
+        window.rmCanvasRect(); window.rmCanvasRect(); window.rmCanvasRect();
+        ok('canvas rect is cached (3 reads → 1 layout query)', gbcrCalls === 1);
+        cv.getBoundingClientRect = origGbcr; window.rmCvRectInvalidate();
+        // 2) rAF coalescing — a burst of pan input collapses to one scheduled camera write
+        var rafQ = [], origRaf = window.requestAnimationFrame;
+        window.rmCamRaf = 0; // clear any frame left pending by earlier pan tests
+        window.requestAnimationFrame = function(fn){ rafQ.push(fn); return rafQ.length; };
+        window.rmApplyCamSoon(); window.rmApplyCamSoon(); window.rmApplyCamSoon();
+        ok('camera writes coalesce (3 requests → 1 frame callback)', rafQ.length === 1);
+        rafQ.forEach(function(fn){ fn(16); }); // flush so the scheduler resets
+        window.requestAnimationFrame = origRaf;
+        // 3) momentum physics — pure decay + guards + cancel
+        ok('momentum decay follows exponential physics (v/e after one tau)', Math.abs(window.rmMomentumStep(1, 325) - Math.exp(-1)) < 0.001);
+        window.rmStartMomentum(10, 0); // impossible fling — rejected
+        ok('impossible fling velocities are rejected', !window.rmMomentumActive());
+        window.rmStartMomentum(0.1, 0); // twitch — rejected
+        ok('twitch velocities are rejected (no accidental drift)', !window.rmMomentumActive());
+        window.rmStartMomentum(1, 0.5);
+        ok('a real release velocity starts a glide', window.rmMomentumActive());
+        window.rmMomentumCancel();
+        ok('new input cancels the glide instantly', !window.rmMomentumActive());
+        // 4) spatial index — grid answers viewport queries
+        var rmv = window.currentRoadmap(), lay = window.rmLayout(rmv);
+        window.rmIndexBoard(lay);
+        var c = lay.center, hits = window.rmGridQuery(c.x - 10, c.y - 10, c.x + 10, c.y + 10);
+        ok('spatial grid query finds the node at a world point', !!hits.center);
+        var far = window.rmGridQuery(-99000, -99000, -98000, -98000);
+        ok('spatial grid query returns nothing off-map', Object.keys(far).length === 0);
+        // 5) viewport culling — offscreen nodes stop painting, revealed again on fit
+        window.RM_CULL_MIN = 1;
+        var cam = window.rmCam(); cam.x = -500000; cam.y = -500000; window.rmApplyCam();
+        var totalNodes = d.querySelectorAll('#rm-board .rm-node').length;
+        ok('panning far away culls every node (visibility, not layout)', d.querySelectorAll('#rm-board .rm-node[data-culled]').length === totalNodes && totalNodes > 0);
+        window.rmFit();
+        ok('fit-to-screen brings nodes back out of the culled set', !d.querySelector('#rm-board .rm-node.rm-center[data-culled]'));
+        delete window.RM_CULL_MIN;
+        window.rmApplyCam();
+        ok('small boards are never culled (threshold guard)', d.querySelectorAll('#rm-board .rm-node[data-culled]').length === 0);
+        // 6) O(degree) edge re-routing — a drag frame touches only the edges of the moved node
+        window.render();
+        var board = d.getElementById('rm-board');
+        var ph = window.currentRoadmap().phases[0], pnid = 'p:' + ph.id;
+        var ownEdge = board.querySelector('path[data-edge="' + pnid + '"]');
+        var otherEdge = board.querySelector('path[data-edge]:not([data-edge="' + pnid + '"]):not([data-from="' + pnid + '"])');
+        var dBefore = otherEdge ? otherEdge.getAttribute('d') : '';
+        window.rmUpdateEdges(pnid, 777, 555);
+        ok('dragging re-routes the moved node\'s own edge', /M/.test(ownEdge.getAttribute('d')) && ownEdge.getAttribute('d') !== '');
+        ok('unrelated edges are untouched during a drag frame (O(degree) index)', !otherEdge || otherEdge.getAttribute('d') === dBefore);
+        var idx = window.rmEdgeIndex(board);
+        ok('edge index maps every path by key and by source', !!idx.by[pnid] && !!idx.from.center && idx.from.center.length >= 1);
+      })();
       window.ui.rmCam = null;
     })();
 
