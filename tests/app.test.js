@@ -1511,6 +1511,39 @@ async function main() {
         window.requestAnimationFrame = origRaf;
         window.rmZoomTo(1);
       })();
+      // ===== Engine M4 · transform engine — one pointer pipeline for every board object =====
+      (function(){
+        var pe = function(type, el, x, y, opt){ var o = Object.assign({ bubbles: true, cancelable: true, clientX: x || 0, clientY: y || 0, button: 0 }, opt || {}); (el || d).dispatchEvent(new window.MouseEvent(type, o)); };
+        window.render(); window.rmZoomTo(1);
+        // the five bespoke drag subsystems are gone — one engine remains
+        ok('the parallel drag subsystems are deleted (one transform engine)', typeof window.rmDrag === 'undefined' && typeof window.rmFrameOp === 'undefined' && typeof window.rmStampDrag === 'undefined' && typeof window.rmTableDrag === 'undefined' && typeof window.rmNoteDrag === 'undefined' && !!window.rmXformStart);
+        // frame drag flows through the engine, persists, and is now UNDOABLE (new)
+        window.rmSectionAdd();
+        var rm = window.currentRoadmap(), f = rm.frames.slice(-1)[0];
+        var fEl = d.querySelector('.rm-frame[data-frame="' + f.id + '"]');
+        var fx0 = f.x;
+        pe('pointerdown', fEl, 100, 100); pe('pointermove', d, 160, 140); pe('pointerup', d, 160, 140);
+        ok('frame drag persists through the transform engine', window.currentRoadmap().frames.slice(-1)[0].x === fx0 + 60);
+        window.rmUndoRoad();
+        ok('a frame drag is undoable (engine snapshots every transform)', window.currentRoadmap().frames.slice(-1)[0].x === fx0);
+        // a tap on a frame is NOT a transform — no model write, no history entry
+        window.render(); var hist0 = window.rmHist.u.length;
+        fEl = d.querySelector('.rm-frame[data-frame="' + f.id + '"]');
+        pe('pointerdown', fEl, 200, 200); pe('pointerup', d, 200, 200);
+        ok('a tap on a frame writes nothing (no phantom history)', window.rmHist.u.length === hist0 && window.currentRoadmap().frames.slice(-1)[0].x === fx0);
+        // stamp drag persists; note resize clamps to its minimum
+        rm = window.currentRoadmap(); rm.stamps = rm.stamps || [];
+        rm.stamps.push({ id: 'st_m4', x: 1000, y: 1000, emoji: '⭐' }); window.rmCommitSoft();
+        var sEl = d.querySelector('.rm-stamp[data-stamp="st_m4"]');
+        pe('pointerdown', sEl, 50, 50); pe('pointermove', d, 90, 75); pe('pointerup', d, 90, 75);
+        ok('stamp drag persists through the same engine', window.rmStampById('st_m4').x === 1040 && window.rmStampById('st_m4').y === 1025);
+        rm.notes = rm.notes || []; rm.notes.push({ id: 'nt_m4', kind: 'sticky', x: 800, y: 800, w: 200, h: 180, text: '', color: '#ffd54a' }); window.rmCommitSoft();
+        var rz = d.querySelector('.rm-note-rz[data-note-rz="nt_m4"]');
+        pe('pointerdown', rz, 500, 500); pe('pointermove', d, 0, 0); pe('pointerup', d, 0, 0);
+        ok('note resize clamps to its minimum through the engine', window.rmNoteById('nt_m4').w === 120 && window.rmNoteById('nt_m4').h === 90);
+        window.rmNoteDelete('nt_m4'); window.rmStampDelete('st_m4'); window.rmFrameDelete(f.id);
+        window.ui.rmSelSet = null; window.ui.rmSel = null;
+      })();
       window.ui.rmCam = null;
     })();
 
