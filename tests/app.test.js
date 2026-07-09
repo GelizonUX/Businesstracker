@@ -1392,6 +1392,14 @@ async function main() {
         // a text note is transparent (no sticky fill)
         window.rmNoteStart(d.querySelector('.rm-rail-btn'), 'text'); window.rmPlaceCommit({ x: 2200, y: 1600 });
         ok('the text tool drops a transparent text note', window.currentRoadmap().notes.slice(-1)[0].kind === 'text' && !!d.querySelector('.rm-note-obj.rm-note-text'));
+        // shapes are now FREEFORM objects (drop anywhere, typeable) — not tree nodes wired to centre
+        window.render();
+        var shapesPhases0 = window.currentRoadmap().phases.length, notes0 = (window.currentRoadmap().notes || []).length;
+        click(d.querySelector('.rm-flyout [data-action="rm-place-shape"][data-shape="diamond"]'));
+        ok('a shape tool arms a freeform shape (not a tree node)', window.rmPlace && window.rmPlace.mode === 'note' && window.rmPlace.kind === 'shape' && window.rmPlace.shape === 'diamond');
+        window.rmPlaceCommit({ x: 2400, y: 1500 });
+        ok('dropping a shape adds a freeform shape object, adds NO phase to the tree', (window.currentRoadmap().notes || []).length === notes0 + 1 && window.currentRoadmap().phases.length === shapesPhases0);
+        ok('the freeform diamond renders with its shape fill + editable body', !!d.querySelector('.rm-note-obj.rm-note-shape.rm-fshape-diamond .rm-fshape-bg') && !!d.querySelector('.rm-note-obj.rm-note-shape .rm-note-body'));
         window.ui.rmSelSet = null; window.ui.rmSel = null;
       })();
       window.ui.rmCam = null;

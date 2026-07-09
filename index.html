@@ -502,6 +502,20 @@ body.rm-connecting .rm-node{cursor:crosshair}
 .rm-note-rz{position:absolute;right:-4px;bottom:-4px;width:14px;height:14px;border-radius:3px;background:var(--nc,#ffd54a);border:2px solid var(--bg-card);cursor:nwse-resize}
 .rm-note-text .rm-note-rz{background:var(--accent)}
 .rm-ghost-note{opacity:.4}.rm-ghost-note.rm-note-sticky{background:#ffd54a;color:#2a2400;border:none;width:120px;height:120px;border-radius:3px}
+/* freeform shapes (rect / rounded / ellipse / diamond / triangle / pill) with a text body */
+.rm-note-shape{background:none;box-shadow:none;padding:0;display:grid;place-items:center}
+.rm-fshape-bg{position:absolute;inset:0;background:var(--nc,#82b1ff);box-shadow:2px 3px 8px rgba(0,0,0,.15)}
+.rm-fshape-rect .rm-fshape-bg{border-radius:5px}
+.rm-fshape-rounded .rm-fshape-bg{border-radius:16px}
+.rm-fshape-ellipse .rm-fshape-bg{border-radius:50%}
+.rm-fshape-capsule .rm-fshape-bg{border-radius:999px}
+.rm-fshape-diamond .rm-fshape-bg{clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+.rm-fshape-triangle .rm-fshape-bg{clip-path:polygon(50% 2%,100% 100%,0 100%)}
+.rm-note-shape .rm-note-body{position:relative;z-index:1;text-align:center;color:#0c2340;font-weight:600;padding:8px;min-height:0}
+.rm-note-shape .rm-note-rz{background:var(--nc,#82b1ff)}
+.rm-ghost-note.rm-note-shape{width:110px;height:80px}
+.rm-ghost-note.rm-note-shape .rm-fshape-bg,.rm-ghost-note.rm-note-shape{background:#82b1ff}
+.rm-shape-glyph.triangle{border:none;background:currentColor;clip-path:polygon(50% 0,100% 100%,0 100%)}
 @keyframes rmFrameIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
 .rm-frame.rm-in{animation:rmFrameIn .18s var(--ease-snappy) both}
 @keyframes rmStampIn{from{opacity:0;transform:translate(-50%,-50%) scale(.5)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
@@ -2211,7 +2225,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
-var APP_BUILD='2026.07.05f'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
+var APP_BUILD='2026.07.05g'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -4745,12 +4759,14 @@ function rmTableHTML(t){ var cols=t.cols||2, rows=t.rows||2;
     '<button class="rm-table-del" data-action="rm-table-del" data-table="'+t.id+'" title="Delete table">&#215;</button></div>'; }
 function rmTablesHTML(rm){ return (rm.tables||[]).map(rmTableHTML).join(''); }
 var RM_NOTE_COLORS=['#ffd54a','#ff8a80','#8ce0a6','#82b1ff','#c8a2ff','#ffffff'];
-function rmNoteHTML(n){ var kind=n.kind||'sticky', w=n.w||(kind==='text'?200:190), h=n.h||170;
-  return '<div class="rm-note-obj rm-note-'+kind+'" data-note="'+n.id+'" style="left:'+n.x+'px;top:'+n.y+'px;width:'+w+'px;'+(kind==='sticky'?'min-height:'+h+'px;':'')+'--nc:'+(n.color||'#ffd54a')+'">'+
+function rmNoteHTML(n){ var kind=n.kind||'sticky', isShape=kind==='shape', w=n.w||(kind==='text'?200:(isShape?150:190)), h=n.h||(isShape?100:170), boxed=(kind==='sticky'||isShape);
+  var cls='rm-note-obj rm-note-'+kind+(isShape?' rm-fshape-'+(n.shape||'rect'):'');
+  return '<div class="'+cls+'" data-note="'+n.id+'" style="left:'+n.x+'px;top:'+n.y+'px;width:'+w+'px;'+(boxed?'min-height:'+h+'px;height:'+h+'px;':'')+'--nc:'+(n.color||(isShape?'#82b1ff':'#ffd54a'))+'">'+
+    (isShape?'<span class="rm-fshape-bg"></span>':'')+
     '<div class="rm-note-body" data-note-body="'+n.id+'" contenteditable="false" spellcheck="false">'+esc(n.text||'')+'</div>'+
     '<div class="rm-note-bar">'+RM_NOTE_COLORS.map(function(c){ return '<button class="rm-note-sw'+((n.color||'#ffd54a')===c?' on':'')+'" data-action="rm-note-color" data-note="'+n.id+'" data-color="'+c+'" style="background:'+c+'" title="'+c+'"></button>'; }).join('')+
       '<button class="rm-note-del" data-action="rm-note-del" data-note="'+n.id+'" title="Delete">&#215;</button></div>'+
-    (kind==='sticky'?'<span class="rm-note-rz" data-note-rz="'+n.id+'" title="Resize"></span>':'')+'</div>'; }
+    (boxed?'<span class="rm-note-rz" data-note-rz="'+n.id+'" title="Resize"></span>':'')+'</div>'; }
 function rmNotesHTML(rm){ return (rm.notes||[]).map(rmNoteHTML).join(''); }
 function rmBoardInner(rm,pos){ var b=rmBuildBoard(rm,pos);
   return rmFramesHTML(rm)+'<svg class="rm-edges" width="'+RM_BOARD_W+'" height="'+RM_BOARD_H+'" viewBox="0 0 '+RM_BOARD_W+' '+RM_BOARD_H+'" fill="none">'+RM_EDGE_DEFS+b.edges+rmInkHTML(rm)+'</svg>'+b.nodes+rmNotesHTML(rm)+rmTablesHTML(rm)+rmStampsHTML(rm)+rmCommentsHTML(rm); }
@@ -4899,9 +4915,9 @@ function rmTableDelete(id){ var rm=currentRoadmap(); if(!rm) return; rmSnapshot(
 document.addEventListener('input',function(e){ var cell=e.target.closest&&e.target.closest('.rm-tbl-cell'); if(!cell) return; var t=rmTableById(cell.getAttribute('data-table')); if(!t) return; var r=+cell.getAttribute('data-r'), c=+cell.getAttribute('data-c'); if(t.cells[r]!=null){ t.cells[r][c]=cell.textContent; save(); } });
 /* ---- freeform sticky / text notes (FigJam) — drop, type immediately, drag, resize, recolour ---- */
 function rmNoteById(id){ var rm=currentRoadmap(); return rm&&(rm.notes||[]).find(function(n){return n.id===id;}); }
-function rmNoteStart(el,kind){ rmPlaceCancel(); if(rmConnect) rmConnectCancel(); if(rmPenMode) rmPenStop(); rmPlace={mode:'note',kind:kind||'sticky'}; document.body.classList.add('rm-placing');
-  var board=byId('rm-board'); if(board){ var g=document.createElement('div'); g.className='rm-ghost rm-ghost-note rm-note-'+(kind||'sticky'); g.id='rm-ghost'; g.textContent=kind==='text'?'Text':'Note'; g.style.left='-9999px'; g.style.top='-9999px'; board.appendChild(g); }
-  rmArmFromEl(el); toast('Click to drop the '+(kind==='text'?'text':'sticky note')+' · Esc to cancel','info'); }
+function rmNoteStart(el,kind,shape){ rmPlaceCancel(); if(rmConnect) rmConnectCancel(); if(rmPenMode) rmPenStop(); rmPlace={mode:'note',kind:kind||'sticky',shape:shape}; document.body.classList.add('rm-placing');
+  var board=byId('rm-board'); if(board){ var g=document.createElement('div'); g.className='rm-ghost rm-ghost-note rm-note-'+(kind||'sticky')+(kind==='shape'?' rm-fshape-'+(shape||'rect'):''); g.id='rm-ghost'; g.textContent=kind==='text'?'Text':(kind==='shape'?'':'Note'); g.style.left='-9999px'; g.style.top='-9999px'; board.appendChild(g); }
+  rmArmFromEl(el); toast('Click to drop the '+(kind==='text'?'text':(kind==='shape'?'shape':'sticky note'))+' · Esc to cancel','info'); }
 function rmNoteColor(id,c){ var n=rmNoteById(id); if(!n) return; rmSnapshot(); n.color=c; save();
   var el=byId('rm-board')&&byId('rm-board').querySelector('.rm-note-obj[data-note="'+id+'"]'); if(el){ el.style.setProperty('--nc',c); el.querySelectorAll('.rm-note-sw').forEach(function(b){ b.classList.toggle('on',b.getAttribute('data-color')===c); }); } }
 function rmNoteDelete(id){ var rm=currentRoadmap(); if(!rm) return; rmSnapshot(); rm.notes=(rm.notes||[]).filter(function(n){return n.id!==id;}); rmCommitSoft(); toast('Note removed.','warn',{undo:true}); }
@@ -5284,6 +5300,7 @@ function rmUpdateEdges(nid,x,y){
    predictive quick-add · inline rename · resize · selection
    ============================================================ */
 var RM_SHAPES=[['capsule','Capsule'],['rounded','Rounded'],['rect','Rectangle'],['ellipse','Ellipse'],['diamond','Diamond'],['sticky','Sticky']];
+var RM_FSHAPES=[['rect','Rectangle'],['rounded','Rounded'],['ellipse','Ellipse'],['diamond','Diamond'],['triangle','Triangle'],['capsule','Pill']];
 /* quick-start templates (FigJam) — prebuilt boards */
 function rmTplPhase(name,tasks){ return {name:name,tasks:(tasks||[]).map(function(t){ return {title:t,status:'Not Started',children:[]}; })}; }
 var RM_TEMPLATES=[
@@ -5317,7 +5334,7 @@ function rmQaddSlots(nid){
 function rmRailHTML(){
   var sh=rmShape();
   var fly='<div class="rm-flyout rm-flyout-up" id="rm-flyout"><span class="rm-flyout-cap">Pick a shape, then click to place</span>'+
-    RM_SHAPES.map(function(s){ return '<div class="rm-shape-opt'+(sh===s[0]?' on':'')+'" data-action="rm-place-shape" data-shape="'+s[0]+'" title="'+s[1]+'"><span class="rm-shape-glyph '+s[0]+'"></span></div>'; }).join('')+'</div>';
+    RM_FSHAPES.map(function(s){ return '<div class="rm-shape-opt" data-action="rm-place-shape" data-shape="'+s[0]+'" title="'+s[1]+'"><span class="rm-shape-glyph '+s[0]+'"></span></div>'; }).join('')+'</div>';
   return '<div class="rm-rail rm-toolbar">'+
     '<button class="rm-rail-btn'+(!rmHand?' on':'')+'" data-action="rm-tool-select" data-tool="select" title="Move / select (V)">'+icon('cursor',18)+'</button>'+
     '<button class="rm-rail-btn'+(rmHand?' on':'')+'" data-action="rm-tool-select" data-tool="hand" title="Hand — pan (H / Space)">'+icon('hand2',18)+'</button>'+
@@ -5376,9 +5393,11 @@ function rmPlaceCommit(world){
   var x=clamp(Math.round(world.x),40,RM_BOARD_W-40), y=clamp(Math.round(world.y),30,RM_BOARD_H-30);
   if(rmPlace.mode==='stamp'){ rm.stamps=rm.stamps||[]; rm.stamps.push({id:uid(),x:x,y:y,emoji:rmPlace.emoji||'⭐'}); rmLastPlace=Date.now(); rmPlaceCancel(); rmCommitSoft(); return; }
   if(rmPlace.mode==='comment'){ rm.comments=rm.comments||[]; var cmid=uid(); rm.comments.push({id:cmid,x:x,y:y,text:''}); rmLastPlace=Date.now(); rmPlaceCancel(); rmCommitSoft(); requestAnimationFrame(function(){ rmCommentOpen(cmid); }); return; }
-  if(rmPlace.mode==='note'){ rm.notes=rm.notes||[]; var nkind=rmPlace.kind||'sticky', nid=uid();
-    rm.notes.push({id:nid,kind:nkind,x:Math.round(x-(nkind==='text'?100:95)),y:Math.round(y-(nkind==='text'?20:85)),w:nkind==='text'?200:190,h:170,text:'',color:'#ffd54a'});
-    rmLastPlace=Date.now(); rmPlaceCancel(); rmCommitSoft(); requestAnimationFrame(function(){ rmNoteEdit(nid); }); return; }
+  if(rmPlace.mode==='note'){ rm.notes=rm.notes||[]; var nkind=rmPlace.kind||'sticky', nid=uid(), isSh=nkind==='shape';
+    var nw=nkind==='text'?200:(isSh?150:190), nh=isSh?100:170;
+    var note={id:nid,kind:nkind,x:Math.round(x-nw/2),y:Math.round(y-nh/2),w:nw,h:nh,text:'',color:isSh?'#82b1ff':'#ffd54a'};
+    if(isSh) note.shape=rmPlace.shape||'rect';
+    rm.notes.push(note); rmLastPlace=Date.now(); rmPlaceCancel(); rmCommitSoft(); requestAnimationFrame(function(){ rmNoteEdit(nid); }); return; }
   var newNid;
   if(rmPlace.mode==='task'&&rmPlace.phaseId){
     var ph=(rm.phases||[]).find(function(q){return q.id===rmPlace.phaseId;}); if(!ph){ rmPlaceCancel(); return; }
@@ -7369,7 +7388,7 @@ document.addEventListener('click',function(e){
   if(action==='rm-tool-toggle'){ rmHand=!rmHand; document.body.classList.toggle('rm-hand',rmHand); rmSyncToolButtons(); return; }
   if(action==='rm-tool-select'){ rmHand=(el.getAttribute('data-tool')==='hand'); document.body.classList.toggle('rm-hand',rmHand); if(rmPlace) rmPlaceCancel(); rmSyncToolButtons(); return; }
   if(action==='rm-place-start'){ rmPlaceStart(el.getAttribute('data-mode')||'phase',el.getAttribute('data-phase')); rmArmFromEl(el); return; }
-  if(action==='rm-place-shape'){ ui.rmShape=el.getAttribute('data-shape')||'capsule'; var fos=byId('rm-flyout'); if(fos) fos.classList.remove('open'); rmPlaceStart('phase'); rmArmFromEl(el); return; }
+  if(action==='rm-place-shape'){ var fos=byId('rm-flyout'); if(fos) fos.classList.remove('open'); rmNoteStart(el,'shape',el.getAttribute('data-shape')||'rect'); return; }
   if(action==='rm-section-start'){ rmSectionAdd(); return; }
   if(action==='rm-stamp-flyout'){ var sfo=byId('rm-stamp-fly'); if(sfo) sfo.classList.toggle('open'); return; }
   if(action==='rm-stamp-pick'){ var sfo2=byId('rm-stamp-fly'); if(sfo2) sfo2.classList.remove('open'); rmStampStart(el.getAttribute('data-emoji')); rmArmFromEl(el); return; }
