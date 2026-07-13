@@ -46,6 +46,7 @@
   --sidebar-active:rgba(70,83,232,.08);
 
   --text:#16171d;
+  --text-1:var(--text); /* alias — several chart rules reference --text-1 */
   --text-2:#4e5058;
   --text-3:#5d5f6a;
 
@@ -964,7 +965,7 @@ tr:hover .row-actions{opacity:1}
 /* series chart (bars / line / area) */
 .c-svg{overflow:visible}
 .c-svg .c-grid{stroke:var(--chart-grid);stroke-width:1}
-.c-svg .c-axis,.c-svg .c-xlab{fill:var(--text-3);font-size:10px;font-family:var(--font)}
+.c-svg .c-axis,.c-svg .c-xlab{fill:var(--text-3);font-size:12px;font-family:var(--font)}
 .c-svg .c-col{fill:var(--accent);opacity:0;transition:opacity .13s var(--ease)}
 .c-svg .c-pt:hover .c-col{opacity:.07}
 .c-svg .c-guide{stroke:var(--accent);stroke-width:1;stroke-dasharray:3 4;opacity:0;transition:opacity .13s var(--ease)}
@@ -1009,9 +1010,9 @@ tr:hover .row-actions{opacity:1}
 .pace-row{display:flex;justify-content:space-between;gap:10px;font-size:.84rem;color:var(--text-2);margin-top:6px}
 .pace-row b{color:var(--text-1)}
 .pace-track{position:relative;height:12px;border-radius:8px;background:var(--bg-sunken);margin-top:12px;overflow:visible}
-.pace-fill{height:100%;border-radius:8px;width:var(--pw);background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 70%,#fff));transform-origin:left;animation:cbGrow .7s var(--spring) backwards}
-.pace-fill.hit{background:linear-gradient(90deg,var(--income),color-mix(in srgb,var(--income) 70%,#fff))}
-.pace-mark{position:absolute;top:-4px;bottom:-4px;width:2.5px;border-radius:2px;background:var(--text-1);opacity:.65;animation:cFade .5s var(--ease) .5s backwards}
+.pace-fill{height:100%;border-radius:8px;width:var(--pw);background:var(--accent);background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 70%,#fff));transform-origin:left;animation:cbGrow .7s var(--spring) backwards}
+.pace-fill.hit{background:var(--income);background:linear-gradient(90deg,var(--income),color-mix(in srgb,var(--income) 70%,#fff))}
+.pace-mark{position:absolute;top:-4px;bottom:-4px;width:2.5px;border-radius:2px;background:var(--text);opacity:.65;transform:translateX(-50%);animation:cFade .5s var(--ease) .5s backwards}
 @media (prefers-reduced-motion:reduce){.pace-fill,.pace-mark{animation:none}}
 
 /* sparkline */
@@ -3826,17 +3827,21 @@ function svgProfitBars(months,mm,w,h){
   w=w||620;h=h||248;
   var pad={l:46,r:12,t:16,b:26}, iw=w-pad.l-pad.r, ih=h-pad.t-pad.b;
   var raw=1; months.forEach(function(k){ var d=mm[k]||{}; raw=Math.max(raw,Math.abs((d.revenue||0)-(d.expenses||0))); });
-  var max=niceMax(raw), n=months.length, slot=n?iw/n:iw, zero=pad.t+ih/2, scale=(ih/2)/max;
+  // symmetric ± scale only when a loss month exists; all-profit months get the full height
+  var anyLoss=months.some(function(k){ var d=mm[k]||{}; return ((d.revenue||0)-(d.expenses||0))<0; });
+  var max=niceMax(raw), n=months.length, slot=n?iw/n:iw;
+  var posH=anyLoss?ih/2:ih-16, negH=ih-posH;
+  var zero=pad.t+posH, sP=posH/max, sN=negH/max;
   var X=function(i){ return pad.l+slot*i+slot/2; };
   var grid='',ax='',xlab='',cols='';
-  [-1,-0.5,0,0.5,1].forEach(function(f){
-    var gy=zero-f*max*scale;
+  (anyLoss?[-1,-0.5,0,0.5,1]:[0,0.25,0.5,0.75,1]).forEach(function(f){
+    var gy=zero-f*max*(f>=0?sP:sN);
     grid+='<line class="'+(f===0?'c-zero':'c-grid')+'" x1="'+pad.l+'" y1="'+gy.toFixed(1)+'" x2="'+(w-pad.r)+'" y2="'+gy.toFixed(1)+'"/>';
     ax+='<text class="c-axis" x="'+(pad.l-8)+'" y="'+(gy+3.5).toFixed(1)+'" text-anchor="end">'+moneyShort(f*max)+'</text>';
   });
   months.forEach(function(k,i){
     var d=mm[k]||{revenue:0,expenses:0}, rev=d.revenue||0, exp=d.expenses||0, p=rev-exp;
-    var hgt=Math.max(Math.abs(p)*scale,p===0?0:1.5), bw=Math.min(22,slot*0.42), cx=X(i);
+    var hgt=Math.max(Math.abs(p)*(p>=0?sP:sN),p===0?0:1.5), bw=Math.min(22,slot*0.42), cx=X(i);
     var tip=ctipData(monthLabel(k),[
       {c:'var(--income)',s:'Revenue',b:fmtMoney(rev)},
       {c:'var(--expense)',s:'Expenses',b:fmtMoney(exp)},
@@ -3855,26 +3860,32 @@ function advisorPaceHTML(){
   var t=new Date(), dayN=t.getDate(), dim=new Date(t.getFullYear(),t.getMonth()+1,0).getDate();
   var proj=dayN>0?Math.round(cur.revenue/dayN*dim):0;
   var tgt=state.settings.monthlyTarget||0;
+  var early=dayN<5; // one or two data points make a linear projection meaningless
   var html='<div class="card"><div class="card-head"><h3>'+icon('goals',16)+' This month’s pace</h3><span class="sub">day '+dayN+' of '+dim+'</span></div>';
   html+='<div class="pace-row"><span>Earned so far</span><b class="num">'+fmtMoney(cur.revenue)+'</b></div>'+
-    '<div class="pace-row"><span>On pace for</span><b class="num">'+fmtMoney(proj)+'</b></div>';
+    (early?'':'<div class="pace-row"><span>On pace for</span><b class="num">'+fmtMoney(proj)+'</b></div>');
   if(tgt>0){
     var pctNow=clamp(cur.revenue/tgt*100,0,100), pctProj=clamp(proj/tgt*100,0,100);
     html+='<div class="pace-track" role="img" aria-label="Progress toward monthly target">'+
       '<div class="pace-fill'+(pctNow>=100?' hit':'')+'" style="--pw:'+pctNow.toFixed(1)+'%"></div>'+
-      '<div class="pace-mark" style="left:'+pctProj.toFixed(1)+'%" title="Projected month-end"></div></div>'+
-    '<div class="pace-row" style="margin-top:6px"><span>Target: '+fmtMoney(tgt)+'</span><b class="'+(proj>=tgt?'t-good':'t-risk')+'">'+(proj>=tgt?'on track 🎯':fmtMoney(Math.max(0,tgt-proj))+' short at this pace')+'</b></div>';
+      (early?'':'<div class="pace-mark" style="left:'+pctProj.toFixed(1)+'%" title="Projected month-end"></div>')+'</div>';
+    if(early) html+='<div class="pace-row" style="margin-top:6px"><span>Target: '+fmtMoney(tgt)+'</span><b style="color:var(--text-3)">too early to project — check back after the first week</b></div>';
+    else html+='<div class="pace-row" style="margin-top:6px"><span>Target: '+fmtMoney(tgt)+'</span><b class="'+(proj>=tgt?'t-good':'t-risk')+'">'+(proj>=tgt?'on track 🎯':fmtMoney(Math.max(0,tgt-proj))+' short at this pace')+'</b></div>';
   } else {
     html+='<p style="font-size:.78rem;color:var(--text-3);margin-top:10px">Set a monthly revenue target in Settings and I’ll pace you against it here.</p>';
   }
-  var recv=receivablesSummary();
-  if(recv&&recv.total>0){
-    var overdue=recv.overdueTotal||0, ahead=Math.max(0,recv.total-overdue);
+  // billed money only — a Draft the client never saw isn't "waiting on payment"
+  var billed=(state.invoices||[]).filter(function(iv){ return iv.status!=='Paid'&&iv.status!=='Draft'; });
+  var drafts=(state.invoices||[]).filter(function(iv){ return iv.status==='Draft'; });
+  var overdue=sum(billed.filter(function(iv){ var dd=daysUntil(iv.dueDate); return iv.status==='Overdue'||(dd!=null&&dd<0); }),invPHP);
+  var ahead=Math.max(0,sum(billed,invPHP)-overdue);
+  if(overdue>0||ahead>0){
     var pmax=Math.max(overdue,ahead)||1;
     html+='<div class="card-head" style="margin-top:14px"><h3 style="font-size:.9rem">Waiting on payments</h3></div><div class="cat-bars">'+
       (overdue>0?'<div class="cat-bar"><div class="cb-top"><span class="cb-name">Overdue — chase these</span><b class="num">'+fmtMoney(overdue)+'</b></div><div class="cb-track"><div class="cb-fill" style="--cbw:'+(overdue/pmax*100).toFixed(1)+'%;background:var(--expense)"></div></div></div>':'')+
-      (ahead>0?'<div class="cat-bar"><div class="cb-top"><span class="cb-name">Not yet due</span><b class="num">'+fmtMoney(ahead)+'</b></div><div class="cb-track"><div class="cb-fill" style="--cbw:'+(ahead/pmax*100).toFixed(1)+'%;background:var(--accent);animation-delay:.06s"></div></div></div>':'')+
-    '</div>';
+      (ahead>0?'<div class="cat-bar"><div class="cb-top"><span class="cb-name">Billed, not yet due</span><b class="num">'+fmtMoney(ahead)+'</b></div><div class="cb-track"><div class="cb-fill" style="--cbw:'+(ahead/pmax*100).toFixed(1)+'%;background:var(--accent);animation-delay:.06s"></div></div></div>':'')+
+    '</div>'+
+    (drafts.length?'<p style="font-size:.72rem;color:var(--text-3);margin-top:8px">'+drafts.length+' draft invoice'+(drafts.length>1?'s':'')+' ('+fmtMoney(sum(drafts,invPHP))+') not sent yet — not counted above.</p>':'');
   }
   return html+'</div>';
 }
@@ -3908,10 +3919,10 @@ function viewInsights(){
   // 3) where the money goes + this month's pace
   var expMix=categoryMap('expense');
   var mixEntries=Object.keys(expMix).map(function(k){return {label:k,value:expMix[k]};}).sort(function(a,b){return b.value-a.value;}).slice(0,6);
-  var mixStyle=chartStyleGet('cats','donut');
+  var mixStyle=chartStyleGet('advisorCats','donut'); // private key — switching here shouldn't restyle the dashboard
   html+='<div class="grid grid-2 mt">';
   html+='<div class="card"><div class="card-head"><h3>Where the money goes</h3><span class="spacer"></span>'+
-    (mixEntries.length?chartToolbar('cats',[{v:'donut',i:'cdonut',t:'Donut'},{v:'bars',i:'clist',t:'Bars'}],mixStyle):'')+'</div>'+
+    (mixEntries.length?chartToolbar('advisorCats',[{v:'donut',i:'cdonut',t:'Donut'},{v:'bars',i:'clist',t:'Bars'}],mixStyle):'')+'</div>'+
     (mixEntries.length?
       (mixStyle==='bars'?'<div class="chart-box">'+catBarsHTML(mixEntries)+'</div>':
         '<div class="chart-box" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">'+svgDonut(mixEntries,120)+'<div class="legend" style="flex-direction:column;gap:4px;margin-top:0">'+donutLegend(mixEntries)+'</div></div>')
