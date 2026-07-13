@@ -972,6 +972,9 @@ tr:hover .row-actions{opacity:1}
 .c-svg .c-bar{transform-box:fill-box;transform-origin:bottom;animation:cBarIn .55s var(--spring) backwards;transition:filter .13s var(--ease)}
 .c-svg .c-bar.c-rev{fill:var(--income)}
 .c-svg .c-bar.c-exp{fill:var(--expense)}
+.c-svg .c-bar.c-pos{fill:var(--income)}
+.c-svg .c-bar.c-neg{fill:var(--expense);transform-origin:top}
+.c-svg .c-zero{stroke:var(--text-3);stroke-width:1.2;opacity:.55}
 .c-svg .c-pt:hover .c-bar{filter:brightness(1.09) saturate(1.05)}
 .c-svg .c-line{fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:100;stroke-dashoffset:100;animation:cDraw .9s var(--ease) forwards}
 .c-svg .c-line.c-rev{stroke:var(--income)}
@@ -1001,6 +1004,15 @@ tr:hover .row-actions{opacity:1}
 .cat-bar .cb-fill{height:100%;border-radius:6px;width:var(--cbw);transform-origin:left;animation:cbGrow .6s var(--spring) backwards;transition:filter .13s var(--ease)}
 .cat-bar:hover .cb-fill{filter:brightness(1.08)}
 @keyframes cbGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+
+/* advisor pace meter */
+.pace-row{display:flex;justify-content:space-between;gap:10px;font-size:.84rem;color:var(--text-2);margin-top:6px}
+.pace-row b{color:var(--text-1)}
+.pace-track{position:relative;height:12px;border-radius:8px;background:var(--bg-sunken);margin-top:12px;overflow:visible}
+.pace-fill{height:100%;border-radius:8px;width:var(--pw);background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 70%,#fff));transform-origin:left;animation:cbGrow .7s var(--spring) backwards}
+.pace-fill.hit{background:linear-gradient(90deg,var(--income),color-mix(in srgb,var(--income) 70%,#fff))}
+.pace-mark{position:absolute;top:-4px;bottom:-4px;width:2.5px;border-radius:2px;background:var(--text-1);opacity:.65;animation:cFade .5s var(--ease) .5s backwards}
+@media (prefers-reduced-motion:reduce){.pace-fill,.pace-mark{animation:none}}
 
 /* sparkline */
 .c-spark-line{stroke-dasharray:100;stroke-dashoffset:100;animation:cDraw 1s var(--ease) forwards}
@@ -2338,7 +2350,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
-var APP_BUILD='2026.07.13e'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
+var APP_BUILD='2026.07.13f'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -3809,6 +3821,63 @@ function advisorNarrative(){
   }
   return p.join(' ');
 }
+/* diverging profit-by-month chart — bars grow from a zero line: green above, red below */
+function svgProfitBars(months,mm,w,h){
+  w=w||620;h=h||248;
+  var pad={l:46,r:12,t:16,b:26}, iw=w-pad.l-pad.r, ih=h-pad.t-pad.b;
+  var raw=1; months.forEach(function(k){ var d=mm[k]||{}; raw=Math.max(raw,Math.abs((d.revenue||0)-(d.expenses||0))); });
+  var max=niceMax(raw), n=months.length, slot=n?iw/n:iw, zero=pad.t+ih/2, scale=(ih/2)/max;
+  var X=function(i){ return pad.l+slot*i+slot/2; };
+  var grid='',ax='',xlab='',cols='';
+  [-1,-0.5,0,0.5,1].forEach(function(f){
+    var gy=zero-f*max*scale;
+    grid+='<line class="'+(f===0?'c-zero':'c-grid')+'" x1="'+pad.l+'" y1="'+gy.toFixed(1)+'" x2="'+(w-pad.r)+'" y2="'+gy.toFixed(1)+'"/>';
+    ax+='<text class="c-axis" x="'+(pad.l-8)+'" y="'+(gy+3.5).toFixed(1)+'" text-anchor="end">'+moneyShort(f*max)+'</text>';
+  });
+  months.forEach(function(k,i){
+    var d=mm[k]||{revenue:0,expenses:0}, rev=d.revenue||0, exp=d.expenses||0, p=rev-exp;
+    var hgt=Math.max(Math.abs(p)*scale,p===0?0:1.5), bw=Math.min(22,slot*0.42), cx=X(i);
+    var tip=ctipData(monthLabel(k),[
+      {c:'var(--income)',s:'Revenue',b:fmtMoney(rev)},
+      {c:'var(--expense)',s:'Expenses',b:fmtMoney(exp)},
+      {c:p>=0?'var(--income)':'var(--expense)',s:p>=0?'Profit':'Loss',b:fmtMoney(Math.abs(p)),net:1}]);
+    cols+='<g class="c-pt" data-ctip="'+tip+'">'+
+      '<rect class="c-col" x="'+(pad.l+slot*i).toFixed(1)+'" y="'+pad.t+'" width="'+slot.toFixed(1)+'" height="'+ih+'" rx="6"/>'+
+      (p!==0?'<rect class="c-bar '+(p>=0?'c-pos':'c-neg')+'" x="'+(cx-bw/2).toFixed(1)+'" y="'+(p>=0?(zero-hgt):zero).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+hgt.toFixed(1)+'" rx="4" style="animation-delay:'+(i*0.05).toFixed(3)+'s"/>':'')+
+      '</g>';
+    xlab+='<text class="c-xlab" x="'+cx.toFixed(1)+'" y="'+(h-6)+'" text-anchor="middle">'+esc(monthLabel(k).split(' ')[0])+'</text>';
+  });
+  return '<svg viewBox="0 0 '+w+' '+h+'" class="c-svg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Profit or loss by month">'+grid+ax+cols+xlab+'</svg>';
+}
+/* target pace meter: where the month stands vs where it's heading */
+function advisorPaceHTML(){
+  var ck=thisMonthKey(), mm=monthlyMap(), cur=mm[ck]||{revenue:0,expenses:0};
+  var t=new Date(), dayN=t.getDate(), dim=new Date(t.getFullYear(),t.getMonth()+1,0).getDate();
+  var proj=dayN>0?Math.round(cur.revenue/dayN*dim):0;
+  var tgt=state.settings.monthlyTarget||0;
+  var html='<div class="card"><div class="card-head"><h3>'+icon('goals',16)+' This month’s pace</h3><span class="sub">day '+dayN+' of '+dim+'</span></div>';
+  html+='<div class="pace-row"><span>Earned so far</span><b class="num">'+fmtMoney(cur.revenue)+'</b></div>'+
+    '<div class="pace-row"><span>On pace for</span><b class="num">'+fmtMoney(proj)+'</b></div>';
+  if(tgt>0){
+    var pctNow=clamp(cur.revenue/tgt*100,0,100), pctProj=clamp(proj/tgt*100,0,100);
+    html+='<div class="pace-track" role="img" aria-label="Progress toward monthly target">'+
+      '<div class="pace-fill'+(pctNow>=100?' hit':'')+'" style="--pw:'+pctNow.toFixed(1)+'%"></div>'+
+      '<div class="pace-mark" style="left:'+pctProj.toFixed(1)+'%" title="Projected month-end"></div></div>'+
+    '<div class="pace-row" style="margin-top:6px"><span>Target: '+fmtMoney(tgt)+'</span><b class="'+(proj>=tgt?'t-good':'t-risk')+'">'+(proj>=tgt?'on track 🎯':fmtMoney(Math.max(0,tgt-proj))+' short at this pace')+'</b></div>';
+  } else {
+    html+='<p style="font-size:.78rem;color:var(--text-3);margin-top:10px">Set a monthly revenue target in Settings and I’ll pace you against it here.</p>';
+  }
+  var recv=receivablesSummary();
+  if(recv&&recv.total>0){
+    var overdue=recv.overdueTotal||0, ahead=Math.max(0,recv.total-overdue);
+    var pmax=Math.max(overdue,ahead)||1;
+    html+='<div class="card-head" style="margin-top:14px"><h3 style="font-size:.9rem">Waiting on payments</h3></div><div class="cat-bars">'+
+      (overdue>0?'<div class="cat-bar"><div class="cb-top"><span class="cb-name">Overdue — chase these</span><b class="num">'+fmtMoney(overdue)+'</b></div><div class="cb-track"><div class="cb-fill" style="--cbw:'+(overdue/pmax*100).toFixed(1)+'%;background:var(--expense)"></div></div></div>':'')+
+      (ahead>0?'<div class="cat-bar"><div class="cb-top"><span class="cb-name">Not yet due</span><b class="num">'+fmtMoney(ahead)+'</b></div><div class="cb-track"><div class="cb-fill" style="--cbw:'+(ahead/pmax*100).toFixed(1)+'%;background:var(--accent);animation-delay:.06s"></div></div></div>':'')+
+    '</div>';
+  }
+  return html+'</div>';
+}
 function viewInsights(){
   var html=topbar('Advisor','Your business, read and explained — what is working, what needs attention, and what to do next.');
   if(!state.finance.length){
@@ -3825,7 +3894,32 @@ function viewInsights(){
     '<div style="flex:1;min-width:0"><h3>Here is your read</h3><div class="adv-sub">Generated live from your latest numbers</div></div>'+
     (hs?svgRing(hs.score,64,null,String(hs.score),'/100'):'')+'</div>'+
     '<p class="adv-narrative">'+advisorNarrative()+'</p></div>';
-  // 2) priorities + going well
+  // 2) the numbers behind the read — interactive, animated charts
+  var months6=lastNMonths(6), mmv=monthlyMap();
+  var aStyle=chartStyleGet('advisor','area');
+  html+='<div class="grid grid-2 mt">';
+  html+='<div class="card"><div class="card-head"><h3>Cash in vs out</h3><span class="spacer"></span>'+
+    chartToolbar('advisor',[{v:'area',i:'carea',t:'Area'},{v:'line',i:'cline',t:'Line'},{v:'bars',i:'cbars',t:'Grouped bars'}],aStyle)+'</div>'+
+    '<div class="chart-box">'+svgSeries(months6,mmv,aStyle)+'</div>'+
+    '<div class="legend"><span><span class="dot" style="background:var(--income)"></span>Revenue</span><span><span class="dot" style="background:var(--expense)"></span>Expenses</span></div></div>';
+  html+='<div class="card"><div class="card-head"><h3>Profit by month</h3><span class="sub">above the line = profit</span></div>'+
+    '<div class="chart-box">'+svgProfitBars(months6,mmv)+'</div></div>';
+  html+='</div>';
+  // 3) where the money goes + this month's pace
+  var expMix=categoryMap('expense');
+  var mixEntries=Object.keys(expMix).map(function(k){return {label:k,value:expMix[k]};}).sort(function(a,b){return b.value-a.value;}).slice(0,6);
+  var mixStyle=chartStyleGet('cats','donut');
+  html+='<div class="grid grid-2 mt">';
+  html+='<div class="card"><div class="card-head"><h3>Where the money goes</h3><span class="spacer"></span>'+
+    (mixEntries.length?chartToolbar('cats',[{v:'donut',i:'cdonut',t:'Donut'},{v:'bars',i:'clist',t:'Bars'}],mixStyle):'')+'</div>'+
+    (mixEntries.length?
+      (mixStyle==='bars'?'<div class="chart-box">'+catBarsHTML(mixEntries)+'</div>':
+        '<div class="chart-box" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">'+svgDonut(mixEntries,120)+'<div class="legend" style="flex-direction:column;gap:4px;margin-top:0">'+donutLegend(mixEntries)+'</div></div>')
+      :emptyState('pie','No expense categories yet','Log categorized expenses and the spending mix appears here.'))+
+    '</div>';
+  html+=advisorPaceHTML();
+  html+='</div>';
+  // 4) priorities + going well
   html+='<div class="grid grid-2 mt">';
   html+='<div class="card"><div class="card-head"><h3>'+icon('alert',16)+' Do this now</h3><span class="spacer"></span>'+
     '<span class="badge '+(actions.length?'warn':'good')+'">'+(actions.length?actions.length+' to act on':'All clear')+'</span></div>';
@@ -3839,7 +3933,7 @@ function viewInsights(){
   if(wins.length) html+='<ul class="adv-wins">'+wins.slice(0,6).map(function(i){return '<li><span class="adv-dot"></span><div><b>'+esc(i.title)+'</b><p>'+esc(i.text)+'</p></div></li>';}).join('')+'</ul>';
   else html+='<p style="color:var(--text-3);font-size:.86rem">Strengths will appear here as your numbers grow.</p>';
   html+='</div></div>';
-  // 3) good-to-know
+  // 5) good-to-know
   if(notes.length) html+='<div class="card mt"><div class="card-head"><h3>Good to know</h3><span class="sub">context, timing &amp; opportunities</span></div><div class="grid grid-2">'+notes.map(insightHTML).join('')+'</div></div>';
   return html;
 }
