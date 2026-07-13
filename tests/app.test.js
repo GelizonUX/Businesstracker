@@ -1617,6 +1617,111 @@ async function main() {
       window.state.settings.monthlyTarget = 100000; window.render();
     })();
 
+    // ---------- assistant · conversational layer (offline, no AI) ----------
+    await (async function () {
+      const send = async (msg) => {
+        d.getElementById('asst-input').value = msg;
+        click(d.querySelector('[data-action="assistant-send"]'));
+        await wait(15);
+      };
+      const lastBot = () => { const b = window.state.chat.filter(m => m.role === 'bot'); return b[b.length - 1] || {}; };
+      window.state.chat = []; window.state.assistant = { terms: {} };
+      window.location.hash = '#/assistant'; window.render();
+
+      // small talk feels human
+      await send('hello');
+      ok('assistant answers small talk (hi)', /what happened|tell me|log/i.test(lastBot().text || ''), lastBot().text);
+      await send('thanks!');
+      ok('assistant answers small talk (thanks)', /anytime|got it|walang anuman/i.test(lastBot().text || ''), lastBot().text);
+
+      // answers questions about the data — fully offline
+      window.state.finance.push({ id: 'q1', type: 'expense', amount: 2000, date: window.todayISO(), category: 'Transport', note: '' });
+      window.state.finance.push({ id: 'q2', type: 'income', amount: 9000, date: window.todayISO(), category: 'Sales', note: '' });
+      const mk = window.todayISO().slice(0, 7);
+      const mSum = (t) => window.state.finance.filter(e => e.type === t && e.date.slice(0, 7) === mk).reduce((a, e) => a + e.amount, 0);
+      const fmt = (n) => window.fmtMoney(n).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      await send('How much did I spend this month?');
+      ok('assistant answers "how much did I spend"', /spent/i.test(lastBot().text || '') && new RegExp(fmt(mSum('expense'))).test(lastBot().text || ''), lastBot().text);
+      await send('how much did I earn this month?');
+      ok('assistant answers "how much did I earn"', /earned/i.test(lastBot().text || '') && new RegExp(fmt(mSum('income'))).test(lastBot().text || ''), lastBot().text);
+      await send('what is my profit?');
+      ok('assistant answers profit with margin', /up|down/i.test(lastBot().text || '') && new RegExp(fmt(Math.abs(mSum('income') - mSum('expense')))).test(lastBot().text || ''), lastBot().text);
+      window.state.invoices.push({ id: 'qi1', number: 'INV-900', client: 'Slowpay Inc', amount: 4500, status: 'Pending', issueDate: window.todayISO(), dueDate: '', currency: 'PHP', fxRate: 1, createdAt: window.todayISO() });
+      await send('who owes me money?');
+      ok('assistant lists receivables', /owed/i.test(lastBot().text || '') && /Slowpay/.test(lastBot().text || ''), lastBot().text);
+
+      // human follow-up: missing amount → assistant asks, chat answer fills the draft
+      await send('bought supplies from the hardware store');
+      ok('assistant asks for the missing amount', /how much/i.test(lastBot().text || ''), lastBot().text);
+      const draft = window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).slice(-1)[0];
+      ok('a draft preview exists while it asks', !!draft && draft.parsed.amount == null);
+      await send('850');
+      ok('plain-number reply fills the amount slot', draft.parsed.amount === 850, draft.parsed.amount);
+      // saying "yes" in chat confirms the draft — no button needed
+      const finBefore = window.state.finance.length;
+      window.render(); await send('yes');
+      await waitFor(() => window.state.finance.length === finBefore + 1);
+      ok('typing "yes" logs the completed draft', window.state.finance[window.state.finance.length - 1].amount === 850);
+      ok('post-log reply reads back month-to-date numbers', /this month|month-to-date/i.test(lastBot().text || ''), lastBot().text);
+
+      // follow-up question for a missing invoice client, answered in chat
+      await send('make an invoice for 12000');
+      ok('assistant asks who to bill', /who/i.test(lastBot().text || ''), lastBot().text);
+      await send('Dela Cruz Trading');
+      const invDraft = window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).slice(-1)[0];
+      ok('client-name reply fills the invoice draft', invDraft && invDraft.parsed.client === 'Dela Cruz Trading', invDraft && invDraft.parsed.client);
+      // "cancel" in chat discards the active draft ("no" during an optional
+      // question means "skip that field", so cancel is the discard word here)
+      window.render(); await send('cancel');
+      ok('typing "cancel" discards the draft', window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).length === 0);
+
+      // QA regressions — routing precedence
+      // (1) "ok" confirms the draft instead of being eaten by small talk
+      await send('bought a stapler for 120');
+      const okBefore = window.state.finance.length;
+      window.render(); await send('ok');
+      await waitFor(() => window.state.finance.length === okBefore + 1);
+      ok('"ok" confirms the pending draft (not small talk)', window.state.finance[window.state.finance.length - 1].amount === 120);
+      // (2) a loggable sentence with a "?" still drafts (not answered as a question)
+      await send('can you log 500 spent on ads?');
+      const qDraft = window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).slice(-1)[0];
+      ok('loggable message with "?" still drafts the entry', qDraft && qDraft.parsed.amount === 500);
+      window.render(); await send('discard');
+      // (3) bare "no" to the optional deadline question skips it, draft survives
+      await send('remind me to call the supplier');
+      ok('task follow-up asks for the deadline', /when is it due/i.test(lastBot().text || ''), lastBot().text);
+      await send('no');
+      const tDraft = window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).slice(-1)[0];
+      ok('bare "no" skips the optional deadline instead of discarding', !!tDraft && tDraft.parsed.intent === 'task');
+      window.render(); await send('yes');
+      await waitFor(() => window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).length === 0);
+      ok('the deadline-skipped task logs on "yes"', /call the supplier/i.test((window.state.tasks[window.state.tasks.length - 1] || {}).title || ''));
+      // (4) confirming an amount-less draft re-asks in chat and keeps the context alive
+      await send('bought packaging supplies');
+      window.render(); await send('yes');
+      ok('confirming without an amount re-asks in chat', /how much/i.test(lastBot().text || ''), lastBot().text);
+      await send('275');
+      const rescued = window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).slice(-1)[0];
+      ok('the number after a failed confirm still fills the draft', rescued && rescued.parsed.amount === 275);
+      window.render(); await send('discard');
+      // (5) a question containing a number is answered, not swallowed as the amount
+      await send('bought thread and fabric');
+      await send('any tasks due in 7 days?');
+      const numDraft = window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).slice(-1)[0];
+      ok('numeric question mid-draft is answered, not taken as ₱7', numDraft && numDraft.parsed.amount == null && !/full draft/i.test(lastBot().text || ''));
+      window.render(); await send('discard');
+      // "yes" with nothing pending gets a helpful reply, not the parser shrug
+      await send('yes');
+      ok('"yes" with no draft explains nothing is pending', /nothing is pending/i.test(lastBot().text || ''), lastBot().text);
+
+      // a full new entry mid-conversation is not mistaken for a slot answer
+      await send('spent 300 on grab');
+      const fresh = window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).slice(-1)[0];
+      ok('complete sentence starts a fresh draft (not a slot answer)', fresh && fresh.parsed.amount === 300 && fresh.parsed.category === 'Transport');
+      window.render(); await send('yes'); // clean up
+      window.state.chat = []; window.state.assistant.ctx = null;
+    })();
+
     // ---------- charts · interactive, animated, multi-style ----------
     (function () {
       var mm = { '2026-01': { revenue: 1000, expenses: 400 }, '2026-02': { revenue: 1500, expenses: 600 }, '2026-03': { revenue: 900, expenses: 700 } };
