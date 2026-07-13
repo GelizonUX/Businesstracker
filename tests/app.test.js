@@ -1638,7 +1638,7 @@ async function main() {
       window.state.finance.push({ id: 'q1', type: 'expense', amount: 2000, date: window.todayISO(), category: 'Transport', note: '' });
       window.state.finance.push({ id: 'q2', type: 'income', amount: 9000, date: window.todayISO(), category: 'Sales', note: '' });
       const mk = window.todayISO().slice(0, 7);
-      const mSum = (t) => window.state.finance.filter(e => e.type === t && e.date >= mk + '-01' && e.date <= window.todayISO()).reduce((a, e) => a + e.amount, 0);
+      const mSum = (t) => window.state.finance.filter(e => e.type === t && e.date.slice(0, 7) === mk).reduce((a, e) => a + e.amount, 0);
       const fmt = (n) => window.fmtMoney(n).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       await send('How much did I spend this month?');
       ok('assistant answers "how much did I spend"', /spent/i.test(lastBot().text || '') && new RegExp(fmt(mSum('expense'))).test(lastBot().text || ''), lastBot().text);
@@ -1670,9 +1670,49 @@ async function main() {
       await send('Dela Cruz Trading');
       const invDraft = window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).slice(-1)[0];
       ok('client-name reply fills the invoice draft', invDraft && invDraft.parsed.client === 'Dela Cruz Trading', invDraft && invDraft.parsed.client);
-      // "no" in chat discards the active draft
-      window.render(); await send('no');
-      ok('typing "no" discards the draft', window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).length === 0);
+      // "cancel" in chat discards the active draft ("no" during an optional
+      // question means "skip that field", so cancel is the discard word here)
+      window.render(); await send('cancel');
+      ok('typing "cancel" discards the draft', window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).length === 0);
+
+      // QA regressions — routing precedence
+      // (1) "ok" confirms the draft instead of being eaten by small talk
+      await send('bought a stapler for 120');
+      const okBefore = window.state.finance.length;
+      window.render(); await send('ok');
+      await waitFor(() => window.state.finance.length === okBefore + 1);
+      ok('"ok" confirms the pending draft (not small talk)', window.state.finance[window.state.finance.length - 1].amount === 120);
+      // (2) a loggable sentence with a "?" still drafts (not answered as a question)
+      await send('can you log 500 spent on ads?');
+      const qDraft = window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).slice(-1)[0];
+      ok('loggable message with "?" still drafts the entry', qDraft && qDraft.parsed.amount === 500);
+      window.render(); await send('discard');
+      // (3) bare "no" to the optional deadline question skips it, draft survives
+      await send('remind me to call the supplier');
+      ok('task follow-up asks for the deadline', /when is it due/i.test(lastBot().text || ''), lastBot().text);
+      await send('no');
+      const tDraft = window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).slice(-1)[0];
+      ok('bare "no" skips the optional deadline instead of discarding', !!tDraft && tDraft.parsed.intent === 'task');
+      window.render(); await send('yes');
+      await waitFor(() => window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).length === 0);
+      ok('the deadline-skipped task logs on "yes"', /call the supplier/i.test((window.state.tasks[window.state.tasks.length - 1] || {}).title || ''));
+      // (4) confirming an amount-less draft re-asks in chat and keeps the context alive
+      await send('bought packaging supplies');
+      window.render(); await send('yes');
+      ok('confirming without an amount re-asks in chat', /how much/i.test(lastBot().text || ''), lastBot().text);
+      await send('275');
+      const rescued = window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).slice(-1)[0];
+      ok('the number after a failed confirm still fills the draft', rescued && rescued.parsed.amount === 275);
+      window.render(); await send('discard');
+      // (5) a question containing a number is answered, not swallowed as the amount
+      await send('bought thread and fabric');
+      await send('any tasks due in 7 days?');
+      const numDraft = window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).slice(-1)[0];
+      ok('numeric question mid-draft is answered, not taken as ₱7', numDraft && numDraft.parsed.amount == null && !/full draft/i.test(lastBot().text || ''));
+      window.render(); await send('discard');
+      // "yes" with nothing pending gets a helpful reply, not the parser shrug
+      await send('yes');
+      ok('"yes" with no draft explains nothing is pending', /nothing is pending/i.test(lastBot().text || ''), lastBot().text);
 
       // a full new entry mid-conversation is not mistaken for a slot answer
       await send('spent 300 on grab');

@@ -4296,10 +4296,13 @@ function nlRange(text,today){
   if(/\btoday\b/.test(s)){ var t=iso(today); return {a:t,b:t,label:'today'}; }
   if(/\byesterday\b/.test(s)){ var yv=iso(new Date(y,mo,today.getDate()-1)); return {a:yv,b:yv,label:'yesterday'}; }
   if(/\bthis\s+week\b/.test(s)){ return {a:iso(new Date(y,mo,today.getDate()-((today.getDay()+6)%7))),b:iso(today),label:'this week'}; }
+  if(/\blast\s+week\b/.test(s)){ var lw0=new Date(y,mo,today.getDate()-((today.getDay()+6)%7)-7); return {a:iso(lw0),b:iso(new Date(lw0.getFullYear(),lw0.getMonth(),lw0.getDate()+6)),label:'last week'}; }
+  var mnm=s.match(/\b(?:in|for|during|last)\s+(january|february|march|april|may|june|july|august|september|october|november|december)\b/);
+  if(mnm){ var mi=nlMonthIndex(mnm[1]); if(mi>=0){ var my=mi>mo?y-1:y; return {a:iso(new Date(my,mi,1)),b:iso(new Date(my,mi+1,0)),label:'in '+mnm[1].charAt(0).toUpperCase()+mnm[1].slice(1)}; } }
   if(/\blast\s+month\b/.test(s)){ return {a:iso(new Date(y,mo-1,1)),b:iso(new Date(y,mo,0)),label:'last month'}; }
   if(/\bthis\s+year\b/.test(s)) return {a:y+'-01-01',b:iso(new Date(y,11,31)),label:'this year'};
-  if(/\ball\s*time|overall|ever\b/.test(s)) return {a:'0000-01-01',b:'9999-12-31',label:'overall'};
-  return {a:iso(new Date(y,mo,1)),b:iso(today),label:'this month'};
+  if(/\b(all\s*time|overall|ever)\b/.test(s)) return {a:'0000-01-01',b:'9999-12-31',label:'overall'};
+  return {a:iso(new Date(y,mo,1)),b:iso(new Date(y,mo+1,0)),label:'this month'}; // full calendar month — matches monthlyMap, so answers agree with post-save readbacks
 }
 /* answer questions about the owner's own data — spend, income, profit, top
    categories, receivables, tasks due, goals, balances */
@@ -4337,7 +4340,7 @@ function nlQuery(text,today){
     return gs.slice(0,3).map(function(g){ var gp=goalProgress(g); return '“'+g.title+'” is '+fmtPct(gp.pct,0)+' there'; }).join('; ')+'.';
   }
   // account balances
-  if(/\b(balance|wallet|accounts?|gcash|bank|cash on hand)\b/.test(s)&&/\bbalance|much|left|have\b/.test(s)){
+  if(/\b(balance|wallet|accounts?|gcash|bank|cash on hand)\b/.test(s)&&/\b(balance|left|have)\b/.test(s)&&!/\b(spen[dt]\w*|earn\w*|paid|gastos)\b/.test(s)){
     var accs=(state.accounts||[]);
     if(!accs.length) return 'You haven’t set up accounts yet — add them under Accounts to track balances.';
     return 'Balances: '+accs.slice(0,5).map(function(a){ return a.name+' '+fmtMoney(accountBalance(a)); }).join(', ')+'.';
@@ -4348,7 +4351,7 @@ function nlQuery(text,today){
     return cl?('You have '+cl+' client'+(cl>1?'s':'')+' on file'+((state.clients.filter(function(c){return c.status==='Lead';}).length)?' ('+state.clients.filter(function(c){return c.status==='Lead';}).length+' still leads)':'')+'.'):'No clients yet — tell me “add client …” to start.';
   }
   // profit
-  if(/\b(profit|net|tubo|kita net|margin)\b/.test(s)||/how('| a)?m i doing|how('|s| is) (the )?business/.test(s)){
+  if(/\b(profit\w*|net|tubo|kita net|margin)\b/.test(s)||/how('| a)?m i doing|how('|s| is) (the )?business/.test(s)){
     var inc0=tot('income'), exp0=tot('expense'), pf=inc0-exp0;
     if(!fin.length) return 'No entries '+r.label+' yet, so nothing to compute. Log something and ask me again!';
     return (pf>=0?'You’re up ':'You’re down ')+fmtMoney(Math.abs(pf))+' '+r.label+' — '+fmtMoney(inc0)+' in, '+fmtMoney(exp0)+' out'+(inc0>0?' ('+fmtPct(pf/inc0*100,0)+' margin)':'')+'.';
@@ -4394,7 +4397,7 @@ function asstQuestionFor(p){
 }
 /* interpret the user's reply as the answer to the slot we just asked about */
 function asstApplyAnswer(p,slot,text,today){
-  var skip=/^(no|none|skip|wala|n\/a|no deadline|no due date|later|not sure|idk|di ko alam)[!. ]*$/i.test(String(text).trim());
+  var skip=/^(no|nope|none|skip|wala|n\/a|no deadline|no due date|later|not sure|no idea|dunno|idk|di ko alam)[!. ]*$/i.test(String(text).trim());
   if(slot==='amount'){ var a=nlParseAmount(text); if(a==null||a<=0) return false; p.amount=a; return true; }
   if(slot==='deadline'||slot==='dueDate'){
     if(skip){ p[slot==='deadline'?'askedDeadline':'askedDue']=true; return true; }
@@ -4567,18 +4570,30 @@ function assistantSend(){
    data questions → new entry parse (with a human follow-up when details are missing) */
 function assistantRoute(text){
   var A=asstCtx(), today=new Date();
+  var draft=asstLatestDraft(), s=String(text).toLowerCase().trim();
+  var confirmWord=/^(yes|yep|yup|sure|ok|okay|oo|sige|go|confirm|log it|save( it)?|do it|correct|tama)[!. ]*$/.test(s);
+  var cancelWord=/^(no|nope|cancel|discard|never ?mind|nvm|wag|huwag|wrong|mali|delete( it)?)[!. ]*$/.test(s);
+  // confirm/cancel outrank small talk — "ok" must log the draft, not chat about it
+  if(draft){
+    // while I'm asking about an OPTIONAL slot, a bare "no" answers that question
+    // ("no deadline") — it does not throw the whole draft away
+    var optionalPending=A.ctx&&A.ctx.msgId===draft.id&&(A.ctx.slot==='deadline'||A.ctx.slot==='dueDate'||A.ctx.slot==='category');
+    if(confirmWord){ assistantConfirm(draft.id); return; }
+    if(cancelWord&&!(optionalPending&&/^(no|nope)[!. ]*$/.test(s))){ A.ctx=null; assistantCancel(draft.id); asstBot('Discarded. What really happened?'); return; }
+  } else if(confirmWord||cancelWord){
+    asstBot('Nothing is pending right now — tell me what to log, or ask me about your numbers.');
+    return;
+  }
   var st=nlSmallTalk(text);
   if(st){ asstBot(st); return; }
-  var draft=asstLatestDraft(), s=String(text).toLowerCase().trim();
-  if(draft){
-    if(/^(yes|yep|yup|sure|ok|okay|oo|sige|go|confirm|log it|save( it)?|do it|correct|tama)[!. ]*$/.test(s)){ A.ctx=null; assistantConfirm(draft.id); return; }
-    if(/^(no|nope|cancel|discard|never ?mind|nvm|wag|huwag|wrong|mali|delete( it)?)[!. ]*$/.test(s)){ A.ctx=null; assistantCancel(draft.id); asstBot('Discarded. What really happened?'); return; }
-  }
   // does this message stand on its own as a new entry?
   var fresh=nlParse(text,today,A.terms);
   var standsAlone=fresh.intent&&(fresh.intent==='task'?!!fresh.title:fresh.intent==='client'?!!fresh.name:fresh.amount!=null);
+  var looksQuestion=/\?\s*$/.test(s)||/^(how|what|who|when|where|any|do i|am i|is there|magkano|ilan)\b/.test(s);
   // answer to my last question (only when the reply isn't clearly a new entry)
   if(A.ctx&&draft&&A.ctx.msgId===draft.id&&!standsAlone){
+    // a question outranks slot-filling — "any tasks due in 7 days?" must not become ₱7
+    if(looksQuestion){ var q0=nlQuery(text,today); if(q0){ asstBot(q0); return; } }
     if(asstApplyAnswer(draft.parsed,A.ctx.slot,text,today)){
       var next=asstQuestionFor(draft.parsed);
       if(next){ A.ctx={msgId:draft.id,slot:next.slot}; asstBot(next.q); }
@@ -4590,8 +4605,9 @@ function assistantRoute(text){
     asstBot('Sorry, I didn’t catch that. '+(asstQuestionFor(draft.parsed)||{q:'Could you rephrase?'}).q);
     return;
   }
-  // questions about their data
-  var ans=nlQuery(text,today);
+  // questions about their data — but a message that parses as a complete
+  // entry is a LOG even when it carries a "?" ("can you log 500 on ads?")
+  var ans=standsAlone?null:nlQuery(text,today);
   if(ans){ asstBot(ans); return; }
   // normal logging flow
   var parses=nlParseMulti(text,today,A.terms);
@@ -4624,7 +4640,7 @@ function assistantConfirm(id){
   if(state.assistant.ctx&&state.assistant.ctx.msgId===id) state.assistant.ctx=null;
   if(p.intent==='task'){
     var title=g('title')||p.title||'';
-    if(!title){ toast('Add a few words for the task.','error'); return; }
+    if(!title){ toast('Add a few words for the task.','error'); state.assistant.ctx={msgId:id,slot:'title'}; asstBot('Almost — what should the task say?'); assistantCommit(); return; }
     var lane=(state.settings.taskLanes&&state.settings.taskLanes[0])||'To do';
     state.tasks.push({id:uid(),title:title,deadline:g('deadline')||p.deadline||'',priority:g('priority')||p.priority||'Medium',status:lane,bucket:'',done:false,createdAt:todayISO()});
     nlLearnRecord(state.assistant.terms, m.srcText||title, 'task', null);
@@ -4634,7 +4650,7 @@ function assistantConfirm(id){
   }
   if(p.intent==='client'){
     var name=g('name')||p.name||'';
-    if(!name){ toast('Add the client name.','error'); return; }
+    if(!name){ toast('Add the client name.','error'); state.assistant.ctx={msgId:id,slot:'name'}; asstBot('Almost — what’s the client’s name?'); assistantCommit(); return; }
     state.clients.push({id:uid(),name:name,status:g('status')||'Lead',contact:g('contact')||'',value:0,note:'',createdAt:todayISO()});
     nlLearnRecord(state.assistant.terms, m.srcText||name, 'client', null);
     m.resolved=true; m.ok=true; m.result='Client “'+name+'” added.';
@@ -4643,8 +4659,8 @@ function assistantConfirm(id){
   }
   if(p.intent==='invoice'){
     var amount=num(g('amount')||p.amount), client=g('client')||p.client||'';
-    if(!client){ toast('Add the client name first.','error'); return; }
-    if(amount<=0){ toast('Enter an amount greater than zero.','error'); return; }
+    if(!client){ toast('Add the client name first.','error'); state.assistant.ctx={msgId:id,slot:'client'}; asstBot('Almost — who should I bill this to?'); assistantCommit(); return; }
+    if(amount<=0){ toast('Enter an amount greater than zero.','error'); state.assistant.ctx={msgId:id,slot:'amount'}; asstBot('Almost — how much is the invoice for?'); assistantCommit(); return; }
     var cur='PHP';
     var inv={id:uid(),number:nextInvoiceNumber(),client:client,desc:g('desc'),amount:amount,
       issueDate:p.issueDate||todayISO(),dueDate:g('dueDate'),status:g('status')||'Pending',
@@ -4659,7 +4675,7 @@ function assistantConfirm(id){
     state.chat.push({id:uid(),role:'bot',text:'Done! You’ll find it under Invoices.',ts:Date.now()});
   } else {
     var amt=num(g('amount')||p.amount);
-    if(amt<=0){ toast('Enter an amount greater than zero.','error'); return; }
+    if(amt<=0){ toast('Enter an amount greater than zero.','error'); state.assistant.ctx={msgId:id,slot:'amount'}; asstBot('Almost — how much was it? Just type the number.'); assistantCommit(); return; }
     var type=g('type')||p.type||'expense', date=g('date')||p.date||todayISO();
     var entry={id:uid(),type:type,amount:amt,date:date,category:g('category')||p.category||(type==='income'?'Sales':'Other expense'),
       note:g('note'),client:(type==='income'?(p.client||''):''),offer:'',account:g('account')||'',receipt:(p.receipt||'')};
