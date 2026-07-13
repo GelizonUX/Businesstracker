@@ -1547,6 +1547,54 @@ async function main() {
       window.ui.rmCam = null;
     })();
 
+    // ---------- charts · interactive, animated, multi-style ----------
+    (function () {
+      var mm = { '2026-01': { revenue: 1000, expenses: 400 }, '2026-02': { revenue: 1500, expenses: 600 }, '2026-03': { revenue: 900, expenses: 700 } };
+      var months = ['2026-01', '2026-02', '2026-03'];
+      // three graph styles are all available and structurally distinct
+      var bars = window.svgSeries(months, mm, 'bars');
+      var line = window.svgSeries(months, mm, 'line');
+      var area = window.svgSeries(months, mm, 'area');
+      ok('svgSeries bars renders animated bars', /class="c-bar c-rev"/.test(bars) && /animation-delay/.test(bars));
+      ok('svgSeries line renders a draw-animated polyline (pathLength)', /class="c-line c-rev"/.test(line) && /pathLength="100"/.test(line) && !/c-bar/.test(line));
+      ok('svgSeries area renders a gradient fill under the line', /class="c-area"/.test(area) && /linearGradient/.test(area));
+      ok('every series style carries per-column hover tooltips', (bars.match(/data-ctip=/g) || []).length === 3 && /class="c-pt"/.test(line));
+      // tooltip payload is real HTML that survives the attribute encoding
+      var tipHost = d.createElement('div'); tipHost.innerHTML = '<svg>' + bars + '</svg>';
+      var pt = tipHost.querySelector('[data-ctip]');
+      ok('tooltip attribute decodes back to live HTML (Revenue/Profit rows)', pt && /<div class="ct-h">/.test(pt.getAttribute('data-ctip')) && /Profit/.test(pt.getAttribute('data-ctip')));
+      // donut + category bars are interchangeable and both animate + tooltip
+      var donut = window.svgDonut([{ label: 'Rent', value: 500 }, { label: 'Ads', value: 300 }], 120);
+      ok('donut renders animated hoverable segments + center total', /class="c-seg"/.test(donut) && /data-ctip=/.test(donut) && /class="c-dnum"/.test(donut));
+      var catBars = window.catBarsHTML([{ label: 'Rent', value: 500 }, { label: 'Ads', value: 300 }]);
+      ok('category bars render grow-animated fills with tooltips', /class="cat-bar"/.test(catBars) && /--cbw:/.test(catBars) && /data-ctip=/.test(catBars));
+      // upgraded sparkline draws itself in with a gradient area
+      var spark = window.svgSparkline([1, 3, 2, 5, 4], 90, 30, 'var(--income)');
+      ok('sparkline is animated (draw + gradient area + endpoint)', /class="c-spark-line"/.test(spark) && /class="c-spark-area"/.test(spark) && /pathLength="100"/.test(spark));
+
+      // the style picker actually switches what the user sees, and it persists
+      window.location.hash = '#/dashboard'; window.render();
+      var box = d.querySelector('.chart-box .c-pt[data-ctip]');
+      ok('dashboard chart is on-screen with hover targets', !!box);
+      // hovering a column shows the floating tooltip
+      window.chartTipHide();
+      if (box) box.dispatchEvent(new window.MouseEvent('pointermove', { bubbles: true, clientX: 120, clientY: 80 }));
+      var tipEl = d.getElementById('chart-tip');
+      ok('hovering a chart column floats a tooltip', !!tipEl && tipEl.classList.contains('show') && /ct-h/.test(tipEl.innerHTML));
+      // moving off the chart hides it
+      d.body.dispatchEvent(new window.MouseEvent('pointermove', { bubbles: true, clientX: 5, clientY: 5 }));
+      ok('leaving the chart hides the tooltip', !d.getElementById('chart-tip').classList.contains('show'));
+      // clicking the "line" style tab re-renders as a line chart and remembers the choice
+      var lineTab = d.querySelector('[data-action="chart-style"][data-chart="monthly"][data-style="line"]');
+      ok('a graph-style switcher is present on the chart card', !!lineTab);
+      if (lineTab) { click(lineTab); }
+      ok('picking Line switches the graph + persists the preference',
+        window.state.settings.chartStyles && window.state.settings.chartStyles.monthly === 'line' &&
+        /class="c-line/.test(d.querySelector('.chart-box').innerHTML));
+      // reset so later/again renders are stable
+      window.state.settings.chartStyles = {}; window.render();
+    })();
+
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
   } catch (e) {
