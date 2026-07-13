@@ -921,13 +921,90 @@ tr:hover .row-actions{opacity:1}
 .ring .ring-label b{font-size:1.5rem;font-weight:800;letter-spacing:-.03em;line-height:1}
 .ring .ring-label span{font-size:.64rem;color:var(--text-3);text-transform:uppercase;letter-spacing:.1em;font-weight:700;margin-top:3px}
 .ring svg circle.track{stroke:var(--bg-sunken)}
-.ring svg circle.val{transition:stroke-dashoffset 1s var(--ease)}
+.ring svg circle.val{transition:stroke-dashoffset 1s var(--ease);animation:cRingIn .9s var(--ease) backwards}
+@keyframes cRingIn{from{stroke-dashoffset:var(--c0,0)}}
+@media (prefers-reduced-motion:reduce){.ring svg circle.val{animation:none}}
 
 /* charts */
-.chart-box{width:100%;overflow:hidden}
+.chart-box{width:100%;overflow:visible}
 .chart-box svg{width:100%;height:auto;display:block}
 .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.78rem;color:var(--text-2);margin-top:8px}
 .legend span{display:inline-flex;align-items:center;gap:6px}
+
+/* ---- interactive chart engine ---- */
+.chart-tabs{display:inline-flex;gap:2px;padding:3px;border-radius:11px;background:var(--bg-sunken,#f0f0ec);border:1px solid var(--border)}
+.chart-tab{display:inline-grid;place-items:center;width:30px;height:26px;border:0;border-radius:8px;background:transparent;color:var(--text-3);cursor:pointer;transition:background .16s var(--ease),color .16s var(--ease),transform .12s var(--ease-snappy)}
+.chart-tab:hover{color:var(--text-1);background:color-mix(in srgb,var(--text-1) 7%,transparent)}
+.chart-tab:active{transform:scale(.92)}
+.chart-tab.on{background:var(--bg-card);color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.chart-tab svg{width:15px;height:15px}
+
+/* floating hover tooltip (shared singleton) — always a dark surface with white text,
+   independent of theme (like Linear/Notion tooltips), so contrast never inverts */
+.chart-tip{position:fixed;left:0;top:0;z-index:400;pointer-events:none;min-width:120px;max-width:240px;
+  padding:9px 11px;border-radius:12px;background:rgba(21,22,26,.94);color:#fff;
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,.14);box-shadow:0 8px 28px rgba(0,0,0,.28);
+  font-size:.74rem;line-height:1.35;opacity:0;transition:opacity .13s var(--ease);will-change:transform}
+.chart-tip.show{opacity:1}
+.chart-tip .ct-h{font-weight:800;font-size:.76rem;margin-bottom:5px;letter-spacing:.01em}
+.chart-tip .ct-r{display:flex;align-items:center;gap:7px;margin-top:3px;white-space:nowrap}
+.chart-tip .ct-r i{width:8px;height:8px;border-radius:3px;flex-shrink:0}
+.chart-tip .ct-r span{opacity:.82}
+.chart-tip .ct-r b{margin-left:auto;font-weight:700;padding-left:12px}
+.chart-tip .ct-net{margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,.16)}
+
+/* series chart (bars / line / area) */
+.c-svg{overflow:visible}
+.c-svg .c-grid{stroke:var(--chart-grid);stroke-width:1}
+.c-svg .c-axis,.c-svg .c-xlab{fill:var(--text-3);font-size:10px;font-family:var(--font)}
+.c-svg .c-col{fill:var(--accent);opacity:0;transition:opacity .13s var(--ease)}
+.c-svg .c-pt:hover .c-col{opacity:.07}
+.c-svg .c-guide{stroke:var(--accent);stroke-width:1;stroke-dasharray:3 4;opacity:0;transition:opacity .13s var(--ease)}
+.c-svg .c-pt:hover .c-guide{opacity:.5}
+.c-svg .c-bar{transform-box:fill-box;transform-origin:bottom;animation:cBarIn .55s var(--spring) backwards;transition:filter .13s var(--ease)}
+.c-svg .c-bar.c-rev{fill:var(--income)}
+.c-svg .c-bar.c-exp{fill:var(--expense)}
+.c-svg .c-pt:hover .c-bar{filter:brightness(1.09) saturate(1.05)}
+.c-svg .c-line{fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:100;stroke-dashoffset:100;animation:cDraw .9s var(--ease) forwards}
+.c-svg .c-line.c-rev{stroke:var(--income)}
+.c-svg .c-line.c-exp{stroke:var(--expense);animation-delay:.1s}
+.c-svg .c-area{animation:cFade .7s var(--ease) .2s backwards}
+.c-svg .c-dot{stroke:var(--bg-card);stroke-width:1.6;opacity:0;transition:opacity .14s var(--ease)}
+.c-svg .c-dot.c-rev{fill:var(--income)}
+.c-svg .c-dot.c-exp{fill:var(--expense)}
+.c-svg .c-pt:hover .c-dot{opacity:1}
+@keyframes cBarIn{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes cDraw{to{stroke-dashoffset:0}}
+@keyframes cFade{from{opacity:0}to{opacity:1}}
+
+/* donut */
+.c-donut .c-seg{animation:cSegIn .55s var(--ease) backwards;transition:stroke-width .16s var(--ease);cursor:pointer}
+.c-donut .c-seg:hover{stroke-width:22}
+.c-donut .c-dnum{fill:var(--text-1);font-size:16px;font-weight:800;font-family:var(--font)}
+.c-donut .c-dlab{fill:var(--text-3);font-size:9px;text-transform:uppercase;letter-spacing:.08em;font-family:var(--font)}
+@keyframes cSegIn{from{opacity:0;stroke-width:0}to{opacity:1}}
+
+/* category horizontal bars */
+.cat-bars{display:flex;flex-direction:column;gap:11px;width:100%}
+.cat-bar{cursor:default}
+.cat-bar .cb-top{display:flex;justify-content:space-between;gap:10px;font-size:.8rem;margin-bottom:4px}
+.cat-bar .cb-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-2)}
+.cat-bar .cb-track{height:8px;border-radius:6px;background:var(--bg-sunken,rgba(0,0,0,.06));overflow:hidden}
+.cat-bar .cb-fill{height:100%;border-radius:6px;width:var(--cbw);transform-origin:left;animation:cbGrow .6s var(--spring) backwards;transition:filter .13s var(--ease)}
+.cat-bar:hover .cb-fill{filter:brightness(1.08)}
+@keyframes cbGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+
+/* sparkline */
+.c-spark-line{stroke-dasharray:100;stroke-dashoffset:100;animation:cDraw 1s var(--ease) forwards}
+.c-spark-area{animation:cFade .8s var(--ease) .15s backwards}
+.c-spark-dot{animation:cSparkPulse 2.4s var(--ease) 1s infinite}
+@keyframes cSparkPulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+@media (prefers-reduced-motion:reduce){
+  .c-svg .c-bar,.c-svg .c-area,.cat-bar .cb-fill,.c-donut .c-seg,.c-spark-area,.c-spark-dot{animation:none}
+  .c-svg .c-line,.c-spark-line{animation:none;stroke-dashoffset:0}
+}
 
 /* mobile finance timeline (day-grouped; rendered only on phones, hidden on desktop where the table wins) */
 .fin-timeline{display:none}
@@ -1997,6 +2074,11 @@ var ICONS = {
   arrowdr:'<path d="M7 7l10 10M17 7v10H7"/>',
   arrowur:'<path d="M7 17L17 7M7 7h10v10"/>',
   pie:'<path d="M21.21 15.89A10 10 0 118 2.83"/><path d="M22 12A10 10 0 0012 2v10z"/>',
+  cbars:'<path d="M3 21h18"/><rect x="5" y="10" width="3.4" height="9" rx="1"/><rect x="10.3" y="5" width="3.4" height="14" rx="1"/><rect x="15.6" y="13" width="3.4" height="6" rx="1"/>',
+  cline:'<path d="M3 3v18h18"/><path d="M6 15l4-4 3 2 5-7"/>',
+  carea:'<path d="M3 3v18h18"/><path d="M6 14l4-4 3 2 5-6v9H6z" fill="currentColor" fill-opacity="0.4" stroke="none"/><path d="M6 14l4-4 3 2 5-6"/>',
+  cdonut:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.4"/>',
+  clist:'<path d="M8 6h13M8 12h13M8 18h13"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
   alert:'<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/>',
   spark:'<path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/>',
   pin:'<path d="M12 17v5M9 10.8V5a3 3 0 116 0v5.8l2.5 3.2H6.5z"/>',
@@ -2247,7 +2329,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
-var APP_BUILD='2026.07.09d'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
+var APP_BUILD='2026.07.13a'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -2787,73 +2869,192 @@ function suggestedFocus(t){
   return {sev:'info',title:'Suggested focus: consistent execution',text:'Numbers look stable. Keep shipping the roadmap and review your metrics weekly.'};
 }
 
-/* ---------- SVG charts ---------- */
-function svgBarChart(months,mm,w,h){
-  w=w||620;h=h||220;
-  var pad={l:8,r:8,t:14,b:24};
-  var iw=w-pad.l-pad.r, ih=h-pad.t-pad.b;
-  var max=1;
-  months.forEach(function(k){ var d=mm[k]||{revenue:0,expenses:0}; max=Math.max(max,d.revenue,d.expenses); });
-  var n=months.length, slot=iw/n, bw=Math.min(20,slot*0.28);
-  var bars='',labels='',grid='';
-  for(var i=0;i<=3;i++){
-    var gy=pad.t+ih-(ih*i/3);
-    grid+='<line x1="'+pad.l+'" y1="'+gy+'" x2="'+(w-pad.r)+'" y2="'+gy+'" stroke="var(--chart-grid)" stroke-width="1"/>';
-  }
-  months.forEach(function(k,idx){
-    var d=mm[k]||{revenue:0,expenses:0};
-    var cx=pad.l+slot*idx+slot/2;
-    var rh=d.revenue/max*ih, eh=d.expenses/max*ih;
-    bars+='<rect x="'+(cx-bw-2)+'" y="'+(pad.t+ih-rh)+'" width="'+bw+'" height="'+Math.max(rh,1.5)+'" rx="3" fill="var(--income)" opacity="0.9"><title>'+monthLabel(k)+' revenue: '+fmtMoney(d.revenue)+'</title></rect>';
-    bars+='<rect x="'+(cx+2)+'" y="'+(pad.t+ih-eh)+'" width="'+bw+'" height="'+Math.max(eh,1.5)+'" rx="3" fill="var(--expense)" opacity="0.85"><title>'+monthLabel(k)+' expenses: '+fmtMoney(d.expenses)+'</title></rect>';
-    labels+='<text x="'+cx+'" y="'+(h-6)+'" text-anchor="middle" font-size="10" fill="var(--text-3)" font-family="var(--font)">'+monthLabel(k).split(' ')[0]+'</text>';
-  });
-  return '<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Monthly revenue vs expenses">'+grid+bars+labels+'</svg>';
+/* ---------- SVG charts: interactive, animated, multi-style (offline, CSP-safe) ---------- */
+var CHART_PALETTE=['#4653e8','#7c5cd6','#c2417f','#a85900','#0c7d5c','#2c69c8','#0f8b8b','#c05621','#8046c9','#5f6473'];
+var _chartUID=0;
+/* per-chart style choice, persisted so the user's preferred graph sticks */
+function chartStyleGet(key,def){ var s=(state.settings&&state.settings.chartStyles)||{}; return s[key]||def; }
+function chartStyleSet(key,v){ if(!state.settings||typeof state.settings!=='object') state.settings={}; state.settings.chartStyles=(state.settings.chartStyles&&typeof state.settings.chartStyles==='object')?state.settings.chartStyles:{}; state.settings.chartStyles[key]=v; if(typeof save==='function') save(); }
+/* segmented control letting the user pick which graph style to see */
+function chartToolbar(key,opts,cur){
+  return '<div class="chart-tabs" role="group" aria-label="Chart style">'+opts.map(function(o){
+    var on=o.v===cur;
+    return '<button type="button" class="chart-tab'+(on?' on':'')+'" data-action="chart-style" data-chart="'+key+'" data-style="'+o.v+'" title="'+esc(o.t)+'" aria-label="'+esc(o.t)+'" aria-pressed="'+on+'">'+icon(o.i,15)+'</button>';
+  }).join('')+'</div>';
 }
+function niceMax(v){ if(!(v>0)) return 1; var p=Math.pow(10,Math.floor(Math.log10(v))); var f=v/p; var nf=f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10; return nf*p; }
+function moneyShort(n){
+  var sym=(state.settings&&state.settings.currency)||'₱', a=Math.abs(n), s;
+  if(a>=1e9) s=(a/1e9).toFixed(a%1e9?1:0)+'B';
+  else if(a>=1e6) s=(a/1e6).toFixed(a%1e6?1:0)+'M';
+  else if(a>=1e3) s=(a/1e3).toFixed(a%1e3?1:0)+'k';
+  else s=String(Math.round(a));
+  return (n<0?'−':'')+sym+s;
+}
+/* tooltip payload is structured JSON (NEVER HTML) — user text is rendered with textContent,
+   so a category named "><img onerror=…> can never become live markup (attribute decode +
+   innerHTML round-trips are the classic double-decode XSS; we avoid the sink entirely) */
+function ctipData(head,rows){ return esc(JSON.stringify({h:head,r:rows})); }
+
+/* floating tooltip singleton + one delegated listener for every chart on the page */
+var _chartTip=null;
+function chartTipEl(){ if(!_chartTip){ _chartTip=document.createElement('div'); _chartTip.className='chart-tip'; _chartTip.id='chart-tip'; document.body.appendChild(_chartTip); } return _chartTip; }
+function chartTipShow(json,x,y){
+  var data; try{ data=typeof json==='string'?JSON.parse(json):json; }catch(_){ return; }
+  if(!data) return;
+  var t=chartTipEl(); t.textContent='';
+  if(data.h){ var hd=document.createElement('div'); hd.className='ct-h'; hd.textContent=data.h; t.appendChild(hd); }
+  (data.r||[]).forEach(function(r){
+    var row=document.createElement('div'); row.className='ct-r'+(r.net?' ct-net':'');
+    var chip=document.createElement('i'); if(r.c&&/^[-a-z0-9#(),.%\s]+$/i.test(r.c)) chip.style.background=r.c; row.appendChild(chip);
+    var s=document.createElement('span'); s.textContent=r.s==null?'':r.s; row.appendChild(s);
+    var b=document.createElement('b'); b.textContent=r.b==null?'':r.b; row.appendChild(b);
+    t.appendChild(row);
+  });
+  t.classList.add('show');
+  var w=t.offsetWidth||160, h=t.offsetHeight||60, vw=window.innerWidth||1200, vh=window.innerHeight||800;
+  var left=x-w/2; if(left<8) left=8; if(left+w>vw-8) left=vw-8-w;
+  var top=y-h-14; if(top<8) top=y+18;
+  if(top+h>vh-8) top=Math.max(8,vh-8-h);
+  t.style.transform='translate('+Math.round(left)+'px,'+Math.round(top)+'px)';
+}
+function chartTipHide(){ if(_chartTip) _chartTip.classList.remove('show'); }
+var _chartHoverWired=false;
+function installChartHover(){
+  if(_chartHoverWired) return; _chartHoverWired=true;
+  document.addEventListener('pointermove',function(e){
+    var t=e.target; if(!t||!t.closest){ return; }
+    var hot=t.closest('[data-ctip]');
+    if(hot){ chartTipShow(hot.getAttribute('data-ctip'), e.clientX, e.clientY); }
+    else if(_chartTip&&_chartTip.classList.contains('show')) chartTipHide();
+  },{passive:true});
+  // touch: a tap on a chart mark PINS the tooltip (touch users get the data too);
+  // tapping anywhere else dismisses it
+  document.addEventListener('pointerdown',function(e){
+    var t=e.target, hot=t&&t.closest&&t.closest('[data-ctip]');
+    if(hot) chartTipShow(hot.getAttribute('data-ctip'), e.clientX, e.clientY);
+    else chartTipHide();
+  },{passive:true});
+}
+
+/* Monthly series — style: 'bars' (grouped) | 'line' | 'area' */
+function svgSeries(months,mm,style,w,h){
+  style=style||'bars'; w=w||620; h=h||248;
+  var pad={l:46,r:12,t:16,b:26}, iw=w-pad.l-pad.r, ih=h-pad.t-pad.b;
+  var raw=1; months.forEach(function(k){ var d=mm[k]||{}; raw=Math.max(raw,d.revenue||0,d.expenses||0); });
+  var max=niceMax(raw), n=months.length, slot=n?iw/n:iw, uid='cg'+(++_chartUID);
+  var X=function(i){ return pad.l+slot*i+slot/2; };
+  var Y=function(v){ return pad.t+ih-(v/max)*ih; };
+  var grid='',ax='',xlab='';
+  for(var g=0;g<=4;g++){
+    var gy=pad.t+ih-(ih*g/4);
+    grid+='<line class="c-grid" x1="'+pad.l+'" y1="'+gy.toFixed(1)+'" x2="'+(w-pad.r)+'" y2="'+gy.toFixed(1)+'"/>';
+    ax+='<text class="c-axis" x="'+(pad.l-8)+'" y="'+(gy+3.5).toFixed(1)+'" text-anchor="end">'+moneyShort(max*g/4)+'</text>';
+  }
+  months.forEach(function(k,i){ xlab+='<text class="c-xlab" x="'+X(i).toFixed(1)+'" y="'+(h-6)+'" text-anchor="middle">'+esc(monthLabel(k).split(' ')[0])+'</text>'; });
+  var defs='',layer='',cols='';
+  if(style!=='bars'){
+    var baseY=(pad.t+ih).toFixed(1);
+    var pr=months.map(function(k,i){ return X(i).toFixed(1)+','+Y((mm[k]||{}).revenue||0).toFixed(1); });
+    var pe=months.map(function(k,i){ return X(i).toFixed(1)+','+Y((mm[k]||{}).expenses||0).toFixed(1); });
+    if(style==='area'){
+      defs+='<linearGradient id="'+uid+'r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--income)" stop-opacity="0.3"/><stop offset="1" stop-color="var(--income)" stop-opacity="0"/></linearGradient>'+
+            '<linearGradient id="'+uid+'e" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--expense)" stop-opacity="0.22"/><stop offset="1" stop-color="var(--expense)" stop-opacity="0"/></linearGradient>';
+      var ar='M'+X(0).toFixed(1)+','+baseY+' '+pr.map(function(p){return 'L'+p;}).join(' ')+' L'+X(n-1).toFixed(1)+','+baseY+' Z';
+      var ae='M'+X(0).toFixed(1)+','+baseY+' '+pe.map(function(p){return 'L'+p;}).join(' ')+' L'+X(n-1).toFixed(1)+','+baseY+' Z';
+      layer+='<path class="c-area" d="'+ae+'" fill="url(#'+uid+'e)"/><path class="c-area" d="'+ar+'" fill="url(#'+uid+'r)"/>';
+    }
+    layer+='<polyline class="c-line c-exp" points="'+pe.join(' ')+'" pathLength="100"/>'+
+           '<polyline class="c-line c-rev" points="'+pr.join(' ')+'" pathLength="100"/>';
+  }
+  months.forEach(function(k,i){
+    var d=mm[k]||{revenue:0,expenses:0}, rev=d.revenue||0, exp=d.expenses||0, net=rev-exp;
+    var tip=ctipData(monthLabel(k),[
+      {c:'var(--income)',s:'Revenue',b:fmtMoney(rev)},
+      {c:'var(--expense)',s:'Expenses',b:fmtMoney(exp)},
+      {c:'var(--accent)',s:'Profit',b:fmtMoney(net),net:1}]);
+    var gx=(pad.l+slot*i).toFixed(1);
+    cols+='<g class="c-pt" data-ctip="'+tip+'">'+
+      '<rect class="c-col" x="'+gx+'" y="'+pad.t+'" width="'+slot.toFixed(1)+'" height="'+ih+'" rx="6"/>'+
+      '<line class="c-guide" x1="'+X(i).toFixed(1)+'" y1="'+pad.t+'" x2="'+X(i).toFixed(1)+'" y2="'+(pad.t+ih).toFixed(1)+'"/>';
+    if(style==='bars'){
+      var bw=Math.min(17,slot*0.30), cx=X(i);
+      cols+='<rect class="c-bar c-rev" x="'+(cx-bw-2).toFixed(1)+'" y="'+Y(rev).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max((rev/max)*ih,1.5).toFixed(1)+'" rx="4" style="animation-delay:'+(i*0.045).toFixed(3)+'s"/>'+
+        '<rect class="c-bar c-exp" x="'+(cx+2).toFixed(1)+'" y="'+Y(exp).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max((exp/max)*ih,1.5).toFixed(1)+'" rx="4" style="animation-delay:'+(i*0.045+0.03).toFixed(3)+'s"/>';
+    } else {
+      cols+='<circle class="c-dot c-exp" cx="'+X(i).toFixed(1)+'" cy="'+Y(exp).toFixed(1)+'" r="3.6"/>'+
+        '<circle class="c-dot c-rev" cx="'+X(i).toFixed(1)+'" cy="'+Y(rev).toFixed(1)+'" r="3.6"/>';
+    }
+    cols+='</g>';
+  });
+  return '<svg viewBox="0 0 '+w+' '+h+'" class="c-svg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Monthly revenue vs expenses, '+style+' view"><defs>'+defs+'</defs>'+grid+ax+layer+cols+xlab+'</svg>';
+}
+/* backward-compatible alias */
+function svgBarChart(months,mm,w,h){ return svgSeries(months,mm,chartStyleGet('monthly','bars'),w,h); }
+
 function svgDonut(entries,size){
   size=size||150;
   var total=sum(entries,function(e){return e.value;});
   if(total<=0) return '';
-  var r=size/2-12, c=size/2, circ=2*Math.PI*r, off=0;
-  var palette=['#4653e8','#7c5cd6','#c2417f','#a85900','#0c7d5c','#2c69c8','#0f8b8b','#c05621','#8046c9','#5f6473'];
-  var segs='';
+  var r=size/2-14, c=size/2, circ=2*Math.PI*r, off=0, sw=size>150?18:14, segs='';
   entries.forEach(function(e,i){
-    var frac=e.value/total;
-    var dash=Math.max(0,frac*circ-2);
-    segs+='<circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+palette[i%palette.length]+'" stroke-width="16" stroke-dasharray="'+dash+' '+(circ-dash)+'" stroke-dashoffset="'+(-off*circ)+'" transform="rotate(-90 '+c+' '+c+')" stroke-linecap="butt"><title>'+esc(e.label)+': '+fmtMoney(e.value)+' ('+fmtPct(frac*100,0)+')</title></circle>';
+    var frac=e.value/total, dash=Math.max(0,frac*circ-2), col=CHART_PALETTE[i%CHART_PALETTE.length];
+    var tip=ctipData(e.label,[{c:col,s:fmtMoney(e.value),b:fmtPct(frac*100,0)}]);
+    segs+='<circle class="c-seg" cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+col+'" stroke-width="'+sw+'" stroke-dasharray="'+dash.toFixed(2)+' '+(circ-dash).toFixed(2)+'" stroke-dashoffset="'+(-off*circ).toFixed(2)+'" transform="rotate(-90 '+c+' '+c+')" data-ctip="'+tip+'" style="animation-delay:'+(i*0.06).toFixed(3)+'s"/>';
     off+=frac;
   });
-  return '<svg viewBox="0 0 '+size+' '+size+'" style="max-width:'+size+'px" role="img" aria-label="Category breakdown">'+segs+'</svg>';
+  var center='<text class="c-dnum" x="'+c+'" y="'+(c-1)+'" text-anchor="middle">'+esc(moneyShort(total))+'</text>'+
+    '<text class="c-dlab" x="'+c+'" y="'+(c+14)+'" text-anchor="middle">total</text>';
+  return '<svg viewBox="0 0 '+size+' '+size+'" class="c-donut" style="max-width:'+size+'px" role="img" aria-label="Category breakdown">'+segs+center+'</svg>';
+}
+/* horizontal bar alternative to the donut */
+function catBarsHTML(entries){
+  if(!entries||!entries.length) return '';
+  var max=Math.max.apply(null,entries.map(function(e){return e.value;}))||1;
+  var total=sum(entries,function(e){return e.value;})||1;
+  return '<div class="cat-bars">'+entries.map(function(e,i){
+    var col=CHART_PALETTE[i%CHART_PALETTE.length], pct=e.value/total*100;
+    var tip=ctipData(e.label,[{c:col,s:fmtMoney(e.value),b:fmtPct(pct,0)}]);
+    return '<div class="cat-bar" data-ctip="'+tip+'">'+
+      '<div class="cb-top"><span class="cb-name">'+esc(e.label)+'</span><b class="num">'+esc(fmtMoney(e.value))+'</b></div>'+
+      '<div class="cb-track"><div class="cb-fill" style="--cbw:'+(e.value/max*100).toFixed(1)+'%;background:'+col+';animation-delay:'+(i*0.05).toFixed(3)+'s"></div></div></div>';
+  }).join('')+'</div>';
 }
 function donutLegend(entries){
-  var total=sum(entries,function(e){return e.value;});
-  var palette=['#4653e8','#7c5cd6','#c2417f','#a85900','#0c7d5c','#2c69c8','#0f8b8b','#c05621','#8046c9','#5f6473'];
+  var total=sum(entries,function(e){return e.value;})||1;
   return entries.map(function(e,i){
-    return '<span><span class="dot" style="background:'+palette[i%palette.length]+'"></span>'+esc(e.label)+' · <b>'+fmtPct(e.value/total*100,0)+'</b></span>';
+    return '<span><span class="dot" style="background:'+CHART_PALETTE[i%CHART_PALETTE.length]+'"></span>'+esc(e.label)+' · <b>'+fmtPct(e.value/total*100,0)+'</b></span>';
   }).join('');
 }
-function svgSparkline(values,w,h,color){
+function svgSparkline(values,w,h,color,label){
   w=w||90;h=h||30;
   if(!values||values.length<2) return '';
-  var max=Math.max.apply(null,values), min=Math.min.apply(null,values);
-  if(max===min){max=min+1;}
-  var pts=values.map(function(v,i){
-    var x=(i/(values.length-1))*(w-4)+2;
-    var y=h-3-((v-min)/(max-min))*(h-6);
-    return x.toFixed(1)+','+y.toFixed(1);
-  });
-  return '<svg viewBox="0 0 '+w+' '+h+'" style="width:'+w+'px;height:'+h+'px">'+
-    '<polyline points="'+pts.join(' ')+'" fill="none" stroke="'+(color||'var(--accent)')+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/></svg>';
+  var max=Math.max.apply(null,values), min=Math.min.apply(null,values); if(max===min){max=min+1;}
+  var uid='sp'+(++_chartUID), col=color||'var(--accent)';
+  var pts=values.map(function(v,i){ var x=(i/(values.length-1))*(w-4)+2; var y=h-3-((v-min)/(max-min))*(h-6); return [x,y]; });
+  var line=pts.map(function(p){return p[0].toFixed(1)+','+p[1].toFixed(1);}).join(' ');
+  var last=pts[pts.length-1];
+  var area='M'+pts[0][0].toFixed(1)+','+(h-1)+' '+pts.map(function(p){return 'L'+p[0].toFixed(1)+','+p[1].toFixed(1);}).join(' ')+' L'+last[0].toFixed(1)+','+(h-1)+' Z';
+  var vmax=Math.max.apply(null,values), vmin=Math.min.apply(null,values);
+  var tipAttr=label?' data-ctip="'+ctipData(label,[
+    {c:col,s:'Latest',b:fmtMoney(values[values.length-1])},
+    {c:col,s:'High',b:fmtMoney(vmax)},
+    {c:col,s:'Low',b:fmtMoney(vmin)}])+'"':'';
+  return '<svg viewBox="0 0 '+w+' '+h+'" class="c-spark" style="width:'+w+'px;height:'+h+'px"'+tipAttr+'><defs><linearGradient id="'+uid+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+col+'" stop-opacity="0.22"/><stop offset="1" stop-color="'+col+'" stop-opacity="0"/></linearGradient></defs>'+
+    '<path class="c-spark-area" d="'+area+'" fill="url(#'+uid+')"/>'+
+    '<polyline class="c-spark-line" points="'+line+'" fill="none" stroke="'+col+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" pathLength="100"/>'+
+    '<circle class="c-spark-dot" cx="'+last[0].toFixed(1)+'" cy="'+last[1].toFixed(1)+'" r="2.4" fill="'+col+'"/></svg>';
 }
 function svgRing(pct,size,color,labelTop,labelBottom){
   size=size||120;
   var stroke=10, r=(size-stroke)/2, c=size/2, circ=2*Math.PI*r;
   var p=clamp(pct||0,0,100);
+  var uid='rg'+(++_chartUID); // unique per ring — a shared id breaks when two rings render at once
   return '<div class="ring" style="width:'+size+'px;height:'+size+'px">'+
     '<svg viewBox="0 0 '+size+' '+size+'" style="width:'+size+'px;height:'+size+'px">'+
       '<circle class="track" cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke-width="'+stroke+'"/>'+
-      '<circle class="val" cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+(color||'url(#ringGrad)')+'" stroke-width="'+stroke+'" stroke-linecap="round" stroke-dasharray="'+circ+'" stroke-dashoffset="'+(circ*(1-p/100))+'" transform="rotate(-90 '+c+' '+c+')"/>'+
-      '<defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--accent-cta,#4653e8)"/><stop offset="1" style="stop-color:color-mix(in srgb,var(--accent-cta,#4653e8) 82%,#000)"/></linearGradient></defs>'+
+      '<circle class="val" cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+(color||'url(#'+uid+')')+'" stroke-width="'+stroke+'" stroke-linecap="round" stroke-dasharray="'+circ+'" stroke-dashoffset="'+(circ*(1-p/100))+'" transform="rotate(-90 '+c+' '+c+')" style="--c0:'+circ.toFixed(1)+'"/>'+
+      '<defs><linearGradient id="'+uid+'" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--accent-cta,#4653e8)"/><stop offset="1" style="stop-color:color-mix(in srgb,var(--accent-cta,#4653e8) 82%,#000)"/></linearGradient></defs>'+
     '</svg>'+
     '<div class="ring-label"><b>'+esc(labelTop)+'</b><span>'+esc(labelBottom||'')+'</span></div></div>';
 }
@@ -3389,9 +3590,9 @@ function viewDashboard(){
     (g>=0?'<span class="stat-delta up">'+icon('up')+' '+fmtPct(g)+' MoM</span>':'<span class="stat-delta down">'+icon('down')+' '+fmtPct(Math.abs(g))+' MoM</span>');
   var W={};
 
-  W.rev=statCard('Total revenue',fmtMoney(t.revenue),deltaHTML,svgSparkline(revSeries,90,30,'var(--income)'),'arrowur');
-  W.exp=statCard('Total expenses',fmtMoney(t.expenses),'<span class="stat-delta '+(t.expenseRatio!=null&&isFinite(t.expenseRatio)&&t.expenseRatio>70?'down':'flat')+'">'+(t.expenseRatio!=null&&isFinite(t.expenseRatio)?fmtPct(t.expenseRatio,0)+' of revenue':'—')+'</span>',svgSparkline(expSeries,90,30,'var(--expense)'),'arrowdr');
-  W.prof=statCard('Net profit',fmtMoney(t.profit),'<span class="stat-delta '+(t.profit>=0?'up':'down')+'">'+(t.profit>=0?'Profitable':'Loss')+'</span>',svgSparkline(profSeries,90,30,'var(--accent)'),'wallet');
+  W.rev=statCard('Total revenue',fmtMoney(t.revenue),deltaHTML,svgSparkline(revSeries,90,30,'var(--income)','Revenue — last 6 months'),'arrowur');
+  W.exp=statCard('Total expenses',fmtMoney(t.expenses),'<span class="stat-delta '+(t.expenseRatio!=null&&isFinite(t.expenseRatio)&&t.expenseRatio>70?'down':'flat')+'">'+(t.expenseRatio!=null&&isFinite(t.expenseRatio)?fmtPct(t.expenseRatio,0)+' of revenue':'—')+'</span>',svgSparkline(expSeries,90,30,'var(--expense)','Expenses — last 6 months'),'arrowdr');
+  W.prof=statCard('Net profit',fmtMoney(t.profit),'<span class="stat-delta '+(t.profit>=0?'up':'down')+'">'+(t.profit>=0?'Profitable':'Loss')+'</span>',svgSparkline(profSeries,90,30,'var(--accent)','Profit — last 6 months'),'wallet');
   W.margin=statCard('Profit margin',fmtPct(t.margin),'<span class="stat-delta '+(t.margin==null?'flat':(t.margin>=30?'up':(t.margin>=10?'flat':'down')))+'">'+(t.margin==null?'No revenue yet':(t.margin>=30?'Healthy':(t.margin>=10?'Thin':'Critical')))+'</span>','','pie');
 
   /* health + monthly chart */
@@ -3409,9 +3610,11 @@ function viewDashboard(){
     healthBlk+=emptyState('shield','No health score yet','Add finance entries and the score is computed automatically from margin, growth, expense control and execution.');
   }
   healthBlk+='</div>';
-  var chartBlk='<div class="card"><div class="card-head"><h3>Monthly performance</h3><span class="sub">last 6 months</span></div>';
+  var mStyle=chartStyleGet('monthly','bars');
+  var mTabs=chartToolbar('monthly',[{v:'bars',i:'cbars',t:'Grouped bars'},{v:'line',i:'cline',t:'Line'},{v:'area',i:'carea',t:'Area'}],mStyle);
+  var chartBlk='<div class="card"><div class="card-head"><h3>Monthly performance</h3><span class="spacer"></span>'+(hasData?mTabs:'')+'</div>';
   if(hasData){
-    chartBlk+='<div class="chart-box">'+svgBarChart(months6,mm)+'</div>'+
+    chartBlk+='<div class="chart-box">'+svgSeries(months6,mm,mStyle)+'</div>'+
       '<div class="legend"><span><span class="dot" style="background:var(--income)"></span>Revenue</span><span><span class="dot" style="background:var(--expense)"></span>Expenses</span></div>';
   } else {
     chartBlk+=emptyState('metrics','No data to chart','Your monthly revenue vs expenses chart appears here once you log entries.');
@@ -3445,13 +3648,19 @@ function viewDashboard(){
   }
   goalsBlk+='</div>';
   var bestInc=topCategory('income'), bigExp=topCategory('expense');
-  var catBlk='<div class="card"><div class="card-head"><h3>Category leaders</h3></div>';
+  var expCats0=categoryMap('expense');
+  var catEntries0=Object.keys(expCats0).map(function(k){return {label:k,value:expCats0[k]};}).sort(function(a,b){return b.value-a.value;}).slice(0,6);
+  var catStyle=chartStyleGet('cats','donut');
+  var catTabs=catEntries0.length?chartToolbar('cats',[{v:'donut',i:'cdonut',t:'Donut'},{v:'bars',i:'clist',t:'Bars'}],catStyle):'';
+  var catBlk='<div class="card"><div class="card-head"><h3>Category leaders</h3><span class="spacer"></span>'+catTabs+'</div>';
   if(bestInc||bigExp){
     if(bestInc) catBlk+='<div class="list-row"><span class="badge good">'+icon('arrowur')+' Best earner</span><div style="flex:1;min-width:0"><b style="font-size:.88rem">'+esc(bestInc.name)+'</b></div><span class="num" style="font-weight:700">'+fmtMoney(bestInc.amount)+'</span></div>';
     if(bigExp) catBlk+='<div class="list-row"><span class="badge risk">'+icon('arrowdr')+' Biggest cost</span><div style="flex:1;min-width:0"><b style="font-size:.88rem">'+esc(bigExp.name)+'</b></div><span class="num" style="font-weight:700">'+fmtMoney(bigExp.amount)+'</span></div>';
-    var expCats=categoryMap('expense');
-    var entries=Object.keys(expCats).map(function(k){return {label:k,value:expCats[k]};}).sort(function(a,b){return b.value-a.value;}).slice(0,6);
-    if(entries.length) catBlk+='<div style="display:flex;gap:16px;align-items:center;margin-top:12px;flex-wrap:wrap">'+svgDonut(entries,110)+'<div class="legend" style="flex-direction:column;gap:4px;margin-top:0">'+donutLegend(entries)+'</div></div>';
+    var entries=catEntries0;
+    if(entries.length){
+      if(catStyle==='bars') catBlk+='<div class="chart-box" style="margin-top:14px">'+catBarsHTML(entries)+'</div>';
+      else catBlk+='<div class="chart-box" style="display:flex;gap:16px;align-items:center;margin-top:12px;flex-wrap:wrap">'+svgDonut(entries,110)+'<div class="legend" style="flex-direction:column;gap:4px;margin-top:0">'+donutLegend(entries)+'</div></div>';
+    }
   } else {
     catBlk+=emptyState('pie','No categories yet','Best income source and biggest expense show up here automatically.');
   }
@@ -4362,7 +4571,9 @@ function financeMonthlyHTML(){
   var mm=monthlyMap(), months=sortedMonths();
   if(!months.length) return '<div class="card">'+emptyState('metrics','No monthly data yet','Add dated entries to see the month-by-month breakdown.')+'</div>';
   var shown=months.slice(-12);
-  var html='<div class="card"><div class="card-head"><h3>Revenue vs expenses by month</h3></div><div class="chart-box">'+svgBarChart(shown.length>=6?shown.slice(-6):lastNMonths(6),mm)+'</div>'+
+  var fmStyle=chartStyleGet('monthly','bars');
+  var fmTabs=chartToolbar('monthly',[{v:'bars',i:'cbars',t:'Grouped bars'},{v:'line',i:'cline',t:'Line'},{v:'area',i:'carea',t:'Area'}],fmStyle);
+  var html='<div class="card"><div class="card-head"><h3>Revenue vs expenses by month</h3><span class="spacer"></span>'+fmTabs+'</div><div class="chart-box">'+svgSeries(shown.length>=6?shown.slice(-6):lastNMonths(6),mm,fmStyle)+'</div>'+
     '<div class="legend"><span><span class="dot" style="background:var(--income)"></span>Revenue</span><span><span class="dot" style="background:var(--expense)"></span>Expenses</span></div></div>';
   html+='<div class="card mt"><div class="table-wrap"><table><thead><tr><th>Month</th><th style="text-align:right">Revenue</th><th style="text-align:right">Expenses</th><th style="text-align:right">Profit</th><th style="text-align:right">Margin</th><th>Trend</th></tr></thead><tbody>';
   shown.slice().reverse().forEach(function(k,idx,arr){
@@ -4387,7 +4598,12 @@ function financeCategoriesHTML(){
     var keys=Object.keys(map).sort(function(a,b){return map[b]-map[a];});
     if(!keys.length) return emptyState('pie','No '+type+' categories','Categorized entries appear here with their share.');
     var entries=keys.map(function(k){return {label:k,value:map[k]};});
-    var html='<div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin-bottom:16px">'+svgDonut(entries.slice(0,8),130)+'<div class="legend" style="flex-direction:column;gap:4px;margin-top:0">'+donutLegend(entries.slice(0,8))+'</div></div>';
+    var top=entries.slice(0,8), cStyle=chartStyleGet('cats','donut');
+    var cTabs='<div style="display:flex;justify-content:flex-end;margin-bottom:8px">'+chartToolbar('cats',[{v:'donut',i:'cdonut',t:'Donut'},{v:'bars',i:'clist',t:'Bars'}],cStyle)+'</div>';
+    var chartInner=(cStyle==='bars')?
+      '<div class="chart-box">'+catBarsHTML(top)+'</div>':
+      '<div class="chart-box" style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">'+svgDonut(top,130)+'<div class="legend" style="flex-direction:column;gap:4px;margin-top:0">'+donutLegend(top)+'</div></div>';
+    var html=cTabs+'<div style="margin-bottom:16px">'+chartInner+'</div>';
     keys.forEach(function(k){
       var pct=total>0?map[k]/total*100:0;
       html+='<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:.84rem"><span>'+esc(k)+'</span><b class="num">'+fmtMoney(map[k])+' · '+fmtPct(pct,0)+'</b></div>'+
@@ -7433,6 +7649,9 @@ document.addEventListener('click',function(e){
   if(!el) return;
   var action=el.getAttribute('data-action');
   var id=el.getAttribute('data-id');
+
+  /* charts: switch the graph style the user wants to see */
+  if(action==='chart-style'){ chartStyleSet(el.getAttribute('data-chart'), el.getAttribute('data-style')); render(); return; }
 
   /* navigation & shell */
   if(action==='nav'){ nav(el.getAttribute('data-route')); islandCloseAll(); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); document.body.classList.remove('drawer-open'); return; }
@@ -12745,6 +12964,7 @@ function islandScrollSync(){
 function bootApp(){
   try{ console.info('Trakora build', APP_BUILD); }catch(_){}
   var _m=byId('main'); if(_m) _m.addEventListener('scroll', islandScrollSync, {passive:true});
+  installChartHover();
   if(hasLock() && !sessionUnlocked){ applyTheme(); renderLockScreen(); return; }
   processRecurring();
   processRecurringInvoices();
