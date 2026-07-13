@@ -921,7 +921,9 @@ tr:hover .row-actions{opacity:1}
 .ring .ring-label b{font-size:1.5rem;font-weight:800;letter-spacing:-.03em;line-height:1}
 .ring .ring-label span{font-size:.64rem;color:var(--text-3);text-transform:uppercase;letter-spacing:.1em;font-weight:700;margin-top:3px}
 .ring svg circle.track{stroke:var(--bg-sunken)}
-.ring svg circle.val{transition:stroke-dashoffset 1s var(--ease)}
+.ring svg circle.val{transition:stroke-dashoffset 1s var(--ease);animation:cRingIn .9s var(--ease) backwards}
+@keyframes cRingIn{from{stroke-dashoffset:var(--c0,0)}}
+@media (prefers-reduced-motion:reduce){.ring svg circle.val{animation:none}}
 
 /* charts */
 .chart-box{width:100%;overflow:visible}
@@ -932,17 +934,18 @@ tr:hover .row-actions{opacity:1}
 /* ---- interactive chart engine ---- */
 .chart-tabs{display:inline-flex;gap:2px;padding:3px;border-radius:11px;background:var(--bg-sunken,#f0f0ec);border:1px solid var(--border)}
 .chart-tab{display:inline-grid;place-items:center;width:30px;height:26px;border:0;border-radius:8px;background:transparent;color:var(--text-3);cursor:pointer;transition:background .16s var(--ease),color .16s var(--ease),transform .12s var(--ease-snappy)}
-.chart-tab:hover{color:var(--text-1);background:var(--surface,rgba(0,0,0,.04))}
+.chart-tab:hover{color:var(--text-1);background:color-mix(in srgb,var(--text-1) 7%,transparent)}
 .chart-tab:active{transform:scale(.92)}
-.chart-tab.on{background:var(--card,#fff);color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.chart-tab.on{background:var(--bg-card);color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.12)}
 .chart-tab svg{width:15px;height:15px}
 
-/* floating hover tooltip (shared singleton) */
+/* floating hover tooltip (shared singleton) — always a dark surface with white text,
+   independent of theme (like Linear/Notion tooltips), so contrast never inverts */
 .chart-tip{position:fixed;left:0;top:0;z-index:400;pointer-events:none;min-width:120px;max-width:240px;
-  padding:9px 11px;border-radius:12px;background:var(--mat-float-bg,rgba(24,24,28,.92));color:#fff;
-  -webkit-backdrop-filter:var(--mat-float-blur,blur(10px));backdrop-filter:var(--mat-float-blur,blur(10px));
-  border:1px solid var(--mat-border,rgba(255,255,255,.14));box-shadow:0 8px 28px rgba(0,0,0,.28);
-  font-size:.74rem;line-height:1.35;opacity:0;transform:translateY(4px);transition:opacity .13s var(--ease);will-change:transform}
+  padding:9px 11px;border-radius:12px;background:rgba(21,22,26,.94);color:#fff;
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,.14);box-shadow:0 8px 28px rgba(0,0,0,.28);
+  font-size:.74rem;line-height:1.35;opacity:0;transition:opacity .13s var(--ease);will-change:transform}
 .chart-tip.show{opacity:1}
 .chart-tip .ct-h{font-weight:800;font-size:.76rem;margin-bottom:5px;letter-spacing:.01em}
 .chart-tip .ct-r{display:flex;align-items:center;gap:7px;margin-top:3px;white-space:nowrap}
@@ -967,7 +970,7 @@ tr:hover .row-actions{opacity:1}
 .c-svg .c-line.c-rev{stroke:var(--income)}
 .c-svg .c-line.c-exp{stroke:var(--expense);animation-delay:.1s}
 .c-svg .c-area{animation:cFade .7s var(--ease) .2s backwards}
-.c-svg .c-dot{stroke:var(--card,#fff);stroke-width:1.6;opacity:0;transition:opacity .14s var(--ease)}
+.c-svg .c-dot{stroke:var(--bg-card);stroke-width:1.6;opacity:0;transition:opacity .14s var(--ease)}
 .c-svg .c-dot.c-rev{fill:var(--income)}
 .c-svg .c-dot.c-exp{fill:var(--expense)}
 .c-svg .c-pt:hover .c-dot{opacity:1}
@@ -2073,7 +2076,7 @@ var ICONS = {
   pie:'<path d="M21.21 15.89A10 10 0 118 2.83"/><path d="M22 12A10 10 0 0012 2v10z"/>',
   cbars:'<path d="M3 21h18"/><rect x="5" y="10" width="3.4" height="9" rx="1"/><rect x="10.3" y="5" width="3.4" height="14" rx="1"/><rect x="15.6" y="13" width="3.4" height="6" rx="1"/>',
   cline:'<path d="M3 3v18h18"/><path d="M6 15l4-4 3 2 5-7"/>',
-  carea:'<path d="M3 3v18h18"/><path d="M6 14l4-4 3 2 5-6v9H6z" fill="currentColor" fill-opacity="0.18"/><path d="M6 14l4-4 3 2 5-6"/>',
+  carea:'<path d="M3 3v18h18"/><path d="M6 14l4-4 3 2 5-6v9H6z" fill="currentColor" fill-opacity="0.4" stroke="none"/><path d="M6 14l4-4 3 2 5-6"/>',
   cdonut:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.4"/>',
   clist:'<path d="M8 6h13M8 12h13M8 18h13"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
   alert:'<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/>',
@@ -2871,7 +2874,7 @@ var CHART_PALETTE=['#4653e8','#7c5cd6','#c2417f','#a85900','#0c7d5c','#2c69c8','
 var _chartUID=0;
 /* per-chart style choice, persisted so the user's preferred graph sticks */
 function chartStyleGet(key,def){ var s=(state.settings&&state.settings.chartStyles)||{}; return s[key]||def; }
-function chartStyleSet(key,v){ state.settings.chartStyles=state.settings.chartStyles||{}; state.settings.chartStyles[key]=v; if(typeof save==='function') save(); }
+function chartStyleSet(key,v){ if(!state.settings||typeof state.settings!=='object') state.settings={}; state.settings.chartStyles=(state.settings.chartStyles&&typeof state.settings.chartStyles==='object')?state.settings.chartStyles:{}; state.settings.chartStyles[key]=v; if(typeof save==='function') save(); }
 /* segmented control letting the user pick which graph style to see */
 function chartToolbar(key,opts,cur){
   return '<div class="chart-tabs" role="group" aria-label="Chart style">'+opts.map(function(o){
@@ -2888,17 +2891,31 @@ function moneyShort(n){
   else s=String(Math.round(a));
   return (n<0?'−':'')+sym+s;
 }
-/* encode tooltip HTML so it survives inside a double-quoted attribute (tags stay live) */
-function ctipAttr(html){ return String(html).replace(/"/g,'&quot;'); }
+/* tooltip payload is structured JSON (NEVER HTML) — user text is rendered with textContent,
+   so a category named "><img onerror=…> can never become live markup (attribute decode +
+   innerHTML round-trips are the classic double-decode XSS; we avoid the sink entirely) */
+function ctipData(head,rows){ return esc(JSON.stringify({h:head,r:rows})); }
 
 /* floating tooltip singleton + one delegated listener for every chart on the page */
 var _chartTip=null;
 function chartTipEl(){ if(!_chartTip){ _chartTip=document.createElement('div'); _chartTip.className='chart-tip'; _chartTip.id='chart-tip'; document.body.appendChild(_chartTip); } return _chartTip; }
-function chartTipShow(html,x,y){
-  var t=chartTipEl(); t.innerHTML=html; t.classList.add('show');
-  var w=t.offsetWidth||160, h=t.offsetHeight||60, vw=window.innerWidth||1200;
+function chartTipShow(json,x,y){
+  var data; try{ data=typeof json==='string'?JSON.parse(json):json; }catch(_){ return; }
+  if(!data) return;
+  var t=chartTipEl(); t.textContent='';
+  if(data.h){ var hd=document.createElement('div'); hd.className='ct-h'; hd.textContent=data.h; t.appendChild(hd); }
+  (data.r||[]).forEach(function(r){
+    var row=document.createElement('div'); row.className='ct-r'+(r.net?' ct-net':'');
+    var chip=document.createElement('i'); if(r.c&&/^[-a-z0-9#(),.%\s]+$/i.test(r.c)) chip.style.background=r.c; row.appendChild(chip);
+    var s=document.createElement('span'); s.textContent=r.s==null?'':r.s; row.appendChild(s);
+    var b=document.createElement('b'); b.textContent=r.b==null?'':r.b; row.appendChild(b);
+    t.appendChild(row);
+  });
+  t.classList.add('show');
+  var w=t.offsetWidth||160, h=t.offsetHeight||60, vw=window.innerWidth||1200, vh=window.innerHeight||800;
   var left=x-w/2; if(left<8) left=8; if(left+w>vw-8) left=vw-8-w;
   var top=y-h-14; if(top<8) top=y+18;
+  if(top+h>vh-8) top=Math.max(8,vh-8-h);
   t.style.transform='translate('+Math.round(left)+'px,'+Math.round(top)+'px)';
 }
 function chartTipHide(){ if(_chartTip) _chartTip.classList.remove('show'); }
@@ -2907,12 +2924,17 @@ function installChartHover(){
   if(_chartHoverWired) return; _chartHoverWired=true;
   document.addEventListener('pointermove',function(e){
     var t=e.target; if(!t||!t.closest){ return; }
-    if(!t.closest('.chart-box')){ if(_chartTip&&_chartTip.classList.contains('show')) chartTipHide(); return; }
     var hot=t.closest('[data-ctip]');
     if(hot){ chartTipShow(hot.getAttribute('data-ctip'), e.clientX, e.clientY); }
+    else if(_chartTip&&_chartTip.classList.contains('show')) chartTipHide();
+  },{passive:true});
+  // touch: a tap on a chart mark PINS the tooltip (touch users get the data too);
+  // tapping anywhere else dismisses it
+  document.addEventListener('pointerdown',function(e){
+    var t=e.target, hot=t&&t.closest&&t.closest('[data-ctip]');
+    if(hot) chartTipShow(hot.getAttribute('data-ctip'), e.clientX, e.clientY);
     else chartTipHide();
   },{passive:true});
-  document.addEventListener('pointerdown',function(e){ if(!(e.target&&e.target.closest&&e.target.closest('.chart-box'))) chartTipHide(); },{passive:true});
 }
 
 /* Monthly series — style: 'bars' (grouped) | 'line' | 'area' */
@@ -2947,12 +2969,12 @@ function svgSeries(months,mm,style,w,h){
   }
   months.forEach(function(k,i){
     var d=mm[k]||{revenue:0,expenses:0}, rev=d.revenue||0, exp=d.expenses||0, net=rev-exp;
-    var tip='<div class="ct-h">'+esc(monthLabel(k))+'</div>'+
-      '<div class="ct-r"><i style="background:var(--income)"></i><span>Revenue</span><b>'+esc(fmtMoney(rev))+'</b></div>'+
-      '<div class="ct-r"><i style="background:var(--expense)"></i><span>Expenses</span><b>'+esc(fmtMoney(exp))+'</b></div>'+
-      '<div class="ct-r ct-net"><i style="background:var(--accent)"></i><span>Profit</span><b>'+esc(fmtMoney(net))+'</b></div>';
+    var tip=ctipData(monthLabel(k),[
+      {c:'var(--income)',s:'Revenue',b:fmtMoney(rev)},
+      {c:'var(--expense)',s:'Expenses',b:fmtMoney(exp)},
+      {c:'var(--accent)',s:'Profit',b:fmtMoney(net),net:1}]);
     var gx=(pad.l+slot*i).toFixed(1);
-    cols+='<g class="c-pt" data-ctip="'+ctipAttr(tip)+'">'+
+    cols+='<g class="c-pt" data-ctip="'+tip+'">'+
       '<rect class="c-col" x="'+gx+'" y="'+pad.t+'" width="'+slot.toFixed(1)+'" height="'+ih+'" rx="6"/>'+
       '<line class="c-guide" x1="'+X(i).toFixed(1)+'" y1="'+pad.t+'" x2="'+X(i).toFixed(1)+'" y2="'+(pad.t+ih).toFixed(1)+'"/>';
     if(style==='bars'){
@@ -2977,8 +2999,8 @@ function svgDonut(entries,size){
   var r=size/2-14, c=size/2, circ=2*Math.PI*r, off=0, sw=size>150?18:14, segs='';
   entries.forEach(function(e,i){
     var frac=e.value/total, dash=Math.max(0,frac*circ-2), col=CHART_PALETTE[i%CHART_PALETTE.length];
-    var tip='<div class="ct-h">'+esc(e.label)+'</div><div class="ct-r"><i style="background:'+col+'"></i><span>'+esc(fmtMoney(e.value))+'</span><b>'+esc(fmtPct(frac*100,0))+'</b></div>';
-    segs+='<circle class="c-seg" cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+col+'" stroke-width="'+sw+'" stroke-dasharray="'+dash.toFixed(2)+' '+(circ-dash).toFixed(2)+'" stroke-dashoffset="'+(-off*circ).toFixed(2)+'" transform="rotate(-90 '+c+' '+c+')" data-ctip="'+ctipAttr(tip)+'" style="animation-delay:'+(i*0.06).toFixed(3)+'s"/>';
+    var tip=ctipData(e.label,[{c:col,s:fmtMoney(e.value),b:fmtPct(frac*100,0)}]);
+    segs+='<circle class="c-seg" cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+col+'" stroke-width="'+sw+'" stroke-dasharray="'+dash.toFixed(2)+' '+(circ-dash).toFixed(2)+'" stroke-dashoffset="'+(-off*circ).toFixed(2)+'" transform="rotate(-90 '+c+' '+c+')" data-ctip="'+tip+'" style="animation-delay:'+(i*0.06).toFixed(3)+'s"/>';
     off+=frac;
   });
   var center='<text class="c-dnum" x="'+c+'" y="'+(c-1)+'" text-anchor="middle">'+esc(moneyShort(total))+'</text>'+
@@ -2992,8 +3014,8 @@ function catBarsHTML(entries){
   var total=sum(entries,function(e){return e.value;})||1;
   return '<div class="cat-bars">'+entries.map(function(e,i){
     var col=CHART_PALETTE[i%CHART_PALETTE.length], pct=e.value/total*100;
-    var tip='<div class="ct-h">'+esc(e.label)+'</div><div class="ct-r"><i style="background:'+col+'"></i><span>'+esc(fmtMoney(e.value))+'</span><b>'+esc(fmtPct(pct,0))+'</b></div>';
-    return '<div class="cat-bar" data-ctip="'+ctipAttr(tip)+'">'+
+    var tip=ctipData(e.label,[{c:col,s:fmtMoney(e.value),b:fmtPct(pct,0)}]);
+    return '<div class="cat-bar" data-ctip="'+tip+'">'+
       '<div class="cb-top"><span class="cb-name">'+esc(e.label)+'</span><b class="num">'+esc(fmtMoney(e.value))+'</b></div>'+
       '<div class="cb-track"><div class="cb-fill" style="--cbw:'+(e.value/max*100).toFixed(1)+'%;background:'+col+';animation-delay:'+(i*0.05).toFixed(3)+'s"></div></div></div>';
   }).join('')+'</div>';
@@ -3004,7 +3026,7 @@ function donutLegend(entries){
     return '<span><span class="dot" style="background:'+CHART_PALETTE[i%CHART_PALETTE.length]+'"></span>'+esc(e.label)+' · <b>'+fmtPct(e.value/total*100,0)+'</b></span>';
   }).join('');
 }
-function svgSparkline(values,w,h,color){
+function svgSparkline(values,w,h,color,label){
   w=w||90;h=h||30;
   if(!values||values.length<2) return '';
   var max=Math.max.apply(null,values), min=Math.min.apply(null,values); if(max===min){max=min+1;}
@@ -3013,7 +3035,12 @@ function svgSparkline(values,w,h,color){
   var line=pts.map(function(p){return p[0].toFixed(1)+','+p[1].toFixed(1);}).join(' ');
   var last=pts[pts.length-1];
   var area='M'+pts[0][0].toFixed(1)+','+(h-1)+' '+pts.map(function(p){return 'L'+p[0].toFixed(1)+','+p[1].toFixed(1);}).join(' ')+' L'+last[0].toFixed(1)+','+(h-1)+' Z';
-  return '<svg viewBox="0 0 '+w+' '+h+'" class="c-spark" style="width:'+w+'px;height:'+h+'px"><defs><linearGradient id="'+uid+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+col+'" stop-opacity="0.22"/><stop offset="1" stop-color="'+col+'" stop-opacity="0"/></linearGradient></defs>'+
+  var vmax=Math.max.apply(null,values), vmin=Math.min.apply(null,values);
+  var tipAttr=label?' data-ctip="'+ctipData(label,[
+    {c:col,s:'Latest',b:fmtMoney(values[values.length-1])},
+    {c:col,s:'High',b:fmtMoney(vmax)},
+    {c:col,s:'Low',b:fmtMoney(vmin)}])+'"':'';
+  return '<svg viewBox="0 0 '+w+' '+h+'" class="c-spark" style="width:'+w+'px;height:'+h+'px"'+tipAttr+'><defs><linearGradient id="'+uid+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+col+'" stop-opacity="0.22"/><stop offset="1" stop-color="'+col+'" stop-opacity="0"/></linearGradient></defs>'+
     '<path class="c-spark-area" d="'+area+'" fill="url(#'+uid+')"/>'+
     '<polyline class="c-spark-line" points="'+line+'" fill="none" stroke="'+col+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" pathLength="100"/>'+
     '<circle class="c-spark-dot" cx="'+last[0].toFixed(1)+'" cy="'+last[1].toFixed(1)+'" r="2.4" fill="'+col+'"/></svg>';
@@ -3022,11 +3049,12 @@ function svgRing(pct,size,color,labelTop,labelBottom){
   size=size||120;
   var stroke=10, r=(size-stroke)/2, c=size/2, circ=2*Math.PI*r;
   var p=clamp(pct||0,0,100);
+  var uid='rg'+(++_chartUID); // unique per ring — a shared id breaks when two rings render at once
   return '<div class="ring" style="width:'+size+'px;height:'+size+'px">'+
     '<svg viewBox="0 0 '+size+' '+size+'" style="width:'+size+'px;height:'+size+'px">'+
       '<circle class="track" cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke-width="'+stroke+'"/>'+
-      '<circle class="val" cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+(color||'url(#ringGrad)')+'" stroke-width="'+stroke+'" stroke-linecap="round" stroke-dasharray="'+circ+'" stroke-dashoffset="'+(circ*(1-p/100))+'" transform="rotate(-90 '+c+' '+c+')"/>'+
-      '<defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--accent-cta,#4653e8)"/><stop offset="1" style="stop-color:color-mix(in srgb,var(--accent-cta,#4653e8) 82%,#000)"/></linearGradient></defs>'+
+      '<circle class="val" cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+(color||'url(#'+uid+')')+'" stroke-width="'+stroke+'" stroke-linecap="round" stroke-dasharray="'+circ+'" stroke-dashoffset="'+(circ*(1-p/100))+'" transform="rotate(-90 '+c+' '+c+')" style="--c0:'+circ.toFixed(1)+'"/>'+
+      '<defs><linearGradient id="'+uid+'" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--accent-cta,#4653e8)"/><stop offset="1" style="stop-color:color-mix(in srgb,var(--accent-cta,#4653e8) 82%,#000)"/></linearGradient></defs>'+
     '</svg>'+
     '<div class="ring-label"><b>'+esc(labelTop)+'</b><span>'+esc(labelBottom||'')+'</span></div></div>';
 }
@@ -3562,9 +3590,9 @@ function viewDashboard(){
     (g>=0?'<span class="stat-delta up">'+icon('up')+' '+fmtPct(g)+' MoM</span>':'<span class="stat-delta down">'+icon('down')+' '+fmtPct(Math.abs(g))+' MoM</span>');
   var W={};
 
-  W.rev=statCard('Total revenue',fmtMoney(t.revenue),deltaHTML,svgSparkline(revSeries,90,30,'var(--income)'),'arrowur');
-  W.exp=statCard('Total expenses',fmtMoney(t.expenses),'<span class="stat-delta '+(t.expenseRatio!=null&&isFinite(t.expenseRatio)&&t.expenseRatio>70?'down':'flat')+'">'+(t.expenseRatio!=null&&isFinite(t.expenseRatio)?fmtPct(t.expenseRatio,0)+' of revenue':'—')+'</span>',svgSparkline(expSeries,90,30,'var(--expense)'),'arrowdr');
-  W.prof=statCard('Net profit',fmtMoney(t.profit),'<span class="stat-delta '+(t.profit>=0?'up':'down')+'">'+(t.profit>=0?'Profitable':'Loss')+'</span>',svgSparkline(profSeries,90,30,'var(--accent)'),'wallet');
+  W.rev=statCard('Total revenue',fmtMoney(t.revenue),deltaHTML,svgSparkline(revSeries,90,30,'var(--income)','Revenue — last 6 months'),'arrowur');
+  W.exp=statCard('Total expenses',fmtMoney(t.expenses),'<span class="stat-delta '+(t.expenseRatio!=null&&isFinite(t.expenseRatio)&&t.expenseRatio>70?'down':'flat')+'">'+(t.expenseRatio!=null&&isFinite(t.expenseRatio)?fmtPct(t.expenseRatio,0)+' of revenue':'—')+'</span>',svgSparkline(expSeries,90,30,'var(--expense)','Expenses — last 6 months'),'arrowdr');
+  W.prof=statCard('Net profit',fmtMoney(t.profit),'<span class="stat-delta '+(t.profit>=0?'up':'down')+'">'+(t.profit>=0?'Profitable':'Loss')+'</span>',svgSparkline(profSeries,90,30,'var(--accent)','Profit — last 6 months'),'wallet');
   W.margin=statCard('Profit margin',fmtPct(t.margin),'<span class="stat-delta '+(t.margin==null?'flat':(t.margin>=30?'up':(t.margin>=10?'flat':'down')))+'">'+(t.margin==null?'No revenue yet':(t.margin>=30?'Healthy':(t.margin>=10?'Thin':'Critical')))+'</span>','','pie');
 
   /* health + monthly chart */

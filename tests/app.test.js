@@ -1559,10 +1559,21 @@ async function main() {
       ok('svgSeries line renders a draw-animated polyline (pathLength)', /class="c-line c-rev"/.test(line) && /pathLength="100"/.test(line) && !/c-bar/.test(line));
       ok('svgSeries area renders a gradient fill under the line', /class="c-area"/.test(area) && /linearGradient/.test(area));
       ok('every series style carries per-column hover tooltips', (bars.match(/data-ctip=/g) || []).length === 3 && /class="c-pt"/.test(line));
-      // tooltip payload is real HTML that survives the attribute encoding
+      // tooltip payload is structured JSON — never HTML — so it parses clean after attribute decode
       var tipHost = d.createElement('div'); tipHost.innerHTML = '<svg>' + bars + '</svg>';
       var pt = tipHost.querySelector('[data-ctip]');
-      ok('tooltip attribute decodes back to live HTML (Revenue/Profit rows)', pt && /<div class="ct-h">/.test(pt.getAttribute('data-ctip')) && /Profit/.test(pt.getAttribute('data-ctip')));
+      var parsed = null; try { parsed = JSON.parse(pt.getAttribute('data-ctip')); } catch (_) {}
+      ok('tooltip attribute is parseable JSON with Revenue/Profit rows', !!parsed && parsed.r && parsed.r.length === 3 && parsed.r[2].s === 'Profit');
+      // SECURITY: a hostile category name can never become live markup in the tooltip
+      var evil = '"><img src=x onerror="window.__ctipPwned=1">';
+      var evilDonut = window.svgDonut([{ label: evil, value: 500 }, { label: 'Ads', value: 300 }], 120);
+      var evilHost = d.createElement('div'); evilHost.innerHTML = evilDonut;
+      var evilSeg = evilHost.querySelector('[data-ctip]');
+      window.chartTipShow(evilSeg.getAttribute('data-ctip'), 100, 100);
+      var tipNow = d.getElementById('chart-tip');
+      ok('hostile category name renders as text, not markup (XSS regression)',
+        !tipNow.querySelector('img') && !window.__ctipPwned && tipNow.textContent.indexOf('<img') !== -1);
+      window.chartTipHide();
       // donut + category bars are interchangeable and both animate + tooltip
       var donut = window.svgDonut([{ label: 'Rent', value: 500 }, { label: 'Ads', value: 300 }], 120);
       ok('donut renders animated hoverable segments + center total', /class="c-seg"/.test(donut) && /data-ctip=/.test(donut) && /class="c-dnum"/.test(donut));
@@ -1571,6 +1582,13 @@ async function main() {
       // upgraded sparkline draws itself in with a gradient area
       var spark = window.svgSparkline([1, 3, 2, 5, 4], 90, 30, 'var(--income)');
       ok('sparkline is animated (draw + gradient area + endpoint)', /class="c-spark-line"/.test(spark) && /class="c-spark-area"/.test(spark) && /pathLength="100"/.test(spark));
+      var sparkLbl = window.svgSparkline([1, 3, 2], 90, 30, 'var(--income)', 'Revenue trend');
+      ok('labelled sparkline carries a Latest/High/Low tooltip', /data-ctip=/.test(sparkLbl) && /Latest/.test(sparkLbl));
+      // health ring draws itself in (unique gradient id + --c0 keyframe start)
+      var ring = window.svgRing(72, 120, null, '72', '/ 100');
+      ok('health ring has draw-in start + per-ring gradient id', /--c0:/.test(ring) && !/id="ringGrad"/.test(ring) && /id="rg\d/.test(ring));
+      // the floating tooltip surface is theme-independent dark (light-mode contrast bug regression)
+      ok('tooltip surface is always-dark (never white-on-white in light mode)', /\.chart-tip\{[^}]*background:rgba\(21,22,26/.test(html));
 
       // the style picker actually switches what the user sees, and it persists
       window.location.hash = '#/dashboard'; window.render();
