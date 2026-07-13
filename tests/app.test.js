@@ -1617,6 +1617,71 @@ async function main() {
       window.state.settings.monthlyTarget = 100000; window.render();
     })();
 
+    // ---------- assistant · conversational layer (offline, no AI) ----------
+    await (async function () {
+      const send = async (msg) => {
+        d.getElementById('asst-input').value = msg;
+        click(d.querySelector('[data-action="assistant-send"]'));
+        await wait(15);
+      };
+      const lastBot = () => { const b = window.state.chat.filter(m => m.role === 'bot'); return b[b.length - 1] || {}; };
+      window.state.chat = []; window.state.assistant = { terms: {} };
+      window.location.hash = '#/assistant'; window.render();
+
+      // small talk feels human
+      await send('hello');
+      ok('assistant answers small talk (hi)', /what happened|tell me|log/i.test(lastBot().text || ''), lastBot().text);
+      await send('thanks!');
+      ok('assistant answers small talk (thanks)', /anytime|got it|walang anuman/i.test(lastBot().text || ''), lastBot().text);
+
+      // answers questions about the data — fully offline
+      window.state.finance.push({ id: 'q1', type: 'expense', amount: 2000, date: window.todayISO(), category: 'Transport', note: '' });
+      window.state.finance.push({ id: 'q2', type: 'income', amount: 9000, date: window.todayISO(), category: 'Sales', note: '' });
+      const mk = window.todayISO().slice(0, 7);
+      const mSum = (t) => window.state.finance.filter(e => e.type === t && e.date >= mk + '-01' && e.date <= window.todayISO()).reduce((a, e) => a + e.amount, 0);
+      const fmt = (n) => window.fmtMoney(n).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      await send('How much did I spend this month?');
+      ok('assistant answers "how much did I spend"', /spent/i.test(lastBot().text || '') && new RegExp(fmt(mSum('expense'))).test(lastBot().text || ''), lastBot().text);
+      await send('how much did I earn this month?');
+      ok('assistant answers "how much did I earn"', /earned/i.test(lastBot().text || '') && new RegExp(fmt(mSum('income'))).test(lastBot().text || ''), lastBot().text);
+      await send('what is my profit?');
+      ok('assistant answers profit with margin', /up|down/i.test(lastBot().text || '') && new RegExp(fmt(Math.abs(mSum('income') - mSum('expense')))).test(lastBot().text || ''), lastBot().text);
+      window.state.invoices.push({ id: 'qi1', number: 'INV-900', client: 'Slowpay Inc', amount: 4500, status: 'Pending', issueDate: window.todayISO(), dueDate: '', currency: 'PHP', fxRate: 1, createdAt: window.todayISO() });
+      await send('who owes me money?');
+      ok('assistant lists receivables', /owed/i.test(lastBot().text || '') && /Slowpay/.test(lastBot().text || ''), lastBot().text);
+
+      // human follow-up: missing amount → assistant asks, chat answer fills the draft
+      await send('bought supplies from the hardware store');
+      ok('assistant asks for the missing amount', /how much/i.test(lastBot().text || ''), lastBot().text);
+      const draft = window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).slice(-1)[0];
+      ok('a draft preview exists while it asks', !!draft && draft.parsed.amount == null);
+      await send('850');
+      ok('plain-number reply fills the amount slot', draft.parsed.amount === 850, draft.parsed.amount);
+      // saying "yes" in chat confirms the draft — no button needed
+      const finBefore = window.state.finance.length;
+      window.render(); await send('yes');
+      await waitFor(() => window.state.finance.length === finBefore + 1);
+      ok('typing "yes" logs the completed draft', window.state.finance[window.state.finance.length - 1].amount === 850);
+      ok('post-log reply reads back month-to-date numbers', /this month|month-to-date/i.test(lastBot().text || ''), lastBot().text);
+
+      // follow-up question for a missing invoice client, answered in chat
+      await send('make an invoice for 12000');
+      ok('assistant asks who to bill', /who/i.test(lastBot().text || ''), lastBot().text);
+      await send('Dela Cruz Trading');
+      const invDraft = window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).slice(-1)[0];
+      ok('client-name reply fills the invoice draft', invDraft && invDraft.parsed.client === 'Dela Cruz Trading', invDraft && invDraft.parsed.client);
+      // "no" in chat discards the active draft
+      window.render(); await send('no');
+      ok('typing "no" discards the draft', window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).length === 0);
+
+      // a full new entry mid-conversation is not mistaken for a slot answer
+      await send('spent 300 on grab');
+      const fresh = window.state.chat.filter(m => m.kind === 'preview' && !m.resolved).slice(-1)[0];
+      ok('complete sentence starts a fresh draft (not a slot answer)', fresh && fresh.parsed.amount === 300 && fresh.parsed.category === 'Transport');
+      window.render(); await send('yes'); // clean up
+      window.state.chat = []; window.state.assistant.ctx = null;
+    })();
+
     // ---------- charts · interactive, animated, multi-style ----------
     (function () {
       var mm = { '2026-01': { revenue: 1000, expenses: 400 }, '2026-02': { revenue: 1500, expenses: 600 }, '2026-03': { revenue: 900, expenses: 700 } };

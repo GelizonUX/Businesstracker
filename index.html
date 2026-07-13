@@ -2351,7 +2351,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
-var APP_BUILD='2026.07.13f'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
+var APP_BUILD='2026.07.13g'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -4267,13 +4267,174 @@ function nlMatchAccount(text, accounts){
   return '';
 }
 
+/* ---- conversational layer: small talk, answers about the data, and human
+   follow-up questions that fill in whatever the first message left out.
+   Pure rules + arithmetic over local state — no AI, nothing leaves the device. ---- */
+function asstPick(arr){ return arr[(state.chat?state.chat.length:0)%arr.length]; }
+function asstBot(text,kind){ state.chat.push({id:uid(),role:'bot',kind:kind||null,text:text,ts:Date.now()}); }
+function nlSmallTalk(text){
+  var s=String(text).toLowerCase().replace(/[!.?,\s]+$/,'').trim();
+  var nm=(state.settings.displayName||'').trim();
+  if(/^(hi|hello|hey|yo|sup|kumusta|kamusta|good\s*(morning|afternoon|evening|day)|magandang\s+\w+)$/.test(s))
+    return asstPick(['Hey'+(nm?' '+nm:'')+'! What happened in the business today?',
+      'Hi'+(nm?' '+nm:'')+'! Tell me something to log, or ask me about your numbers.',
+      'Hello! I can log entries or answer things like “how much did I spend this month?”']);
+  if(/^(thanks|thank you|thank u|salamat|maraming salamat|ty|thx|tnx)$/.test(s))
+    return asstPick(['Anytime! Anything else to log?','You got it. I’m here when the next sale lands.','Walang anuman! What’s next?']);
+  if(/^(bye|goodbye|good night|goodnight|ingat|see you|cya)$/.test(s))
+    return 'See you! Everything is saved on this device.';
+  if(/^(who are you|what are you|what can you do|help|how do you work|ano kaya mo)$/.test(s))
+    return 'I’m your offline logging assistant. Tell me what you spent, earned, who to bill, a task, or a new client — I’ll draft it and ask for anything missing. You can also ask me questions like “how much did I earn this month?”, “who owes me?”, or “what’s due this week?”. Nothing ever leaves your device.';
+  if(/^(ok|okay|sige|cool|nice|great|good)$/.test(s)) return asstPick(['👍 What else?','Noted. Anything more to log?']);
+  return null;
+}
+/* time range a question refers to ("this month" default) */
+function nlRange(text,today){
+  var s=String(text).toLowerCase(); today=today||new Date();
+  function iso(d){ return nlIsoFrom(d.getFullYear(),d.getMonth(),d.getDate()); }
+  var y=today.getFullYear(), mo=today.getMonth();
+  if(/\btoday\b/.test(s)){ var t=iso(today); return {a:t,b:t,label:'today'}; }
+  if(/\byesterday\b/.test(s)){ var yv=iso(new Date(y,mo,today.getDate()-1)); return {a:yv,b:yv,label:'yesterday'}; }
+  if(/\bthis\s+week\b/.test(s)){ return {a:iso(new Date(y,mo,today.getDate()-((today.getDay()+6)%7))),b:iso(today),label:'this week'}; }
+  if(/\blast\s+month\b/.test(s)){ return {a:iso(new Date(y,mo-1,1)),b:iso(new Date(y,mo,0)),label:'last month'}; }
+  if(/\bthis\s+year\b/.test(s)) return {a:y+'-01-01',b:iso(new Date(y,11,31)),label:'this year'};
+  if(/\ball\s*time|overall|ever\b/.test(s)) return {a:'0000-01-01',b:'9999-12-31',label:'overall'};
+  return {a:iso(new Date(y,mo,1)),b:iso(today),label:'this month'};
+}
+/* answer questions about the owner's own data — spend, income, profit, top
+   categories, receivables, tasks due, goals, balances */
+function nlQuery(text,today){
+  var s=' '+String(text).toLowerCase()+' ';
+  var asks=/\?/.test(s)||/\b(how much|how many|how('| a)?m i|what|what's|whats|magkano|ilan|who owes|show me|any|do i (have|owe)|am i)\b/.test(s);
+  if(!asks) return null;
+  var r=nlRange(s,today);
+  var fin=(state.finance||[]).filter(function(e){ return e.date>=r.a&&e.date<=r.b; });
+  function tot(t){ return sum(fin.filter(function(e){return e.type===t;}),function(e){return e.amount;}); }
+  function topCat(t){
+    var m={}; fin.forEach(function(e){ if(e.type===t) m[e.category||'—']=(m[e.category||'—']||0)+e.amount; });
+    var bk=null; for(var k in m){ if(bk==null||m[k]>m[bk]) bk=k; }
+    return bk?{name:bk,amount:m[bk]}:null;
+  }
+  // receivables / who owes me
+  if(/\b(who owes|owes me|receivable|unpaid|outstanding|overdue invoice|collect|utang (sa|ng) (akin|akin)|may utang)\b/.test(s)||(/\binvoice/.test(s)&&/\bunpaid|pending|open|overdue\b/.test(s))){
+    var open=(state.invoices||[]).filter(function(i){ return i.status!=='Paid'; });
+    if(!open.length) return 'No unpaid invoices — everyone has settled up. 🎉';
+    var t=sum(open,function(i){return i.amount;});
+    var names=open.slice(0,4).map(function(i){ return i.client+' ('+fmtMoney(i.amount)+(i.status==='Overdue'?', overdue':'')+')'; }).join(', ');
+    return 'You’re owed '+fmtMoney(t)+' across '+open.length+' invoice'+(open.length>1?'s':'')+': '+names+(open.length>4?'…':'.');
+  }
+  // tasks due
+  if(/\b(what('| i)?s due|tasks? due|due (this|next|today|soon)|deadline|anything due)\b/.test(s)){
+    var due=(state.tasks||[]).filter(function(t){ var dd=daysUntil(t.deadline); return !t.done&&dd!=null&&dd<=7; })
+      .sort(function(a,b){ return (a.deadline||'').localeCompare(b.deadline||''); });
+    if(!due.length) return 'Nothing due in the next 7 days. Clear runway!';
+    return due.length+' task'+(due.length>1?'s':'')+' coming up: '+due.slice(0,4).map(function(t){ var dd=daysUntil(t.deadline); return '“'+t.title+'” ('+(dd<0?'overdue':dd===0?'today':dd+'d')+')'; }).join(', ')+(due.length>4?'…':'.');
+  }
+  // goals
+  if(/\bgoal/.test(s)){
+    var gs=(state.goals||[]).filter(function(g){return !g.done;});
+    if(!gs.length) return 'No active goals right now. Want to set one? Head to Goals.';
+    return gs.slice(0,3).map(function(g){ var gp=goalProgress(g); return '“'+g.title+'” is '+fmtPct(gp.pct,0)+' there'; }).join('; ')+'.';
+  }
+  // account balances
+  if(/\b(balance|wallet|accounts?|gcash|bank|cash on hand)\b/.test(s)&&/\bbalance|much|left|have\b/.test(s)){
+    var accs=(state.accounts||[]);
+    if(!accs.length) return 'You haven’t set up accounts yet — add them under Accounts to track balances.';
+    return 'Balances: '+accs.slice(0,5).map(function(a){ return a.name+' '+fmtMoney(accountBalance(a)); }).join(', ')+'.';
+  }
+  // clients count
+  if(/\bhow many clients?\b/.test(s)){
+    var cl=(state.clients||[]).length;
+    return cl?('You have '+cl+' client'+(cl>1?'s':'')+' on file'+((state.clients.filter(function(c){return c.status==='Lead';}).length)?' ('+state.clients.filter(function(c){return c.status==='Lead';}).length+' still leads)':'')+'.'):'No clients yet — tell me “add client …” to start.';
+  }
+  // profit
+  if(/\b(profit|net|tubo|kita net|margin)\b/.test(s)||/how('| a)?m i doing|how('|s| is) (the )?business/.test(s)){
+    var inc0=tot('income'), exp0=tot('expense'), pf=inc0-exp0;
+    if(!fin.length) return 'No entries '+r.label+' yet, so nothing to compute. Log something and ask me again!';
+    return (pf>=0?'You’re up ':'You’re down ')+fmtMoney(Math.abs(pf))+' '+r.label+' — '+fmtMoney(inc0)+' in, '+fmtMoney(exp0)+' out'+(inc0>0?' ('+fmtPct(pf/inc0*100,0)+' margin)':'')+'.';
+  }
+  // income
+  if(/\b(earn\w*|income|revenue|made|receiv\w*|kita|kumita|sales total|how much.*sold)\b/.test(s)){
+    var inc=tot('income');
+    if(inc<=0) return 'No income recorded '+r.label+'. When money lands, tell me — e.g. “received 5,000 from Acme”.';
+    var tci=topCat('income');
+    return 'You earned '+fmtMoney(inc)+' '+r.label+(tci?' — most of it from '+tci.name+' ('+fmtMoney(tci.amount)+')':'')+'.';
+  }
+  // spending
+  if(/\b(spen[dt]\w*|expens\w*|gastos|gumastos|cost me|where.*money)\b/.test(s)){
+    var exp=tot('expense');
+    if(exp<=0) return 'No expenses recorded '+r.label+'. Nice and lean — or not logged yet?';
+    var tce=topCat('expense');
+    return 'You spent '+fmtMoney(exp)+' '+r.label+(tce?' — biggest chunk: '+tce.name+' ('+fmtMoney(tce.amount)+')':'')+'.';
+  }
+  return null;
+}
+/* the one question a human bookkeeper would ask next about a half-complete draft */
+function asstQuestionFor(p){
+  if(!p||!p.intent) return null;
+  if(p.intent==='task'){
+    if(!p.title) return {slot:'title',q:'Got it — what should the task say?'};
+    if(!p.deadline&&!p.askedDeadline) return {slot:'deadline',q:'When is it due? (e.g. “Friday” or “July 30” — or say “no deadline”)',optional:true};
+    return null;
+  }
+  if(p.intent==='client'){
+    if(!p.name) return {slot:'name',q:'Sure — what’s the client’s name?'};
+    return null;
+  }
+  if(p.intent==='invoice'){
+    if(!p.client) return {slot:'client',q:'Who should I bill this to?'};
+    if(p.amount==null||p.amount<=0) return {slot:'amount',q:'How much is the invoice for?'};
+    if(!p.dueDate&&!p.askedDue) return {slot:'dueDate',q:'When should it be due? (say “no due date” to skip)',optional:true};
+    return null;
+  }
+  if(p.amount==null||p.amount<=0) return {slot:'amount',q:p.type==='income'?'Nice! How much came in?':asstPick(['How much was it?','How much did that cost?'])};
+  if((p.category==='Other expense'||p.category==='Other income')&&!p.note&&!p.askedCat)
+    return {slot:'category',q:'What was it for? I’ll file it under the right category.',optional:true};
+  return null;
+}
+/* interpret the user's reply as the answer to the slot we just asked about */
+function asstApplyAnswer(p,slot,text,today){
+  var skip=/^(no|none|skip|wala|n\/a|no deadline|no due date|later|not sure|idk|di ko alam)[!. ]*$/i.test(String(text).trim());
+  if(slot==='amount'){ var a=nlParseAmount(text); if(a==null||a<=0) return false; p.amount=a; return true; }
+  if(slot==='deadline'||slot==='dueDate'){
+    if(skip){ p[slot==='deadline'?'askedDeadline':'askedDue']=true; return true; }
+    var di=nlParseDate(text,today); if(!di) return false; p[slot]=di.iso; return true;
+  }
+  if(slot==='title'){ var t=nlTaskTitle(text)||nlCleanName(text); if(!t) return false; p.title=t; return true; }
+  if(slot==='name'||slot==='client'){
+    if(skip) return false;
+    var n=nlCleanName(String(text).replace(/^(it'?s|the client is|bill|to|for)\s+/i,'')); if(!n||nlGenericParty(n)) return false; p[slot]=n; return true;
+  }
+  if(slot==='category'){
+    if(skip){ p.askedCat=true; return true; }
+    var cat=p.type==='income'?nlIncomeCategory(text):nlExpenseCategory(text);
+    if(cat==='Other expense'||cat==='Other income'){
+      var raw=nlCleanName(text); if(raw){ cat=raw.charAt(0).toUpperCase()+raw.slice(1,24); }
+    }
+    p.category=cat; if(!p.note) p.note=nlCleanName(text)||''; p.askedCat=true; return true;
+  }
+  return false;
+}
+function asstLatestDraft(){
+  for(var i=(state.chat||[]).length-1;i>=0;i--){ var m=state.chat[i]; if(m.kind==='preview'&&!m.resolved) return m; }
+  return null;
+}
+function asstCtx(){ state.assistant=state.assistant||{terms:{}}; return state.assistant; }
+/* one quick fact after a save, so the assistant reads the numbers back like a human */
+function asstAfterLog(type){
+  var mm=monthlyMap()[thisMonthKey()]||{revenue:0,expenses:0};
+  if(type==='income') return asstPick(['Saved to Finance. Revenue this month is now '+fmtMoney(mm.revenue)+'. Anything else?','Logged! That brings this month to '+fmtMoney(mm.revenue)+' earned. What’s next?']);
+  if(type==='expense') return asstPick(['Saved to Finance. You’ve spent '+fmtMoney(mm.expenses)+' this month. Anything else?','Logged! Month-to-date spend: '+fmtMoney(mm.expenses)+'. What’s next?']);
+  return 'Saved. Anything else?';
+}
+
 /* ---- assistant view + chat plumbing ---- */
 function assistantExamples(){
   return ['Spent ₱500 on Facebook ads today',
     'Received ₱10,000 from Acme for website',
-    'Create invoice for John Doe, amount ₱100, due July 21 2026',
-    'Remind me to follow up with Maria on Friday',
-    'Add client Dela Cruz Trading'];
+    'How much did I spend this month?',
+    'Who owes me money?',
+    'Remind me to follow up with Maria on Friday'];
 }
 function assistantChipsHTML(){
   return '<div class="asst-examples">'+assistantExamples().map(function(x){
@@ -4282,7 +4443,7 @@ function assistantChipsHTML(){
 }
 function assistantWelcomeHTML(){
   return '<div class="asst-msg bot"><span class="asst-avatar">'+icon('chat')+'</span><div class="asst-bubble">'+
-    '<b>Hi! I’m your logging assistant.</b><br>Tell me what you spent, earned, who to bill, a task to remember, or a new client — in plain words (English or Taglish). I’ll read the details and show a draft for you to confirm before anything saves, and I get better as you use me.'+
+    '<b>Hi! I’m your assistant.</b><br>Talk to me like you’d talk to a bookkeeper — what you spent, earned, who to bill, a task, a new client (English or Taglish). If something’s missing I’ll ask, just answer in chat. You can also ask me about your numbers — “how much did I earn this month?”, “who owes me?”, “what’s due this week?” — and say “yes” to log a draft. I get better as you use me.'+
     assistantChipsHTML()+
     '<div class="asst-hint">Runs entirely on your device — nothing is sent anywhere.</div>'+
   '</div></div>';
@@ -4396,22 +4557,63 @@ function assistantSend(){
   var text=(inp.value||'').replace(/\s+$/,'').trim(); if(!text) return;
   inp.value='';
   state.chat=state.chat||[];
-  state.assistant=state.assistant||{terms:{}}; state.assistant.terms=state.assistant.terms||{};
+  var A=asstCtx(); A.terms=A.terms||{};
   state.chat.push({id:uid(),role:'user',text:text,ts:Date.now()});
-  var parses=nlParseMulti(text, new Date(), state.assistant.terms);
-  if(!parses.length || (parses.length===1 && !parses[0].intent)){
-    state.chat.push({id:uid(),role:'bot',kind:'examples',text:'I couldn’t tell what to log. Try wording it like one of these:',ts:Date.now()});
-  } else {
-    var leads={invoice:'Here’s a draft invoice — check it and tap Log it.',income:'Looks like income — review and confirm.',expense:'Looks like an expense — review and confirm.',task:'Looks like a task — review and confirm.',client:'Looks like a new client — review and confirm.'};
-    if(parses.length>1) state.chat.push({id:uid(),role:'bot',text:'I found '+parses.length+' entries — review and confirm each:',ts:Date.now()});
-    parses.forEach(function(parsed){
-      // pre-select a wallet/account if the wording names one ("from gcash") — per clause
-      if((parsed.type==='income'||parsed.type==='expense')) parsed.account=nlMatchAccount(parsed.src||text, state.accounts);
-      state.chat.push({id:uid(),role:'bot',kind:'preview',parsed:parsed,srcText:text,resolved:false,text:(parses.length>1?'':(leads[parsed.intent]||'Review and confirm:')),ts:Date.now()});
-    });
-  }
+  assistantRoute(text);
   if(state.chat.length>80) state.chat=state.chat.slice(-80);
   assistantCommit();
+}
+/* conversation router: small talk → confirm/cancel words → follow-up answers →
+   data questions → new entry parse (with a human follow-up when details are missing) */
+function assistantRoute(text){
+  var A=asstCtx(), today=new Date();
+  var st=nlSmallTalk(text);
+  if(st){ asstBot(st); return; }
+  var draft=asstLatestDraft(), s=String(text).toLowerCase().trim();
+  if(draft){
+    if(/^(yes|yep|yup|sure|ok|okay|oo|sige|go|confirm|log it|save( it)?|do it|correct|tama)[!. ]*$/.test(s)){ A.ctx=null; assistantConfirm(draft.id); return; }
+    if(/^(no|nope|cancel|discard|never ?mind|nvm|wag|huwag|wrong|mali|delete( it)?)[!. ]*$/.test(s)){ A.ctx=null; assistantCancel(draft.id); asstBot('Discarded. What really happened?'); return; }
+  }
+  // does this message stand on its own as a new entry?
+  var fresh=nlParse(text,today,A.terms);
+  var standsAlone=fresh.intent&&(fresh.intent==='task'?!!fresh.title:fresh.intent==='client'?!!fresh.name:fresh.amount!=null);
+  // answer to my last question (only when the reply isn't clearly a new entry)
+  if(A.ctx&&draft&&A.ctx.msgId===draft.id&&!standsAlone){
+    if(asstApplyAnswer(draft.parsed,A.ctx.slot,text,today)){
+      var next=asstQuestionFor(draft.parsed);
+      if(next){ A.ctx={msgId:draft.id,slot:next.slot}; asstBot(next.q); }
+      else { A.ctx=null; asstBot(asstPick(['Perfect — here’s the full draft. Tap Log it (or just say “yes”).','All set! Say “yes” to log it, or edit the draft first.'])); }
+      return;
+    }
+    var q=nlQuery(text,today);
+    if(q){ asstBot(q); return; } // they changed topic to a question — answer it, keep the draft
+    asstBot('Sorry, I didn’t catch that. '+(asstQuestionFor(draft.parsed)||{q:'Could you rephrase?'}).q);
+    return;
+  }
+  // questions about their data
+  var ans=nlQuery(text,today);
+  if(ans){ asstBot(ans); return; }
+  // normal logging flow
+  var parses=nlParseMulti(text,today,A.terms);
+  if(!parses.length||(parses.length===1&&!parses[0].intent)){
+    state.chat.push({id:uid(),role:'bot',kind:'examples',text:'I couldn’t tell what to log. You can also ask me things like “how much did I earn this month?”. To log, try:',ts:Date.now()});
+    A.ctx=null; return;
+  }
+  var leads={invoice:'Here’s a draft invoice — check it and tap Log it.',income:'Looks like income — review and confirm.',expense:'Looks like an expense — review and confirm.',task:'Looks like a task — review and confirm.',client:'Looks like a new client — review and confirm.'};
+  if(parses.length>1) state.chat.push({id:uid(),role:'bot',text:'I found '+parses.length+' entries — review and confirm each:',ts:Date.now()});
+  var lastId=null;
+  parses.forEach(function(parsed){
+    // pre-select a wallet/account if the wording names one ("from gcash") — per clause
+    if((parsed.type==='income'||parsed.type==='expense')) parsed.account=nlMatchAccount(parsed.src||text, state.accounts);
+    var mid=uid(); lastId=mid;
+    state.chat.push({id:mid,role:'bot',kind:'preview',parsed:parsed,srcText:text,resolved:false,text:(parses.length>1?'':(leads[parsed.intent]||'Review and confirm:')),ts:Date.now()});
+  });
+  // one draft with something missing → ask about it like a person would
+  A.ctx=null;
+  if(parses.length===1){
+    var q1=asstQuestionFor(parses[0]);
+    if(q1){ A.ctx={msgId:lastId,slot:q1.slot}; asstBot(q1.q); }
+  }
 }
 function assistantConfirm(id){
   var m=assistantFindMsg(id); if(!m||!m.parsed) return;
@@ -4419,6 +4621,7 @@ function assistantConfirm(id){
   var g=function(n){ if(!box) return ''; var el=box.querySelector('[name="'+n+'"]'); return el?String(el.value).trim():''; };
   var p=m.parsed;
   state.assistant=state.assistant||{terms:{}}; state.assistant.terms=state.assistant.terms||{};
+  if(state.assistant.ctx&&state.assistant.ctx.msgId===id) state.assistant.ctx=null;
   if(p.intent==='task'){
     var title=g('title')||p.title||'';
     if(!title){ toast('Add a few words for the task.','error'); return; }
@@ -4465,7 +4668,7 @@ function assistantConfirm(id){
     if(m.parsed){ m.parsed.receipt=''; m.parsed.items=null; } // don't keep a 2nd copy of the image in chat
     m.resolved=true; m.ok=true;
     m.result=(type==='income'?'Income':'Expense')+' of '+fmtMoney(amt)+' ('+entry.category+') logged'+(entry.receipt?' with receipt':'')+' for '+fmtDate(date)+'.';
-    state.chat.push({id:uid(),role:'bot',text:'Saved to Finance. Anything else?',ts:Date.now()});
+    state.chat.push({id:uid(),role:'bot',text:asstAfterLog(type),ts:Date.now()});
   }
   assistantCommit();
 }
@@ -4473,6 +4676,7 @@ function assistantCancel(id){
   var m=assistantFindMsg(id); if(!m) return;
   if(m.parsed){ m.parsed.receipt=''; m.parsed.items=null; } // free any attached receipt image
   m.resolved=true; m.ok=false; m.result='Discarded — nothing was saved.';
+  if(state.assistant&&state.assistant.ctx&&state.assistant.ctx.msgId===id) state.assistant.ctx=null;
   assistantCommit();
 }
 /* ---- receipt scan: photo → OCR → line items → expense draft ---- */
