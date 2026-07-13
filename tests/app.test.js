@@ -982,13 +982,20 @@ async function main() {
         var pe = function(type, el, x, y){ (el || d).dispatchEvent(new window.MouseEvent(type, { bubbles: true, cancelable: true, clientX: x || 0, clientY: y || 0, button: 0 })); };
         window.render(); window.rmZoomTo(1);
         var board = d.getElementById('rm-board');
-        // HIGH: dragging empty background pans the camera again (broke when the rail moved to be firstElementChild)
+        // ARROW-DEFAULT model: left-drag on empty background is a MARQUEE (not a pan), so the
+        // camera stays put and a rubber-band appears — this is what lets a user select-all-and-delete.
         var cx0 = window.rmCam().x, cy0 = window.rmCam().y;
-        pe('pointerdown', board, 300, 300); pe('pointermove', d, 366, 344); pe('pointerup', d);
-        ok('background drag pans the camera in Select mode', Math.abs(window.rmCam().x - cx0) > 10 && Math.abs(window.rmCam().y - cy0) > 10);
-        // HIGH: clicking empty canvas clears the selection
+        pe('pointerdown', board, 300, 300); pe('pointermove', d, 366, 344);
+        ok('background drag draws a marquee and does NOT pan the camera', !!d.getElementById('rm-marquee') && window.rmCam().x === cx0 && window.rmCam().y === cy0);
+        pe('pointerup', d, 366, 344);
+        // pan is still available with the Space key held
+        window.rmZoomTo(1); var px0 = window.rmCam().x;
+        board.dispatchEvent(new window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 300, clientY: 300, button: 1 })); // middle-drag pans
+        pe('pointermove', d, 366, 344); pe('pointerup', d);
+        ok('middle-drag still pans the camera', Math.abs(window.rmCam().x - px0) > 10);
+        // clicking empty canvas (tiny marquee) clears the selection
         window.rmSelect('center');
-        pe('pointerdown', board, 300, 300); pe('pointerup', d);
+        pe('pointerdown', board, 300, 300); pe('pointerup', d, 300, 300);
         ok('clicking empty canvas clears the selection', window.ui.rmSel === null);
         // MED: a small click while zoomed out selects (screen-space threshold), never a drag
         window.render(); window.rmZoomTo(0.3);
@@ -1542,6 +1549,36 @@ async function main() {
         pe('pointerdown', rz, 500, 500); pe('pointermove', d, 0, 0); pe('pointerup', d, 0, 0);
         ok('note resize clamps to its minimum through the engine', window.rmNoteById('nt_m4').w === 120 && window.rmNoteById('nt_m4').h === 90);
         window.rmNoteDelete('nt_m4'); window.rmStampDelete('st_m4'); window.rmFrameDelete(f.id);
+        window.ui.rmSelSet = null; window.ui.rmSel = null;
+      })();
+      // ===== UX · arrow-default select-all-and-delete + fullscreen canvas =====
+      (function(){
+        var pe = function(type, el, x, y, opt){ var o = Object.assign({ bubbles: true, cancelable: true, clientX: x || 0, clientY: y || 0, button: 0 }, opt || {}); (el || d).dispatchEvent(new window.MouseEvent(type, o)); };
+        window.render(); window.rmZoomTo(1); window.rmCam().x = 0; window.rmCam().y = 0; window.rmApplyCam(); window.ui.rmSelSet = null; window.ui.rmSel = null;
+        // the canvas rests as an arrow (not a grab hand)
+        var css = ''; d.querySelectorAll('style').forEach(function(s){ css += s.textContent; });
+        ok('canvas rests as an arrow cursor by default (not a hand)', /\.rm-canvas\{[^}]*cursor:default/.test(css));
+        // marquee everything → Delete removes the whole roadmap in two gestures
+        var board = d.getElementById('rm-board'), total = window.rmSelectAll, dummy;
+        pe('pointerdown', board, -99999, -99999); pe('pointermove', d, 99999, 99999); pe('pointerup', d, 99999, 99999);
+        ok('a full-board lasso selects every node', window.rmSelCount() >= d.querySelectorAll('#rm-board .rm-node:not(.rm-center)').length);
+        var beforePhases = window.currentRoadmap().phases.length;
+        d.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+        ok('Delete then clears the lassoed nodes (select-all → delete-all)', window.currentRoadmap().phases.length < beforePhases);
+        window.rmUndoRoad();
+        // Shift+drag ADDS to a selection instead of replacing it
+        window.render(); var pnode = d.querySelector('.rm-node.rm-phase'), pnid = pnode.getAttribute('data-nid');
+        window.rmSelectOnly(pnid);
+        pe('pointerdown', d.getElementById('rm-board'), -99999, -99999, { shiftKey: true }); pe('pointermove', d, 99999, 99999, { shiftKey: true }); pe('pointerup', d, 99999, 99999, { shiftKey: true });
+        ok('Shift+drag marquee unions with the current selection', window.rmSelHas(pnid) && window.rmSelCount() > 1);
+        window.rmDeselect();
+        // fullscreen toggle lifts the card to fill the viewport, Esc restores
+        var card = d.querySelector('.rm-canvas-card');
+        window.rmToggleFullscreen(true);
+        ok('fullscreen lifts the canvas card to fill the viewport', card.classList.contains('rm-full') && d.body.classList.contains('rm-full-on'));
+        ok('fullscreen keeps the grid class (grid-cycle preserves it)', /rm-grid-/.test(card.className));
+        window.rmToggleFullscreen(false);
+        ok('exiting fullscreen restores the inline card', !card.classList.contains('rm-full') && !d.body.classList.contains('rm-full-on'));
         window.ui.rmSelSet = null; window.ui.rmSel = null;
       })();
       window.ui.rmCam = null;
