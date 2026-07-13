@@ -247,7 +247,7 @@ a{color:var(--accent);text-decoration:none}
 .rm-stat-strip span{display:inline-flex;align-items:center;gap:5px}
 .rm-stat-strip svg{opacity:.7}
 .rm-canvas{position:relative;height:calc(100dvh - 250px);min-height:440px;max-height:820px;overflow:hidden;border-radius:inherit;
-  touch-action:none;cursor:grab;background-color:var(--bg-sunken)}
+  touch-action:none;cursor:default;background-color:var(--bg-sunken)}
 .rm-grid-dots .rm-canvas{background-image:radial-gradient(var(--border-2) 1.1px,transparent 1.1px);background-size:22px 22px}
 .rm-grid-lines .rm-canvas{background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:22px 22px}
 .rm-grid-none .rm-canvas{background-image:none}
@@ -255,6 +255,13 @@ body.rm-grabbing .rm-canvas,body.rm-hand .rm-canvas{cursor:grab}
 body.rm-grabbing .rm-canvas{cursor:grabbing}
 body.rm-selecting .rm-canvas{cursor:crosshair}
 .rm-board{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
+/* fullscreen canvas — the card lifts to fill the viewport with a soft spring */
+.rm-canvas-card.rm-full{position:fixed;inset:0;z-index:300;margin:0;border-radius:0;max-width:none;
+  animation:rmFullIn .28s var(--spring) both;box-shadow:none}
+.rm-canvas-card.rm-full .rm-canvas{height:100dvh!important;max-height:none;border-radius:0}
+body.rm-full-on{overflow:hidden}
+@keyframes rmFullIn{from{opacity:.4;transform:scale(.985)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.rm-canvas-card.rm-full{animation:none}}
 .rm-edges{position:absolute;inset:0;pointer-events:none}
 .rm-edges path{stroke-width:2.4;opacity:.62;stroke-linecap:round;transition:opacity .15s var(--ease),stroke-width .15s var(--ease)}
 /* when a node is selected, spotlight its connectors and dim the rest */
@@ -2108,6 +2115,8 @@ var ICONS = {
   cursor:'<path d="M4 3l6.4 16 2.4-6.4 6.4-2.4z"/>',
   shapes:'<rect x="3" y="3" width="9.5" height="9.5" rx="2"/><circle cx="16.5" cy="16" r="5"/>',
   layers:'<path d="M12 2l9 5-9 5-9-5 9-5z"/><path d="M3 12l9 5 9-5M3 17l9 5 9-5"/>',
+  expand:'<path d="M8 3H5a2 2 0 00-2 2v3M16 3h3a2 2 0 012 2v3M8 21H5a2 2 0 01-2-2v-3M16 21h3a2 2 0 002-2v-3"/>',
+  contract:'<path d="M8 3v3a2 2 0 01-2 2H3M21 8h-3a2 2 0 01-2-2V3M3 16h3a2 2 0 012 2v3M16 21v-3a2 2 0 012-2h3"/>',
   copy:'<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>',
   textT:'<path d="M4 7V5h16v2M12 5v14M9 19h6"/>',
   sticky:'<path d="M4 4h16v11l-5 5H4z"/><path d="M20 15h-5v5"/>',
@@ -2329,7 +2338,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
-var APP_BUILD='2026.07.13a'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
+var APP_BUILD='2026.07.13e'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -5039,8 +5048,9 @@ function rmMapHTML(rm){
       '<button class="rm-cam-btn" data-action="rm-fit" title="Fit to screen (Shift+1)">'+icon('search',14)+'</button>'+
       '<button class="rm-cam-btn" data-action="rm-tidy" title="Tidy — auto-arrange the map">'+icon('layers',14)+'</button>'+
       '<button class="rm-cam-btn" data-action="rm-grid-cycle" title="Grid style">'+icon('dashboard',14)+'</button>'+
+      '<button class="rm-cam-btn" data-action="rm-fullscreen" id="rm-full-btn" title="Full screen (F) — see the whole map">'+icon('expand',14)+'</button>'+
     '</div>'+
-    '<p class="rm-hint">'+esc(tr('Toolbar below: sticky · shapes · pen · text · connector · section · table · comment · stamp — drop then type. Drag to pan · Shift+drag to lasso · ⌘Z undo · double-click to edit · right-click for more'))+'</p></div>';
+    '<p class="rm-hint">'+esc(tr('Drag to lasso-select · click a node to select · Shift+drag to add · Space/middle-drag or Hand tool to pan · ⌘A all · Delete to remove · ⌘Z undo · double-click to edit · F for full screen'))+'</p></div>';
 }
 function rmMiniDots(pos){
   var xs=[],ys=[]; for(var k in pos){ xs.push(pos[k].x); ys.push(pos[k].y); }
@@ -5400,6 +5410,15 @@ function rmSyncMiniView(){
 }
 function rmScreenToWorld(cx,cy){ var cam=rmCam(), r=rmCanvasRect(); if(!r) return {x:0,y:0};
   return {x:(cx-r.left-cam.x)/cam.z, y:(cy-r.top-cam.y)/cam.z}; }
+/* fullscreen canvas — the card fills the viewport so the whole map is one immersive surface */
+function rmToggleFullscreen(force){
+  var cv=byId('rm-canvas'), card=cv&&cv.closest('.rm-canvas-card'); if(!card) return;
+  var on=(force!=null)?force:!card.classList.contains('rm-full');
+  card.classList.toggle('rm-full',on); document.body.classList.toggle('rm-full-on',on);
+  var btn=byId('rm-full-btn'); if(btn){ btn.innerHTML=icon(on?'contract':'expand',14); btn.classList.toggle('on',on); btn.title=on?'Exit full screen (F / Esc)':'Full screen (F) — see the whole map'; }
+  rmCvRectInvalidate();
+  requestAnimationFrame(function(){ rmCvRectInvalidate(); rmApplyCam(); }); // relayout: refit the viewport rect after the transition frame
+}
 /* ============================================================
    spatial index + viewport culling — the board scales to
    thousands of objects because offscreen nodes stop painting.
@@ -5527,6 +5546,7 @@ document.addEventListener('keydown',function(e){
   if(/^Arrow(Up|Down|Left|Right)$/.test(e.key)&&rmSelCount()>0){ rmNudgeSel(e.key,e.shiftKey?10:1); e.preventDefault(); return; }
   if((e.key==='Delete'||e.key==='Backspace')&&rmSelCount()>0){ rmDeleteSel(); e.preventDefault(); return; }
   if(e.key==='h'||e.key==='H'){ rmHand=!rmHand; document.body.classList.toggle('rm-hand',rmHand); rmSyncToolButtons(); }
+  else if(e.key==='f'||e.key==='F'){ if(!mod){ rmToggleFullscreen(); e.preventDefault(); } }
   else if(e.key==='v'||e.key==='V'){ if(rmHand){ rmHand=false; document.body.classList.remove('rm-hand'); rmSyncToolButtons(); } }
   else if((e.key==='='||e.key==='+')){ rmZoomAnim(rmCam().z*1.2); e.preventDefault(); }
   else if(e.key==='-'||e.key==='_'){ rmZoomAnim(rmCam().z/1.2); e.preventDefault(); }
@@ -5542,10 +5562,12 @@ document.addEventListener('pointerdown',function(e){
   rmMomentumCancel(); // any new touch takes over from a camera glide
   var node=e.target.closest('.rm-node');
   var onEmpty=!node&&e.button===0&&(e.target.id==='rm-canvas'||(e.target.closest&&e.target.closest('#rm-board')));
-  // marquee rubber-band: Shift+drag on empty background (plain drag pans, Miro-style)
-  if(onEmpty&&e.shiftKey&&!rmSpace&&!rmHand){
+  // arrow-tool default (Figma model): left-drag on empty = marquee select — so a user can
+  // rubber-band everything and Delete it. Shift+drag ADDS to the selection.
+  // Panning is Space+drag, middle-drag, or the Hand tool only.
+  if(onEmpty&&!rmSpace&&!rmHand){
     var cr=cv.getBoundingClientRect();
-    rmMarquee={sx:e.clientX,sy:e.clientY,crx:cr.left,cry:cr.top};
+    rmMarquee={sx:e.clientX,sy:e.clientY,crx:cr.left,cry:cr.top,add:e.shiftKey};
     var box=document.createElement('div'); box.className='rm-marquee'; box.id='rm-marquee'; cv.appendChild(box);
     document.body.classList.add('rm-selecting'); e.preventDefault(); return;
   }
@@ -5560,7 +5582,7 @@ document.addEventListener('pointerdown',function(e){
     rmXformStart(e,rmXfNode,{items:items,nid:nid,shift:e.shiftKey,snap:snap,prim:prim||items[0]});
     return;
   }
-  var panning=(e.button===1)||(e.button===0&&(rmSpace||rmHand))||onEmpty;
+  var panning=(e.button===1)||(e.button===0&&(rmSpace||rmHand)); // pan = middle-drag / Space / Hand tool
   if(panning){ var c=rmCam(); rmMomentumCancel();
     rmPan={sx:e.clientX,sy:e.clientY,ox:c.x,oy:c.y,moved:false,px:e.clientX,py:e.clientY,pt:(typeof performance!=='undefined'?performance.now():0),vx:0,vy:0,vok:false};
     document.body.classList.add('rm-grabbing'); e.preventDefault(); }
@@ -5591,7 +5613,7 @@ function rmMarqueeCommit(e){
   var x0=Math.min(rmMarquee.sx,e.clientX), y0=Math.min(rmMarquee.sy,e.clientY), x1=Math.max(rmMarquee.sx,e.clientX), y1=Math.max(rmMarquee.sy,e.clientY);
   if(x1-x0<4&&y1-y0<4){ rmDeselect(); return; }
   var cr=cv.getBoundingClientRect(), s={};
-  Object.keys(rmSelSet()).forEach(function(k){ s[k]=true; }); // additive — marquee is Shift-driven, so it unions
+  if(rmMarquee.add) Object.keys(rmSelSet()).forEach(function(k){ s[k]=true; }); // Shift+drag unions; plain drag replaces
   cv.querySelectorAll('.rm-node').forEach(function(n){
     var hw=(n.offsetWidth||0)*cam.z/2, hh=(n.offsetHeight||0)*cam.z/2; // select any node the box TOUCHES (intersect)
     var cxp=cr.left+cam.x+parseFloat(n.style.left)*cam.z, cyp=cr.top+cam.y+parseFloat(n.style.top)*cam.z;
@@ -6091,6 +6113,7 @@ document.addEventListener('keydown',function(e){
   else if(rmConnect){ rmConnectCancel(); }
   else if(rmPlace){ rmPlaceCancel(); }
   else if(rmSelCount()){ rmDeselect(); }
+  else { var fc=byId('rm-canvas'); var fcard=fc&&fc.closest('.rm-canvas-card'); if(fcard&&fcard.classList.contains('rm-full')) rmToggleFullscreen(false); }
 });
 function viewRoadmap(){
   var rms=state.roadmaps||[];
@@ -7769,6 +7792,7 @@ document.addEventListener('click',function(e){
   if(action==='roadmap-mode'){ if(typeof rmPlaceCancel==='function') rmPlaceCancel(); ui.roadmapMode=el.getAttribute('data-mode'); ui.rmCam=null; ui.rmSel=null; ui.rmSelSet=null; render(); return; }
   if(action==='rm-zoom'){ rmZoomAnim(rmCam().z*(el.getAttribute('data-dir')==='1'?1.25:0.8)); return; }
   if(action==='rm-fit'){ rmFit(); return; }
+  if(action==='rm-fullscreen'){ rmToggleFullscreen(); return; }
   if(action==='rm-reset'){ rmZoomAnim(1); return; }
   if(action==='rm-tool-toggle'){ rmHand=!rmHand; document.body.classList.toggle('rm-hand',rmHand); rmSyncToolButtons(); return; }
   if(action==='rm-tool-select'){ rmHand=(el.getAttribute('data-tool')==='hand'); document.body.classList.toggle('rm-hand',rmHand); if(rmPlace) rmPlaceCancel(); rmSyncToolButtons(); return; }
@@ -7811,7 +7835,7 @@ document.addEventListener('click',function(e){
   if(action==='rm-pop-icon'){ rmNodeSetProp(el.getAttribute('data-nid'),'icon',el.getAttribute('data-icon')||''); return; }
   if(action==='rm-fold'){ var fref=rmNodeRef(el.getAttribute('data-nid')); if(fref&&fref.node){ rmSnapshot(); fref.node.collapsed=!fref.node.collapsed; if(fref.node.collapsed){ ui.rmSelSet={}; ui.rmSelSet[el.getAttribute('data-nid')]=true; ui.rmSel=el.getAttribute('data-nid'); } rmCommitSoft(); } return; }
   if(action==='rm-tidy'){ rmCtxClose(); rmTidy(); return; }
-  if(action==='rm-grid-cycle'){ ui.rmGrid=(ui.rmGrid==='dots'?'lines':(ui.rmGrid==='lines'?'none':'dots')); var cc=el.closest('.rm-canvas-card'); if(cc){ cc.className='card mt rm-canvas-card rm-grid-'+ui.rmGrid; } return; }
+  if(action==='rm-grid-cycle'){ ui.rmGrid=(ui.rmGrid==='dots'?'lines':(ui.rmGrid==='lines'?'none':'dots')); var cc=el.closest('.rm-canvas-card'); if(cc){ cc.classList.remove('rm-grid-dots','rm-grid-lines','rm-grid-none'); cc.classList.add('rm-grid-'+ui.rmGrid); } return; }
   if(action==='rm-mini-jump'){
     var M=window._rmMini, mm=byId('rm-mini-inner'), cv=byId('rm-canvas'); if(!M||!mm||!cv) return;
     var r=mm.getBoundingClientRect(), lx=e.clientX-r.left, ly=e.clientY-r.top;
