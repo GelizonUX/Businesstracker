@@ -1584,6 +1584,39 @@ async function main() {
       window.ui.rmCam = null;
     })();
 
+    // ---------- advisor · analyst-grade charts + pace meter ----------
+    (function () {
+      window.location.hash = '#/insights'; window.render();
+      const adv = d.getElementById('main').innerHTML;
+      ok('advisor shows the cash in vs out chart with a style switcher',
+        /Cash in vs out/.test(adv) && /data-chart="advisor"/.test(adv) && /class="c-svg"/.test(adv));
+      ok('advisor cash chart defaults to the area style', /class="c-area"/.test(adv));
+      ok('advisor shows the diverging profit-by-month chart', /Profit by month/.test(adv) && /c-zero/.test(adv));
+      ok('advisor shows the spending mix with donut/bars options (private style key)', /Where the money goes/.test(adv) && /data-chart="advisorCats"/.test(adv));
+      ok('advisor shows the month pace meter', /This month(’|')s pace/.test(adv) && /On pace for/.test(adv));
+      // profit bars: engineered fixture — profit and loss months point opposite ways
+      const mmFix = { '2026-01': { revenue: 5000, expenses: 2000 }, '2026-02': { revenue: 1000, expenses: 4000 } };
+      const pb = window.svgProfitBars(['2026-01', '2026-02'], mmFix);
+      ok('profit bars split into green-above / red-below the zero line',
+        /c-bar c-pos/.test(pb) && /c-bar c-neg/.test(pb) && (pb.match(/data-ctip=/g) || []).length === 2);
+      // hovering a profit bar shows revenue, expenses, and the net line
+      const pbHost = d.createElement('div'); pbHost.innerHTML = pb;
+      const seg = pbHost.querySelector('[data-ctip]');
+      let pj = null; try { pj = JSON.parse(seg.getAttribute('data-ctip')); } catch (_) {}
+      ok('profit-bar tooltip carries Revenue/Expenses/Profit rows', !!pj && pj.r.length === 3 && pj.r[2].net === 1);
+      // all-profit months use the full height (no wasted loss band) — quarter gridlines appear
+      const pbAll = window.svgProfitBars(['2026-01', '2026-02'], { '2026-01': { revenue: 5000, expenses: 2000 }, '2026-02': { revenue: 4000, expenses: 1000 } });
+      ok('all-profit months use an asymmetric (full-height) scale', !/c-neg/.test(pbAll) && (pbAll.match(/c-grid/g) || []).length === 4);
+      // the --text-1 token advisor styles rely on actually exists (pace marker, donut center)
+      ok('--text-1 token is defined (pace marker + donut center depend on it)', /--text-1:var\(--text\)/.test(html));
+      // pace meter math: target set → fill + projection marker rendered
+      window.state.settings.monthlyTarget = 1000000; window.render();
+      const adv2 = d.getElementById('main').innerHTML;
+      ok('pace meter renders fill + projected-month-end marker when a target is set',
+        /pace-fill/.test(adv2) && /pace-mark/.test(adv2) && /Target:/.test(adv2));
+      window.state.settings.monthlyTarget = 100000; window.render();
+    })();
+
     // ---------- charts · interactive, animated, multi-style ----------
     (function () {
       var mm = { '2026-01': { revenue: 1000, expenses: 400 }, '2026-02': { revenue: 1500, expenses: 600 }, '2026-03': { revenue: 900, expenses: 700 } };
