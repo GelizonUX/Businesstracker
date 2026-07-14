@@ -49,6 +49,7 @@
   --text-1:var(--text); /* alias — several chart rules reference --text-1 */
   --text-2:#4e5058;
   --text-3:#5d5f6a;
+  --sheen-hi:rgba(255,255,255,.45); /* moving-light sweep strength (softer in dark) */
 
   --border:#ebebe6;
   --border-2:#d9d9d2;
@@ -111,6 +112,7 @@ html[data-theme="dark"]{
   --text:#ededf3;
   --text-2:#a8aab8;
   --text-3:#9b9dad;
+  --sheen-hi:rgba(255,255,255,.2);
 
   --border:#26272e;
   --border-2:#33343d;
@@ -1030,24 +1032,23 @@ tr:hover .row-actions{opacity:1}
 .c-spark-dot{animation:cSparkPulse 2.4s var(--ease) 1s infinite}
 @keyframes cSparkPulse{0%,100%{opacity:1}50%{opacity:.35}}
 
-/* ---- "alive" loops: a continuous current flows along every chart line, and a
-   soft light sweeps across every progress / pace / category bar ---- */
-.c-svg .c-flow,.c-spark-flow{fill:none;stroke-linecap:round;stroke-dasharray:1.6 11;opacity:0;animation:cFlowIn .6s var(--ease) 1s forwards,cFlow 1.5s linear 1s infinite}
-.c-svg .c-flow{stroke-width:2.5}
+/* ---- "alive" loops: ONE subtle current flows along the hero (revenue) chart line,
+   and a soft light sweeps across the few hero meters (opt-in .live — never dense
+   table rows, to keep it premium and cheap) ---- */
+.c-svg .c-flow{fill:none;stroke-linecap:round;stroke-dasharray:1.6 11;stroke-width:2.5;opacity:0;animation:cFlowIn .6s var(--ease) 1s forwards,cFlow 1.5s linear 1s infinite}
 .c-svg .c-flow.c-rev{stroke:var(--income)}
-.c-svg .c-flow.c-exp{stroke:var(--expense)}
 @keyframes cFlow{to{stroke-dashoffset:-12.6}}
-@keyframes cFlowIn{to{opacity:.6}}
+@keyframes cFlowIn{to{opacity:.42}}
 
 @keyframes cSheen{0%{transform:translateX(-130%)}55%,100%{transform:translateX(360%)}}
-.pace-fill,.progress .bar,.cat-bar .cb-fill{position:relative;overflow:hidden}
-.pace-fill::after,.progress .bar::after,.cat-bar .cb-fill::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 24%,rgba(255,255,255,.5) 50%,transparent 76%);transform:translateX(-130%);animation:cSheen 3.4s var(--ease) infinite;pointer-events:none}
+.pace-fill,.progress.live .bar,.cat-bar .cb-fill{position:relative;overflow:hidden}
+.pace-fill::after,.progress.live .bar::after,.cat-bar .cb-fill::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 24%,var(--sheen-hi) 50%,transparent 76%);transform:translateX(-130%);animation:cSheen 3.4s var(--ease) infinite;pointer-events:none}
 
 @media (prefers-reduced-motion:reduce){
   .c-svg .c-bar,.c-svg .c-area,.cat-bar .cb-fill,.c-donut .c-seg,.c-spark-area,.c-spark-dot{animation:none}
   .c-svg .c-line,.c-spark-line{animation:none;stroke-dashoffset:0}
-  .c-svg .c-flow,.c-spark-flow{display:none}
-  .pace-fill::after,.progress .bar::after,.cat-bar .cb-fill::after{display:none}
+  .c-svg .c-flow{display:none}
+  .pace-fill::after,.progress.live .bar::after,.cat-bar .cb-fill::after{display:none}
 }
 
 /* mobile finance timeline (day-grouped; rendered only on phones, hidden on desktop where the table wins) */
@@ -3012,8 +3013,7 @@ function svgSeries(months,mm,style,w,h){
     }
     layer+='<polyline class="c-line c-exp" points="'+pe.join(' ')+'" pathLength="100"/>'+
            '<polyline class="c-line c-rev" points="'+pr.join(' ')+'" pathLength="100"/>'+
-           '<polyline class="c-flow c-rev" points="'+pr.join(' ')+'" pathLength="100"/>'+
-           '<polyline class="c-flow c-exp" points="'+pe.join(' ')+'" pathLength="100"/>'; // continuous "current" that keeps the chart alive
+           '<polyline class="c-flow c-rev" points="'+pr.join(' ')+'" pathLength="100"/>'; // one subtle "current" on the hero (revenue) line keeps the chart alive
   }
   months.forEach(function(k,i){
     var d=mm[k]||{revenue:0,expenses:0}, rev=d.revenue||0, exp=d.expenses||0, net=rev-exp;
@@ -3091,7 +3091,6 @@ function svgSparkline(values,w,h,color,label){
   return '<svg viewBox="0 0 '+w+' '+h+'" class="c-spark" style="width:'+w+'px;height:'+h+'px"'+tipAttr+'><defs><linearGradient id="'+uid+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+col+'" stop-opacity="0.22"/><stop offset="1" stop-color="'+col+'" stop-opacity="0"/></linearGradient></defs>'+
     '<path class="c-spark-area" d="'+area+'" fill="url(#'+uid+')"/>'+
     '<polyline class="c-spark-line" points="'+line+'" fill="none" stroke="'+col+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" pathLength="100"/>'+
-    '<polyline class="c-spark-flow" points="'+line+'" fill="none" stroke="'+col+'" stroke-width="2" stroke-linecap="round" pathLength="100"/>'+
     '<circle class="c-spark-dot" cx="'+last[0].toFixed(1)+'" cy="'+last[1].toFixed(1)+'" r="2.4" fill="'+col+'"/></svg>';
 }
 function svgRing(pct,size,color,labelTop,labelBottom){
@@ -3680,7 +3679,7 @@ function viewDashboard(){
     monthCompareRow('Profit',cur.revenue-cur.expenses,prev.revenue-prev.expenses,false)+
     (state.settings.monthlyTarget>0?
       '<div style="margin-top:16px"><div style="display:flex;justify-content:space-between;font-size:.8rem;color:var(--text-2)"><span>Monthly target</span><b>'+fmtMoney(cur.revenue)+' / '+fmtMoney(state.settings.monthlyTarget)+'</b></div>'+
-      '<div class="progress mt" style="margin-top:6px"><div class="bar '+(cur.revenue>=state.settings.monthlyTarget?'good':'')+'" style="width:'+clamp(cur.revenue/state.settings.monthlyTarget*100,0,100)+'%"></div></div></div>'
+      '<div class="progress mt live" style="margin-top:6px"><div class="bar '+(cur.revenue>=state.settings.monthlyTarget?'good':'')+'" style="width:'+clamp(cur.revenue/state.settings.monthlyTarget*100,0,100)+'%"></div></div></div>'
       :'<p style="font-size:.78rem;color:var(--text-3);margin-top:12px">Tip: set a monthly revenue target in Settings to track it here.</p>')+
   '</div>';
   var openGoals=state.goals.filter(function(x){return !x.done;}).slice(0,3);
@@ -3689,7 +3688,7 @@ function viewDashboard(){
     openGoals.forEach(function(gl){
       var gp=goalProgress(gl), st=goalStatus(gl);
       goalsBlk+='<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;gap:8px;font-size:.84rem"><b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(gl.title)+'</b><span class="badge '+st.cls+'">'+st.label+'</span></div>'+
-        '<div class="progress" style="margin-top:6px"><div class="bar '+(st.cls==='good'?'good':(st.cls==='risk'?'risk':''))+'" style="width:'+gp.pct+'%"></div></div>'+
+        '<div class="progress live" style="margin-top:6px"><div class="bar '+(st.cls==='good'?'good':(st.cls==='risk'?'risk':''))+'" style="width:'+gp.pct+'%"></div></div>'+
         '<div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--text-3);margin-top:4px"><span>'+fmtPct(gp.pct,0)+' complete</span><span>'+(daysUntil(gl.deadline)!=null?(daysUntil(gl.deadline)>=0?daysUntil(gl.deadline)+' days left':'overdue'):'no deadline')+'</span></div></div>';
     });
   } else {

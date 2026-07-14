@@ -1807,9 +1807,9 @@ async function main() {
       // upgraded sparkline draws itself in with a gradient area
       var spark = window.svgSparkline([1, 3, 2, 5, 4], 90, 30, 'var(--income)');
       ok('sparkline is animated (draw + gradient area + endpoint)', /class="c-spark-line"/.test(spark) && /class="c-spark-area"/.test(spark) && /pathLength="100"/.test(spark));
-      ok('sparkline carries a continuous flow overlay', /class="c-spark-flow"/.test(spark));
-      ok('line/area charts carry a continuous flow overlay', /class="c-flow c-rev"/.test(line) && /class="c-flow c-rev"/.test(area));
-      ok('flow + sheen loops exist and are reduced-motion-guarded', /@keyframes cFlow\{/.test(html) && /@keyframes cSheen\{/.test(html) && /\.c-svg \.c-flow,\.c-spark-flow\{display:none\}/.test(html));
+      ok('line/area charts carry a single revenue flow overlay (not expenses/sparklines)', /class="c-flow c-rev"/.test(line) && /class="c-flow c-rev"/.test(area) && !/c-flow c-exp/.test(line) && !/c-spark-flow/.test(spark));
+      ok('flow + sheen loops exist and are reduced-motion-guarded', /@keyframes cFlow\{/.test(html) && /@keyframes cSheen\{/.test(html) && /\.c-svg \.c-flow\{display:none\}/.test(html));
+      ok('sheen is opt-in (.progress.live) so dense table bars stay calm', /\.progress\.live \.bar::after/.test(html) && !/\.progress \.bar::after/.test(html));
       var sparkLbl = window.svgSparkline([1, 3, 2], 90, 30, 'var(--income)', 'Revenue trend');
       ok('labelled sparkline carries a Latest/High/Low tooltip', /data-ctip=/.test(sparkLbl) && /Latest/.test(sparkLbl));
       // health ring draws itself in (unique gradient id + --c0 keyframe start)
