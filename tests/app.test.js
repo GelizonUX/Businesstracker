@@ -1035,9 +1035,10 @@ async function main() {
         window.render(); window.rmZoomTo(1); window.ui.rmSelSet = null; window.ui.rmSel = null;
         var rm = window.state.roadmaps[0];
         var total = 0; rm.phases.forEach(function(p){ total += 1 + (p.tasks || []).length; });
-        // select all
+        // select all — now includes the centre "mother" + every freeform object, so Delete can clear everything
+        var ffCount = (rm.noCenter?0:1) + (rm.frames||[]).length + (rm.notes||[]).length + (rm.stamps||[]).length + (rm.tables||[]).length + (rm.comments||[]).length + (rm.ink||[]).length;
         window.rmSelectAll();
-        ok('select-all selects every phase + task (not the centre)', window.rmSelCount() === total);
+        ok('select-all selects every node incl. centre + freeform', window.rmSelCount() === total + ffCount);
         window.rmDeselect();
         ok('deselect clears the whole selection', window.rmSelCount() === 0);
         // shift-click toggles a node into/out of the selection
@@ -1581,6 +1582,87 @@ async function main() {
         ok('exiting fullscreen restores the inline card', !card.classList.contains('rm-full') && !d.body.classList.contains('rm-full-on'));
         window.ui.rmSelSet = null; window.ui.rmSel = null;
       })();
+      // ===== deep-fix · freeform delete-all, empty "mother", tables =====
+      (function(){
+        window.render(); window.rmZoomTo(1); window.ui.rmSelSet = null; window.ui.rmSel = null;
+        var rm = window.currentRoadmap();
+        // seed one of every freeform object
+        rm.ink = [{ id: 'ink_x', color: '#e0554e', w: 3, pts: [[100,100],[160,140],[220,120]] }];
+        rm.notes = (rm.notes||[]); rm.notes.push({ id: 'note_x', kind: 'sticky', x: 300, y: 300, w: 190, h: 170, text: 'hi', color: '#ffd54a' });
+        rm.stamps = (rm.stamps||[]); rm.stamps.push({ id: 'stamp_x', x: 400, y: 200, emoji: '⭐' });
+        rm.frames = (rm.frames||[]); rm.frames.push({ id: 'frame_x', x: 50, y: 50, w: 300, h: 200, name: 'Sec', color: '#7c5cd6' });
+        window.rmTableAdd(); var tbl = rm.tables[rm.tables.length-1];
+        window.save(); window.rmPatchBoard();
+        // select-all now includes ink/note/stamp/frame/table (+ centre)
+        window.rmSelectAll();
+        ok('select-all includes a freehand drawing', window.rmSelHas('ink:ink_x'));
+        ok('select-all includes note / stamp / frame / table', window.rmSelHas('note:note_x') && window.rmSelHas('stamp:stamp_x') && window.rmSelHas('frame:frame_x') && window.rmSelHas('table:'+tbl.id));
+        // delete-all wipes every freeform object AND hides the centre "mother"
+        window.rmDeleteSel();
+        ok('delete-all removes the drawing', (window.currentRoadmap().ink||[]).length === 0);
+        ok('delete-all removes notes/stamps/frames/tables', (rm.notes||[]).length===0 && (rm.stamps||[]).length===0 && (rm.frames||[]).length===0 && (rm.tables||[]).length===0);
+        ok('deleting the selection incl. centre hides the mother', window.currentRoadmap().noCenter === true);
+        ok('a truly empty board renders no nodes', d.querySelectorAll('#rm-board .rm-node').length === 0);
+        window.rmUndoRoad(); // restore for later blocks
+        // a single drawing can be selected by tapping it, then deleted
+        window.render();
+        rm = window.currentRoadmap(); rm.ink = [{ id: 'ink_solo', color: '#e0554e', w: 3, pts: [[500,500],[560,540]] }]; window.rmPatchBoard();
+        window.rmSelectOnly('ink:ink_solo');
+        var pl = d.querySelector('polyline[data-ink="ink_solo"]');
+        ok('a selected drawing gets the selection class', !!pl && pl.classList.contains('rm-ink-sel'));
+        window.rmDeleteSel();
+        ok('a lone drawing can be deleted', (window.currentRoadmap().ink||[]).length === 0);
+        // tables: add/remove rows and columns really change the grid
+        window.rmTableAdd(); var t2 = window.currentRoadmap().tables.slice(-1)[0];
+        ok('a new table starts 2x2', t2.cells.length === 2 && t2.cells[0].length === 2);
+        window.rmTableRow(t2.id); window.rmTableCol(t2.id);
+        ok('add row + add column grow the grid to 3x3', t2.cells.length === 3 && t2.cells[0].length === 3);
+        window.rmTableRowDel(t2.id); window.rmTableColDel(t2.id);
+        ok('remove row + remove column shrink it back to 2x2', t2.cells.length === 2 && t2.cells[0].length === 2);
+        var lastCol = t2.cells[0].length;
+        window.rmTableColDel(t2.id); ok('cannot remove the final column', t2.cells[0].length >= 1);
+        window.rmTableColDel(t2.id); ok('a 1-column table refuses to lose its last column', t2.cells[0].length === 1);
+        window.rmTableDelete(t2.id);
+        // a fresh user roadmap starts empty (no default mother)
+        var before = window.state.roadmaps.length;
+        window.state.roadmaps.push({ id: 'rm_empty', name: 'Fresh', color: '#4653e8', phases: [], noCenter: true });
+        window.ui.roadmapId = 'rm_empty'; window.render();
+        ok('a fresh roadmap renders an empty canvas (no forced mother)', d.querySelectorAll('#rm-board .rm-node').length === 0);
+        // a noCenter roadmap must not leave a phantom centre dot in the minimap
+        window.rmPatchBoard();
+        ok('empty roadmap shows no phantom centre dot in the minimap', d.querySelectorAll('#rm-mini-inner .rm-mini-dot.c').length === 0);
+        window.state.roadmaps = window.state.roadmaps.filter(function(r){ return r.id !== 'rm_empty'; });
+        window.ui.roadmapId = window.state.roadmaps[0].id; window.ui.rmSelSet = null; window.ui.rmSel = null; window.render();
+      })();
+      // ===== deep-fix round 2 · agent findings (shift-tap, table-while-focused, wasted undo) =====
+      (function(){
+        var pe = function(type, el, x, y, opt){ var o = Object.assign({ bubbles: true, cancelable: true, clientX: x || 0, clientY: y || 0, button: 0 }, opt || {}); (el || d).dispatchEvent(new window.MouseEvent(type, o)); };
+        window.render(); window.rmZoomTo(1); window.ui.rmSelSet = null; window.ui.rmSel = null;
+        var rm = window.currentRoadmap();
+        rm.notes = [{ id: 'n_a', kind: 'sticky', x: 200, y: 200, w: 190, h: 170, text: 'A', color: '#ffd54a' },
+                    { id: 'n_b', kind: 'sticky', x: 460, y: 200, w: 190, h: 170, text: 'B', color: '#82b1ff' }];
+        window.save(); window.rmPatchBoard();
+        // shift-tap a second freeform object ADDS it to the selection (was: wiped / no-op)
+        window.rmSelectOnly('note:n_a');
+        var nb = d.querySelector('.rm-note-obj[data-note="n_b"]');
+        pe('pointerdown', nb, 470, 210, { shiftKey: true }); pe('pointerup', d, 470, 210, { shiftKey: true });
+        ok('shift-tap a freeform object adds it to the selection', window.rmSelHas('note:n_a') && window.rmSelHas('note:n_b'));
+        window.rmDeselect();
+        // table structural change applies even while a cell is focused
+        window.rmTableAdd(); var t = window.currentRoadmap().tables.slice(-1)[0]; window.rmPatchBoard();
+        var cell = d.querySelector('.rm-table[data-table="'+t.id+'"] .rm-tbl-cell'); if(cell){ try{ cell.focus(); }catch(_){} }
+        var rowsBefore = d.querySelectorAll('.rm-table[data-table="'+t.id+'"] tr').length;
+        window.rmTableRow(t.id);
+        var rowsAfter = d.querySelectorAll('.rm-table[data-table="'+t.id+'"] tr').length;
+        ok('add-row updates the DOM even while a cell is focused', rowsAfter === rowsBefore + 1 && t.cells.length === rowsAfter);
+        window.rmTableDelete(t.id);
+        // deleting a selection of only-stale ids leaves the undo stack untouched
+        var uLen = window.rmHist.u.length;
+        window.ui.rmSelSet = { 'note:GHOST_ID': true }; window.ui.rmSel = 'note:GHOST_ID';
+        window.rmDeleteSel();
+        ok('a no-op delete does not push a wasted undo snapshot', window.rmHist.u.length === uLen);
+        window.ui.rmSelSet = null; window.ui.rmSel = null; window.currentRoadmap().notes = []; window.render();
+      })();
       window.ui.rmCam = null;
     })();
 
@@ -1757,6 +1839,9 @@ async function main() {
       // upgraded sparkline draws itself in with a gradient area
       var spark = window.svgSparkline([1, 3, 2, 5, 4], 90, 30, 'var(--income)');
       ok('sparkline is animated (draw + gradient area + endpoint)', /class="c-spark-line"/.test(spark) && /class="c-spark-area"/.test(spark) && /pathLength="100"/.test(spark));
+      ok('line/area charts carry a single revenue flow overlay (not expenses/sparklines)', /class="c-flow c-rev"/.test(line) && /class="c-flow c-rev"/.test(area) && !/c-flow c-exp/.test(line) && !/c-spark-flow/.test(spark));
+      ok('flow + sheen loops exist and are reduced-motion-guarded', /@keyframes cFlow\{/.test(html) && /@keyframes cSheen\{/.test(html) && /\.c-svg \.c-flow\{display:none\}/.test(html));
+      ok('sheen is opt-in (.progress.live) so dense table bars stay calm', /\.progress\.live \.bar::after/.test(html) && !/\.progress \.bar::after/.test(html));
       var sparkLbl = window.svgSparkline([1, 3, 2], 90, 30, 'var(--income)', 'Revenue trend');
       ok('labelled sparkline carries a Latest/High/Low tooltip', /data-ctip=/.test(sparkLbl) && /Latest/.test(sparkLbl));
       // health ring draws itself in (unique gradient id + --c0 keyframe start)
