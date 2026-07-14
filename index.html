@@ -5420,8 +5420,9 @@ function rmMiniDots(pos){
   var bw=Math.max(maxX-minX,1), bh=Math.max(maxY-minY,1);
   var MW=150, MH=100, sc=Math.min(MW/bw, MH/bh)*0.82, ox=(MW-bw*sc)/2, oy=(MH-bh*sc)/2;
   window._rmMini={minX:minX,minY:minY,sc:sc,ox:ox,oy:oy,MW:MW,MH:MH};
-  var out='';
+  var out='', noCtr=(currentRoadmap()||{}).noCenter;
   for(var id in pos){ var isC=id==='center', isP=id.indexOf('p:')===0;
+    if(isC&&noCtr) continue; // no centre node on the board → no centre dot in the minimap
     out+='<span class="rm-mini-dot'+(isC?' c':(isP?' p':''))+'" style="left:'+(ox+(pos[id].x-minX)*sc)+'px;top:'+(oy+(pos[id].y-minY)*sc)+'px"></span>'; }
   return out;
 }
@@ -5469,8 +5470,12 @@ function rmPatchBoard(){
       function(el,c){ el.style.left=c.x+'px'; el.style.top=c.y+'px'; el.classList.toggle('has-text',!!(c.text||'').trim()); el.setAttribute('title',esc((c.text||'').slice(0,60)||'Comment')); });
     rmReconcileList(board,'.rm-table','data-table',(rm.tables||[]),function(t){ var el=rmMakeEl(rmTableHTML(t)); el.classList.add('rm-in'); return el; },
       function(el,t){ el.style.left=t.x+'px'; el.style.top=t.y+'px';
-        var cols=(t.cells[0]||[]).length, sig=(t.cells.length)+'x'+cols, focused=el.contains(document.activeElement);
-        if(el.dataset.sig!==sig&&!focused){ var fresh=rmMakeEl(rmTableHTML(t)); el.innerHTML=fresh.innerHTML; el.style.width=fresh.style.width; el.dataset.sig=sig; } });
+        var cols=(t.cells[0]||[]).length, sig=(t.cells.length)+'x'+cols;
+        if(el.dataset.sig!==sig){ // a rows×cols change is structural — rebuild even if a cell/control holds focus (else +row/+col do nothing while editing)
+          var ae=document.activeElement, ar=ae&&el.contains(ae)&&ae.classList&&ae.classList.contains('rm-tbl-cell')?ae.getAttribute('data-r'):null, ac=ar!=null?ae.getAttribute('data-c'):null;
+          var fresh=rmMakeEl(rmTableHTML(t)); el.innerHTML=fresh.innerHTML; el.style.width=fresh.style.width; el.dataset.sig=sig;
+          if(ar!=null){ var back=el.querySelector('.rm-tbl-cell[data-r="'+ar+'"][data-c="'+ac+'"]'); if(back){ try{ back.focus(); var rg=document.createRange(); rg.selectNodeContents(back); rg.collapse(false); var se=window.getSelection(); se.removeAllRanges(); se.addRange(rg); }catch(_){} } }
+        } });
   }
   var mi=byId('rm-mini-inner'); if(mi) mi.innerHTML=rmMiniDots(pos)+'<div class="rm-mini-view" id="rm-mini-view"></div>';
   rmApplyCam(); rmApplySelDom(); if(typeof rmConsumeEdit==='function') rmConsumeEdit();
@@ -5607,7 +5612,9 @@ var rmXfNode={
 };
 /* one hit-test router for every freeform object (capture phase) */
 document.addEventListener('pointerdown',function(e){
-  var cv=e.target.closest&&e.target.closest('#rm-canvas'); if(!cv||rmPlace||rmSpace||rmHand||rmPenMode||e.shiftKey||e.button!==0) return;
+  var cv=e.target.closest&&e.target.closest('#rm-canvas'); if(!cv||rmPlace||rmSpace||rmHand||rmPenMode||e.button!==0) return;
+  // NOTE: Shift is allowed through so a shift-tap on a freeform object reaches
+  // rmXfMove.click (which toggles it); marquee-on-empty-canvas is a different handler
   var t=e.target;
   var nrz=t.closest('.rm-note-rz');
   if(nrz){ var nr=rmNoteById(nrz.getAttribute('data-note-rz')); if(nr) rmXformStart(e,rmXfNoteResize,{id:nr.id,el:nrz.closest('.rm-note-obj'),ow:nr.w||190,oh:nr.h||170}); return; }
@@ -6371,7 +6378,7 @@ function rmDeleteSel(){
   // deleting the centre "mother" hides it (the roadmap itself persists); its branches become roots
   if(ids.indexOf('center')>=0 && !rm.noCenter){ rm.noCenter=true; nDel++; }
   ui.rmSelSet={}; ui.rmSel=null;
-  if(!nDel){ rmApplySelDom(); return; }
+  if(!nDel){ rmHist.u.pop(); rmApplySelDom(); return; } // nothing real deleted → drop the wasted snapshot
   save(); rmPatchBoard(); toast(nDel+' item'+(nDel>1?'s':'')+' deleted.','warn',{undo:true});
 }
 /* duplicate the selection (whole subtrees) with a small offset; copies become the selection */

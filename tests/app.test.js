@@ -1628,8 +1628,40 @@ async function main() {
         window.state.roadmaps.push({ id: 'rm_empty', name: 'Fresh', color: '#4653e8', phases: [], noCenter: true });
         window.ui.roadmapId = 'rm_empty'; window.render();
         ok('a fresh roadmap renders an empty canvas (no forced mother)', d.querySelectorAll('#rm-board .rm-node').length === 0);
+        // a noCenter roadmap must not leave a phantom centre dot in the minimap
+        window.rmPatchBoard();
+        ok('empty roadmap shows no phantom centre dot in the minimap', d.querySelectorAll('#rm-mini-inner .rm-mini-dot.c').length === 0);
         window.state.roadmaps = window.state.roadmaps.filter(function(r){ return r.id !== 'rm_empty'; });
         window.ui.roadmapId = window.state.roadmaps[0].id; window.ui.rmSelSet = null; window.ui.rmSel = null; window.render();
+      })();
+      // ===== deep-fix round 2 · agent findings (shift-tap, table-while-focused, wasted undo) =====
+      (function(){
+        var pe = function(type, el, x, y, opt){ var o = Object.assign({ bubbles: true, cancelable: true, clientX: x || 0, clientY: y || 0, button: 0 }, opt || {}); (el || d).dispatchEvent(new window.MouseEvent(type, o)); };
+        window.render(); window.rmZoomTo(1); window.ui.rmSelSet = null; window.ui.rmSel = null;
+        var rm = window.currentRoadmap();
+        rm.notes = [{ id: 'n_a', kind: 'sticky', x: 200, y: 200, w: 190, h: 170, text: 'A', color: '#ffd54a' },
+                    { id: 'n_b', kind: 'sticky', x: 460, y: 200, w: 190, h: 170, text: 'B', color: '#82b1ff' }];
+        window.save(); window.rmPatchBoard();
+        // shift-tap a second freeform object ADDS it to the selection (was: wiped / no-op)
+        window.rmSelectOnly('note:n_a');
+        var nb = d.querySelector('.rm-note-obj[data-note="n_b"]');
+        pe('pointerdown', nb, 470, 210, { shiftKey: true }); pe('pointerup', d, 470, 210, { shiftKey: true });
+        ok('shift-tap a freeform object adds it to the selection', window.rmSelHas('note:n_a') && window.rmSelHas('note:n_b'));
+        window.rmDeselect();
+        // table structural change applies even while a cell is focused
+        window.rmTableAdd(); var t = window.currentRoadmap().tables.slice(-1)[0]; window.rmPatchBoard();
+        var cell = d.querySelector('.rm-table[data-table="'+t.id+'"] .rm-tbl-cell'); if(cell){ try{ cell.focus(); }catch(_){} }
+        var rowsBefore = d.querySelectorAll('.rm-table[data-table="'+t.id+'"] tr').length;
+        window.rmTableRow(t.id);
+        var rowsAfter = d.querySelectorAll('.rm-table[data-table="'+t.id+'"] tr').length;
+        ok('add-row updates the DOM even while a cell is focused', rowsAfter === rowsBefore + 1 && t.cells.length === rowsAfter);
+        window.rmTableDelete(t.id);
+        // deleting a selection of only-stale ids leaves the undo stack untouched
+        var uLen = window.rmHist.u.length;
+        window.ui.rmSelSet = { 'note:GHOST_ID': true }; window.ui.rmSel = 'note:GHOST_ID';
+        window.rmDeleteSel();
+        ok('a no-op delete does not push a wasted undo snapshot', window.rmHist.u.length === uLen);
+        window.ui.rmSelSet = null; window.ui.rmSel = null; window.currentRoadmap().notes = []; window.render();
       })();
       window.ui.rmCam = null;
     })();
