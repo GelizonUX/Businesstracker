@@ -2376,7 +2376,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
-var APP_BUILD='2026.07.14a'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
+var APP_BUILD='2026.07.14c'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -5525,7 +5525,8 @@ function rmCommentDelete(id){ var rm=currentRoadmap(); if(!rm) return; rmComment
 function rmTableById(id){ var rm=currentRoadmap(); return rm&&(rm.tables||[]).find(function(t){return t.id===id;}); }
 function rmTableAdd(){ var rm=currentRoadmap(), cv=byId('rm-canvas'); if(!rm) return; rmSnapshot(); rm.tables=rm.tables||[];
   var c={x:RM_BOARD_W/2,y:RM_BOARD_H/2}; if(cv){ var r=cv.getBoundingClientRect(); c=rmScreenToWorld(r.left+r.width/2,r.top+r.height/2); }
-  rm.tables.push({id:uid(),x:Math.round(c.x-120),y:Math.round(c.y-50),rows:2,cols:2,cells:[['',''],['','']]}); rmCommitSoft(); toast('Table added — click a cell to type.','info',{undo:true}); }
+  var jt=(rm.tables.length%5)*20; // small stagger so repeated adds don't stack on each other / the centre node
+  rm.tables.push({id:uid(),x:Math.round(c.x-90+jt),y:Math.round(c.y-40+jt),rows:2,cols:2,cells:[['',''],['','']]}); rmCommitSoft(); toast('Table added — click a cell to type.','info',{undo:true}); }
 function rmTableRow(id){ var t=rmTableById(id); if(!t) return; rmSnapshot(); var cols=(t.cells[0]||[]).length||2; var row=[]; for(var i=0;i<cols;i++) row.push(''); t.cells.push(row); t.rows=t.cells.length; rmCommitSoft(); }
 function rmTableCol(id){ var t=rmTableById(id); if(!t) return; rmSnapshot(); t.cells.forEach(function(r){ r.push(''); }); t.cols=(t.cells[0]||[]).length; rmCommitSoft(); }
 function rmTableRowDel(id){ var t=rmTableById(id); if(!t||t.cells.length<=1) return; rmSnapshot(); t.cells.pop(); t.rows=t.cells.length; rmCommitSoft(); }
@@ -5644,8 +5645,8 @@ document.addEventListener('pointerdown',function(e){
 document.addEventListener('dblclick',function(e){ var nb=e.target.closest&&e.target.closest('.rm-note-obj'); if(nb&&!e.target.closest('.rm-note-bar')&&!e.target.closest('.rm-note-rz')){ e.preventDefault(); e.stopPropagation(); rmNoteEdit(nb.getAttribute('data-note')); } },true);
 /* ---- freehand pen / marker (FigJam) ---- */
 var rmPenMode=false, rmInk=null;
-function rmPenStart(el){ rmPlaceCancel(); if(rmConnect) rmConnectCancel(); rmPenMode=true; document.body.classList.add('rm-drawing'); rmArmFromEl(el); toast('Draw on the canvas · Esc or Pen again to stop','info'); }
-function rmPenStop(){ rmPenMode=false; document.body.classList.remove('rm-drawing'); rmClearArmed(); }
+function rmPenStart(el){ rmPlaceCancel(); if(rmConnect) rmConnectCancel(); rmPenMode=true; document.body.classList.add('rm-drawing'); var pb=document.querySelector('[data-action="rm-pen-tool"]'); if(pb) pb.classList.add('on'); rmArmFromEl(el); toast('Draw on the canvas · Esc, Pen again, or the arrow tool to stop','info'); }
+function rmPenStop(){ rmPenMode=false; document.body.classList.remove('rm-drawing'); var pb=document.querySelector('[data-action="rm-pen-tool"]'); if(pb) pb.classList.remove('on'); rmClearArmed(); }
 function rmInkDelete(id){ var rm=currentRoadmap(); if(!rm) return; rmSnapshot(); rm.ink=(rm.ink||[]).filter(function(k){ return k.id!==id; }); rmCommitSoft(); toast('Stroke erased.','warn',{undo:true}); }
 function rmInkHTML(rm){ return (rm.ink||[]).map(function(k){ return '<polyline data-ink="'+k.id+'" class="rm-ink" fill="none" stroke="'+(k.color||'#e0554e')+'" stroke-width="'+(k.w||3)+'" points="'+k.pts.map(function(p){return p[0]+','+p[1];}).join(' ')+'"/>'; }).join(''); }
 document.addEventListener('pointerdown',function(e){
@@ -6173,6 +6174,9 @@ function rmRailHTML(){
 /* left-docked boards (maps) panel */
 function rmMapsHTML(rm){
   var rms=state.roadmaps||[];
+  // on phones the Boards panel floats over the canvas, so default it collapsed there
+  // (the user can still open it from the Boards toolbar button); desktop stays open
+  if(ui.rmMapsOpen==null && typeof window!=='undefined' && (window.innerWidth||1200)<=640) ui.rmMapsOpen=false;
   var open=ui.rmMapsOpen!==false;
   var items=rms.map(function(r){
     var rc=tameColor(r.color||'#7c5cd6','#7c5cd6'), rs=roadmapStats(r);
@@ -8237,7 +8241,7 @@ document.addEventListener('click',function(e){
   if(action==='rm-fullscreen'){ rmToggleFullscreen(); return; }
   if(action==='rm-reset'){ rmZoomAnim(1); return; }
   if(action==='rm-tool-toggle'){ rmHand=!rmHand; document.body.classList.toggle('rm-hand',rmHand); rmSyncToolButtons(); return; }
-  if(action==='rm-tool-select'){ rmHand=(el.getAttribute('data-tool')==='hand'); document.body.classList.toggle('rm-hand',rmHand); if(rmPlace) rmPlaceCancel(); rmSyncToolButtons(); return; }
+  if(action==='rm-tool-select'){ rmHand=(el.getAttribute('data-tool')==='hand'); document.body.classList.toggle('rm-hand',rmHand); if(rmPlace) rmPlaceCancel(); if(rmPenMode) rmPenStop(); if(rmConnect) rmConnectCancel(); rmSyncToolButtons(); return; } // picking select/hand must exit pen & connector modes (else you stay stuck drawing)
   if(action==='rm-place-start'){ rmPlaceStart(el.getAttribute('data-mode')||'phase',el.getAttribute('data-phase')); rmArmFromEl(el); return; }
   if(action==='rm-place-shape'){ var fos=byId('rm-flyout'); if(fos) fos.classList.remove('open'); rmNoteStart(el,'shape',el.getAttribute('data-shape')||'rect'); return; }
   if(action==='rm-section-start'){ rmSectionAdd(); return; }

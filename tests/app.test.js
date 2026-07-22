@@ -1661,6 +1661,15 @@ async function main() {
         window.ui.rmSelSet = { 'note:GHOST_ID': true }; window.ui.rmSel = 'note:GHOST_ID';
         window.rmDeleteSel();
         ok('a no-op delete does not push a wasted undo snapshot', window.rmHist.u.length === uLen);
+        // picking the arrow/select tool must EXIT pen mode (live iOS test caught: you stayed
+        // stuck drawing after tapping select, so a fresh drawing could never be selected/deleted)
+        window.render();
+        var penBtn = d.querySelector('[data-action="rm-pen-tool"]');
+        if (penBtn) click(penBtn);
+        ok('pen tool turns drawing mode on', window.rmPenMode === true);
+        var selBtn = d.querySelector('[data-action="rm-tool-select"][data-tool="select"]');
+        if (selBtn) click(selBtn);
+        ok('tapping the arrow/select tool exits pen mode', window.rmPenMode === false);
         window.ui.rmSelSet = null; window.ui.rmSel = null; window.currentRoadmap().notes = []; window.render();
       })();
       window.ui.rmCam = null;
