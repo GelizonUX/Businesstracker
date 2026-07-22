@@ -2376,7 +2376,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
-var APP_BUILD='2026.07.14b'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
+var APP_BUILD='2026.07.14c'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -5525,7 +5525,8 @@ function rmCommentDelete(id){ var rm=currentRoadmap(); if(!rm) return; rmComment
 function rmTableById(id){ var rm=currentRoadmap(); return rm&&(rm.tables||[]).find(function(t){return t.id===id;}); }
 function rmTableAdd(){ var rm=currentRoadmap(), cv=byId('rm-canvas'); if(!rm) return; rmSnapshot(); rm.tables=rm.tables||[];
   var c={x:RM_BOARD_W/2,y:RM_BOARD_H/2}; if(cv){ var r=cv.getBoundingClientRect(); c=rmScreenToWorld(r.left+r.width/2,r.top+r.height/2); }
-  rm.tables.push({id:uid(),x:Math.round(c.x-120),y:Math.round(c.y-50),rows:2,cols:2,cells:[['',''],['','']]}); rmCommitSoft(); toast('Table added — click a cell to type.','info',{undo:true}); }
+  var jt=(rm.tables.length%5)*20; // small stagger so repeated adds don't stack on each other / the centre node
+  rm.tables.push({id:uid(),x:Math.round(c.x-90+jt),y:Math.round(c.y-40+jt),rows:2,cols:2,cells:[['',''],['','']]}); rmCommitSoft(); toast('Table added — click a cell to type.','info',{undo:true}); }
 function rmTableRow(id){ var t=rmTableById(id); if(!t) return; rmSnapshot(); var cols=(t.cells[0]||[]).length||2; var row=[]; for(var i=0;i<cols;i++) row.push(''); t.cells.push(row); t.rows=t.cells.length; rmCommitSoft(); }
 function rmTableCol(id){ var t=rmTableById(id); if(!t) return; rmSnapshot(); t.cells.forEach(function(r){ r.push(''); }); t.cols=(t.cells[0]||[]).length; rmCommitSoft(); }
 function rmTableRowDel(id){ var t=rmTableById(id); if(!t||t.cells.length<=1) return; rmSnapshot(); t.cells.pop(); t.rows=t.cells.length; rmCommitSoft(); }
@@ -6173,6 +6174,9 @@ function rmRailHTML(){
 /* left-docked boards (maps) panel */
 function rmMapsHTML(rm){
   var rms=state.roadmaps||[];
+  // on phones the Boards panel floats over the canvas, so default it collapsed there
+  // (the user can still open it from the Boards toolbar button); desktop stays open
+  if(ui.rmMapsOpen==null && typeof window!=='undefined' && (window.innerWidth||1200)<=640) ui.rmMapsOpen=false;
   var open=ui.rmMapsOpen!==false;
   var items=rms.map(function(r){
     var rc=tameColor(r.color||'#7c5cd6','#7c5cd6'), rs=roadmapStats(r);
