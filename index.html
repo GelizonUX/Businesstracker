@@ -72,6 +72,10 @@
      continuous curvature; nested surfaces step down one rung so their
      curves stay concentric instead of fighting each other */
   --r-sm:10px; --r:13px; --r-lg:17px; --r-xl:22px; --r-2xl:28px;
+  /* SF-style optical tracking: Apple tightens letter-spacing as type grows and
+     opens it up at caption sizes, so large text never looks loose and small
+     text never looks cramped. One token per step keeps that consistent. */
+  --tr-2xl:-.032em; --tr-xl:-.024em; --tr-lg:-.016em; --tr-md:-.008em; --tr-sm:0em; --tr-xs:.012em;
   /* type scale — one set of steps for value/heading/body roles (snap new CSS to these) */
   --fs-xs:.72rem; --fs-sm:.82rem; --fs-md:.92rem; --fs-base:1rem; --fs-lg:1.12rem; --fs-xl:1.3rem; --fs-2xl:1.72rem; --fs-3xl:2.1rem;
   --grid-gap:14px; /* one consistent gutter for the card grids */
@@ -250,7 +254,7 @@ body{
   transition:background .3s var(--ease),color .3s var(--ease);
   overflow-x:hidden;
 }
-h1,h2,h3{font-family:var(--font-display);letter-spacing:-.02em}
+h1,h2,h3{font-family:var(--font-display);letter-spacing:var(--tr-xl)}
 button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
 input,select,textarea{font-family:inherit;font-size:.95rem;color:var(--text)}
 a{color:var(--accent);text-decoration:none}
@@ -738,9 +742,30 @@ body.rm-shift .rm-canvas{cursor:crosshair}
 .main{flex:1;margin-left:calc(248px*var(--nav-scale,1));min-width:0;height:100vh;height:100dvh;overflow-y:auto;overscroll-behavior:contain;padding:20px 28px 60px;animation:fadeIn .35s var(--ease)}
 
 /* topbar */
-.topbar{display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap}
-.page-title h1{font-size:var(--fs-2xl);font-weight:700;letter-spacing:-.028em;line-height:1.15}
-.page-title p{color:var(--text-2);font-size:.88rem;margin-top:2px}
+/* ---- iOS large title ----
+   The title starts large and collapses into a compact sticky bar as content
+   scrolls under it. Two separate mechanisms on purpose:
+     · the title SCALES via transform, driven per-frame by --title-p — that's
+       compositor-only, so scrolling never triggers layout;
+     · the bar's padding/background/hairline switch ONCE on .isl-scrolled with
+       a spring transition, rather than being recomputed every frame.
+   top:-20px lets the bar pin flush against the scrollport: its own 20px top
+   padding is what scrolls out of view, so no negative margins are needed
+   (which would risk a horizontal scrollbar inside .main). */
+.topbar{position:sticky;top:-20px;z-index:30;display:flex;align-items:center;gap:12px;
+  padding:20px 0 12px;margin-bottom:20px;flex-wrap:wrap;border-bottom:1px solid transparent;
+  transition:padding .42s var(--spring-smooth),border-color .3s var(--ease),box-shadow .3s var(--ease)}
+body.isl-scrolled .topbar{padding-top:10px;padding-bottom:10px;border-bottom-color:var(--lg-edge)}
+@supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  body.isl-scrolled .topbar{background:var(--lg-bg);-webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur)}
+}
+.page-title h1{font-size:var(--fs-2xl);font-weight:700;letter-spacing:var(--tr-2xl);line-height:1.15;
+  transform:scale(calc(1 - .34 * var(--title-p,0)));transform-origin:left center;will-change:transform}
+.page-title p{color:var(--text-2);font-size:.88rem;margin-top:2px;
+  opacity:calc(1 - var(--title-p,0) * 2);transform:translateY(calc(var(--title-p,0) * -3px))}
+@media (prefers-reduced-motion:reduce){
+  .page-title h1{transform:none}.page-title p{opacity:1;transform:none}.topbar{transition:none}
+}
 .topbar-actions{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .topbar-more{display:none;width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);box-shadow:var(--shadow-sm);color:var(--text-2);align-items:center;justify-content:center;flex-shrink:0;cursor:pointer}
 .theme-toggle .btn-txt{display:none} /* search/theme stay icon-only except inside the mobile overflow menu */
@@ -802,7 +827,7 @@ html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--
 .card:hover,.kb-card:hover{border-color:var(--border-2);box-shadow:var(--shadow)}
 .card:active,.kb-card:active{transform:translateY(0);box-shadow:var(--shadow-sm)}
 .card-head{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
-.card-head h3{font-size:1rem;font-weight:700;letter-spacing:-.01em}
+.card-head h3{font-size:1rem;font-weight:700;letter-spacing:var(--tr-md)}
 .card-head .sub{font-size:.8rem;color:var(--text-3)}
 .card-head .spacer{margin-left:auto}
 .grid{display:grid;gap:var(--grid-gap)}
@@ -889,7 +914,7 @@ html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--
 .stat-card{position:relative;overflow:hidden}
 .stat-card .stat-label{font-size:.7rem;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.1em;display:flex;align-items:center;gap:8px}
 .stat-card .stat-label svg{width:14px;height:14px}
-.stat-card .stat-value{font-family:var(--font-display);font-size:var(--fs-2xl);font-weight:700;letter-spacing:-.022em;margin-top:6px}
+.stat-card .stat-value{font-family:var(--font-display);font-size:var(--fs-2xl);font-weight:700;letter-spacing:var(--tr-2xl);margin-top:6px}
 .stat-card .stat-delta{font-size:.78rem;font-weight:600;margin-top:5px;display:inline-flex;align-items:center;gap:4px;padding:0;border-radius:0;background:transparent!important}
 .stat-delta.up{color:var(--good);background:var(--good-soft)}
 .stat-delta.down{color:var(--risk);background:var(--risk-soft)}
@@ -979,6 +1004,27 @@ tr:hover .row-actions{opacity:1}
     -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur)}
 }
 .modal.wide{max-width:680px}
+/* ---- iOS sheet presentation ----
+   Desktop keeps the centred card. On a phone the dialog becomes a bottom
+   sheet: it rises from the edge, is rounded only on top, carries a grabber,
+   and can be flicked away. */
+.sheet-grabber{display:none;width:36px;height:5px;border-radius:99px;background:var(--border-2);margin:9px auto 2px;flex-shrink:0}
+@media (max-width:640px){
+  .modal-overlay{align-items:flex-end;padding:0}
+  .modal{max-width:none;width:100%;border-radius:var(--r-2xl) var(--r-2xl) 0 0;border-bottom:none;
+    max-height:92dvh;display:flex;flex-direction:column;
+    padding-bottom:env(safe-area-inset-bottom,0);
+    animation:sheetUp .46s var(--spring-snappy) both;
+    touch-action:pan-y}
+  .modal.sheet-dragging{animation:none;transition:none}
+  .modal.sheet-settling{animation:none;transition:transform .34s var(--spring-smooth)}
+  .sheet-grabber{display:block;cursor:grab}
+  .modal-body{overflow-y:auto;-webkit-overflow-scrolling:touch}
+}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@media (prefers-reduced-motion:reduce){
+  @media (max-width:640px){ .modal{animation:fadeIn .2s both} }
+}
 .modal-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 0}
 .modal-head h3{font-size:1.12rem;font-weight:700;letter-spacing:-.015em}
 .modal-body{padding:16px 24px 24px}
@@ -1810,7 +1856,10 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
   .card-head h3{font-size:.95rem}
   /* keep the value baselines aligned when a 2-up sibling's label wraps to 2 lines */
   .stat-card .stat-label{min-height:2.1em;align-items:flex-start}
-  .page-title h1{font-size:1.12rem}
+  /* phones get a real iOS large title — it's the pattern's home turf, and it
+     collapses to compact as soon as the user scrolls */
+  .page-title h1{font-size:1.62rem;letter-spacing:var(--tr-2xl)}
+  .topbar{padding-bottom:10px;margin-bottom:14px}
   /* let users know more tabs exist off-screen */
   .tabs{-webkit-mask-image:linear-gradient(90deg,#000 80%,transparent);mask-image:linear-gradient(90deg,#000 80%,transparent)}
   .tabs button{padding:8px 12px}
@@ -2510,7 +2559,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
-var APP_BUILD='2026.08.13b'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
+var APP_BUILD='2026.08.13c'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -2748,6 +2797,7 @@ function openModal(title,bodyHTML,opts){
   root.innerHTML=
     '<div class="modal-overlay" data-action="close-modal-overlay">'+
       '<div class="modal'+(opts.wide?' wide':'')+'" role="dialog" aria-modal="true"'+(opts.maxWidth?' style="max-width:'+opts.maxWidth+'"':'')+'>'+
+        '<div class="sheet-grabber" aria-hidden="true"></div>'+ // phone sheets get a drag handle
         '<div class="modal-head"><h3>'+esc(title)+'</h3>'+
           '<button class="btn-icon" data-action="close-modal" aria-label="Close">'+icon('x')+'</button></div>'+
         '<div class="modal-body"><form id="modal-form" novalidate>'+bodyHTML+
@@ -2792,6 +2842,38 @@ document.addEventListener('keydown',function(e){
   else if(!modal.contains(document.activeElement)){ e.preventDefault(); firstEl.focus(); }
 });
 function closeModal(){ byId('modal-root').innerHTML=''; modalSubmitHandler=null; if(modalReturnFocus&&modalReturnFocus.focus){ try{ modalReturnFocus.focus(); }catch(_){ } } modalReturnFocus=null; if(typeof updateAdvisorBubble==='function') updateAdvisorBubble(currentRoute()); }
+/* ---- sheet drag-to-dismiss (phones) ----
+   Drag the grabber or the sheet's header to pull it down; release past a
+   threshold (or with a quick flick) to dismiss, otherwise it springs back.
+   Downward-only: dragging up is clamped so the sheet never detaches. */
+var sheetDrag=null;
+document.addEventListener('pointerdown',function(e){
+  if(!e.target.closest) return;
+  var handle=e.target.closest('.sheet-grabber,.modal-head'); if(!handle) return;
+  if(e.target.closest('button,a,input,select,textarea')) return;      // let controls win
+  var sheet=handle.closest('.modal'); if(!sheet) return;
+  if(!window.matchMedia||!window.matchMedia('(max-width:640px)').matches) return; // sheets are a phone pattern
+  sheetDrag={el:sheet,y0:e.clientY,dy:0,t0:Date.now()};
+  sheet.classList.add('sheet-dragging'); sheet.classList.remove('sheet-settling');
+},true);
+document.addEventListener('pointermove',function(e){
+  if(!sheetDrag) return;
+  sheetDrag.dy=Math.max(0,e.clientY-sheetDrag.y0);                    // down only
+  sheetDrag.el.style.transform='translateY('+sheetDrag.dy+'px)';
+},{passive:true});
+document.addEventListener('pointerup',function(){
+  if(!sheetDrag) return; var s=sheetDrag; sheetDrag=null;
+  s.el.classList.remove('sheet-dragging');
+  var vel=s.dy/Math.max(1,Date.now()-s.t0);                           // px per ms
+  if(s.dy>110||vel>0.55){                                             // past the threshold, or flicked
+    s.el.classList.add('sheet-settling');
+    s.el.style.transform='translateY(100%)';
+    setTimeout(closeModal,220);
+  } else {
+    s.el.classList.add('sheet-settling'); s.el.style.transform='translateY(0)';
+    setTimeout(function(){ if(s.el) s.el.classList.remove('sheet-settling'); },360);
+  }
+});
 function fv(form,name){ var el=form.elements[name]; return el?el.value.trim():''; }
 
 /* ---------- finance computations ---------- */
@@ -3405,7 +3487,9 @@ function render(){
   else main.innerHTML=(views[route]||viewDashboard)();
   // gentle cross-fade when the section actually changes, so switching views never hard-cuts/blinks
   var routeChanged=route!==lastRenderRoute;
-  if(routeChanged){ main.classList.remove('view-enter'); void main.offsetWidth; main.classList.add('view-enter'); lastRenderRoute=route; }
+  if(routeChanged){ main.classList.remove('view-enter'); void main.offsetWidth; main.classList.add('view-enter'); lastRenderRoute=route;
+    // a new screen always opens with its large title expanded, like a fresh push
+    main.scrollTop=0; if(typeof islandScrollSync==='function') islandScrollSync(); }
   // delight: count key figures up on a fresh page entrance (not on in-page re-renders)
   if(routeChanged && typeof animateCounts==='function') animateCounts(main);
   // NOTE: card strokes & accents intentionally use the single brand accent (--accent, set in
@@ -13606,7 +13690,12 @@ document.addEventListener('click',function(e){
 },true);
 function islandScrollSync(){
   var m=byId('main'); if(!m) return;
-  document.body.classList.toggle('isl-scrolled', m.scrollTop>8);
+  var y=m.scrollTop;
+  document.body.classList.toggle('isl-scrolled', y>8);
+  // large-title collapse progress (0..1 over the first 52px). Only a custom
+  // property is written, so the browser can keep this on the compositor.
+  var p=y<=0?0:(y>=52?1:y/52);
+  document.documentElement.style.setProperty('--title-p',p.toFixed(3));
 }
 function bootApp(){
   try{ console.info('Trakora build', APP_BUILD); }catch(_){}

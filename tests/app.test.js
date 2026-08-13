@@ -907,6 +907,44 @@ async function main() {
       ok('sliding does not re-render the page mid-drag', !!d.getElementById('glass-range'));
       window.state.settings.glass = 55; window.applyGlass();
     })();
+
+    // ---------- iOS 27 · large titles, sheets, SF tracking ----------
+    (function () {
+      // large title: sticky bar, compositor-only scaling, one-shot collapse styling
+      ok('the page header is a sticky bar that pins flush', /\.topbar\{position:sticky;top:-20px/.test(html));
+      ok('the title scales on the compositor via --title-p (no layout on scroll)', /\.page-title h1\{[^}]*transform:scale\(calc\(1 - \.34 \* var\(--title-p,0\)\)\)/.test(html));
+      ok('the subtitle fades as the title collapses', /\.page-title p\{[^}]*opacity:calc\(1 - var\(--title-p,0\) \* 2\)/.test(html));
+      ok('the collapsed bar takes glass + a hairline, transitioned once on class change', /body\.isl-scrolled \.topbar\{padding-top:10px/.test(html) && /body\.isl-scrolled \.topbar\{background:var\(--lg-bg\)/.test(html));
+      ok('large-title collapse honours reduced motion', /@media \(prefers-reduced-motion:reduce\)\{\s*\.page-title h1\{transform:none\}/.test(html));
+      // the scroll driver writes only a custom property
+      var mainEl = d.getElementById('main');
+      var root = d.documentElement;
+      mainEl.scrollTop = 0; window.islandScrollSync();
+      ok('at rest the title is fully expanded', root.style.getPropertyValue('--title-p') === '0.000');
+      mainEl.scrollTop = 26; window.islandScrollSync();
+      ok('mid-scroll the collapse is partial', root.style.getPropertyValue('--title-p') === '0.500');
+      mainEl.scrollTop = 400; window.islandScrollSync();
+      ok('past the threshold the title is fully collapsed', root.style.getPropertyValue('--title-p') === '1.000' && d.body.classList.contains('isl-scrolled'));
+      // opening a new screen resets it, like a fresh push
+      window.location.hash = '#/goals'; window.render();
+      ok('navigating reopens the next screen with its large title', mainEl.scrollTop === 0 && root.style.getPropertyValue('--title-p') === '0.000');
+
+      // sheets
+      ok('dialogs carry a grabber for the phone sheet', /<div class="sheet-grabber" aria-hidden="true"><\/div>/.test(html));
+      ok('phones present dialogs as bottom sheets', /@media \(max-width:640px\)\{[\s\S]{0,120}\.modal-overlay\{align-items:flex-end/.test(html));
+      ok('the sheet is rounded on top only and rises from the edge', /\.modal\{[^}]*border-radius:var\(--r-2xl\) var\(--r-2xl\) 0 0/.test(html) && /@keyframes sheetUp\{from\{transform:translateY\(100%\)\}/.test(html));
+      ok('the grabber only appears on phones', /\.sheet-grabber\{display:none/.test(html) && /\.sheet-grabber\{display:block/.test(html));
+      ok('drag-to-dismiss is downward-only and threshold + velocity based', /Math\.max\(0,e\.clientY-sheetDrag\.y0\)/.test(html) && /s\.dy>110\|\|vel>0\.55/.test(html));
+      ok('dragging never hijacks a control inside the header', /if\(e\.target\.closest\('button,a,input,select,textarea'\)\) return;/.test(html));
+      ok('sheets are a phone-only pattern (desktop keeps the centred card)', /matchMedia\('\(max-width:640px\)'\)\.matches\) return;/.test(html));
+      var m = window.openModal ? (window.openModal('Sheet probe', '<p>x</p>', {}), d.querySelector('.sheet-grabber')) : null;
+      ok('a real dialog renders the grabber element', !!m);
+      window.closeModal();
+
+      // SF-style optical tracking
+      ok('SF tracking tokens exist across the type scale', /--tr-2xl:-\.032em; --tr-xl:-\.024em/.test(html) && /--tr-xs:\.012em/.test(html));
+      ok('headings and values consume the tracking tokens', /h1,h2,h3\{font-family:var\(--font-display\);letter-spacing:var\(--tr-xl\)\}/.test(html) && /\.stat-value\{[^}]*letter-spacing:var\(--tr-2xl\)/.test(html));
+    })();
     ok('island squeezes on medium desktops (two tiers, fits down to 861px)', /@media \(min-width:861px\) and \(max-width:1180px\)/.test(html) && /@media \(min-width:861px\) and \(max-width:1040px\)/.test(html) && /\.isl-brand b\{display:none\}/.test(html));
     ok('health ring follows the user accent (no hardcoded gradient stops)', /stop-color:var\(--accent-cta,#4653e8\)/.test(html) && !/<stop offset="0" stop-color="#4653e8"/.test(html));
 
