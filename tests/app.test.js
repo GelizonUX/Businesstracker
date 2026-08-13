@@ -867,8 +867,8 @@ async function main() {
       // every glass property derives from ONE clarity token, so the slider moves the whole system
       ok('Liquid Glass tokens all derive from --glass-clarity',
         /--glass-clarity:\.55/.test(html) &&
-        /--lg-bg:color-mix\(in srgb,var\(--bg-card\) calc\(100% - var\(--glass-clarity\) \* 42%\),transparent\)/.test(html) &&
-        /--lg-blur:blur\(calc\(var\(--glass-clarity\) \* 24px\)\) saturate\(/.test(html) &&
+        /--lg-bg:color-mix\(in srgb,var\(--bg-card\) calc\(100% - var\(--glass-clarity\) \* 46%\),transparent\)/.test(html) &&
+        /--lg-blur:blur\(calc\(var\(--glass-clarity\) \* 12px\)\) saturate\(/.test(html) &&
         /--lg-rim:inset 0 1px 0 rgba\(255,255,255,calc\(/.test(html));
       ok('the legacy --mat-* material tier now aliases the glass system', /--mat-float-bg:var\(--lg-bg\)/.test(html) && /--mat-border:var\(--lg-edge\)/.test(html));
       ok('dark theme softens the specular rim and densifies the surface', /html\[data-theme="dark"\]\{[\s\S]*?--lg-rim:inset 0 1px 0 rgba\(255,255,255,calc\(\.05/.test(html));
@@ -914,7 +914,7 @@ async function main() {
       ok('the page header is a sticky bar that pins flush', /\.topbar\{position:sticky;top:-20px/.test(html));
       ok('the title scales on the compositor via --title-p (no layout on scroll)', /\.page-title h1\{[^}]*transform:scale\(calc\(1 - \.34 \* var\(--title-p,0\)\)\)/.test(html));
       ok('the subtitle fades as the title collapses', /\.page-title p\{[^}]*opacity:calc\(1 - var\(--title-p,0\) \* 2\)/.test(html));
-      ok('the collapsed bar takes glass + a hairline, transitioned once on class change', /body\.isl-scrolled \.topbar\{padding-top:10px/.test(html) && /body\.isl-scrolled \.topbar\{background:var\(--lg-bg\)/.test(html));
+      ok('the collapsed bar takes glass + a hairline, transitioned once on class change', /body\.isl-scrolled \.topbar\{padding-top:10px/.test(html) && /body\.isl-scrolled \.topbar\{background:color-mix\(in srgb,var\(--bg-card\)/.test(html));
       ok('large-title collapse honours reduced motion', /@media \(prefers-reduced-motion:reduce\)\{\s*\.page-title h1\{transform:none\}/.test(html));
       // the scroll driver writes only a custom property
       var mainEl = d.getElementById('main');
