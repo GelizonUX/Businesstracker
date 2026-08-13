@@ -68,7 +68,10 @@
 
   --income:#0c7d5c; --expense:#cd352d;
 
-  --r-sm:8px; --r:11px; --r-lg:14px; --r-xl:18px;
+  /* concentric radius scale — iOS 27 unified corner radii toward larger,
+     continuous curvature; nested surfaces step down one rung so their
+     curves stay concentric instead of fighting each other */
+  --r-sm:10px; --r:13px; --r-lg:17px; --r-xl:22px; --r-2xl:28px;
   /* type scale — one set of steps for value/heading/body roles (snap new CSS to these) */
   --fs-xs:.72rem; --fs-sm:.82rem; --fs-md:.92rem; --fs-base:1rem; --fs-lg:1.12rem; --fs-xl:1.3rem; --fs-2xl:1.72rem; --fs-3xl:2.1rem;
   --grid-gap:14px; /* one consistent gutter for the card grids */
@@ -78,15 +81,30 @@
   --ease:cubic-bezier(.4,0,.2,1);
   --ease-snappy:cubic-bezier(.25,.46,.45,.94);
   --chart-grid:#ecece7;
-  /* material system — two translucent tiers shared by all floating chrome.
-     float: persistent surfaces over the canvas (toolbar, zoom bar, panels)
-     panel: transient surfaces (menus, popovers, property bars) */
-  --mat-float-bg:color-mix(in srgb,var(--bg-card) 86%,transparent);
-  --mat-float-blur:blur(16px) saturate(1.65);
-  --mat-panel-bg:color-mix(in srgb,var(--bg-card) 95%,transparent);
-  --mat-panel-blur:blur(12px);
-  --mat-border:color-mix(in srgb,var(--border) 88%,transparent);
-  --mat-hi:inset 0 1px 0 rgba(255,255,255,.5); /* top-edge light catch */
+  /* ============================================================
+     Liquid Glass (iOS 27) — ONE material for every floating surface.
+     Everything derives from --glass-clarity (0 = solid & maximally
+     readable · 1 = ultra clear), which the Settings slider drives live.
+     iOS 27's own default sits a notch away from fully clear, favouring
+     contrast/layer separation over maximum see-through.
+     ============================================================ */
+  --glass-clarity:.55;
+  /* surface tint: fades from fully opaque toward see-through as clarity rises */
+  --lg-bg:color-mix(in srgb,var(--bg-card) calc(100% - var(--glass-clarity) * 42%),transparent);
+  /* backdrop refraction: blur + saturation lift, both scaled by clarity */
+  --lg-blur:blur(calc(var(--glass-clarity) * 24px)) saturate(calc(1 + var(--glass-clarity) * .9));
+  /* specular light-catch along the top edge — what actually reads as "glass" */
+  --lg-rim:inset 0 1px 0 rgba(255,255,255,calc(.28 + var(--glass-clarity) * .42));
+  --lg-edge:color-mix(in srgb,var(--border) calc(100% - var(--glass-clarity) * 18%),transparent);
+  /* layered shadow — iOS 27 leans on separation between layers for legibility */
+  --lg-shadow:0 1px 2px rgba(22,23,29,.05),0 8px 24px rgba(22,23,29,.08),0 24px 56px rgba(22,23,29,.07);
+  /* legacy material aliases — the roadmap chrome inherits the glass for free */
+  --mat-float-bg:var(--lg-bg);
+  --mat-float-blur:var(--lg-blur);
+  --mat-panel-bg:color-mix(in srgb,var(--bg-card) calc(100% - var(--glass-clarity) * 26%),transparent);
+  --mat-panel-blur:blur(calc(8px + var(--glass-clarity) * 14px)) saturate(calc(1 + var(--glass-clarity) * .6));
+  --mat-border:var(--lg-edge);
+  --mat-hi:var(--lg-rim); /* top-edge light catch */
   /* motion tokens — one vocabulary for every animation in the product */
   --spring:var(--ease-snappy);              /* upgraded to a real spring below when linear() is supported */
   --press:cubic-bezier(.34,1.56,.64,1);     /* back-out: button release snaps past rest, settles */
@@ -116,7 +134,12 @@ html[data-theme="dark"]{
 
   --border:#26272e;
   --border-2:#33343d;
-  --mat-hi:inset 0 1px 0 rgba(255,255,255,.06); /* subtle rim in the dark theme */
+  /* dark glass: the light-catch is a whisper, and the surface stays denser so
+     text keeps its contrast against bright content scrolling underneath */
+  --lg-bg:color-mix(in srgb,var(--bg-card) calc(100% - var(--glass-clarity) * 34%),transparent);
+  --lg-rim:inset 0 1px 0 rgba(255,255,255,calc(.05 + var(--glass-clarity) * .1));
+  --lg-shadow:0 2px 8px rgba(0,0,0,.42),0 16px 40px rgba(0,0,0,.4),0 32px 64px rgba(0,0,0,.32);
+  --mat-hi:var(--lg-rim); /* subtle rim in the dark theme */
 
   --accent:#8a92ff;
   --accent-2:#6d76f5;
@@ -135,6 +158,48 @@ html[data-theme="dark"]{
   --shadow:0 2px 8px rgba(0,0,0,.4),0 12px 32px rgba(0,0,0,.32);
   --shadow-lg:0 12px 24px rgba(0,0,0,.45),0 32px 64px rgba(0,0,0,.4);
   --chart-grid:#1f2026;
+}
+
+/* iOS-style Liquid Glass slider (Settings → Appearance) */
+.glass-slider-row{display:flex;align-items:center;gap:10px}
+.glass-cap{font-size:.68rem;font-weight:700;color:var(--text-3);white-space:nowrap;letter-spacing:.02em}
+.glass-val{float:right;font-size:.72rem;font-weight:700;color:var(--accent)}
+.glass-range{flex:1;-webkit-appearance:none;appearance:none;height:26px;background:transparent;cursor:pointer}
+.glass-range::-webkit-slider-runnable-track{height:26px;border-radius:999px;border:1px solid var(--lg-edge);
+  background:linear-gradient(90deg,var(--bg-sunken),color-mix(in srgb,var(--accent) 26%,transparent))}
+.glass-range::-moz-range-track{height:26px;border-radius:999px;border:1px solid var(--lg-edge);
+  background:linear-gradient(90deg,var(--bg-sunken),color-mix(in srgb,var(--accent) 26%,transparent))}
+.glass-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;margin-top:2px;border-radius:50%;
+  background:var(--bg-card);border:1px solid var(--lg-edge);box-shadow:0 1px 3px rgba(0,0,0,.22),var(--lg-rim);
+  transition:transform .12s var(--ease-snappy)}
+.glass-range::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--bg-card);
+  border:1px solid var(--lg-edge);box-shadow:0 1px 3px rgba(0,0,0,.22)}
+.glass-range:active::-webkit-slider-thumb{transform:scale(1.12)}
+.glass-range:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:999px}
+
+/* ============================================================
+   Liquid Glass surface — the one class every floating layer wears.
+   Chrome floats in glass; CONTENT stays opaque. That's Apple's own
+   split, and it keeps backdrop-filter cost bounded to a handful of
+   elements instead of every card in a long list.
+   ============================================================ */
+.glass{
+  background:var(--bg-card); /* fallback wherever backdrop-filter is unsupported */
+  border:1px solid var(--lg-edge);
+  box-shadow:var(--lg-shadow),var(--lg-rim);
+}
+@supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .glass{
+    background:var(--lg-bg);
+    -webkit-backdrop-filter:var(--lg-blur);
+    backdrop-filter:var(--lg-blur);
+  }
+}
+/* Accessibility + user intent: when the OS asks for reduced transparency, or the
+   user drags the slider to solid, glass collapses to a plain opaque surface. */
+@media (prefers-reduced-transparency:reduce){
+  :root{ --glass-clarity:0 }
+  .glass{ background:var(--bg-card); -webkit-backdrop-filter:none; backdrop-filter:none }
 }
 
 /* ============================================================
@@ -182,8 +247,11 @@ a{color:var(--accent);text-decoration:none}
   border-radius:999px;padding:7px 16px 7px 8px;box-shadow:var(--shadow-sm);cursor:pointer;flex-shrink:0}
 .isl-brand .brand-logo{width:28px;height:28px;border-radius:999px}
 .isl-brand b{font-family:var(--font-display);font-size:.95rem;letter-spacing:-.015em;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.island{display:flex;align-items:center;justify-content:center;gap:2px;background:var(--bg-card);border:1px solid var(--border);
-  border-radius:24px;padding:5px;box-shadow:var(--shadow-sm);margin:0 auto;flex-wrap:wrap;min-width:0;max-width:calc(100vw - 400px)}
+.island{display:flex;align-items:center;justify-content:center;gap:2px;background:var(--bg-card);border:1px solid var(--lg-edge);
+  border-radius:24px;padding:5px;box-shadow:var(--shadow-sm),var(--lg-rim);margin:0 auto;flex-wrap:wrap;min-width:0;max-width:calc(100vw - 400px)}
+@supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .island{background:var(--lg-bg);-webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur)}
+}
 .isl-group{position:relative}
 .isl-item{position:relative;display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:999px;font-size:.88rem;font-weight:600;
   color:var(--text-2);white-space:nowrap;transition:background .18s var(--ease),color .18s var(--ease),transform .12s var(--ease-snappy);cursor:pointer}
@@ -217,18 +285,21 @@ a{color:var(--accent);text-decoration:none}
   display:grid;place-items:center;font-weight:700;font-size:.82rem;cursor:pointer}
 
 @supports ((-webkit-backdrop-filter:blur(14px)) or (backdrop-filter:blur(14px))){
-  .isl-brand,.island,.isl-right{background:var(--bg-card);background:color-mix(in srgb,var(--bg-card) 72%,transparent);
-    -webkit-backdrop-filter:blur(14px) saturate(1.5);backdrop-filter:blur(14px) saturate(1.5);
+  /* the desktop island bar is glass too — driven by the same clarity token, so the
+     Settings slider moves it in lockstep with every other floating surface */
+  .isl-brand,.island,.isl-right{background:var(--lg-bg);
+    -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur);
     transition:background .35s var(--ease),box-shadow .35s var(--ease),border-color .35s var(--ease)}
-  .isl-drop{background:var(--bg-card);background:color-mix(in srgb,var(--bg-card) 88%,transparent);
-    -webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
+  .isl-drop{background:color-mix(in srgb,var(--bg-card) calc(100% - var(--glass-clarity) * 24%),transparent);
+    -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur)}
   /* liquid glass: once content flows beneath the bar, the islands go clearer, blur
      deepens, and a specular rim lights up — the Apple "material" feel */
   body.isl-scrolled .isl-brand,body.isl-scrolled .island,body.isl-scrolled .isl-right{
-    background:var(--bg-card);background:color-mix(in srgb,var(--bg-card) 55%,transparent);
-    -webkit-backdrop-filter:blur(26px) saturate(1.9);backdrop-filter:blur(26px) saturate(1.9);
-    border-color:color-mix(in srgb,var(--border) 60%,transparent);
-    box-shadow:0 10px 30px rgba(22,23,29,.10),inset 0 1px 0 rgba(255,255,255,.45)}
+    background:color-mix(in srgb,var(--bg-card) calc(100% - var(--glass-clarity) * 58%),transparent);
+    -webkit-backdrop-filter:blur(calc(var(--glass-clarity) * 30px)) saturate(calc(1 + var(--glass-clarity) * 1.1));
+    backdrop-filter:blur(calc(var(--glass-clarity) * 30px)) saturate(calc(1 + var(--glass-clarity) * 1.1));
+    border-color:var(--lg-edge);
+    box-shadow:0 10px 30px rgba(22,23,29,.10),var(--lg-rim)}
   html[data-theme="dark"] body.isl-scrolled .isl-brand,
   html[data-theme="dark"] body.isl-scrolled .island,
   html[data-theme="dark"] body.isl-scrolled .isl-right{
@@ -588,6 +659,7 @@ body.rm-shift .rm-canvas{cursor:crosshair}
 .sidebar{
   position:fixed;inset:0 auto 0 0;width:calc(248px*var(--nav-scale,1));z-index:60;
   background:var(--bg-sidebar);
+  -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur);
   border-right:1px solid var(--sidebar-border);
   display:flex;flex-direction:column;
   padding:20px 12px;
@@ -682,7 +754,10 @@ body.rm-shift .rm-canvas{cursor:crosshair}
    cards & grids
    ============================================================ */
 .card{
-  background:var(--bg-card);background:color-mix(in srgb,var(--bg-card) 86%,transparent);border:1px solid var(--border);border-radius:var(--r-lg);
+  /* content layer: deliberately OPAQUE. It was 86% translucent with no
+     backdrop-filter behind it, which just washed the colour out and cost
+     contrast. Under Liquid Glass the chrome floats and content stays crisp. */
+  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-xl);
   padding:19px 22px;box-shadow:var(--shadow-sm);
   transition:box-shadow .25s var(--ease),transform .25s var(--ease),border-color .25s;
   animation:fadeUp .4s var(--ease) backwards;
@@ -863,9 +938,14 @@ tr:hover .row-actions{opacity:1}
    ============================================================ */
 .modal-overlay{position:fixed;inset:0;background:rgba(8,10,22,.6);backdrop-filter:blur(4px);z-index:100;display:flex;align-items:flex-start;justify-content:center;padding:7vh 16px 16px;animation:fadeIn .2s;overflow-y:auto}
 .modal{
-  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-xl);
-  width:100%;max-width:520px;box-shadow:var(--shadow-lg);
+  background:var(--bg-card);border:1px solid var(--lg-edge);border-radius:var(--r-2xl);
+  width:100%;max-width:520px;box-shadow:var(--shadow-lg),var(--lg-rim);
   animation:popInSpring .34s var(--ease-snappy) both;
+}
+@supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  /* sheets sit closest to content, so they stay denser than the top-level chrome */
+  .modal{background:color-mix(in srgb,var(--bg-card) calc(100% - var(--glass-clarity) * 20%),transparent);
+    -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur)}
 }
 .modal.wide{max-width:680px}
 .modal-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 0}
@@ -879,10 +959,13 @@ tr:hover .row-actions{opacity:1}
 .toast-root{position:fixed;bottom:20px;right:20px;z-index:200;display:flex;flex-direction:column;gap:8px;max-width:min(360px,calc(100vw - 32px))}
 .toast{
   display:flex;align-items:flex-start;gap:10px;
-  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);
-  padding:12px 16px;box-shadow:var(--shadow-lg);font-size:.87rem;
+  background:var(--bg-card);border:1px solid var(--lg-edge);border-radius:var(--r-xl);
+  padding:12px 16px;font-size:.87rem;
   animation:toastIn .35s var(--ease);
   box-shadow:var(--shadow-lg),inset 3px 0 0 var(--accent);
+}
+@supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .toast{background:var(--lg-bg);-webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur)}
 }
 .toast.good{box-shadow:var(--shadow-lg),inset 3px 0 0 var(--good)}
 .toast.error{box-shadow:var(--shadow-lg),inset 3px 0 0 var(--risk)}
@@ -1749,8 +1832,12 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .chat-bubble svg{width:25px;height:25px}
 .route-assistant .chat-bubble,.route-assistant .asst-pop{display:none}
 .asst-pop{position:fixed;right:20px;bottom:84px;width:380px;max-width:calc(100vw - 32px);height:540px;max-height:calc(100vh - 130px);
-  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--shadow-lg);z-index:96;
+  background:var(--bg-card);border:1px solid var(--lg-edge);border-radius:var(--r-2xl);box-shadow:var(--shadow-lg),var(--lg-rim);z-index:96;
   display:flex;flex-direction:column;overflow:hidden;animation:abPop .2s var(--ease) both}
+@supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .asst-pop{background:color-mix(in srgb,var(--bg-card) calc(100% - var(--glass-clarity) * 22%),transparent);
+    -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur)}
+}
 .asst-pop[hidden]{display:none}
 .asst-pop-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 12px 11px 14px;
   border-bottom:1px solid var(--border);background:var(--bg-sunken)}
@@ -1791,13 +1878,15 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
    two floating surfaces so content stays crisp and older phones don't pay a blur cost. */
 @supports ((-webkit-backdrop-filter:blur(12px)) or (backdrop-filter:blur(12px))){
   @media (max-width:860px){
-    .tabbar{background:rgba(255,255,255,.7);
-      -webkit-backdrop-filter:blur(20px) saturate(1.8);backdrop-filter:blur(20px) saturate(1.8);
-      border-top:1px solid rgba(255,255,255,.55);
-      box-shadow:0 -6px 26px rgba(2,6,23,.1),inset 0 1px 0 rgba(255,255,255,.7)}
-    html[data-theme="dark"] .tabbar{background:rgba(18,20,29,.58);
-      border-top:1px solid rgba(255,255,255,.1);
-      box-shadow:0 -8px 30px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08)}
+    /* the tab bar is the most-glassed surface in the product — it floats over
+       scrolling content, so it rides the same clarity token as everything else */
+    .tabbar{background:var(--lg-bg);
+      -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur);
+      border-top:1px solid var(--lg-edge);
+      box-shadow:0 -6px 26px rgba(2,6,23,.1),var(--lg-rim)}
+    html[data-theme="dark"] .tabbar{background:var(--lg-bg);
+      border-top:1px solid var(--lg-edge);
+      box-shadow:0 -8px 30px rgba(0,0,0,.5),var(--lg-rim)}
     /* FAB: translucent accent glass — clearly the action colour, with a lit top rim */
     .fab{background:linear-gradient(140deg,color-mix(in srgb,var(--accent) 86%,transparent),color-mix(in srgb,var(--accent) 72%,transparent));
       -webkit-backdrop-filter:blur(10px) saturate(1.5);backdrop-filter:blur(10px) saturate(1.5);
@@ -2376,7 +2465,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
-var APP_BUILD='2026.07.14a'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
+var APP_BUILD='2026.08.13a'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -8070,6 +8159,22 @@ function applyTheme(){
   if(!t) t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';
   document.documentElement.setAttribute('data-theme',t);
   applyAccent();
+  applyGlass();
+}
+/* ---- Liquid Glass (iOS 27) transparency ----
+   One 0–100 setting drives --glass-clarity, and every floating surface in the
+   product derives its tint, blur, rim and edge from it. 0 renders everything
+   solid — the accessible end of the scale, not a degraded one. */
+function glassLevel(){
+  var v=state.settings&&state.settings.glass;
+  return (v==null||isNaN(v))?55:clamp(Math.round(+v),0,100); // iOS 27 ships a touch shy of fully clear
+}
+function applyGlass(){
+  var lvl=glassLevel();
+  // the OS-level "Reduce Transparency" preference always wins over the app setting
+  var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-transparency: reduce)').matches;
+  document.documentElement.style.setProperty('--glass-clarity',String(reduce?0:lvl/100));
+  document.documentElement.classList.toggle('glass-solid',(reduce?0:lvl)===0);
 }
 var ACCENTS=['#4653e8','#0ea5e9','#10b981','#f59e0b','#ef4444','#ec4899','#7c5cd6','#14b8a6'];
 function applyAccent(){
@@ -8565,6 +8670,15 @@ document.addEventListener('input',function(e){
   var el=e.target;
   var act=el.getAttribute('data-action-input');
   if(!act) return;
+  /* Liquid Glass slider: apply live on every frame of the drag. A full render()
+     here would fight the pointer and drop the thumb, so we mutate the token
+     directly and only persist the value. */
+  if(act==='set-glass'){
+    var lvl=clamp(Math.round(+el.value||0),0,100);
+    state.settings.glass=lvl; applyGlass();
+    var lab=byId('glass-val'); if(lab) lab.textContent=(lvl===0?'Solid':(lvl>=90?'Ultra clear':lvl+'%'));
+    save(); return;
+  }
   if(act==='finance-search') ui.financeFilter.q=el.value;
   if(act==='note-search') ui.noteFilter.q=el.value;
   var pos=el.selectionStart;
@@ -9144,6 +9258,17 @@ function customizationCardHTML(){
       return '<button type="button" class="btn btn-sm '+(on?'':'btn-ghost')+'" data-action="set-theme" data-theme="'+p[0]+'">'+esc(p[1])+'</button>';
     }).join('')+'</div>'+
     '<p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Switch between light and dark, or follow your device.</p></div>';
+  // Liquid Glass clarity — iOS 27's transparency slider, from solid to ultra clear
+  var gv=glassLevel();
+  html+='<div class="field"><label>Liquid Glass '+
+      '<span class="glass-val" id="glass-val">'+(gv===0?'Solid':(gv>=90?'Ultra clear':gv+'%'))+'</span></label>'+
+    '<div class="glass-slider-row">'+
+      '<span class="glass-cap">Solid</span>'+
+      '<input type="range" class="glass-range" id="glass-range" min="0" max="100" step="5" value="'+gv+'" '+
+        'data-action-input="set-glass" aria-label="Liquid Glass transparency">'+
+      '<span class="glass-cap">Clear</span>'+
+    '</div>'+
+    '<p style="font-size:.72rem;color:var(--text-3);margin-top:4px">How see-through the floating menus, sheets and bars are. Drag toward <b>Solid</b> for maximum readability — your device’s Reduce Transparency setting is always respected.</p></div>';
   // sidebar sections: color + rename
   html+='<div class="field"><label>Sidebar menu — color &amp; name each section</label><div class="sec-edit">'+
     sectionList().map(function(name){

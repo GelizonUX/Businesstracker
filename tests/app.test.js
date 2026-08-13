@@ -227,7 +227,7 @@ async function main() {
     ok('finance timeline groups by day with colour-coded dots + amounts', /function financeTimelineHTML/.test(html) && /\.fin-tl-row\[data-type="income"\] \.fin-tl-dot\{background:var\(--income\)/.test(html) && /class="fin-day"/.test(html) && /class="fin-tl-amt"/.test(html));
     // iOS "liquid glass": frosted tab bar + FAB, gated behind @supports (progressive enhancement, solid fallback)
     ok('floating chrome gets frosted glass only where backdrop-filter is supported', /@supports \(\(-webkit-backdrop-filter:blur\(12px\)\) or \(backdrop-filter:blur\(12px\)\)\)/.test(html));
-    ok('glass tab bar is translucent + blurred in both themes, FAB is accent glass', /\.tabbar\{background:rgba\(255,255,255,\.7\);[\s\S]{0,160}backdrop-filter:blur\(20px\)/.test(html) && /html\[data-theme="dark"\] \.tabbar\{background:rgba\(18,20,29,\.58\)/.test(html) && /\.fab\{background:linear-gradient\(140deg,color-mix\(in srgb,var\(--accent\)/.test(html));
+    ok('glass tab bar rides the shared Liquid Glass tokens in both themes, FAB is accent glass', /\.tabbar\{background:var\(--lg-bg\);[\s\S]{0,200}backdrop-filter:var\(--lg-blur\)/.test(html) && /html\[data-theme="dark"\] \.tabbar\{background:var\(--lg-bg\)/.test(html) && /\.fab\{background:linear-gradient\(140deg,color-mix\(in srgb,var\(--accent\)/.test(html));
     // macOS Control-Center liquid glass on the KPI stat tiles + wallet tiles, over an ambient mesh
     ok('Ledger design: canvas is a clean paper surface (no ambient mesh)', !/body\{background-image:\s*radial-gradient/.test(html) && /--bg:#f3f3ef/.test(html));
     ok('Ledger design: stat values use the embedded display face (tables keep tabular numerals)', /\.stat-card \.stat-value\{font-family:var\(--font-display\)/.test(html) && /font-family:'Schibsted Grotesk'/.test(html) && /font-family:'Instrument Sans'/.test(html) && /td\{[^}]*font-variant-numeric:tabular-nums\}/.test(html));
@@ -849,7 +849,7 @@ async function main() {
       ok('navigating from a dropdown closes it and routes', window.location.hash === '#/finance');
     })();
     ok('desktop CSS swaps sidebar for the island (min-width:861px)', /@media \(min-width:861px\)\{[\s\S]{0,400}\.sidebar\{display:none\}/.test(html) && /\.island-bar\{position:fixed/.test(html));
-    ok('design language untouched: paper canvas + Ledger radii intact', /--bg:#f3f3ef/.test(html) && /--r-sm:8px; --r:11px; --r-lg:14px; --r-xl:18px;/.test(html));
+    ok('paper canvas kept, radii moved to the iOS 27 concentric scale', /--bg:#f3f3ef/.test(html) && /--r-sm:10px; --r:13px; --r-lg:17px; --r-xl:22px; --r-2xl:28px;/.test(html));
     // island polish: the production dropdown-clip bug + adaptive active pill + glass
     ok('island can never clip its dropdowns (no overflow/contain on the pill bar)', !/\.island\{[^}]*(overflow|contain)/.test(html));
     ok('island wraps gracefully when user labels/custom modules overflow the row', /\.island\{[^}]*flex-wrap:wrap/.test(html) && /\.island\{[^}]*max-width:calc\(100vw - 400px\)/.test(html));
@@ -857,7 +857,56 @@ async function main() {
     ok('standard UX: dropdowns are click-only — no hover/focus auto-open', !/\.isl-group:hover \.isl-drop/.test(html) && !/\.isl-group:focus-within \.isl-drop/.test(html));
     ok('liquid glass: islands react to scroll with deeper blur + specular rim', /body\.isl-scrolled \.isl-brand,body\.isl-scrolled \.island,body\.isl-scrolled \.isl-right\{/.test(html) && /function islandScrollSync/.test(html) && /addEventListener\('scroll', islandScrollSync, \{passive:true\}\)/.test(html));
     ok('active island pill adapts to the user accent (CTA tokens, not hard ink)', /\.isl-item\.active\{background:var\(--accent-cta\);color:var\(--accent-cta-ink\)\}/.test(html));
-    ok('cards sit at ~86% opacity with a solid fallback (no per-card blur cost)', /\.card\{\s*background:var\(--bg-card\);background:color-mix\(in srgb,var\(--bg-card\) 86%,transparent\)/.test(html) && !/\.card\{-webkit-backdrop-filter/.test(html));
+    // Liquid Glass splits the stack: chrome floats in glass, CONTENT stays opaque
+    // (cards were 86% translucent with no backdrop-filter behind them — that only
+    // washed the colour out and cost contrast, so they are solid again)
+    ok('content cards are opaque for contrast (no per-card blur cost)', /\.card\{[\s\S]{0,240}background:var\(--bg-card\);border:1px solid var\(--border\);border-radius:var\(--r-xl\)/.test(html) && !/\.card\{-webkit-backdrop-filter/.test(html));
+
+    // ---------- iOS 27 · Liquid Glass ----------
+    (function () {
+      // every glass property derives from ONE clarity token, so the slider moves the whole system
+      ok('Liquid Glass tokens all derive from --glass-clarity',
+        /--glass-clarity:\.55/.test(html) &&
+        /--lg-bg:color-mix\(in srgb,var\(--bg-card\) calc\(100% - var\(--glass-clarity\) \* 42%\),transparent\)/.test(html) &&
+        /--lg-blur:blur\(calc\(var\(--glass-clarity\) \* 24px\)\) saturate\(/.test(html) &&
+        /--lg-rim:inset 0 1px 0 rgba\(255,255,255,calc\(/.test(html));
+      ok('the legacy --mat-* material tier now aliases the glass system', /--mat-float-bg:var\(--lg-bg\)/.test(html) && /--mat-border:var\(--lg-edge\)/.test(html));
+      ok('dark theme softens the specular rim and densifies the surface', /html\[data-theme="dark"\]\{[\s\S]*?--lg-rim:inset 0 1px 0 rgba\(255,255,255,calc\(\.05/.test(html));
+      ok('glass degrades to a solid surface without backdrop-filter support', /\.glass\{\s*background:var\(--bg-card\);/.test(html) && /@supports \(\(backdrop-filter:blur\(1px\)\) or \(-webkit-backdrop-filter:blur\(1px\)\)\)/.test(html));
+      ok('OS reduce-transparency forces clarity to 0', /@media \(prefers-reduced-transparency:reduce\)\{\s*:root\{ --glass-clarity:0 \}/.test(html));
+      // the chrome layer wears the glass; content does not
+      ok('chrome surfaces (island, modal, toast, assistant, tab bar) use the glass tokens',
+        /\.island\{background:var\(--lg-bg\)/.test(html) &&
+        /\.toast\{background:var\(--lg-bg\)/.test(html) &&
+        /\.modal\{background:color-mix\(in srgb,var\(--bg-card\) calc\(100% - var\(--glass-clarity\) \* 20%\)/.test(html) &&
+        /\.asst-pop\{background:color-mix\(in srgb,var\(--bg-card\)/.test(html));
+
+      // the slider: default, clamping, persistence, and live token application
+      var root = d.documentElement;
+      ok('glass defaults to iOS 27’s shy-of-clear 55', window.glassLevel() === 55);
+      window.state.settings.glass = 0; window.applyGlass();
+      ok('dragging to Solid sets clarity 0 and flags the solid class', root.style.getPropertyValue('--glass-clarity') === '0' && root.classList.contains('glass-solid'));
+      window.state.settings.glass = 100; window.applyGlass();
+      ok('dragging to Clear sets clarity 1 and drops the solid flag', root.style.getPropertyValue('--glass-clarity') === '1' && !root.classList.contains('glass-solid'));
+      window.state.settings.glass = 999; ok('out-of-range values clamp to 100', window.glassLevel() === 100);
+      window.state.settings.glass = -50; ok('negative values clamp to 0', window.glassLevel() === 0);
+      window.state.settings.glass = null; ok('a missing setting falls back to the default', window.glassLevel() === 55);
+
+      // the control renders in Settings and drives the token live on input (no re-render)
+      window.state.settings.glass = 55; window.applyGlass();
+      window.ui.settingsTab = 'custom'; window.location.hash = '#/settings'; window.render();
+      var range = d.getElementById('glass-range');
+      ok('the Liquid Glass slider renders in Settings → Appearance', !!range && range.getAttribute('data-action-input') === 'set-glass' && range.value === '55');
+      if (range) {
+        range.value = '20';
+        range.dispatchEvent(new window.Event('input', { bubbles: true }));
+      }
+      ok('sliding applies clarity live and persists it', root.style.getPropertyValue('--glass-clarity') === '0.2' && window.state.settings.glass === 20);
+      ok('the readout tracks the slider', (d.getElementById('glass-val') || {}).textContent === '20%');
+      // and the input did NOT nuke the settings view out from under the drag
+      ok('sliding does not re-render the page mid-drag', !!d.getElementById('glass-range'));
+      window.state.settings.glass = 55; window.applyGlass();
+    })();
     ok('island squeezes on medium desktops (two tiers, fits down to 861px)', /@media \(min-width:861px\) and \(max-width:1180px\)/.test(html) && /@media \(min-width:861px\) and \(max-width:1040px\)/.test(html) && /\.isl-brand b\{display:none\}/.test(html));
     ok('health ring follows the user accent (no hardcoded gradient stops)', /stop-color:var\(--accent-cta,#4653e8\)/.test(html) && !/<stop offset="0" stop-color="#4653e8"/.test(html));
 
