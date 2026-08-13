@@ -227,7 +227,7 @@ async function main() {
     ok('finance timeline groups by day with colour-coded dots + amounts', /function financeTimelineHTML/.test(html) && /\.fin-tl-row\[data-type="income"\] \.fin-tl-dot\{background:var\(--income\)/.test(html) && /class="fin-day"/.test(html) && /class="fin-tl-amt"/.test(html));
     // iOS "liquid glass": frosted tab bar + FAB, gated behind @supports (progressive enhancement, solid fallback)
     ok('floating chrome gets frosted glass only where backdrop-filter is supported', /@supports \(\(-webkit-backdrop-filter:blur\(12px\)\) or \(backdrop-filter:blur\(12px\)\)\)/.test(html));
-    ok('glass tab bar is translucent + blurred in both themes, FAB is accent glass', /\.tabbar\{background:rgba\(255,255,255,\.7\);[\s\S]{0,160}backdrop-filter:blur\(20px\)/.test(html) && /html\[data-theme="dark"\] \.tabbar\{background:rgba\(18,20,29,\.58\)/.test(html) && /\.fab\{background:linear-gradient\(140deg,color-mix\(in srgb,var\(--accent\)/.test(html));
+    ok('glass tab bar rides the shared Liquid Glass tokens in both themes, FAB is accent glass', /\.tabbar\{background:var\(--lg-bg\);[\s\S]{0,200}backdrop-filter:var\(--lg-blur\)/.test(html) && /html\[data-theme="dark"\] \.tabbar\{background:var\(--lg-bg\)/.test(html) && /\.fab\{background:linear-gradient\(140deg,color-mix\(in srgb,var\(--accent\)/.test(html));
     // macOS Control-Center liquid glass on the KPI stat tiles + wallet tiles, over an ambient mesh
     ok('Ledger design: canvas is a clean paper surface (no ambient mesh)', !/body\{background-image:\s*radial-gradient/.test(html) && /--bg:#f3f3ef/.test(html));
     ok('Ledger design: stat values use the embedded display face (tables keep tabular numerals)', /\.stat-card \.stat-value\{font-family:var\(--font-display\)/.test(html) && /font-family:'Schibsted Grotesk'/.test(html) && /font-family:'Instrument Sans'/.test(html) && /td\{[^}]*font-variant-numeric:tabular-nums\}/.test(html));
@@ -849,7 +849,7 @@ async function main() {
       ok('navigating from a dropdown closes it and routes', window.location.hash === '#/finance');
     })();
     ok('desktop CSS swaps sidebar for the island (min-width:861px)', /@media \(min-width:861px\)\{[\s\S]{0,400}\.sidebar\{display:none\}/.test(html) && /\.island-bar\{position:fixed/.test(html));
-    ok('design language untouched: paper canvas + Ledger radii intact', /--bg:#f3f3ef/.test(html) && /--r-sm:8px; --r:11px; --r-lg:14px; --r-xl:18px;/.test(html));
+    ok('paper canvas kept, radii moved to the iOS 27 concentric scale', /--bg:#f3f3ef/.test(html) && /--r-sm:10px; --r:13px; --r-lg:17px; --r-xl:22px; --r-2xl:28px;/.test(html));
     // island polish: the production dropdown-clip bug + adaptive active pill + glass
     ok('island can never clip its dropdowns (no overflow/contain on the pill bar)', !/\.island\{[^}]*(overflow|contain)/.test(html));
     ok('island wraps gracefully when user labels/custom modules overflow the row', /\.island\{[^}]*flex-wrap:wrap/.test(html) && /\.island\{[^}]*max-width:calc\(100vw - 400px\)/.test(html));
@@ -857,7 +857,94 @@ async function main() {
     ok('standard UX: dropdowns are click-only — no hover/focus auto-open', !/\.isl-group:hover \.isl-drop/.test(html) && !/\.isl-group:focus-within \.isl-drop/.test(html));
     ok('liquid glass: islands react to scroll with deeper blur + specular rim', /body\.isl-scrolled \.isl-brand,body\.isl-scrolled \.island,body\.isl-scrolled \.isl-right\{/.test(html) && /function islandScrollSync/.test(html) && /addEventListener\('scroll', islandScrollSync, \{passive:true\}\)/.test(html));
     ok('active island pill adapts to the user accent (CTA tokens, not hard ink)', /\.isl-item\.active\{background:var\(--accent-cta\);color:var\(--accent-cta-ink\)\}/.test(html));
-    ok('cards sit at ~86% opacity with a solid fallback (no per-card blur cost)', /\.card\{\s*background:var\(--bg-card\);background:color-mix\(in srgb,var\(--bg-card\) 86%,transparent\)/.test(html) && !/\.card\{-webkit-backdrop-filter/.test(html));
+    // Liquid Glass splits the stack: chrome floats in glass, CONTENT stays opaque
+    // (cards were 86% translucent with no backdrop-filter behind them — that only
+    // washed the colour out and cost contrast, so they are solid again)
+    ok('content cards are opaque for contrast (no per-card blur cost)', /\.card\{[\s\S]{0,240}background:var\(--bg-card\);border:1px solid var\(--border\);border-radius:var\(--r-xl\)/.test(html) && !/\.card\{-webkit-backdrop-filter/.test(html));
+
+    // ---------- iOS 27 · Liquid Glass ----------
+    (function () {
+      // every glass property derives from ONE clarity token, so the slider moves the whole system
+      ok('Liquid Glass tokens all derive from --glass-clarity',
+        /--glass-clarity:\.55/.test(html) &&
+        /--lg-bg:color-mix\(in srgb,var\(--bg-card\) calc\(100% - var\(--glass-clarity\) \* 42%\),transparent\)/.test(html) &&
+        /--lg-blur:blur\(calc\(var\(--glass-clarity\) \* 24px\)\) saturate\(/.test(html) &&
+        /--lg-rim:inset 0 1px 0 rgba\(255,255,255,calc\(/.test(html));
+      ok('the legacy --mat-* material tier now aliases the glass system', /--mat-float-bg:var\(--lg-bg\)/.test(html) && /--mat-border:var\(--lg-edge\)/.test(html));
+      ok('dark theme softens the specular rim and densifies the surface', /html\[data-theme="dark"\]\{[\s\S]*?--lg-rim:inset 0 1px 0 rgba\(255,255,255,calc\(\.05/.test(html));
+      ok('glass degrades to a solid surface without backdrop-filter support', /\.glass\{\s*background:var\(--bg-card\);/.test(html) && /@supports \(\(backdrop-filter:blur\(1px\)\) or \(-webkit-backdrop-filter:blur\(1px\)\)\)/.test(html));
+      ok('OS reduce-transparency forces clarity to 0', /@media \(prefers-reduced-transparency:reduce\)\{\s*:root\{ --glass-clarity:0 \}/.test(html));
+      // the chrome layer wears the glass; content does not
+      ok('chrome surfaces (island, modal, toast, assistant, tab bar) use the glass tokens',
+        /\.island\{background:var\(--lg-bg\)/.test(html) &&
+        /\.toast\{background:var\(--lg-bg\)/.test(html) &&
+        /\.modal\{background:color-mix\(in srgb,var\(--bg-card\) calc\(100% - var\(--glass-clarity\) \* 20%\)/.test(html) &&
+        /\.asst-pop\{background:color-mix\(in srgb,var\(--bg-card\)/.test(html));
+
+      // the slider: default, clamping, persistence, and live token application
+      var root = d.documentElement;
+      ok('glass defaults to iOS 27’s shy-of-clear 55', window.glassLevel() === 55);
+      window.state.settings.glass = 0; window.applyGlass();
+      ok('dragging to Solid sets clarity 0 and flags the solid class', root.style.getPropertyValue('--glass-clarity') === '0' && root.classList.contains('glass-solid'));
+      window.state.settings.glass = 100; window.applyGlass();
+      ok('dragging to Clear sets clarity 1 and drops the solid flag', root.style.getPropertyValue('--glass-clarity') === '1' && !root.classList.contains('glass-solid'));
+      window.state.settings.glass = 999; ok('out-of-range values clamp to 100', window.glassLevel() === 100);
+      window.state.settings.glass = -50; ok('negative values clamp to 0', window.glassLevel() === 0);
+      window.state.settings.glass = null; ok('a missing setting falls back to the default', window.glassLevel() === 55);
+
+      // the control renders in Settings and drives the token live on input (no re-render)
+      window.state.settings.glass = 55; window.applyGlass();
+      window.ui.settingsTab = 'custom'; window.location.hash = '#/settings'; window.render();
+      var range = d.getElementById('glass-range');
+      ok('the Liquid Glass slider renders in Settings → Appearance', !!range && range.getAttribute('data-action-input') === 'set-glass' && range.value === '55');
+      if (range) {
+        range.value = '20';
+        range.dispatchEvent(new window.Event('input', { bubbles: true }));
+      }
+      ok('sliding applies clarity live and persists it', root.style.getPropertyValue('--glass-clarity') === '0.2' && window.state.settings.glass === 20);
+      ok('the readout tracks the slider', (d.getElementById('glass-val') || {}).textContent === '20%');
+      // and the input did NOT nuke the settings view out from under the drag
+      ok('sliding does not re-render the page mid-drag', !!d.getElementById('glass-range'));
+      window.state.settings.glass = 55; window.applyGlass();
+    })();
+
+    // ---------- iOS 27 · large titles, sheets, SF tracking ----------
+    (function () {
+      // large title: sticky bar, compositor-only scaling, one-shot collapse styling
+      ok('the page header is a sticky bar that pins flush', /\.topbar\{position:sticky;top:-20px/.test(html));
+      ok('the title scales on the compositor via --title-p (no layout on scroll)', /\.page-title h1\{[^}]*transform:scale\(calc\(1 - \.34 \* var\(--title-p,0\)\)\)/.test(html));
+      ok('the subtitle fades as the title collapses', /\.page-title p\{[^}]*opacity:calc\(1 - var\(--title-p,0\) \* 2\)/.test(html));
+      ok('the collapsed bar takes glass + a hairline, transitioned once on class change', /body\.isl-scrolled \.topbar\{padding-top:10px/.test(html) && /body\.isl-scrolled \.topbar\{background:var\(--lg-bg\)/.test(html));
+      ok('large-title collapse honours reduced motion', /@media \(prefers-reduced-motion:reduce\)\{\s*\.page-title h1\{transform:none\}/.test(html));
+      // the scroll driver writes only a custom property
+      var mainEl = d.getElementById('main');
+      var root = d.documentElement;
+      mainEl.scrollTop = 0; window.islandScrollSync();
+      ok('at rest the title is fully expanded', root.style.getPropertyValue('--title-p') === '0.000');
+      mainEl.scrollTop = 26; window.islandScrollSync();
+      ok('mid-scroll the collapse is partial', root.style.getPropertyValue('--title-p') === '0.500');
+      mainEl.scrollTop = 400; window.islandScrollSync();
+      ok('past the threshold the title is fully collapsed', root.style.getPropertyValue('--title-p') === '1.000' && d.body.classList.contains('isl-scrolled'));
+      // opening a new screen resets it, like a fresh push
+      window.location.hash = '#/goals'; window.render();
+      ok('navigating reopens the next screen with its large title', mainEl.scrollTop === 0 && root.style.getPropertyValue('--title-p') === '0.000');
+
+      // sheets
+      ok('dialogs carry a grabber for the phone sheet', /<div class="sheet-grabber" aria-hidden="true"><\/div>/.test(html));
+      ok('phones present dialogs as bottom sheets', /@media \(max-width:640px\)\{[\s\S]{0,120}\.modal-overlay\{align-items:flex-end/.test(html));
+      ok('the sheet is rounded on top only and rises from the edge', /\.modal\{[^}]*border-radius:var\(--r-2xl\) var\(--r-2xl\) 0 0/.test(html) && /@keyframes sheetUp\{from\{transform:translateY\(100%\)\}/.test(html));
+      ok('the grabber only appears on phones', /\.sheet-grabber\{display:none/.test(html) && /\.sheet-grabber\{display:block/.test(html));
+      ok('drag-to-dismiss is downward-only and threshold + velocity based', /Math\.max\(0,e\.clientY-sheetDrag\.y0\)/.test(html) && /s\.dy>110\|\|vel>0\.55/.test(html));
+      ok('dragging never hijacks a control inside the header', /if\(e\.target\.closest\('button,a,input,select,textarea'\)\) return;/.test(html));
+      ok('sheets are a phone-only pattern (desktop keeps the centred card)', /matchMedia\('\(max-width:640px\)'\)\.matches\) return;/.test(html));
+      var m = window.openModal ? (window.openModal('Sheet probe', '<p>x</p>', {}), d.querySelector('.sheet-grabber')) : null;
+      ok('a real dialog renders the grabber element', !!m);
+      window.closeModal();
+
+      // SF-style optical tracking
+      ok('SF tracking tokens exist across the type scale', /--tr-2xl:-\.032em; --tr-xl:-\.024em/.test(html) && /--tr-xs:\.012em/.test(html));
+      ok('headings and values consume the tracking tokens', /h1,h2,h3\{font-family:var\(--font-display\);letter-spacing:var\(--tr-xl\)\}/.test(html) && /\.stat-value\{[^}]*letter-spacing:var\(--tr-2xl\)/.test(html));
+    })();
     ok('island squeezes on medium desktops (two tiers, fits down to 861px)', /@media \(min-width:861px\) and \(max-width:1180px\)/.test(html) && /@media \(min-width:861px\) and \(max-width:1040px\)/.test(html) && /\.isl-brand b\{display:none\}/.test(html));
     ok('health ring follows the user accent (no hardcoded gradient stops)', /stop-color:var\(--accent-cta,#4653e8\)/.test(html) && !/<stop offset="0" stop-color="#4653e8"/.test(html));
 
@@ -1491,7 +1578,34 @@ async function main() {
         var css = ''; d.querySelectorAll('style').forEach(function(s){ css += s.textContent; });
         // 1) motion tokens with progressive enhancement to a real spring curve
         ok('motion tokens are defined (--spring fallback + --press)', /--spring:var\(--ease-snappy\)/.test(css) && /--press:cubic-bezier/.test(css));
-        ok('supporting browsers upgrade --spring to a real linear() spring', /@supports \(animation-timing-function:linear\(0,1\)\)/.test(css) && /--spring:linear\(/.test(css));
+        ok('supporting browsers upgrade --spring to a real linear() spring', /@supports \(animation-timing-function:linear\(0,1\)\)/.test(css) && /--spring-snappy:linear\(/.test(css) && /--spring:var\(--spring-snappy\)/.test(css));
+
+        // ---- SwiftUI spring vocabulary (Apple's motion, derived from the physics) ----
+        // Spring(duration:bounce:) solves a damped harmonic oscillator; these three
+        // curves are that solution at Apple's preset parameters.
+        ok('all three SwiftUI presets are defined as linear() springs',
+          /--spring-smooth:linear\(/.test(css) && /--spring-snappy:linear\(/.test(css) && /--spring-bouncy:linear\(/.test(css));
+        ok('the whole product inherits Apple motion via --ease and --press', /--ease:var\(--spring-smooth\)/.test(css) && /--press:var\(--spring-bouncy\)/.test(css));
+        ok('settle-duration tokens accompany the curves', /--dur-smooth:\.735s/.test(css) && /--dur-fast:\.22s/.test(css));
+        // the defining property of each preset: bounce 0 must NOT overshoot, and
+        // higher bounce must overshoot more. Parse the curves and check the physics.
+        (function(){
+          function peak(name){
+            var m = css.match(new RegExp('--' + name + ':linear\\(([^)]*)\\)'));
+            if (!m) return null;
+            return Math.max.apply(null, m[1].split(',').map(function(v){ return parseFloat(v); }));
+          }
+          var s = peak('spring-smooth'), n = peak('spring-snappy'), b = peak('spring-bouncy');
+          ok('smooth is critically damped — it never overshoots', s !== null && s <= 1.0000001, { peak: s });
+          ok('snappy overshoots subtly, bouncy overshoots more', n > 1 && b > n, { snappy: n, bouncy: b });
+          ok('every curve settles exactly at 1 (no drift)', s === 1 || Math.abs(s - 1) < 1e-9 || s <= 1);
+        })();
+        // route changes ride the View Transitions API, chrome excluded, reduced-motion honoured
+        ok('content area is the only named view-transition (chrome persists)', /#main\{view-transition-name:main-content\}/.test(css) && !/view-transition-name:(?!main-content)/.test(css));
+        ok('view transitions use the smooth spring and are reduced-motion guarded',
+          /::view-transition-new\(main-content\)\{animation:vtIn [^}]*var\(--spring-smooth\)/.test(css) &&
+          /@media \(prefers-reduced-motion:reduce\)\{\s*::view-transition-old\(main-content\),::view-transition-new\(main-content\)\{animation:none/.test(css));
+        ok('routing degrades gracefully where startViewTransition is absent', /typeof document\.startViewTransition!=='function'/.test(html) && /window\.addEventListener\('hashchange',renderRouted\)/.test(html));
         // 2) entrances overshoot (physical), instead of plain fades
         ok('node entrance overshoots before settling (spring physics)', /@keyframes rmNodeIn\{[\s\S]{0,220}?scale\(1\.02\)/.test(css));
         ok('popover entrance overshoots before settling', /@keyframes rmPopIn\{[\s\S]{0,220}?translateY\(1px\)/.test(css));
