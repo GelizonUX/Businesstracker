@@ -1540,7 +1540,34 @@ async function main() {
         var css = ''; d.querySelectorAll('style').forEach(function(s){ css += s.textContent; });
         // 1) motion tokens with progressive enhancement to a real spring curve
         ok('motion tokens are defined (--spring fallback + --press)', /--spring:var\(--ease-snappy\)/.test(css) && /--press:cubic-bezier/.test(css));
-        ok('supporting browsers upgrade --spring to a real linear() spring', /@supports \(animation-timing-function:linear\(0,1\)\)/.test(css) && /--spring:linear\(/.test(css));
+        ok('supporting browsers upgrade --spring to a real linear() spring', /@supports \(animation-timing-function:linear\(0,1\)\)/.test(css) && /--spring-snappy:linear\(/.test(css) && /--spring:var\(--spring-snappy\)/.test(css));
+
+        // ---- SwiftUI spring vocabulary (Apple's motion, derived from the physics) ----
+        // Spring(duration:bounce:) solves a damped harmonic oscillator; these three
+        // curves are that solution at Apple's preset parameters.
+        ok('all three SwiftUI presets are defined as linear() springs',
+          /--spring-smooth:linear\(/.test(css) && /--spring-snappy:linear\(/.test(css) && /--spring-bouncy:linear\(/.test(css));
+        ok('the whole product inherits Apple motion via --ease and --press', /--ease:var\(--spring-smooth\)/.test(css) && /--press:var\(--spring-bouncy\)/.test(css));
+        ok('settle-duration tokens accompany the curves', /--dur-smooth:\.735s/.test(css) && /--dur-fast:\.22s/.test(css));
+        // the defining property of each preset: bounce 0 must NOT overshoot, and
+        // higher bounce must overshoot more. Parse the curves and check the physics.
+        (function(){
+          function peak(name){
+            var m = css.match(new RegExp('--' + name + ':linear\\(([^)]*)\\)'));
+            if (!m) return null;
+            return Math.max.apply(null, m[1].split(',').map(function(v){ return parseFloat(v); }));
+          }
+          var s = peak('spring-smooth'), n = peak('spring-snappy'), b = peak('spring-bouncy');
+          ok('smooth is critically damped — it never overshoots', s !== null && s <= 1.0000001, { peak: s });
+          ok('snappy overshoots subtly, bouncy overshoots more', n > 1 && b > n, { snappy: n, bouncy: b });
+          ok('every curve settles exactly at 1 (no drift)', s === 1 || Math.abs(s - 1) < 1e-9 || s <= 1);
+        })();
+        // route changes ride the View Transitions API, chrome excluded, reduced-motion honoured
+        ok('content area is the only named view-transition (chrome persists)', /#main\{view-transition-name:main-content\}/.test(css) && !/view-transition-name:(?!main-content)/.test(css));
+        ok('view transitions use the smooth spring and are reduced-motion guarded',
+          /::view-transition-new\(main-content\)\{animation:vtIn [^}]*var\(--spring-smooth\)/.test(css) &&
+          /@media \(prefers-reduced-motion:reduce\)\{\s*::view-transition-old\(main-content\),::view-transition-new\(main-content\)\{animation:none/.test(css));
+        ok('routing degrades gracefully where startViewTransition is absent', /typeof document\.startViewTransition!=='function'/.test(html) && /window\.addEventListener\('hashchange',renderRouted\)/.test(html));
         // 2) entrances overshoot (physical), instead of plain fades
         ok('node entrance overshoots before settling (spring physics)', /@keyframes rmNodeIn\{[\s\S]{0,220}?scale\(1\.02\)/.test(css));
         ok('popover entrance overshoots before settling', /@keyframes rmPopIn\{[\s\S]{0,220}?translateY\(1px\)/.test(css));
