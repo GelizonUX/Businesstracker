@@ -865,20 +865,69 @@ async function main() {
     // ---------- iOS 27 · Liquid Glass ----------
     (function () {
       // every glass property derives from ONE clarity token, so the slider moves the whole system
+      // the surface is genuinely see-through and only LIGHTLY blurred: a lens can only
+      // bend a signal that survives to it, so the frost had to come down for the
+      // refraction to have anything left to work with
       ok('Liquid Glass tokens all derive from --glass-clarity',
         /--glass-clarity:\.55/.test(html) &&
-        /--lg-bg:color-mix\(in srgb,var\(--bg-card\) calc\(100% - var\(--glass-clarity\) \* 42%\),transparent\)/.test(html) &&
-        /--lg-blur:blur\(calc\(var\(--glass-clarity\) \* 24px\)\) saturate\(/.test(html) &&
+        /--lg-bg:color-mix\(in srgb,var\(--bg-card\) calc\(100% - var\(--glass-clarity\) \* 62%\),transparent\)/.test(html) &&
+        /--lg-blur:blur\(calc\(var\(--glass-clarity\) \* 6px\)\) saturate\(/.test(html) &&
         /--lg-rim:inset 0 1px 0 rgba\(255,255,255,calc\(/.test(html));
+      // the rim is a real bevel with thickness — six stacked insets, not one hairline
+      ok('the rim is a bevel with thickness, not a 1px hairline',
+        (html.match(/--lg-rim:[\s\S]*?;/) || [''])[0].split('inset').length - 1 >= 5 &&
+        /html\[data-theme="dark"\][\s\S]*?--lg-rim:[\s\S]*?inset 0 2\.5px 3px -2px/.test(html));
       ok('the legacy --mat-* material tier now aliases the glass system', /--mat-float-bg:var\(--lg-bg\)/.test(html) && /--mat-border:var\(--lg-edge\)/.test(html));
       ok('dark theme softens the specular rim and densifies the surface', /html\[data-theme="dark"\]\{[\s\S]*?--lg-rim:inset 0 1px 0 rgba\(255,255,255,calc\(\.05/.test(html));
-      ok('glass degrades to a solid surface without backdrop-filter support', /\.glass\{\s*background:var\(--bg-card\);/.test(html) && /@supports \(\(backdrop-filter:blur\(1px\)\) or \(-webkit-backdrop-filter:blur\(1px\)\)\)/.test(html));
+      // every glassed surface declares its opaque fallback OUTSIDE the @supports block,
+      // so browsers with no backdrop-filter (and no SVG-filter-on-backdrop) get a solid one
+      ok('glass degrades to a solid surface without backdrop-filter support',
+        /\.island\{[^}]*background:var\(--bg-card\)/.test(html) &&
+        /\.isl-brand\{[^}]*background:var\(--bg-card\)/.test(html) &&
+        /\.tabbar\{[^}]*background:var\(--bg-card\)/.test(html) &&
+        /@supports \(\(backdrop-filter:blur\(1px\)\) or \(-webkit-backdrop-filter:blur\(1px\)\)\)/.test(html));
+
+      // ---- the lens: one optical model, one map per surface, in element coordinates ----
+      // The shared static maps are gone: <feImage preserveAspectRatio="none"> stretches a
+      // map across the FILTER REGION (120% of the border box), so a single shared map is
+      // always 10% off on every side and its bevel scales with the element's aspect ratio.
+      ok('the mis-registered shared lens maps are gone (no #lg-lens / #lg-orb / #lg-lens-c)',
+        !/id="lg-lens"/.test(html) && !/id="lg-orb"/.test(html) && !/id="lg-lens-c"/.test(html));
+      ok('a pass-through filter is the no-JS fallback, and generated filters have a home',
+        /<filter id="lg-flat"[^>]*x="-10%"[^>]*width="120%"/.test(html) && /<defs id="lg-gen">/.test(html));
+      ok('--lg-refract is composed on the SURFACE, not on :root (per-element lens)',
+        /\.island,\.isl-brand,\.isl-right,\.isl-drop,\.modal,\.toast,\.asst-pop,\.chat-bubble,\.tabbar,\.topbar\{\s*--lg-refract:var\(--lg-lens\) var\(--lg-blur\)\}/.test(html));
+      ok('the lens engine builds a rounded-rect normal field per surface',
+        /function lgMap\(w,h,rad,c\)/.test(html) && /createImageData/.test(html) &&
+        /feDisplacementMap/.test(html) && /function lgSync\(\)/.test(html));
+      ok('the bevel is a constant PHYSICAL width, not one scaled to the element',
+        /var LG_BEVEL=\d+;/.test(html) && /Math\.min\(LG_BEVEL,Math\.min\(w,h\)\*\.38\)/.test(html));
+      ok('displacement is zero at the outline, so no strip of backdrop is ever skipped',
+        /function lgProfile\(t\)\{ return \(t<=0\|\|t>=1\)\?0:/.test(html));
+      ok('the clarity slider drives the refraction too, not just tint and blur',
+        /var k=\.62\+\.38\*c;/.test(html) && /lgSyncSoon\(\); \/\/ the lens is part of the material/.test(html));
+      ok('dispersion is real, not dead code: two displacement passes recombined',
+        /var LG_CHROMA=/.test(html) && /1\+LG_CHROMA/.test(html) && /1-LG_CHROMA/.test(html) && /mode','screen'/.test(html));
+      // D — the island must not swap optical models halfway through a scroll
+      ok('scrolling the island changes tint and depth, never the optical model',
+        /body\.isl-scrolled \.isl-brand,body\.isl-scrolled \.island,body\.isl-scrolled \.isl-right\{[\s\S]{0,400}backdrop-filter:var\(--lg-lens\) blur\(/.test(html));
+      // G — an opaque panel has no backdrop to bend
+      ok('the opaque sidebar no longer pays for a full-height backdrop lens',
+        !/\.sidebar\{[^}]*backdrop-filter/.test(html));
+      // I — one specular treatment across every pill, the bubble, the tab bar and the topbar
+      ok('every glass surface carries the same specular streak + bevel',
+        /\.island::after,\.isl-brand::after,\.isl-right::after,\.isl-drop::after,\s*\n\.modal::after,\.toast::after,\.asst-pop::after,\.chat-bubble::after,\.tabbar::after,\.topbar::after\{/.test(html) &&
+        /box-shadow:var\(--lg-rim\)\}/.test(html));
+      // J — the collapsed bar's glass has to reach the scrollport edges or it cuts seams
+      ok('the collapsed topbar bleeds its glass to the scrollport edges',
+        /\.topbar\{[^}]*padding:20px var\(--main-pad-x,0px\) 12px;margin-inline:calc\(-1 \* var\(--main-pad-x,0px\)\)/.test(html) &&
+        /\.main\{--main-pad-x:28px/.test(html) && /\.main\{--main-pad-x:30px/.test(html));
       ok('OS reduce-transparency forces clarity to 0', /@media \(prefers-reduced-transparency:reduce\)\{\s*:root\{ --glass-clarity:0 \}/.test(html));
       // the chrome layer wears the glass; content does not
       ok('chrome surfaces (island, modal, toast, assistant, tab bar) use the glass tokens',
         /\.island\{background:var\(--lg-bg\)/.test(html) &&
         /\.toast\{background:var\(--lg-bg\)/.test(html) &&
-        /\.modal\{background:color-mix\(in srgb,var\(--bg-card\) calc\(100% - var\(--glass-clarity\) \* 20%\)/.test(html) &&
+        /\.modal\{background:color-mix\(in srgb,var\(--bg-card\) calc\(100% - var\(--glass-clarity\) \* 30%\)/.test(html) &&
         /\.asst-pop\{background:color-mix\(in srgb,var\(--bg-card\)/.test(html));
 
       // the slider: default, clamping, persistence, and live token application
@@ -914,7 +963,7 @@ async function main() {
       ok('the page header is a sticky bar that pins flush', /\.topbar\{position:sticky;top:-20px/.test(html));
       ok('the title scales on the compositor via --title-p (no layout on scroll)', /\.page-title h1\{[^}]*transform:scale\(calc\(1 - \.34 \* var\(--title-p,0\)\)\)/.test(html));
       ok('the subtitle fades as the title collapses', /\.page-title p\{[^}]*opacity:calc\(1 - var\(--title-p,0\) \* 2\)/.test(html));
-      ok('the collapsed bar takes glass + a hairline, transitioned once on class change', /body\.isl-scrolled \.topbar\{padding-top:10px/.test(html) && /body\.isl-scrolled \.topbar\{background:var\(--lg-bg\)/.test(html));
+      ok('the collapsed bar takes glass + a hairline, transitioned once on class change', /body\.isl-scrolled \.topbar\{padding-top:10px/.test(html) && /body\.isl-scrolled \.topbar\{background:color-mix\(in srgb,var\(--bg-card\)/.test(html));
       ok('large-title collapse honours reduced motion', /@media \(prefers-reduced-motion:reduce\)\{\s*\.page-title h1\{transform:none\}/.test(html));
       // the scroll driver writes only a custom property
       var mainEl = d.getElementById('main');
