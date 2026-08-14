@@ -93,36 +93,39 @@
      contrast/layer separation over maximum see-through.
      ============================================================ */
   --glass-clarity:.55;
-  /* surface tint: fades from fully opaque toward see-through as clarity rises.
-     Real Liquid Glass is a LENS, not frosted plastic — it has to stay genuinely
-     see-through for the refraction at the rim to read, so this ramps further
-     than a frosted panel would. */
-  --lg-bg:color-mix(in srgb,var(--bg-card) calc(100% - var(--glass-clarity) * 62%),transparent);
-  /* backdrop treatment. The lens comes FIRST so the rim bends the backdrop before
-     it is softened; browsers without SVG-filter-on-backdrop ignore the url() and
-     still get the blur beside it, so this degrades rather than disappears.
-     The blur is deliberately LIGHT: a lens can only bend a signal that survives to
-     it, and a heavy frost destroys the very detail the rim is supposed to magnify. */
-  --lg-blur:blur(calc(var(--glass-clarity) * 6px)) saturate(calc(1 + var(--glass-clarity) * 1.1));
-  /* the lens itself. Every glassed surface gets its OWN displacement map, sized to
-     that element in element coordinates and injected here as --lg-lens by lgSync().
-     Until then (and with JS off) this resolves to a pass-through filter. */
-  --lg-lens:url(#lg-flat);
-  --lg-refract:var(--lg-lens) var(--lg-blur);
-  /* the bevel: a real lit edge with thickness, not a 1px hairline. Six stacked insets
-     read as a chamfer catching light from above — and they sit exactly over the band
-     where the lens displacement steps, so the refraction never shows a seam. */
-  --lg-rim:inset 0 1px 0 rgba(255,255,255,calc(.28 + var(--glass-clarity) * .52)),
-    inset 0 2.5px 3px -2px rgba(255,255,255,calc(.22 + var(--glass-clarity) * .46)),
-    inset 0 -1.5px 1.5px -1px rgba(255,255,255,calc(.10 + var(--glass-clarity) * .30)),
-    inset 2px 0 3px -2px rgba(255,255,255,calc(.10 + var(--glass-clarity) * .34)),
-    inset -2px 0 3px -2px rgba(255,255,255,calc(.10 + var(--glass-clarity) * .34)),
-    inset 0 0 0 .5px rgba(255,255,255,calc(.14 + var(--glass-clarity) * .30));
+  /* SURFACE TINT. Apple's own description of the material is "blurs content behind
+     it, reflects color and light of surrounding content" — colour and light, not
+     detail. The tint therefore stays substantial: you should read the MATERIAL and
+     sense the colour behind it, never try to read the content through it. */
+  --lg-bg:color-mix(in srgb,var(--bg-card) calc(100% - var(--glass-clarity) * 52%),transparent);
+  /* BACKDROP TREATMENT — a heavy frost, and that is the whole point.
+     The previous build kept the blur down at ~4px so a per-element SVG displacement
+     lens would have detail left to bend. Measured over a high-contrast backdrop that
+     lens moved the mean pixel by 4/765 once any real frost was applied, while the
+     frost itself moved it by 52 (light) / 183 (dark). A blur and a visible refraction
+     are mutually exclusive in a backdrop-filter chain — blurring a displaced image
+     and displacing a blurred one both end up smooth — so the budget goes to the
+     frost, which is what actually reads as glass.
+     saturate + brightness are the "reflects color and light" half: they pull the
+     backdrop's hue up through the tint instead of letting it grey out. */
+  --lg-blur:blur(calc(3px + var(--glass-clarity) * 26px))
+    saturate(calc(1 + var(--glass-clarity) * 1.15))
+    brightness(calc(1 + var(--glass-clarity) * .10));
+  /* THE RIM. Two crisp, tight insets lighting BOTH shoulders — top-left brighter
+     than bottom-right — plus a full hairline. Straight from the macOS reference,
+     whose entire bevel is `inset 2px 2px 1px 0 #fff8, inset -1px -1px 1px 1px #fff8`.
+     Glass is lit on every edge because light enters one side and leaves the other;
+     the old six-inset stack lit the top hard and the bottom barely, with 3px blur
+     radii, which read as a soft plastic glow rather than an edge.
+     Every alpha is proportional to clarity, so Solid really is solid. */
+  --lg-rim:inset 1.5px 1.5px 1px -.5px rgba(255,255,255,calc(var(--glass-clarity) * 1.05)),
+    inset -1.5px -1.5px 1px -.5px rgba(255,255,255,calc(var(--glass-clarity) * .72)),
+    inset 0 0 0 1px rgba(255,255,255,calc(var(--glass-clarity) * .34));
   /* the outer stroke has to survive white-on-white, so it is a neutral ink veil
      rather than the page border colour */
-  --lg-edge:rgba(17,20,34,calc(.11 + var(--glass-clarity) * .06));
-  /* layered shadow — iOS 27 leans on separation between layers for legibility */
-  --lg-shadow:0 1px 2px rgba(22,23,29,.05),0 8px 24px rgba(22,23,29,.08),0 24px 56px rgba(22,23,29,.07);
+  --lg-edge:rgba(17,20,34,calc(.10 + var(--glass-clarity) * .05));
+  /* layered shadow — the material only reads as a separate LAYER if it casts */
+  --lg-shadow:0 1px 2px rgba(22,23,29,.06),0 8px 22px rgba(22,23,29,.10),0 22px 50px rgba(22,23,29,.08);
   /* legacy material aliases — the roadmap chrome inherits the glass for free */
   --mat-float-bg:var(--lg-bg);
   --mat-float-blur:var(--lg-blur);
@@ -190,17 +193,19 @@ html[data-theme="dark"]{
 
   --border:#26272e;
   --border-2:#33343d;
-  /* dark glass: the light-catch is a whisper, and the surface stays denser so
-     text keeps its contrast against bright content scrolling underneath */
-  --lg-bg:color-mix(in srgb,var(--bg-card) calc(100% - var(--glass-clarity) * 48%),transparent);
-  --lg-rim:inset 0 1px 0 rgba(255,255,255,calc(.05 + var(--glass-clarity) * .28)),
-    inset 0 2.5px 3px -2px rgba(255,255,255,calc(.04 + var(--glass-clarity) * .22)),
-    inset 0 -1.5px 1.5px -1px rgba(255,255,255,calc(.02 + var(--glass-clarity) * .14)),
-    inset 2px 0 3px -2px rgba(255,255,255,calc(.02 + var(--glass-clarity) * .16)),
-    inset -2px 0 3px -2px rgba(255,255,255,calc(.02 + var(--glass-clarity) * .16)),
-    inset 0 0 0 .5px rgba(255,255,255,calc(.05 + var(--glass-clarity) * .14));
-  --lg-edge:rgba(255,255,255,calc(.10 + var(--glass-clarity) * .07));
-  --lg-shadow:0 2px 8px rgba(0,0,0,.42),0 16px 40px rgba(0,0,0,.4),0 32px 64px rgba(0,0,0,.32);
+  /* dark glass: same construction, quieter numbers. The surface stays denser so
+     text keeps its contrast against bright content scrolling underneath, and the
+     backdrop is DARKENED rather than brightened — dark Liquid Glass is a smoked
+     pane, so lifting it would make the chrome glow. */
+  --lg-bg:color-mix(in srgb,var(--bg-card) calc(100% - var(--glass-clarity) * 42%),transparent);
+  --lg-blur:blur(calc(3px + var(--glass-clarity) * 26px))
+    saturate(calc(1 + var(--glass-clarity) * 1.05))
+    brightness(calc(1 - var(--glass-clarity) * .12));
+  --lg-rim:inset 1.5px 1.5px 1px -.5px rgba(255,255,255,calc(var(--glass-clarity) * .46)),
+    inset -1.5px -1.5px 1px -.5px rgba(255,255,255,calc(var(--glass-clarity) * .26)),
+    inset 0 0 0 1px rgba(255,255,255,calc(var(--glass-clarity) * .12));
+  --lg-edge:rgba(255,255,255,calc(.09 + var(--glass-clarity) * .07));
+  --lg-shadow:0 2px 8px rgba(0,0,0,.44),0 14px 36px rgba(0,0,0,.42),0 30px 60px rgba(0,0,0,.34);
   --mat-hi:var(--lg-rim); /* subtle rim in the dark theme */
 
   --accent:#8a92ff;
@@ -247,39 +252,42 @@ html[data-theme="dark"]{
 
    Every surface in this list gets the same three things, so the island
    pills, the chat bubble and the tab bar are visibly the same material:
-     1. the tinted, lightly-blurred, REFRACTED backdrop (--lg-refract)
-     2. a real bevel with thickness (--lg-rim), drawn over the band where
-        the lens displacement steps so the rim never shows a seam
-     3. a specular streak with a position and a falloff (::after)
+     1. the tinted, heavily frosted backdrop (--lg-bg + --lg-blur)
+     2. a crisp lit rim on BOTH shoulders (--lg-rim)
+     3. a vertical sheen with a chromatic edge fringe (::after)
+   Layers 2 and 3 are what actually sell it: with a real frost there is no
+   detail left behind the glass to refract, so thickness has to be carried
+   by how the EDGES catch light. See the --lg-blur note for the measurement
+   that retired the old per-element displacement lens.
    ============================================================ */
-/* --lg-lens is injected per element by lgSync(). --lg-refract has to be recomposed
-   HERE rather than on :root, because a custom property substitutes at the point it is
-   DECLARED: composed on :root it would freeze in root's --lg-lens and every surface
-   would share one filter. Declared on the surface, each one resolves to its own. */
-.island,.isl-brand,.isl-right,.isl-drop,.modal,.toast,.asst-pop,.chat-bubble,.tabbar,.topbar{
-  --lg-refract:var(--lg-lens) var(--lg-blur)}
 .island,.isl-brand,.isl-right,.isl-drop,.modal,.toast,.asst-pop,.chat-bubble,.tabbar{position:relative}
 .island::after,.isl-brand::after,.isl-right::after,.isl-drop::after,
 .modal::after,.toast::after,.asst-pop::after,.chat-bubble::after,.tabbar::after,.topbar::after{
   content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;
   background:
-    /* raking specular streak — a lit band across the upper shoulder that fades out,
-       not a corner-to-corner tint. This is the highlight that says "curved surface". */
-    linear-gradient(107deg,
-      transparent 0 4%,
-      color-mix(in srgb,#fff calc(var(--glass-clarity) * 46%),transparent) 11%,
-      color-mix(in srgb,#fff calc(var(--glass-clarity) * 12%),transparent) 22%,
-      transparent 38%),
-    /* light catch running the top lip, falling off fast */
-    linear-gradient(180deg,color-mix(in srgb,#fff calc(var(--glass-clarity) * 30%),transparent) 0,transparent 46%),
-    /* bounce light picked up along the bottom lip */
-    linear-gradient(0deg,color-mix(in srgb,#fff calc(var(--glass-clarity) * 15%),transparent) 0,transparent 28%);
-  box-shadow:var(--lg-rim)}
+    /* the light catch along the top lip and the bounce picked up off the bottom
+       one. Bright top, clear middle, faint bottom is the read of a DOMED pane —
+       one raking corner-to-corner streak (what this used to be) reads as a smudge
+       on a wide pill, because the streak's angle fights the element's aspect. */
+    linear-gradient(180deg,
+      color-mix(in srgb,#fff calc(var(--glass-clarity) * 38%),transparent) 0,
+      transparent 40%),
+    linear-gradient(0deg,
+      color-mix(in srgb,#fff calc(var(--glass-clarity) * 20%),transparent) 0,
+      transparent 26%);
+  /* the rim, plus a warm/cool fringe on the two vertical edges. Dispersion is what
+     tells you a material has THICKNESS, and at the edge of a frosted pane it is the
+     only place dispersion can still show. Lifted from the liquid-glass package's
+     `inset 1px 0 red / inset -1px 0 cyan` trick — two box-shadows instead of a
+     second displacement pass through the whole backdrop. */
+  box-shadow:var(--lg-rim),
+    inset 1.5px 0 0 rgba(255,138,160,calc(var(--glass-clarity) * .30)),
+    inset -1.5px 0 0 rgba(96,206,255,calc(var(--glass-clarity) * .26))}
 .modal>*,.toast>*,.asst-pop>*,.island>*,.isl-brand>*,.isl-right>*,.isl-drop>*,
 .chat-bubble>*,.tabbar>*,.topbar>*{position:relative;z-index:1} /* content sits above the sheen */
 /* the collapsed title bar is the same material, but it only becomes a surface once
    content scrolls under it — so its specular fades in with the tint instead of
-   floating over nothing */
+   floating over nothing. It spans the scrollport, so it gets no side fringe. */
 .topbar::after{opacity:0;transition:opacity .3s var(--ease);
   box-shadow:inset 0 1px 0 color-mix(in srgb,#fff calc(var(--glass-clarity) * 46%),transparent)}
 body.isl-scrolled .topbar::after{opacity:1}
@@ -289,10 +297,8 @@ html[data-theme="dark"] .modal::after,html[data-theme="dark"] .toast::after,
 html[data-theme="dark"] .asst-pop::after,html[data-theme="dark"] .chat-bubble::after,
 html[data-theme="dark"] .tabbar::after,html[data-theme="dark"] .topbar::after{
   background:
-    linear-gradient(107deg,transparent 0 4%,
-      color-mix(in srgb,#fff calc(var(--glass-clarity) * 16%),transparent) 11%,
-      transparent 30%),
-    linear-gradient(180deg,color-mix(in srgb,#fff calc(var(--glass-clarity) * 11%),transparent) 0,transparent 44%)}
+    linear-gradient(180deg,color-mix(in srgb,#fff calc(var(--glass-clarity) * 15%),transparent) 0,transparent 38%),
+    linear-gradient(0deg,color-mix(in srgb,#fff calc(var(--glass-clarity) * 7%),transparent) 0,transparent 24%)}
 
 /* Accessibility + user intent: when the OS asks for reduced transparency, or the
    user drags the slider to solid, glass collapses to a plain opaque surface —
@@ -351,7 +357,13 @@ a{color:var(--accent);text-decoration:none}
    brand island · menu island (dropdown per section, ink-filled
    active pill) · utility island. Hidden ≤860px (drawer + tab bar).
    ============================================================ */
-.island-bar{position:fixed;top:0;left:0;right:0;z-index:70;display:none;align-items:center;gap:14px;
+/* The bar is IN FLOW, not fixed. It used to be position:fixed with .main padding-
+   compensating, which meant every scrolled pixel of the dashboard ran underneath it —
+   chart lines, badges and headings collided with the nav pills through the glass.
+   As a flex row in .app (which becomes a column at desktop widths) the bar reserves
+   its own band, so nothing can ever pass behind it. z-index only has to beat .main
+   so the dropdowns hang over the page. */
+.island-bar{position:relative;z-index:70;flex:0 0 auto;display:none;align-items:center;gap:14px;
   padding:14px 22px 10px;pointer-events:none}
 .island-bar>*{pointer-events:auto}
 .isl-brand{display:flex;align-items:center;gap:9px;background:var(--bg-card);border:1px solid var(--lg-edge);
@@ -361,7 +373,7 @@ a{color:var(--accent);text-decoration:none}
 .island{display:flex;align-items:center;justify-content:center;gap:2px;background:var(--bg-card);border:1px solid var(--lg-edge);
   border-radius:24px;padding:5px;box-shadow:var(--lg-shadow),var(--lg-rim);margin:0 auto;flex-wrap:wrap;min-width:0;max-width:calc(100vw - 400px)}
 @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
-  .island{background:var(--lg-bg);-webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-refract)}
+  .island{background:var(--lg-bg);-webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur)}
 }
 .isl-group{position:relative}
 .isl-item{position:relative;display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:999px;font-size:.88rem;font-weight:600;
@@ -399,23 +411,15 @@ a{color:var(--accent);text-decoration:none}
   /* the desktop island bar is glass too — driven by the same clarity token, so the
      Settings slider moves it in lockstep with every other floating surface */
   .isl-brand,.island,.isl-right{background:var(--lg-bg);
-    -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-refract);
+    -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur);
     transition:background .35s var(--ease),box-shadow .35s var(--ease),border-color .35s var(--ease)}
   .isl-drop{background:color-mix(in srgb,var(--bg-card) calc(100% - var(--glass-clarity) * 40%),transparent);
-    -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-refract)}
-  /* liquid glass: once content flows beneath the bar, the islands go clearer and the
-     drop shadow deepens. The OPTICS do not change — same --lg-lens, same map, same
-     bevel — so the material never swaps model mid-scroll; only tint and depth move. */
-  body.isl-scrolled .isl-brand,body.isl-scrolled .island,body.isl-scrolled .isl-right{
-    background:color-mix(in srgb,var(--bg-card) calc(100% - var(--glass-clarity) * 72%),transparent);
-    -webkit-backdrop-filter:blur(calc(var(--glass-clarity) * 8px)) saturate(calc(1 + var(--glass-clarity) * 1.2));
-    backdrop-filter:var(--lg-lens) blur(calc(var(--glass-clarity) * 8px)) saturate(calc(1 + var(--glass-clarity) * 1.2));
-    border-color:var(--lg-edge);
-    box-shadow:0 10px 30px rgba(22,23,29,.10),var(--lg-rim)}
-  html[data-theme="dark"] body.isl-scrolled .isl-brand,
-  html[data-theme="dark"] body.isl-scrolled .island,
-  html[data-theme="dark"] body.isl-scrolled .isl-right{
-    box-shadow:0 10px 32px rgba(0,0,0,.5),var(--lg-rim)}
+    -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur)}
+  /* NOTE: the islands used to go clearer and drop a deeper shadow on .isl-scrolled,
+     because content used to run beneath the fixed bar and the material had to fight
+     it. The bar is in flow now — nothing ever passes behind it — so re-tinting it
+     mid-scroll would only make the nav flicker for no optical reason. .isl-scrolled
+     now drives the large-title collapse alone. */
 }
 /* island entrance — one gentle settle on first load (the bar persists across
    renders; its children are rebuilt, so the animation lives on the bar) */
@@ -828,21 +832,24 @@ body.rm-shift .rm-canvas{cursor:crosshair}
        compositor-only, so scrolling never triggers layout;
      · the bar's padding/background/hairline switch ONCE on .isl-scrolled with
        a spring transition, rather than being recomputed every frame.
-   top:-20px lets the bar pin flush against the scrollport: its own 20px top
-   padding is what scrolls out of view, so no negative margins are needed
-   (which would risk a horizontal scrollbar inside .main). */
+   top:0 pins the bar flush against the scrollport with its padding intact. It
+   used to be top:-20px, which clipped 20px off the top while the collapsed bar
+   only keeps 10px of padding — so the shrunken title lost its first rows of
+   pixels. The collapse is the padding transition's job, not the sticky offset's.
+   No negative margins are involved, so there is nothing to push a horizontal
+   scrollbar inside .main. */
 /* The collapsed bar is glass, so its surface has to reach the scrollport edges —
    otherwise the tint stops at .main's padding and cuts two hard vertical seams
    through the page (very visible in dark mode). Bleeding by exactly the scroll
    container's own horizontal padding puts the glass flush to both edges while
    leaving the bar's CONTENT where it always was, so nothing shifts on scroll. */
-.topbar{position:sticky;top:-20px;z-index:30;display:flex;align-items:center;gap:12px;
+.topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:12px;
   padding:20px var(--main-pad-x,0px) 12px;margin-inline:calc(-1 * var(--main-pad-x,0px));
   margin-bottom:20px;flex-wrap:wrap;border-bottom:1px solid transparent;
   transition:padding .42s var(--spring-smooth),border-color .3s var(--ease),box-shadow .3s var(--ease)}
 body.isl-scrolled .topbar{padding-top:10px;padding-bottom:10px;border-bottom-color:var(--lg-edge)}
 @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
-  body.isl-scrolled .topbar{background:color-mix(in srgb,var(--bg-card) calc(100% - var(--glass-clarity) * 34%),transparent);-webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-refract)}
+  body.isl-scrolled .topbar{background:color-mix(in srgb,var(--bg-card) calc(100% - var(--glass-clarity) * 34%),transparent);-webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur)}
 }
 .page-title h1{font-size:var(--fs-2xl);font-weight:700;letter-spacing:var(--tr-2xl);line-height:1.15;
   transform:scale(calc(1 - .34 * var(--title-p,0)));transform-origin:left center;will-change:transform}
@@ -1086,7 +1093,7 @@ tr:hover .row-actions{opacity:1}
 @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
   /* sheets sit closest to content, so they stay denser than the top-level chrome */
   .modal{background:color-mix(in srgb,var(--bg-card) calc(100% - var(--glass-clarity) * 30%),transparent);
-    -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-refract)}
+    -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur)}
 }
 .modal.wide{max-width:680px}
 /* ---- iOS sheet presentation ----
@@ -1127,7 +1134,7 @@ tr:hover .row-actions{opacity:1}
   box-shadow:var(--shadow-lg),inset 3px 0 0 var(--accent);
 }
 @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
-  .toast{background:var(--lg-bg);-webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-refract)}
+  .toast{background:var(--lg-bg);-webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur)}
 }
 .toast.good{box-shadow:var(--shadow-lg),inset 3px 0 0 var(--good)}
 .toast.error{box-shadow:var(--shadow-lg),inset 3px 0 0 var(--risk)}
@@ -1989,8 +1996,10 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .fab{display:none}
 /* ----- floating chat bubble + quick-log popover (opens the assistant anywhere) ----- */
 .chat-bubble{position:fixed;right:20px;bottom:20px;width:54px;height:54px;border-radius:50%;display:grid;place-items:center;
-  background:color-mix(in srgb,var(--accent) calc(100% - var(--glass-clarity) * 74%),transparent);
-  -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-refract);
+  /* tinted glass: the accent has to survive the frost or the white glyph inside
+     loses its contrast, so this ramps far less than the neutral surfaces do */
+  background:color-mix(in srgb,var(--accent) calc(100% - var(--glass-clarity) * 34%),transparent);
+  -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur);
   color:#fff;border:1px solid color-mix(in srgb,#fff calc(var(--glass-clarity) * 34%),transparent);cursor:pointer;
   box-shadow:var(--shadow-lg),var(--lg-rim);z-index:95;
   transition:transform .14s var(--ease-snappy),box-shadow .2s}
@@ -2004,7 +2013,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
   display:flex;flex-direction:column;overflow:hidden;animation:abPop .2s var(--ease) both}
 @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
   .asst-pop{background:color-mix(in srgb,var(--bg-card) calc(100% - var(--glass-clarity) * 44%),transparent);
-    -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-refract)}
+    -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur)}
 }
 .asst-pop[hidden]{display:none}
 .asst-pop-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 12px 11px 14px;
@@ -2049,7 +2058,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
     /* the tab bar is the most-glassed surface in the product — it floats over
        scrolling content, so it rides the same clarity token as everything else */
     .tabbar{background:var(--lg-bg);
-      -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-refract);
+      -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur);
       border-top:1px solid var(--lg-edge);
       box-shadow:0 -6px 26px rgba(2,6,23,.1),var(--lg-rim)}
     html[data-theme="dark"] .tabbar{background:var(--lg-bg);
@@ -2256,9 +2265,17 @@ body.greeting-on{overflow:hidden}
   .onb-dots{gap:12px}.onb-dot{width:10px;height:10px}.onb-dot.on{width:26px}
 }
 @media (min-width:861px){
+  /* desktop stacks: nav band on top, scrolling page below. .app owns the viewport
+     height; .main is the only scrollport, so the sticky large title still pins to
+     the top of the CONTENT area rather than to the window. */
+  .app{flex-direction:column}
   .island-bar{display:flex}
   .sidebar{display:none}
-  .main{--main-pad-x:30px;margin-left:0;padding:76px var(--main-pad-x) 60px}
+  /* no padding-top compensation any more — the bar occupies real space. The only
+     top spacing left is the topbar's own 20px, which is what scrolls away when the
+     large title collapses (see .topbar{position:sticky;top:0}). */
+  .main{--main-pad-x:30px;margin-left:0;padding:0 var(--main-pad-x) 60px;
+    height:auto;flex:1 1 auto;min-height:0}
   .hamburger,.nav-toggle{display:none!important}
   /* island owns global search/theme on desktop — the per-view copies retire */
   .topbar .theme-toggle{display:none}
@@ -2292,39 +2309,6 @@ body.greeting-on{overflow:hidden}
 <div id="advisor-bubble"></div>
 <button class="chat-bubble" id="chat-bubble" data-action="assistant-toggle" aria-label="Open the assistant to quickly log something" title="Quick log with the assistant"></button>
 <div class="asst-pop" id="asst-pop" hidden></div>
-<!-- ============================================================
-     Liquid Glass — the lens.
-
-     The old build shared two hand-drawn gradient maps across every surface, and
-     that could never work: <feImage preserveAspectRatio="none"> stretches its map
-     across the FILTER REGION, which is 120% of the border box, so the map was
-     offset by 10% on every side and its bevel scaled with the element (114px wide
-     but 6.7px tall on a 732x43 pill). Two linear ramps also are not a normal field:
-     at 45 degrees they point the wrong way and are sqrt(2) too long, which is what
-     produced the radial smears around the chat bubble.
-
-     So each glassed surface now gets its OWN filter and its OWN map, generated by
-     lgSync() from the element's real size and corner radius:
-       · the map is drawn in ELEMENT coordinates (the canvas covers exactly the
-         120% filter region, with the element's rect inset 10% inside it), so the
-         bevel lands where the glass actually is;
-       · the field is the gradient of a rounded-rect signed distance function, so
-         the direction and magnitude are right at every angle, corners included;
-       · the bevel is a constant PHYSICAL width, identical on a 732x43 pill and a
-         54x54 circle;
-       · displacement is exactly zero at the outline and ramps in smoothly, so no
-         strip of backdrop is ever skipped — there is nothing to tear.
-
-     #lg-flat is the identity the CSS falls back to before lgSync() has run (and
-     with JS off): browsers that cannot filter a backdrop ignore the url() and keep
-     the blur beside it, so this degrades rather than disappears.
-     ============================================================ -->
-<svg class="lg-defs" aria-hidden="true" focusable="false" width="0" height="0">
-  <filter id="lg-flat" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
-    <feOffset dx="0" dy="0"/>
-  </filter>
-  <defs id="lg-gen"></defs>
-</svg>
 <div id="modal-root"></div>
 <div class="toast-root" id="toast-root"></div>
 <div id="print-area"></div>
@@ -2680,7 +2664,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
-var APP_BUILD='2026.08.13f'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
+var APP_BUILD='2026.08.14b'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -2841,7 +2825,6 @@ function toast(msg,type,opts){
   el.innerHTML='<span class="t-icon">'+icon(ic)+'</span><div style="flex:1">'+esc(msg)+'</div>'+
     (opts&&opts.undo?'<button class="btn btn-sm btn-ghost" data-action="do-undo" style="flex-shrink:0">Undo</button>':'');
   root.appendChild(el);
-  if(typeof lgSyncSoon==='function') lgSyncSoon();
   setTimeout(function(){ el.classList.add('out'); setTimeout(function(){ el.remove(); },320); },opts&&opts.undo?6500:3400);
   if(type==='error'||type==='warn') modalInlineError(msg);
 }
@@ -3629,7 +3612,6 @@ function render(){
     if(typeof rmApplySelDom==='function') requestAnimationFrame(rmApplySelDom);
   } else { if(typeof rmPlaceCancel==='function') rmPlaceCancel(); if(ui.roadmapMode!=='map'){ ui.rmCam=null; ui.rmSel=null; ui.rmSelSet=null; } }
   main.scrollTop=0;
-  if(typeof lgSyncSoon==='function') lgSyncSoon(); // re-fit the glass lenses to the rebuilt chrome
 }
 /* Auto-label every table cell from its column header so tables can render as clean
    stacked rows on phones (CSS at ≤560px). Generic — no render site needs editing. */
@@ -8427,190 +8409,6 @@ function applyGlass(){
   var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-transparency: reduce)').matches;
   document.documentElement.style.setProperty('--glass-clarity',String(reduce?0:lvl/100));
   document.documentElement.classList.toggle('glass-solid',(reduce?0:lvl)===0);
-  lgSyncSoon(); // the lens is part of the material, so the slider drives it too
-}
-/* ============================================================
-   Liquid Glass — the lens engine.
-
-   ONE optical model, one map per surface, authored in that surface's own
-   coordinates. For each glassed element we build an RGB displacement map whose
-   R/G channels encode a horizontal/vertical sampling offset in pixels, and feed
-   it to that element's own <filter> through --lg-lens.
-
-   The field is the gradient of a rounded-rectangle signed distance function, so
-   it is a real normal field: correct direction and magnitude at every angle,
-   including 45 degrees, where two crossed linear ramps point the wrong way and
-   are sqrt(2) too long (that was the source of the radial smears).
-
-   Profile, measured inward from the outline (d = distance inside, B = bevel):
-     d = 0        displacement is exactly 0 — continuous with the un-refracted
-                  page outside, so no strip of backdrop is ever skipped and the
-                  rim has nothing to tear;
-     0 < d < .6B  displacement grows: the backdrop is stretched, i.e. the rim
-                  MAGNIFIES — this is the bulge;
-     .6B < d < B  it falls back to 0: a short pinch that reads as thickness;
-     d > B        flat glass, untouched.
-   A gentle whole-face dome rides on top so the middle bulges slightly too.
-
-   B is a constant PHYSICAL width, so a 732x43 pill and a 54x54 circle get the
-   same chamfer instead of one scaled to each element's aspect ratio.
-   ============================================================ */
-var LG_SEL='.island,.isl-brand,.isl-right,.isl-drop,.modal,.toast,.asst-pop,.chat-bubble,.tabbar,.topbar';
-var LG_PEAK=.7;        // where the bevel displacement peaks, as a fraction of B
-var LG_BEVEL=26;       // px — the chamfer, the same physical width on every surface
-var LG_MAG=5;          // magnification the rim reaches at clarity 1 (~3x at the default)
-var LG_CHROMA=.055;    // dispersion: red bends this much more than blue
-var lgSeq=0, lgRecs=[], lgObs=null, lgPend=0, lgBooted=false, lgNoCanvas=false;
-
-function lgClarity(){
-  var v=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--glass-clarity'));
-  return isFinite(v)?Math.max(0,Math.min(1,v)):.55;
-}
-function lgSS(a,b,t){ if(b<=a) return t<b?0:1; t=(t-a)/(b-a); return t<=0?0:(t>=1?1:t*t*(3-2*t)); }
-function lgProfile(t){ return (t<=0||t>=1)?0:(t<LG_PEAK?lgSS(0,LG_PEAK,t):1-lgSS(LG_PEAK,1,t)); }
-function lgRadius(el,w,h){
-  var v=getComputedStyle(el).borderTopLeftRadius||'0';
-  var n=parseFloat(v)||0;
-  if(v.indexOf('%')>-1) n=n/100*Math.min(w,h);
-  return Math.max(0,Math.min(n,Math.min(w,h)/2));
-}
-/* Draw the map. The canvas covers the whole filter region (120% of the border box),
-   with the element's own rect inset 10% inside it, so <feImage preserveAspectRatio=
-   "none"> lands the map exactly on the element instead of 10% off on every side. */
-function lgMap(w,h,rad,c){
-  // the chamfer is a constant physical width, capped only so the two opposite bevels
-  // of a thin pill never meet through the middle (43px tall island -> 14.6px)
-  var B=Math.max(6,Math.min(LG_BEVEL,Math.min(w,h)*.38));
-  var k=.62+.38*c;                                   // clarity drives the bend
-  // magnification is 1/(1 - (A/B)*max|P'|) and max|P'| = 1.5/LG_PEAK, so the rim
-  // amplitude follows directly from the magnification we want it to reach
-  var A=(1-1/LG_MAG)*LG_PEAK/1.5*B*k;
-  var dome=Math.min(4.2,.107*Math.min(w,h)/2)*k;     // gentle whole-face bulge
-  var ex=Math.min(dome,.107*w/2), ey=Math.min(dome,.107*h/2);
-  var amax=A+Math.max(ex,ey)+.001;
-  var sx=Math.min(1,448/(w*1.2)), sy=Math.min(1,448/(h*1.2));
-  var cw=Math.max(4,Math.round(w*1.2*sx)), ch=Math.max(4,Math.round(h*1.2*sy));
-  var cv=document.createElement('canvas'); cv.width=cw; cv.height=ch;
-  var ctx=null;
-  try{ ctx=cv.getContext&&cv.getContext('2d'); }catch(_){}
-  if(!ctx||!ctx.createImageData){ lgNoCanvas=true; return null; } // no 2d canvas: stay on #lg-flat
-  var im=ctx.createImageData(cw,ch), D=im.data;
-  var hw=w/2, hh=h/2, rr=Math.max(0,Math.min(rad,hw,hh));
-  var i=0,px,py,x,y,ax,ay,ox,oy,L,inner,d,nx,ny,f,win,dx,dy,r,g;
-  for(py=0;py<ch;py++){
-    y=(py+.5)/sy-.1*h; ay=Math.abs(y-hh)-(hh-rr);
-    for(px=0;px<cw;px++,i+=4){
-      x=(px+.5)/sx-.1*w; ax=Math.abs(x-hw)-(hw-rr);
-      ox=ax>0?ax:0; oy=ay>0?ay:0; L=Math.sqrt(ox*ox+oy*oy);
-      inner=ax>ay?ax:ay; if(inner>0) inner=0;
-      d=rr-(L+inner);                                 // >0 inside the shape
-      if(d<=0){ D[i]=128; D[i+1]=128; D[i+2]=0; D[i+3]=255; continue; }
-      if(L>0){ nx=ox/L; ny=oy/L; } else if(ax>ay){ nx=1; ny=0; } else { nx=0; ny=1; }
-      if(x<hw) nx=-nx;
-      if(y<hh) ny=-ny;                                // outward unit normal
-      // the dome only acts on the FLAT top of the glass: inside the chamfer it would
-      // pull the opposite way and cancel the very bend that makes the rim magnify
-      f=A*lgProfile(d/B); win=lgSS(.55*B,.95*B,d);
-      dx=f*nx-ex*((x-hw)/hw)*win;
-      dy=f*ny-ey*((y-hh)/hh)*win;
-      r=128+Math.round(127*dx/amax); g=128+Math.round(127*dy/amax);
-      D[i]=r<0?0:(r>255?255:r); D[i+1]=g<0?0:(g>255?255:g); D[i+2]=0; D[i+3]=255;
-    }
-  }
-  ctx.putImageData(im,0,0);
-  var href; try{ href=cv.toDataURL('image/png'); }catch(_){ lgNoCanvas=true; return null; }
-  if(!href||href.length<32) return null;
-  return { href:href, scale:amax*255/127 };
-}
-/* One filter per surface: the map, then two displacement passes a hair apart so red
-   and blue land in slightly different places — the faint colour fringe real glass
-   shows where it is thickest. Recombining is a screen blend of R against GB. */
-function lgFilter(id){
-  var NS='http://www.w3.org/2000/svg', XL='http://www.w3.org/1999/xlink';
-  function n(t){ return document.createElementNS(NS,t); }
-  var f=n('filter');
-  f.setAttribute('id',id);
-  f.setAttribute('x','-10%'); f.setAttribute('y','-10%');
-  f.setAttribute('width','120%'); f.setAttribute('height','120%');
-  f.setAttribute('color-interpolation-filters','sRGB');
-  var img=n('feImage'); img.setAttribute('preserveAspectRatio','none'); img.setAttribute('result','lgm');
-  var d1=n('feDisplacementMap');
-  d1.setAttribute('in','SourceGraphic'); d1.setAttribute('in2','lgm');
-  d1.setAttribute('xChannelSelector','R'); d1.setAttribute('yChannelSelector','G'); d1.setAttribute('result','lgr');
-  var d2=n('feDisplacementMap');
-  d2.setAttribute('in','SourceGraphic'); d2.setAttribute('in2','lgm');
-  d2.setAttribute('xChannelSelector','R'); d2.setAttribute('yChannelSelector','G'); d2.setAttribute('result','lgb');
-  var m1=n('feColorMatrix'); m1.setAttribute('in','lgr'); m1.setAttribute('type','matrix');
-  m1.setAttribute('values','1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0'); m1.setAttribute('result','lgrc');
-  var m2=n('feColorMatrix'); m2.setAttribute('in','lgb'); m2.setAttribute('type','matrix');
-  m2.setAttribute('values','0 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0'); m2.setAttribute('result','lgbc');
-  var bl=n('feBlend'); bl.setAttribute('in','lgrc'); bl.setAttribute('in2','lgbc'); bl.setAttribute('mode','screen');
-  f.appendChild(img); f.appendChild(d1); f.appendChild(d2); f.appendChild(m1); f.appendChild(m2); f.appendChild(bl);
-  return { el:f, img:img, d1:d1, d2:d2, XL:XL };
-}
-function lgSync(){
-  var defs=byId('lg-gen'); if(!defs) return;
-  var i,rec;
-  // retire surfaces that have left the DOM (toasts, modals) so filters don't pile up
-  for(i=lgRecs.length-1;i>=0;i--){
-    rec=lgRecs[i];
-    if(!rec.el||!document.documentElement.contains(rec.el)){
-      if(lgObs&&rec.el) try{ lgObs.unobserve(rec.el); }catch(_){}
-      if(rec.f&&rec.f.parentNode) rec.f.parentNode.removeChild(rec.f);
-      lgRecs.splice(i,1);
-    }
-  }
-  var solid=document.documentElement.classList.contains('glass-solid');
-  var clarity=lgClarity();
-  var els=document.querySelectorAll(LG_SEL);
-  for(i=0;i<els.length;i++){
-    var el=els[i];
-    if(!el.__lgRec){
-      el.__lgRec={ el:el, id:'lgf-'+(++lgSeq), key:'' };
-      lgRecs.push(el.__lgRec);
-      if(lgObs) try{ lgObs.observe(el); }catch(_){}
-    }
-    rec=el.__lgRec;
-    if(solid||clarity<=0) continue; // Solid drops the lens entirely — nothing to build
-    var r=el.getBoundingClientRect();
-    var w=Math.round(r.width), h=Math.round(r.height);
-    if(w<8||h<8) continue;
-    var rad=lgRadius(el,w,h);
-    var key=w+'x'+h+'r'+Math.round(rad)+'c'+clarity.toFixed(3);
-    if(rec.key===key) continue;
-    var map=lgNoCanvas?null:lgMap(w,h,rad,clarity);
-    if(!map){ rec.key=key; continue; } // no canvas (or no 2d context): stay on #lg-flat
-    if(!rec.f){
-      var made=lgFilter(rec.id);
-      rec.f=made.el; rec.img=made.img; rec.d1=made.d1; rec.d2=made.d2; rec.XL=made.XL;
-      defs.appendChild(rec.f);
-    }
-    rec.img.setAttribute('href',map.href);
-    try{ rec.img.setAttributeNS(rec.XL,'xlink:href',map.href); }catch(_){}
-    rec.d1.setAttribute('scale',(map.scale*(1+LG_CHROMA)).toFixed(3));
-    rec.d2.setAttribute('scale',(map.scale*(1-LG_CHROMA)).toFixed(3));
-    el.style.setProperty('--lg-lens','url(#'+rec.id+')');
-    rec.key=key;
-  }
-}
-function lgSyncSoon(){
-  if(lgPend) return;
-  var run=function(){ lgPend=0; try{ lgSync(); }catch(_){} };
-  lgPend=(typeof requestAnimationFrame==='function')?requestAnimationFrame(run):setTimeout(run,16);
-}
-function lgInit(){
-  if(lgBooted) return; lgBooted=true;
-  if(typeof ResizeObserver==='function'){
-    lgObs=new ResizeObserver(function(){ lgSyncSoon(); });
-  }
-  if(typeof MutationObserver==='function'){
-    var mo=new MutationObserver(function(){ lgSyncSoon(); });
-    ['modal-root','toast-root','asst-pop'].forEach(function(id){
-      var n=byId(id); if(n) mo.observe(n,{childList:true,attributes:true,attributeFilter:['hidden','class']});
-    });
-  }
-  window.addEventListener('resize',lgSyncSoon,{passive:true});
-  lgSyncSoon();
 }
 var ACCENTS=['#4653e8','#0ea5e9','#10b981','#f59e0b','#ef4444','#ec4899','#7c5cd6','#14b8a6'];
 function applyAccent(){
@@ -14007,7 +13805,6 @@ function islandScrollSync(){
 function bootApp(){
   try{ console.info('Trakora build', APP_BUILD); }catch(_){}
   var _m=byId('main'); if(_m) _m.addEventListener('scroll', islandScrollSync, {passive:true});
-  lgInit();
   installChartHover();
   if(hasLock() && !sessionUnlocked){ applyTheme(); renderLockScreen(); return; }
   processRecurring();
