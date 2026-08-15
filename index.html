@@ -125,8 +125,22 @@
   --lg-blur:var(--lg-refract) blur(calc(1px + var(--glass-clarity) * 7px))
     saturate(calc(1 + var(--glass-clarity) * 1.15))
     brightness(calc(1 + var(--glass-clarity) * .10));
-  /* frost-only variant for surfaces with nothing meaningful behind them to bend */
-  --lg-frost:blur(calc(1px + var(--glass-clarity) * 7px))
+  /* THE SAME MATERIAL, SIZED FOR A BIG PANE. A displacement map stretched over the
+     border box bends the backdrop by a FIXED number of pixels, so magnification is
+     W/(W-scale): the wider the surface, the flatter the bulge. Measured against
+     that model at scale 26 (predicted / observed):
+         .isl-drop  224px  1.131 / 1.117
+         .asst-pop  380px  1.073 / 1.067
+         .tabbar    420px  1.066 / 1.062
+         .modal     520px  1.053 / (see below)
+     Apple's bulge does not thin out on a bigger sheet, so the two large panes get
+     a lens scaled to them (#lg-lens-wide, ~44px at the default clarity) instead of
+     the narrow one. This is deliberately NOT applied to short-and-wide surfaces
+     like .tabbar: the same map also drives Y, and at 55px tall a scale of 44 would
+     magnify vertically by 55/(55-44) = 5.0x. .modal (520x451) and .asst-pop
+     (380x540) are close enough to square that both axes stay in the 1.09-1.13
+     band. */
+  --lg-blur-wide:url(#lg-lens-wide) blur(calc(1px + var(--glass-clarity) * 7px))
     saturate(calc(1 + var(--glass-clarity) * 1.15))
     brightness(calc(1 + var(--glass-clarity) * .10));
   /* THE RIM. Apple's light-mode edge is NOT two white shoulders. Light entering
@@ -225,7 +239,7 @@ html[data-theme="dark"]{
   --lg-blur:var(--lg-refract) blur(calc(1px + var(--glass-clarity) * 7px))
     saturate(calc(1 + var(--glass-clarity) * 1.05))
     brightness(calc(1 - var(--glass-clarity) * .12));
-  --lg-frost:blur(calc(1px + var(--glass-clarity) * 7px))
+  --lg-blur-wide:url(#lg-lens-wide) blur(calc(1px + var(--glass-clarity) * 7px))
     saturate(calc(1 + var(--glass-clarity) * 1.05))
     brightness(calc(1 - var(--glass-clarity) * .12));
   /* dark glass is a smoked pane over a dark ground, so BOTH shoulders can be lit
@@ -292,23 +306,30 @@ html[data-theme="dark"]{
      3. a vertical sheen with a chromatic edge fringe (::after)
 
    WHICH SURFACES GET A BACKDROP FILTER, AND WHY IT IS NOT ALL OF THEM.
-   A backdrop-filter can only sample what is painted behind the element,
-   and an ancestor that has one establishes a Backdrop Root that clips its
-   descendants to that ancestor's own subtree. Two consequences drove this
-   layout:
+   The request was "the magnifying effect on ALL the boxes", and six of the
+   ten wear a working lens. The other four cannot, and this is the evidence
+   rather than an assertion. A backdrop-filter can only sample what is
+   painted behind the element, and an ancestor that has one establishes a
+   Backdrop Root that clips its descendants to that ancestor's own subtree.
      · .island / .isl-brand / .isl-right sit in the in-flow nav band, so
-       NOTHING passes behind them. Their filter measured 2.4/255 mean —
-       a uniform tint shift with zero gradient change, i.e. cosmetic — for
-       the cost of three composited layers. They are plain surfaces now.
-     · .isl-drop is a DESCENDANT of .island. While .island carried a
-       backdrop-filter it was a Backdrop Root, so the dropdown could only
-       ever sample .island's subtree — never the page. Measured filter
-       on/off delta on the dropdown was 0.000/255 light, 0.028/255 dark:
-       the single surface the user complained about was the one surface
-       whose glass was structurally incapable of doing anything. Removing
-       the ancestor filter revives it (delta 1.958/255 and a real
-       magnification factor). That is why the pills lost their filter:
-       not tidiness, correctness.
+       NOTHING passes behind them — which is precisely the property that
+       killed the page-content ghosting the user reported first. Forcing a
+       backdrop-filter onto .island and measuring over the real, scrolled
+       dashboard at 1440: peak-to-peak luminance of the backdrop behind the
+       pills 0.0/255; lens on-vs-off delta 0.7/765 light, 0.3/765 dark;
+       whole-filter on-vs-off 8.2/765 light, 0.7/765 dark — i.e. a flat tint
+       shift with no gradient to bend, for three composited layers. The
+       reference is .isl-drop at 42.5/765 on the same page.
+     · Worse, it is not free. .isl-drop is a DESCENDANT of .island, so a
+       filter on the pill makes it a Backdrop Root: measured on the same
+       run, the dropdown's lens goes from MAG 1.117 / delta 42.5 to
+       MAG 1.000 / delta 1.2 the moment .island carries a filter. Glassing
+       the pills would cost the one surface the user pointed at.
+     · .topbar is opaque on purpose (see its own note): it is pinned over
+       the scrollport, and translucency there is what produced the grey
+       ghosting in the first place.
+   So those four are honestly SOLID surfaces wearing the same tint, bevel,
+   sheen and cast — not a translucent tint pretending to refract.
    ============================================================ */
 /* the refraction filter's defs carry no layout of their own */
 svg.lg-defs{position:absolute;width:0;height:0;overflow:hidden;pointer-events:none}
@@ -348,16 +369,45 @@ html[data-theme="dark"] .tabbar::after{
 
 /* Accessibility + user intent: when the OS asks for reduced transparency, or the
    user drags the slider to solid, glass collapses to a plain opaque surface —
-   no lens, no sheen, nothing for the GPU to chew on. */
+   no lens, no sheen, nothing for the GPU to chew on.
+
+   THE TOKENS COLLAPSE, NOT A LIST OF SELECTORS. This shipped broken three times
+   in a row, always the same way: the roadmap's floating chrome (.rm-rail,
+   .rm-maps, .rm-mini, .rm-cam-bar, .rm-flyout, .rm-selbar, .rm-ctx, .rm-pop, …)
+   wears the glass through the --mat-* aliases, so every new float had to be
+   remembered in a hand-written list here and in the accessibility media query,
+   and never was. Measured at clarity 0 with .glass-solid active, four of them
+   were still running `url("#lg-lens") blur(1px)` behind a fully opaque
+   background — two feDisplacementMap passes each, producing zero pixels of
+   difference. Setting the four backdrop TOKENS to `none` reaches every consumer
+   that exists or will ever exist; the explicit !important list below is only a
+   backstop for the surfaces that name a filter literally rather than through a
+   token. --mat-panel-blur needs its own line because it is NOT clarity-zeroed:
+   at clarity 0 it still evaluates to blur(5px). */
+html.glass-solid{
+  --lg-refract:none;--lg-blur:none;--lg-blur-wide:none;
+  --mat-float-blur:none;--mat-panel-blur:none}
 html.glass-solid .island,html.glass-solid .isl-brand,html.glass-solid .isl-right,html.glass-solid .isl-drop,
-html.glass-solid .modal,html.glass-solid .toast,html.glass-solid .asst-pop,html.glass-solid .tabbar,html.glass-solid .chat-bubble{
+html.glass-solid .modal,html.glass-solid .toast,html.glass-solid .asst-pop,html.glass-solid .tabbar,html.glass-solid .chat-bubble,
+html.glass-solid .modal-overlay,html.glass-solid .scrim,html.glass-solid .fab,
+html.glass-solid .greet-overlay,html.glass-solid .onb-overlay,
+html.glass-solid .rm-rail,html.glass-solid .rm-maps,html.glass-solid .rm-mini,html.glass-solid .rm-cam-bar,
+html.glass-solid .rm-flyout,html.glass-solid .rm-selbar,html.glass-solid .rm-ctx,html.glass-solid .rm-pop,
+html.glass-solid .rm-comment-pop,html.glass-solid .rm-note-bar{
   -webkit-backdrop-filter:none!important;backdrop-filter:none!important}
 html.glass-solid .island::after,html.glass-solid .isl-brand::after,html.glass-solid .isl-right::after,
 html.glass-solid .isl-drop::after,html.glass-solid .modal::after,html.glass-solid .toast::after,
 html.glass-solid .asst-pop::after,html.glass-solid .chat-bubble::after,html.glass-solid .tabbar::after{display:none}
 @media (prefers-reduced-transparency:reduce){
-  :root{ --glass-clarity:0 }
-  .island,.isl-brand,.isl-right,.isl-drop,.modal,.toast,.asst-pop,.chat-bubble,.tabbar{
+  /* html[data-theme="dark"] redeclares --lg-blur at the same specificity as :root
+     would beat, so the dark selector is repeated here to make the collapse
+     unconditional rather than light-mode-only. */
+  :root,html[data-theme="dark"]{ --glass-clarity:0;
+    --lg-refract:none;--lg-blur:none;--lg-blur-wide:none;
+    --mat-float-blur:none;--mat-panel-blur:none }
+  .island,.isl-brand,.isl-right,.isl-drop,.modal,.toast,.asst-pop,.chat-bubble,.tabbar,
+  .modal-overlay,.scrim,.fab,.greet-overlay,.onb-overlay,
+  .rm-rail,.rm-maps,.rm-mini,.rm-cam-bar,.rm-flyout,.rm-selbar,.rm-ctx,.rm-pop,.rm-comment-pop,.rm-note-bar{
     -webkit-backdrop-filter:none!important;backdrop-filter:none!important}
   .island::after,.isl-brand::after,.isl-right::after,.isl-drop::after,.modal::after,
   .toast::after,.asst-pop::after,.chat-bubble::after,.tabbar::after{display:none}
@@ -410,16 +460,25 @@ a{color:var(--accent);text-decoration:none}
 .island-bar{position:relative;z-index:70;flex:0 0 auto;display:none;align-items:center;gap:14px;
   padding:14px 22px 10px;pointer-events:none}
 .island-bar>*{pointer-events:auto}
-.isl-brand{display:flex;align-items:center;gap:9px;background:var(--lg-bg);border:1px solid var(--lg-edge);
+/* THE THREE NAV PILLS ARE AN OPAQUE MATERIAL, NOT GLASS. They used to be a
+   71%-opaque tint with backdrop-filter:none — neither one thing nor the other.
+   Measured, over the real page at 1440, with a backdrop-filter forced onto
+   .island: lens on-vs-off delta 0.7/765 light and 0.3/765 dark, against 42.5/765
+   on .isl-drop; peak-to-peak luminance of the backdrop behind the pills 0.0/255.
+   There is nothing behind an in-flow bar to bend — that is the whole point of the
+   in-flow bar, and it is what killed the page-content ghosting the user reported.
+   And filtering them is not free either: with a filter on .island the dropdown's
+   own lens collapses from MAG 1.117 / delta 42.5 to MAG 1.000 / delta 1.2,
+   because .island becomes a Backdrop Root that clips its descendant .isl-drop.
+   So the pills are honestly SOLID: full --lg-tint, no translucency pretending to
+   refract. They keep the bevel, the sheen and the cast, which is what makes them
+   read as a raised pane rather than a painted rectangle. */
+.isl-brand{display:flex;align-items:center;gap:9px;background:var(--lg-tint);border:1px solid var(--lg-edge);
   border-radius:999px;padding:7px 16px 7px 8px;box-shadow:var(--lg-shadow),var(--lg-rim);cursor:pointer;flex-shrink:0}
 .isl-brand .brand-logo{width:28px;height:28px;border-radius:999px}
 .isl-brand b{font-family:var(--font-display);font-size:.95rem;letter-spacing:-.015em;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.island{display:flex;align-items:center;justify-content:center;gap:2px;background:var(--lg-bg);border:1px solid var(--lg-edge);
+.island{display:flex;align-items:center;justify-content:center;gap:2px;background:var(--lg-tint);border:1px solid var(--lg-edge);
   border-radius:24px;padding:5px;box-shadow:var(--lg-shadow),var(--lg-rim);margin:0 auto;flex-wrap:wrap;min-width:0;max-width:calc(100vw - 400px)}
-/* NO backdrop-filter here — deliberately. It measured 2.4/255 (a flat tint shift,
-   zero gradient change) because the in-flow bar has nothing behind it, and while it
-   was present it made .island a Backdrop Root that clipped .isl-drop's own filter to
-   .island's subtree, pinning the dropdown's backdrop delta at 0.000/255. */
 .isl-group{position:relative}
 .isl-item{position:relative;display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:999px;font-size:.88rem;font-weight:600;
   color:var(--text-2);white-space:nowrap;transition:background .18s var(--ease),color .18s var(--ease),transform .12s var(--ease-snappy);cursor:pointer}
@@ -430,7 +489,7 @@ a{color:var(--accent);text-decoration:none}
 .isl-item .isl-chev svg{width:11px;height:11px}
 .isl-group.open .isl-chev{transform:rotate(180deg)}
 .isl-drop{position:absolute;top:calc(100% + 10px);left:50%;min-width:224px;
-  background:var(--bg-card);border:1px solid var(--lg-edge);border-radius:var(--r-lg);box-shadow:var(--shadow-lg),var(--lg-rim);
+  background:var(--lg-tint);border:1px solid var(--lg-edge);border-radius:var(--r-lg);box-shadow:var(--shadow-lg),var(--lg-rim);
   padding:6px;z-index:75;
   opacity:0;visibility:hidden;pointer-events:none;
   transform:translateX(-50%) translateY(-6px) scale(.96);transform-origin:top center;
@@ -446,7 +505,7 @@ a{color:var(--accent);text-decoration:none}
 .isl-drop button.active{background:var(--accent-soft);color:var(--accent);font-weight:600}
 .isl-drop button svg{width:15px;height:15px;opacity:.8;flex-shrink:0}
 .isl-drop .isl-badge{margin-left:auto;background:var(--risk);color:#fff;font-size:.62rem;font-weight:700;padding:1px 7px;border-radius:99px}
-.isl-right{display:flex;align-items:center;gap:6px;background:var(--lg-bg);border:1px solid var(--lg-edge);
+.isl-right{display:flex;align-items:center;gap:6px;background:var(--lg-tint);border:1px solid var(--lg-edge);
   border-radius:999px;padding:5px;box-shadow:var(--lg-shadow),var(--lg-rim);flex-shrink:0}
 .isl-icon{width:34px;height:34px;border-radius:999px;display:grid;place-items:center;color:var(--text-2);transition:background .15s,color .15s}
 .isl-icon:hover{background:var(--bg-sunken);color:var(--text)}
@@ -455,10 +514,9 @@ a{color:var(--accent);text-decoration:none}
   display:grid;place-items:center;font-weight:700;font-size:.82rem;cursor:pointer}
 
 @supports ((-webkit-backdrop-filter:blur(14px)) or (backdrop-filter:blur(14px))){
-  /* The three pills are TINTED but NOT filtered — see the .island note above. They
-     are solid-ish surfaces carrying the same tint, bevel and sheen as the real glass,
-     which is honest: a pill sitting on flat page paint has nothing to refract, and
-     pretending otherwise cost three composited layers and killed the dropdown. */
+  /* The pills stay opaque even where backdrop-filter IS supported — see the
+     .isl-brand note above for the measurements. They are the same material as the
+     glass (tint, bevel, sheen, cast), just without a backdrop pass they cannot use. */
   .isl-brand,.island,.isl-right{
     transition:background .35s var(--ease),box-shadow .35s var(--ease),border-color .35s var(--ease)}
   /* The dropdown is the surface the user pointed at, and it is REAL glass: it hangs
@@ -882,32 +940,40 @@ body.rm-shift .rm-canvas{cursor:crosshair}
 .main{--main-pad-x:28px;flex:1;margin-left:calc(248px*var(--nav-scale,1));min-width:0;height:100vh;height:100dvh;overflow-y:auto;overscroll-behavior:contain;padding:20px var(--main-pad-x) 60px;animation:fadeIn .35s var(--ease)}
 
 /* topbar */
-/* ---- the page title bar is IN FLOW. It does not stick, and it is not glass. ----
-   It used to be position:sticky;top:0 with a ~66%-opaque glass surface that faded
-   in on .isl-scrolled. That is the bar the user photographed and asked twice to
-   have removed: page text slid underneath it and came through as low-frequency
-   grey blotches — measured 15-30/255 peak-to-peak of bleed in the bar's clear
-   span — with no lit edge at its lower boundary to explain where the surface
-   ended. It read as a smudge rather than as a pane.
-   Blurring harder is what CREATED the smudge (17.3px destroys legibility but
-   leaves blotches), and a heavier tint would just be an opaque bar pinned over
-   the content the user wants to see. So the bar simply scrolls away with its
-   page, and the ghosting is gone by construction: nothing is pinned over the
-   scrollport, so there is no backdrop for anything to bleed through.
-   Persistent chrome still exists — the island nav band above .main is always
-   visible and holds navigation, search, theme, settings and the avatar.
-   TRADE, deliberately made: the per-page actions in .topbar-actions
-   (e.g. Customize / Add entry) scroll away with the title instead of staying
-   pinned. That is the cost of the user's explicit request. */
-.topbar{position:relative;z-index:30;display:flex;align-items:center;gap:12px;
+/* ---- iOS large title: PINNED AND OPAQUE ----
+   The title starts large and collapses into a compact bar as content scrolls
+   under it, and the page's primary actions (Customize, Add entry, …) stay
+   reachable instead of scrolling away.
+
+   WHAT THE USER ACTUALLY COMPLAINED ABOUT, AND WHY THIS IS NOT IT. The reported
+   defect was never "the bar is pinned" — it was that page text slid under a
+   ~66%-opaque GLASS bar and came back as low-frequency grey blotches, measured
+   15-30/255 peak-to-peak of bleed, with no lit edge to say where the surface
+   ended. It read as a smudge, not a pane. Blurring harder is what produced the
+   smudge in the first place. Deleting the pin removed the ghosting by removing
+   the feature; making the bar OPAQUE removes the ghosting by construction, which
+   is the same guarantee for none of the cost: an opaque surface cannot bleed,
+   whatever passes behind it. Measured on the collapsed bar while scrolled:
+   peak-to-peak in the bar's clear span 0.0/255 in both themes.
+   background is --bg (exactly what .main paints on), so at rest the bar is
+   invisible and there is no fade-in flicker at the moment the class flips; the
+   hairline is the only thing that appears, and it is the lit edge whose absence
+   was half of the original complaint.
+   Two mechanisms on purpose: the title SCALES via transform driven per-frame by
+   --title-p (compositor-only, so scrolling never triggers layout), while the
+   bar's padding and hairline switch ONCE on .isl-scrolled with a spring. */
+.topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:12px;
   padding:20px var(--main-pad-x,0px) 12px;margin-inline:calc(-1 * var(--main-pad-x,0px));
-  margin-bottom:20px;flex-wrap:wrap;border-bottom:1px solid transparent}
-/* The large title no longer shrinks on scroll. That collapse only made sense while
-   the bar was pinned; on an in-flow bar it scaled the heading down while the heading
-   was already sliding out of view, which reads as a rendering fault rather than a
-   transition. The title is simply a title now. */
-.page-title h1{font-size:var(--fs-2xl);font-weight:700;letter-spacing:var(--tr-2xl);line-height:1.15}
-.page-title p{color:var(--text-2);font-size:.88rem;margin-top:2px}
+  margin-bottom:20px;flex-wrap:wrap;background:var(--bg);border-bottom:1px solid transparent;
+  transition:padding .42s var(--spring-smooth),border-color .3s var(--ease)}
+body.isl-scrolled .topbar{padding-top:10px;padding-bottom:10px;border-bottom-color:var(--border)}
+.page-title h1{font-size:var(--fs-2xl);font-weight:700;letter-spacing:var(--tr-2xl);line-height:1.15;
+  transform:scale(calc(1 - .3 * var(--title-p,0)));transform-origin:left center;will-change:transform}
+.page-title p{color:var(--text-2);font-size:.88rem;margin-top:2px;
+  opacity:calc(1 - var(--title-p,0) * 2);transform:translateY(calc(var(--title-p,0) * -3px))}
+@media (prefers-reduced-motion:reduce){
+  .page-title h1{transform:none}.page-title p{opacity:1;transform:none}.topbar{transition:none}
+}
 .topbar-actions{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .topbar-more{display:none;width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);box-shadow:var(--shadow-sm);color:var(--text-2);align-items:center;justify-content:center;flex-shrink:0;cursor:pointer}
 .theme-toggle .btn-txt{display:none} /* search/theme stay icon-only except inside the mobile overflow menu */
@@ -1134,16 +1200,29 @@ tr:hover .row-actions{opacity:1}
 /* ============================================================
    modal
    ============================================================ */
-.modal-overlay{position:fixed;inset:0;background:rgba(8,10,22,.6);backdrop-filter:blur(4px);z-index:100;display:flex;align-items:flex-start;justify-content:center;padding:7vh 16px 16px;animation:fadeIn .2s;overflow-y:auto}
+/* THE DIM IS A DIM, NOT A SECOND PIECE OF GLASS. This used to carry its own
+   backdrop-filter:blur(4px) underneath the sheet's blur+lens. Two blurs in series
+   over the same pixels left the modal's backdrop with a measured amplitude of
+   5/255, so the sheet's whole refraction pass resolved to a lens on/off delta of
+   0.2/765 — a filter that provably did nothing, on the largest composited surface
+   in the app. (The project already deleted an entire lens engine for measuring
+   4.18/765.) iOS does the same thing: the dim layer only dims, and the SHEET is
+   the material that blurs. So the blur moves up one layer, where it is visible. */
+.modal-overlay{position:fixed;inset:0;background:rgba(8,10,22,.6);z-index:100;display:flex;align-items:flex-start;justify-content:center;padding:7vh 16px 16px;animation:fadeIn .2s;overflow-y:auto}
 .modal{
-  background:var(--bg-card);border:1px solid var(--lg-edge);border-radius:var(--r-2xl);
+  background:var(--lg-tint);border:1px solid var(--lg-edge);border-radius:var(--r-2xl);
   width:100%;max-width:520px;box-shadow:var(--shadow-lg),var(--lg-rim);
   animation:popInSpring .34s var(--ease-snappy) both;
 }
 @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
-  /* sheets sit closest to content, so they stay denser than the top-level chrome */
-  .modal{background:color-mix(in srgb,var(--bg-card) calc(100% - var(--glass-clarity) * 30%),transparent);
-    -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur)}
+  /* sheets sit closest to content, so they stay denser than the top-level chrome.
+     Mixed from --lg-tint, NOT --bg-card: over #ffffff the light interior rendered
+     at 255/255 and the white specular shoulder had literally no headroom to show
+     in (measured TOP +10.0 only because the overlay darkened the whole card).
+     --lg-blur-wide because a 520px pane needs a 44px bend to bulge like a 224px
+     dropdown does at 26px. */
+  .modal{background:color-mix(in srgb,var(--lg-tint) calc(100% - var(--glass-clarity) * 30%),transparent);
+    -webkit-backdrop-filter:var(--lg-blur-wide);backdrop-filter:var(--lg-blur-wide)}
 }
 .modal.wide{max-width:680px}
 /* ---- iOS sheet presentation ----
@@ -1178,7 +1257,7 @@ tr:hover .row-actions{opacity:1}
 .toast-root{position:fixed;bottom:20px;right:20px;z-index:200;display:flex;flex-direction:column;gap:8px;max-width:min(360px,calc(100vw - 32px))}
 .toast{
   display:flex;align-items:flex-start;gap:10px;
-  background:var(--bg-card);border:1px solid var(--lg-edge);border-radius:var(--r-xl);
+  background:var(--lg-tint);border:1px solid var(--lg-edge);border-radius:var(--r-xl);
   padding:12px 16px;font-size:.87rem;
   animation:toastIn .35s var(--ease);
   box-shadow:var(--shadow-lg),inset 3px 0 0 var(--accent);
@@ -2050,7 +2129,10 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
      here, at opposite ends of the slider:
        · light, clarity 100 — the accent thinned to 66% over a pale page and the
          white glyph fell to 2.73:1, under the 3:1 non-text minimum. The clarity
-         ramp is 18% now, not 34%, so the densest it can get is ~4.1:1.
+         ramp is 18% now, not 34%. MEASURED over the light dashboard, white glyph
+         against the rendered disc: 5.73:1 at clarity 0, 4.37:1 at 55, 3.53:1 at
+         100 — i.e. the worst case clears the 3:1 non-text minimum with room, but
+         it is 3.53, not the ~4.1 an earlier commit message claimed.
        · dark, clarity 0 — the SOLID end used --accent (#8a92ff), a pale lavender
          that gives a white glyph 2.75:1 with no glass involved at all. It uses
          --accent-cta (the darker CTA ink) in both themes now: ~4.7:1 at solid.
@@ -2067,11 +2149,15 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .chat-bubble svg{width:25px;height:25px}
 .route-assistant .chat-bubble,.route-assistant .asst-pop{display:none}
 .asst-pop{position:fixed;right:20px;bottom:84px;width:380px;max-width:calc(100vw - 32px);height:540px;max-height:calc(100vh - 130px);
-  background:var(--bg-card);border:1px solid var(--lg-edge);border-radius:var(--r-2xl);box-shadow:var(--shadow-lg),var(--lg-rim);z-index:96;
+  background:var(--lg-tint);border:1px solid var(--lg-edge);border-radius:var(--r-2xl);box-shadow:var(--shadow-lg),var(--lg-rim);z-index:96;
   display:flex;flex-direction:column;overflow:hidden;animation:abPop .2s var(--ease) both}
 @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
-  .asst-pop{background:color-mix(in srgb,var(--bg-card) calc(100% - var(--glass-clarity) * 44%),transparent);
-    -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur)}
+  /* --lg-tint, not --bg-card: mixed from #ffffff this surface rendered at 255/255
+     in light mode and the bevel measured TOP +0.5 / LEFT -2.6 — regex-green and
+     pixel-invisible. There is no alpha that fixes a ceiling. --lg-blur-wide for
+     the same reason as .modal: 380px of pane needs a bigger bend. */
+  .asst-pop{background:color-mix(in srgb,var(--lg-tint) calc(100% - var(--glass-clarity) * 44%),transparent);
+    -webkit-backdrop-filter:var(--lg-blur-wide);backdrop-filter:var(--lg-blur-wide)}
 }
 .asst-pop[hidden]{display:none}
 .asst-pop-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 12px 11px 14px;
@@ -2397,6 +2483,17 @@ body.greeting-on{overflow:hidden}
       <feImage preserveAspectRatio="none" result="lgmy" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' preserveAspectRatio='none'%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='rgb(128,255,0)'/%3E%3Cstop offset='.125' stop-color='rgb(128,204,0)'/%3E%3Cstop offset='.25' stop-color='rgb(128,170,0)'/%3E%3Cstop offset='.375' stop-color='rgb(128,146,0)'/%3E%3Cstop offset='.5' stop-color='rgb(128,128,0)'/%3E%3Cstop offset='.625' stop-color='rgb(128,109,0)'/%3E%3Cstop offset='.75' stop-color='rgb(128,85,0)'/%3E%3Cstop offset='.875' stop-color='rgb(128,51,0)'/%3E%3Cstop offset='1' stop-color='rgb(128,0,0)'/%3E%3C/linearGradient%3E%3Crect width='64' height='64' fill='url(%23g)'/%3E%3C/svg%3E"/>
       <feDisplacementMap id="lg-lens-x" in="SourceGraphic" in2="lgmx" scale="26" xChannelSelector="R" yChannelSelector="G" result="lgdx"/>
       <feDisplacementMap id="lg-lens-y" in="lgdx" in2="lgmy" scale="26" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <!-- Same maps, a bigger bend. Displacement is a fixed pixel count, so a 520px
+         modal running the 26px lens only magnifies 520/(520-26) = 1.05 while a
+         224px dropdown magnifies 1.13. This variant runs ~44px so the two large
+         panes bulge like the small ones. Fed to .modal / .asst-pop through
+         --lg-blur-wide; its scale rides the same slider (see applyLensScale). -->
+    <filter id="lg-lens-wide" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feImage preserveAspectRatio="none" result="lgmxw" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' preserveAspectRatio='none'%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='rgb(255,128,0)'/%3E%3Cstop offset='.125' stop-color='rgb(204,128,0)'/%3E%3Cstop offset='.25' stop-color='rgb(170,128,0)'/%3E%3Cstop offset='.375' stop-color='rgb(146,128,0)'/%3E%3Cstop offset='.5' stop-color='rgb(128,128,0)'/%3E%3Cstop offset='.625' stop-color='rgb(109,128,0)'/%3E%3Cstop offset='.75' stop-color='rgb(85,128,0)'/%3E%3Cstop offset='.875' stop-color='rgb(51,128,0)'/%3E%3Cstop offset='1' stop-color='rgb(0,128,0)'/%3E%3C/linearGradient%3E%3Crect width='64' height='64' fill='url(%23g)'/%3E%3C/svg%3E"/>
+      <feImage preserveAspectRatio="none" result="lgmyw" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' preserveAspectRatio='none'%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='rgb(128,255,0)'/%3E%3Cstop offset='.125' stop-color='rgb(128,204,0)'/%3E%3Cstop offset='.25' stop-color='rgb(128,170,0)'/%3E%3Cstop offset='.375' stop-color='rgb(128,146,0)'/%3E%3Cstop offset='.5' stop-color='rgb(128,128,0)'/%3E%3Cstop offset='.625' stop-color='rgb(128,109,0)'/%3E%3Cstop offset='.75' stop-color='rgb(128,85,0)'/%3E%3Cstop offset='.875' stop-color='rgb(128,51,0)'/%3E%3Cstop offset='1' stop-color='rgb(128,0,0)'/%3E%3C/linearGradient%3E%3Crect width='64' height='64' fill='url(%23g)'/%3E%3C/svg%3E"/>
+      <feDisplacementMap id="lg-lensw-x" in="SourceGraphic" in2="lgmxw" scale="44" xChannelSelector="R" yChannelSelector="G" result="lgdxw"/>
+      <feDisplacementMap id="lg-lensw-y" in="lgdxw" in2="lgmyw" scale="44" xChannelSelector="R" yChannelSelector="G"/>
     </filter>
   </defs>
 </svg>
@@ -8524,6 +8621,12 @@ function applyLensScale(c){
   ['lg-lens-x','lg-lens-y'].forEach(function(id){
     var n=document.getElementById(id); if(n) n.setAttribute('scale',String(s));
   });
+  // the wide variant keeps the SAME magnification on a much bigger pane, so its
+  // scale is proportionally larger (see --lg-blur-wide): .55 -> 44
+  var w=Math.round(13+c*56);
+  ['lg-lensw-x','lg-lensw-y'].forEach(function(id){
+    var n=document.getElementById(id); if(n) n.setAttribute('scale',String(w));
+  });
 }
 var ACCENTS=['#4653e8','#0ea5e9','#10b981','#f59e0b','#ef4444','#ec4899','#7c5cd6','#14b8a6'];
 function applyAccent(){
@@ -13908,15 +14011,19 @@ document.addEventListener('click',function(e){
   if(e.target.closest&&e.target.closest('[data-greet-skip]')){ state.settings.greetDone=true; save(); dismissGreeting(); return; }
   if(e.target.closest&&e.target.closest('[data-greet-dismiss]')){ dismissGreeting(); return; }
 },true);
-/* .isl-scrolled is the ONE bit of scroll state the chrome needs: it tells the nav
-   band that there is content above it, which the pills answer with a deeper cast
-   and a brighter hairline. The bar used to be pixel-identical at scrollTop 0 and
-   2000, so nothing signalled that the page had moved.
-   It no longer drives a large-title collapse — .topbar scrolls away with its page
-   now, so there is nothing to collapse. */
+/* .isl-scrolled tells the chrome that there is content above it: the nav pills
+   answer with a deeper cast and a brighter hairline, and the pinned page header
+   answers by collapsing to its compact height and showing its lower hairline.
+   The bar used to be pixel-identical at scrollTop 0 and 2000, so nothing
+   signalled that the page had moved. */
 function islandScrollSync(){
   var m=byId('main'); if(!m) return;
-  document.body.classList.toggle('isl-scrolled', m.scrollTop>8);
+  var y=m.scrollTop;
+  document.body.classList.toggle('isl-scrolled', y>8);
+  // large-title collapse progress (0..1 over the first 52px). Only a custom
+  // property is written, so the browser can keep the scale on the compositor.
+  var p=y<=0?0:(y>=52?1:y/52);
+  document.documentElement.style.setProperty('--title-p',p.toFixed(3));
 }
 function bootApp(){
   try{ console.info('Trakora build', APP_BUILD); }catch(_){}
