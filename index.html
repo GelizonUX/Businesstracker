@@ -957,23 +957,15 @@ body.rm-shift .rm-canvas{cursor:crosshair}
    peak-to-peak in the bar's clear span 0.0/255 in both themes.
    background is --bg (exactly what .main paints on), so at rest the bar is
    invisible and there is no fade-in flicker at the moment the class flips; the
-   hairline is the only thing that appears, and it is the lit edge whose absence
-   was half of the original complaint.
-   Two mechanisms on purpose: the title SCALES via transform driven per-frame by
-   --title-p (compositor-only, so scrolling never triggers layout), while the
-   bar's padding and hairline switch ONCE on .isl-scrolled with a spring. */
-.topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:12px;
+/* The page header scrolls away with the content. It is deliberately NOT sticky:
+   a pinned bar was the reported defect. The iOS collapsing-large-title pattern
+   depends on a pinned bar, so it is intentionally absent too — the two cannot
+   coexist, and not-pinned is the requirement. */
+.topbar{position:relative;z-index:30;display:flex;align-items:center;gap:12px;
   padding:20px var(--main-pad-x,0px) 12px;margin-inline:calc(-1 * var(--main-pad-x,0px));
-  margin-bottom:20px;flex-wrap:wrap;background:var(--bg);border-bottom:1px solid transparent;
-  transition:padding .42s var(--spring-smooth),border-color .3s var(--ease)}
-body.isl-scrolled .topbar{padding-top:10px;padding-bottom:10px;border-bottom-color:var(--border)}
-.page-title h1{font-size:var(--fs-2xl);font-weight:700;letter-spacing:var(--tr-2xl);line-height:1.15;
-  transform:scale(calc(1 - .3 * var(--title-p,0)));transform-origin:left center;will-change:transform}
-.page-title p{color:var(--text-2);font-size:.88rem;margin-top:2px;
-  opacity:calc(1 - var(--title-p,0) * 2);transform:translateY(calc(var(--title-p,0) * -3px))}
-@media (prefers-reduced-motion:reduce){
-  .page-title h1{transform:none}.page-title p{opacity:1;transform:none}.topbar{transition:none}
-}
+  margin-bottom:20px;flex-wrap:wrap;background:var(--bg);border-bottom:1px solid transparent}
+.page-title h1{font-size:var(--fs-2xl);font-weight:700;letter-spacing:var(--tr-2xl);line-height:1.15}
+.page-title p{color:var(--text-2);font-size:.88rem;margin-top:2px}
 .topbar-actions{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .topbar-more{display:none;width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);box-shadow:var(--shadow-sm);color:var(--text-2);align-items:center;justify-content:center;flex-shrink:0;cursor:pointer}
 .theme-toggle .btn-txt{display:none} /* search/theme stay icon-only except inside the mobile overflow menu */
@@ -14020,10 +14012,6 @@ function islandScrollSync(){
   var m=byId('main'); if(!m) return;
   var y=m.scrollTop;
   document.body.classList.toggle('isl-scrolled', y>8);
-  // large-title collapse progress (0..1 over the first 52px). Only a custom
-  // property is written, so the browser can keep the scale on the compositor.
-  var p=y<=0?0:(y>=52?1:y/52);
-  document.documentElement.style.setProperty('--title-p',p.toFixed(3));
 }
 function bootApp(){
   try{ console.info('Trakora build', APP_BUILD); }catch(_){}

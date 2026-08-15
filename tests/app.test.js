@@ -1118,36 +1118,34 @@ async function main() {
       // gives the same guarantee for none of the cost: an opaque surface cannot bleed,
       // whatever passes behind it. Measured on the collapsed bar while scrolled to 700:
       // peak-to-peak 0.0/255 in both themes.
-      ok('the page header is pinned so the title and its actions stay reachable',
-        /\.topbar\{position:sticky;top:0;z-index:30/.test(html) &&
+      // NO bar may pin itself to the viewport — a pinned header was the reported
+      // defect, twice. It scrolls away with its content.
+      ok('the page header is NOT pinned — it scrolls away with the content',
+        /\.topbar\{position:relative/.test(html) &&
+        !/\.topbar\{position:sticky/.test(html) &&
         !/\.topbar\{position:fixed/.test(html));
-      ok('the pinned header is opaque, so nothing can ghost through it',
+      ok('the header is opaque, so nothing can ghost through it while it scrolls',
         /\.topbar\{[^}]*background:var\(--bg\)/.test(html) &&
-        !/body\.isl-scrolled \.topbar\{background:color-mix/.test(html) &&
         !/\.topbar\{[^}]*backdrop-filter/.test(html) &&
         !/\.topbar::after/.test(html));
-      // and it carries the lit lower edge whose absence was half the original report
-      ok('the collapsed header shows a hairline that says where the surface ends',
-        /body\.isl-scrolled \.topbar\{padding-top:10px;padding-bottom:10px;border-bottom-color:var\(--border\)\}/.test(html));
-      // The collapse itself: compositor-only scale driven by --title-p, one-shot
-      // padding/hairline switch on a class. Two mechanisms on purpose.
-      ok('the large title collapses on scroll (compositor-only, no per-frame layout)',
-        /--title-p/.test(html) &&
-        /\.page-title h1\{[^}]*transform:scale\(calc\(1 - \.3 \* var\(--title-p,0\)\)\)/.test(html) &&
-        /transition:padding \.42s var\(--spring-smooth\)/.test(html) &&
-        /@media \(prefers-reduced-motion:reduce\)\{\s*\n?\s*\.page-title h1\{transform:none\}/.test(html));
+      // The iOS collapsing-large-title pattern REQUIRES a pinned bar, so it is
+      // deliberately absent: the two cannot coexist and un-pinned is the ask.
+      // These negatives exist so restoring the collapse can't silently re-pin.
+      ok('no collapsing-title machinery survives to re-pin the header',
+        !/--title-p/.test(html) &&
+        !/\.page-title h1\{[^}]*transform:scale/.test(html) &&
+        !/body\.isl-scrolled \.topbar\{padding-top/.test(html));
       // .isl-scrolled drives BOTH the nav's cast and the header's collapse.
       var mainEl = d.getElementById('main');
       mainEl.scrollTop = 0; window.islandScrollSync();
       ok('at rest the nav carries no scrolled state', !d.body.classList.contains('isl-scrolled'));
-      ok('at rest the large title is at full size', d.documentElement.style.getPropertyValue('--title-p') === '0.000');
-      mainEl.scrollTop = 26; window.islandScrollSync();
-      ok('the collapse is progressive, not a jump', d.documentElement.style.getPropertyValue('--title-p') === '0.500');
+      // scroll state exists ONLY to tell the nav there is content above it — it must
+      // never drive a header collapse again, so no --title-p is written at any depth
+      ok('scrolling writes no collapse progress at rest', !d.documentElement.style.getPropertyValue('--title-p'));
       mainEl.scrollTop = 400; window.islandScrollSync();
       ok('once the page moves the nav is told there is content above it', d.body.classList.contains('isl-scrolled'));
-      ok('past the collapse distance the title is fully compact', d.documentElement.style.getPropertyValue('--title-p') === '1.000');
-      // the primary per-page actions live in the pinned bar, so they stay reachable
-      ok('the page actions are inside the pinned header, not below it',
+      ok('scrolling still writes no collapse progress', !d.documentElement.style.getPropertyValue('--title-p'));
+      ok('the page actions ride in the header, which scrolls away with them',
         /<div class="topbar">/.test(window.topbar('T', 'S', '<button class="btn">Add</button>')) &&
         /class="topbar-actions" id="topbar-actions"><button class="btn">Add<\/button>/.test(window.topbar('T', 'S', '<button class="btn">Add</button>')));
       ok('the scrolled nav answers with a deeper cast and a brighter hairline',
