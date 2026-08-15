@@ -868,13 +868,14 @@ async function main() {
     ok('island wraps gracefully when user labels/custom modules overflow the row', /\.island\{[^}]*flex-wrap:wrap/.test(html) && /\.island\{[^}]*max-width:calc\(100vw - 400px\)/.test(html));
     ok('dropdowns reveal via opacity/visibility spring (clip-proof)', /\.isl-drop\{[^}]*opacity:0;visibility:hidden/.test(html) && /\.isl-group\.open \.isl-drop\{opacity:1;visibility:visible/.test(html));
     ok('standard UX: dropdowns are click-only — no hover/focus auto-open', !/\.isl-group:hover \.isl-drop/.test(html) && !/\.isl-group:focus-within \.isl-drop/.test(html));
-    // The islands used to re-tint on .isl-scrolled because content ran beneath the
-    // fixed bar. Nothing passes behind the bar now, so re-tinting it mid-scroll would
-    // only make the nav flicker: .isl-scrolled drives the large-title collapse alone.
-    ok('scroll state drives the large title, and no longer restyles the islands',
+    // The nav must not be inert: with the old re-tint deleted AND a flat backdrop, the
+    // bar was pixel-identical at scrollTop 0 and 2000 — nothing told you there was
+    // content above. It still does not RE-TINT (that flickers mid-scroll); it deepens
+    // its cast and brightens its hairline, which is a one-shot change on a class.
+    ok('scroll state tells the nav there is content above it',
       /function islandScrollSync/.test(html) && /addEventListener\('scroll', islandScrollSync, \{passive:true\}\)/.test(html) &&
-      /body\.isl-scrolled \.topbar\{padding-top:10px/.test(html) &&
-      !/body\.isl-scrolled \.isl-brand,body\.isl-scrolled \.island,body\.isl-scrolled \.isl-right\{/.test(html));
+      /body\.isl-scrolled \.isl-brand,body\.isl-scrolled \.island,body\.isl-scrolled \.isl-right\{/.test(html) &&
+      !/body\.isl-scrolled \.island\{background:/.test(html));
     ok('active island pill adapts to the user accent (CTA tokens, not hard ink)', /\.isl-item\.active\{background:var\(--accent-cta\);color:var\(--accent-cta-ink\)\}/.test(html));
     // Liquid Glass splits the stack: chrome floats in glass, CONTENT stays opaque
     // (cards were 86% translucent with no backdrop-filter behind them — that only
@@ -889,81 +890,194 @@ async function main() {
       // light, not detail. saturate + brightness are the "reflects colour" half.
       ok('Liquid Glass tokens all derive from --glass-clarity',
         /--glass-clarity:\.55/.test(html) &&
-        /--lg-bg:color-mix\(in srgb,var\(--bg-card\) calc\(100% - var\(--glass-clarity\) \* 52%\),transparent\)/.test(html) &&
-        /--lg-blur:blur\(calc\(3px \+ var\(--glass-clarity\) \* 26px\)\)\s*\n?\s*saturate\(calc\(1 \+ var\(--glass-clarity\) \* 1\.15\)\)\s*\n?\s*brightness\(/.test(html) &&
+        /--lg-bg:color-mix\(in srgb,var\(--lg-tint\) calc\(100% - var\(--glass-clarity\) \* 52%\),transparent\)/.test(html) &&
+        /--lg-blur:var\(--lg-refract\) blur\(calc\(1px \+ var\(--glass-clarity\) \* 7px\)\)\s*\n?\s*saturate\(calc\(1 \+ var\(--glass-clarity\) \* 1\.15\)\)\s*\n?\s*brightness\(/.test(html) &&
         /--lg-rim:inset 1\.5px 1\.5px 1px -\.5px rgba\(255,255,255,calc\(var\(--glass-clarity\)/.test(html));
-      // The rim is what carries thickness once the frost is heavy enough to leave no
-      // detail to refract. Real glass is lit on BOTH shoulders — light enters one edge
-      // and leaves the other — so this is a crisp top-left inset plus a crisp
-      // bottom-right one plus a full hairline, the macOS reference's construction.
-      // The old six-inset stack lit the top hard, the bottom barely, with 3px blur
-      // radii, and read as a soft plastic glow rather than an edge.
-      ok('the rim lights both shoulders crisply, and is not a soft one-sided glow',
-        /--lg-rim:inset 1\.5px 1\.5px 1px -\.5px [^;]*inset -1\.5px -1\.5px 1px -\.5px [^;]*inset 0 0 0 1px /.test(html) &&
-        !/--lg-rim:[^;]*3px -2px/.test(html));
+      // THE LIGHT-MODE BEVEL. This used to be three white insets in both themes, and
+      // in light mode it was mathematically incapable of showing: the glass interior
+      // rendered at 254.9/255 (it was mixed from --bg-card, i.e. #ffffff), so a white
+      // inset had 0.1/255 of headroom. Measured rim-vs-interior was +1 in light
+      // against +127 in dark — no alpha could have fixed it, because the ceiling is
+      // 255 either way. Two changes make the edge possible:
+      //   · --lg-tint sinks the light surface off pure white, creating headroom;
+      //   · the lower-right shoulder is a DARK refracted band, not a white one,
+      //     which is what a ray leaving a pane over a light ground actually does.
+      // Dark mode keeps white on both shoulders — it has headroom and already
+      // measured +127.
+      // The bevel construction alone is not enough, and asserting only the token is
+      // how .modal and .asst-pop stayed broken while this line was green: they mixed
+      // their own tint from --bg-card (#ffffff), so in light mode their interiors
+      // rendered at 255/255 and measured rim-vs-interior was +0.5 (TOP) / -2.6 (LEFT)
+      // on .asst-pop — regex-green, pixel-invisible. There is no alpha that fixes a
+      // ceiling. So the assertion is now: EVERY glass surface's tint is mixed from
+      // --lg-tint, and no glass surface mixes from --bg-card.
+      ok('light mode bevels with a white specular AND a dark refracted shoulder',
+        /--lg-rim:inset 1\.5px 1\.5px 1px -\.5px rgba\(255,255,255,[^;]*inset -1\.5px -1\.5px 1px -\.5px rgba\(24,28,44,/.test(html));
+      ok('EVERY light glass surface is sunk off pure white so the bevel has headroom',
+        /--lg-tint:#e7e9f0/.test(html) &&
+        !/--lg-bg:color-mix\(in srgb,var\(--bg-card\) calc\(100% - var\(--glass-clarity\) \* 52%\)/.test(html) &&
+        /\.modal\{background:color-mix\(in srgb,var\(--lg-tint\) calc\(100% - var\(--glass-clarity\) \* 30%\)/.test(html) &&
+        /\.asst-pop\{background:color-mix\(in srgb,var\(--lg-tint\) calc\(100% - var\(--glass-clarity\) \* 44%\)/.test(html) &&
+        /\.isl-drop\{background:color-mix\(in srgb,var\(--lg-tint\)/.test(html) &&
+        // no glassed surface may mix its tint from --bg-card any more
+        !/(\.modal|\.asst-pop|\.isl-drop|\.toast|\.tabbar)\{background:color-mix\(in srgb,var\(--bg-card\)/.test(html));
+      ok('dark mode keeps a lit rim on both shoulders (it has the headroom)',
+        /html\[data-theme="dark"\]\{[\s\S]*?--lg-rim:inset 1\.5px 1\.5px 1px -\.5px rgba\(255,255,255,calc\(var\(--glass-clarity\) \* \.46\)\),\s*\n?\s*inset -1\.5px -1\.5px 1px -\.5px rgba\(255,255,255,/.test(html));
       // Solid really means solid: every rim alpha is PROPORTIONAL to clarity, with no
       // constant term, so clarity 0 leaves no residual bevel behind.
+      // Every alpha in the rim must be a bare `clarity * k` product with no constant
+      // term, in BOTH themes, or Solid would leave a residual bevel behind.
       ok('every rim alpha scales to zero with clarity (Solid is solid)',
+        (html.match(/--lg-rim:[\s\S]*?;/g) || []).length === 2 &&
         (html.match(/--lg-rim:[\s\S]*?;/g) || []).every(function (m) {
-          return m.split('rgba(255,255,255,').length > 1 &&
-            !/rgba\(255,255,255,calc\(\.\d+ \+/.test(m);
+          // three insets, and every one of their alphas is a bare clarity*k product
+          var alphas = m.match(/,calc\(var\(--glass-clarity\) \* [\d.]+\)\)/g) || [];
+          var rgbas = m.match(/rgba\(/g) || [];
+          return alphas.length === 3 && rgbas.length === 3;
         }));
       ok('the legacy --mat-* material tier now aliases the glass system', /--mat-float-bg:var\(--lg-bg\)/.test(html) && /--mat-border:var\(--lg-edge\)/.test(html));
       // dark glass is a SMOKED pane: same construction, quieter rim, and the backdrop is
       // darkened rather than lifted, or the chrome would glow
       ok('dark theme softens the rim and darkens rather than brightens the backdrop',
         /html\[data-theme="dark"\]\{[\s\S]*?--lg-rim:inset 1\.5px 1\.5px 1px -\.5px rgba\(255,255,255,calc\(var\(--glass-clarity\) \* \.46\)\)/.test(html) &&
-        /html\[data-theme="dark"\]\{[\s\S]*?--lg-blur:[\s\S]{0,160}brightness\(calc\(1 - var\(--glass-clarity\) \* \.12\)\)/.test(html));
-      // every glassed surface declares its opaque fallback OUTSIDE the @supports block,
-      // so browsers with no backdrop-filter (and no SVG-filter-on-backdrop) get a solid one
-      ok('glass degrades to a solid surface without backdrop-filter support',
-        /\.island\{[^}]*background:var\(--bg-card\)/.test(html) &&
-        /\.isl-brand\{[^}]*background:var\(--bg-card\)/.test(html) &&
+        /html\[data-theme="dark"\]\{[\s\S]*?--lg-blur:[\s\S]{0,180}brightness\(calc\(1 - var\(--glass-clarity\) \* \.12\)\)/.test(html));
+      // SOLID means opaque. This assertion used to accept `background:var(--lg-bg)`
+      // outside the @supports block, which is the translucent token — alpha 0.714 at
+      // the default clarity — so the "fallback" was translucent in EVERY browser,
+      // including ones with no backdrop-filter to make sense of it. The base
+      // declaration is now the opaque --lg-tint (or --bg-card), and the translucent
+      // mix only ever appears INSIDE an @supports block.
+      ok('glass degrades to a genuinely OPAQUE surface without backdrop-filter support',
+        /\.island\{[^}]*background:var\(--lg-tint\)/.test(html) &&
+        /\.isl-brand\{[^}]*background:var\(--lg-tint\)/.test(html) &&
+        /\.isl-right\{[^}]*background:var\(--lg-tint\)/.test(html) &&
+        /\.isl-drop\{[^}]*background:var\(--lg-tint\)/.test(html) &&
+        /\.modal\{\s*\n?\s*background:var\(--lg-tint\)/.test(html) &&
+        /\.asst-pop\{[^}]*background:var\(--lg-tint\)/.test(html) &&
+        /\.toast\{[\s\S]{0,200}background:var\(--lg-tint\)/.test(html) &&
         /\.tabbar\{[^}]*background:var\(--bg-card\)/.test(html) &&
+        // and no surface declares the translucent token outside an @supports guard
+        !/\.(island|isl-brand|isl-right)\{[^}]*background:var\(--lg-bg\)/.test(html) &&
         /@supports \(\(backdrop-filter:blur\(1px\)\) or \(-webkit-backdrop-filter:blur\(1px\)\)\)/.test(html));
 
-      // ---- no displacement lens: the frost and the refraction cannot coexist ----
-      // A per-element SVG displacement map (canvas-rendered rounded-rect SDF normal
-      // field, fed to backdrop-filter through --lg-lens) used to run here. Measured in
-      // Chromium over a high-contrast backdrop, with a real frost applied that lens
-      // moved the mean pixel by 4/765; the frost itself moved it by 52 in light and 183
-      // in dark. Blurring a displaced image and displacing a blurred one both end up
-      // smooth, so in a backdrop-filter chain you get one or the other. The frost wins,
-      // and the ~200 lines of canvas + PNG data-URI + ResizeObserver machinery go away.
-      ok('no lens filter defs are left in the document',
-        !/id="lg-lens"/.test(html) && !/id="lg-orb"/.test(html) && !/id="lg-lens-c"/.test(html) &&
-        !/id="lg-flat"/.test(html) && !/id="lg-gen"/.test(html) && !/feDisplacementMap/.test(html));
-      ok('no displacement engine is left in the script',
-        !/function lgMap\(/.test(html) && !/function lgSync\(/.test(html) &&
-        !/function lgFilter\(/.test(html) && !/lgSyncSoon/.test(html) && !/LG_BEVEL/.test(html));
-      ok('nothing still references the retired lens custom properties',
-        !/--lg-lens/.test(html) && !/--lg-refract/.test(html));
-      ok('glassed surfaces filter their backdrop with the frost token alone',
-        /\.island\{background:var\(--lg-bg\);-webkit-backdrop-filter:var\(--lg-blur\);backdrop-filter:var\(--lg-blur\)\}/.test(html));
+      // ---- THE REFRACTION PASS ----
+      // A previous build deleted its displacement lens after measuring it as a no-op
+      // under a frost. The measurement was sound; the conclusion was not. Blur and
+      // refraction cancel only past a threshold. On a 24px-pitch stripe backdrop at
+      // displacement scale 26, magnification held at 1.13 for every blur radius up to
+      // 6px and collapsed to 1.04 by 17.3px — which is exactly the radius the old
+      // --lg-blur used. The lens was measured inside its own dead zone.
+      // So the blur budget moved (17.3px -> 4.85px at the default clarity) and the
+      // lens came back, this time as static markup rather than a canvas engine.
+      ok('the displacement lens exists and is wired into the glass token',
+        /id="lg-lens"/.test(html) && /feDisplacementMap/.test(html) &&
+        /--lg-refract:url\(#lg-lens\)/.test(html) &&
+        /--lg-blur:var\(--lg-refract\) blur\(/.test(html));
+      // Two one-axis maps chained through two displacement passes: no blending inside
+      // an feImage'd document, and each map is a single <linearGradient>.
+      ok('the lens uses two one-axis displacement maps, X then Y',
+        /<feImage[^>]*result="lgmx"/.test(html) && /<feImage[^>]*result="lgmy"/.test(html) &&
+        /<feDisplacementMap id="lg-lens-x"[^>]*in2="lgmx"/.test(html) &&
+        /<feDisplacementMap id="lg-lens-y"[^>]*in2="lgmy"/.test(html));
+      // The maps are literal data: URIs. A runtime canvas generator was the previous
+      // design, and its failure mode was severe: if the script had not run, feImage
+      // resolved to nothing, R/G read as 0, and the WHOLE backdrop slid by -scale/2.
+      ok('the displacement maps are static data: URIs, not generated at runtime',
+        /<feImage[^>]*href="data:image\/svg\+xml,/.test(html) &&
+        !/function lgMap\(/.test(html) && !/toDataURL/.test(html.match(/id="lg-lens"[\s\S]{0,3000}/) || [''])[0]);
+      // The map ramps must be neutral (128) on their off-axis channel, or the X map
+      // would also displace Y and the two passes would fight.
+      ok('each map holds its off-axis channel neutral at 128',
+        /stop-color='rgb\(255,128,0\)'/.test(html) && /stop-color='rgb\(0,128,0\)'/.test(html) &&
+        /stop-color='rgb\(128,255,0\)'/.test(html) && /stop-color='rgb\(128,0,0\)'/.test(html));
+      // The filter region is pinned to the border box so the stretched maps line up
+      // with the element; the default -10%/120% region would offset the whole ramp.
+      ok('the lens filter region is pinned to the element box',
+        /<filter id="lg-lens" x="0%" y="0%" width="100%" height="100%"/.test(html) &&
+        /<feImage preserveAspectRatio="none"/.test(html));
+      ok('lens strength rides the clarity slider from script', /function applyLensScale\(/.test(html) && /applyLensScale\(c\)/.test(html));
       // G — an opaque panel has nothing behind it to frost
       ok('the opaque sidebar no longer pays for a full-height backdrop pass',
         !/\.sidebar\{[^}]*backdrop-filter/.test(html));
-      // I — one specular treatment across every pill, the bubble, the tab bar and the topbar
+      // ---- WHICH SURFACES CARRY A BACKDROP FILTER ----
+      // .island / .isl-brand / .isl-right sit in the in-flow nav band with nothing
+      // behind them: their filter measured 2.4/255 (a flat tint shift, zero gradient
+      // change) for three composited layers. Worse, .isl-drop is a DESCENDANT of
+      // .island, so while .island had a filter it was a Backdrop Root and the
+      // dropdown's own filter was clipped to .island's subtree — measured on/off
+      // delta 0.000/255 light, 0.028/255 dark. The one surface the user complained
+      // about was the one structurally incapable of glassing.
+      ok('the in-flow nav pills carry no backdrop-filter (nothing passes behind them)',
+        !/\.island\{[^}]*backdrop-filter/.test(html) &&
+        !/\.isl-brand,\.island,\.isl-right\{background:var\(--lg-bg\);\s*\n?\s*-webkit-backdrop-filter/.test(html));
+      ok('the dropdown DOES filter its backdrop — it hangs over live page content',
+        /\.isl-drop\{background:color-mix\(in srgb,var\(--lg-tint\)[^}]*backdrop-filter:var\(--lg-blur\)\}/.test(html));
+      // I — one specular treatment across every pill, the bubble and the tab bar
+      // (.topbar is no longer in this list: it is not glass any more)
       ok('every glass surface carries the same sheen + rim',
-        /\.island::after,\.isl-brand::after,\.isl-right::after,\.isl-drop::after,\s*\n\.modal::after,\.toast::after,\.asst-pop::after,\.chat-bubble::after,\.tabbar::after,\.topbar::after\{/.test(html) &&
+        /\.island::after,\.isl-brand::after,\.isl-right::after,\.isl-drop::after,\s*\n\.modal::after,\.toast::after,\.asst-pop::after,\.chat-bubble::after,\.tabbar::after\{/.test(html) &&
         /box-shadow:var\(--lg-rim\),/.test(html));
-      // dispersion survives the lens removal as two edge box-shadows rather than a
-      // second displacement pass over the whole backdrop — the liquid-glass package's
-      // `inset 1px 0 red / inset -1px 0 cyan` trick. At the edge of a frosted pane the
-      // rim is the only place a colour fringe can still read.
-      ok('chromatic edge fringe is drawn on the rim, not through a second filter pass',
-        /inset 1\.5px 0 0 rgba\(255,138,160,calc\(var\(--glass-clarity\) \* \.30\)\),\s*\n?\s*inset -1\.5px 0 0 rgba\(96,206,255,calc\(var\(--glass-clarity\) \* \.26\)\)\}/.test(html));
-      // J — the collapsed bar's glass has to reach the scrollport edges or it cuts seams
-      ok('the collapsed topbar bleeds its glass to the scrollport edges',
-        /\.topbar\{[^}]*padding:20px var\(--main-pad-x,0px\) 12px;margin-inline:calc\(-1 \* var\(--main-pad-x,0px\)\)/.test(html) &&
-        /\.main\{--main-pad-x:28px/.test(html) && /\.main\{--main-pad-x:30px/.test(html));
-      ok('OS reduce-transparency forces clarity to 0', /@media \(prefers-reduced-transparency:reduce\)\{\s*:root\{ --glass-clarity:0 \}/.test(html));
+      // Dispersion as two edge box-shadows. In LIGHT mode these can only subtract
+      // luminance from a pale surface, so at dark-mode strength they read as a dirty
+      // pink/cyan smudge rather than a fringe — they are tokenised per theme now.
+      ok('the chromatic fringe is tokenised so light mode can run it far weaker',
+        /inset 1\.5px 0 0 var\(--lg-fringe-warm\),\s*\n?\s*inset -1\.5px 0 0 var\(--lg-fringe-cool\)\}/.test(html) &&
+        /--lg-fringe-warm:rgba\(255,138,160,calc\(var\(--glass-clarity\) \* \.12\)\)/.test(html) &&
+        /html\[data-theme="dark"\]\{[\s\S]*?--lg-fringe-warm:rgba\(255,138,160,calc\(var\(--glass-clarity\) \* \.30\)\)/.test(html));
+      // This used to assert only that the media query zeroes --glass-clarity, under a
+      // name that implied a global guarantee. It did not deliver one: the roadmap's
+      // floating chrome wears the glass through the --mat-* aliases, and --mat-panel-blur
+      // is NOT proportional to clarity (at clarity 0 it still evaluates to blur(5px)),
+      // so four roadmap floats kept running url(#lg-lens) blur(1px) behind fully opaque
+      // backgrounds down BOTH the slider path and the accessibility path. The collapse
+      // is on the TOKENS now, which reaches every consumer including ones not yet
+      // written; the selector list is only a backstop.
+      var solidBlock = (html.match(/html\.glass-solid\{[\s\S]*?\}/) || [''])[0];
+      var rtBlock = (html.match(/@media \(prefers-reduced-transparency:reduce\)\{[\s\S]*?\n\}/) || [''])[0];
+      var killsTokens = function (b) {
+        return /--lg-refract:none/.test(b) && /--lg-blur:none/.test(b) &&
+               /--lg-blur-wide:none/.test(b) && /--mat-float-blur:none/.test(b) && /--mat-panel-blur:none/.test(b);
+      };
+      ok('clarity 0 collapses the backdrop TOKENS, so every glassed surface goes solid',
+        killsTokens(solidBlock) && killsTokens(rtBlock));
+      ok('OS reduce-transparency forces clarity to 0 in both themes',
+        /@media \(prefers-reduced-transparency:reduce\)\{/.test(html) &&
+        /:root,html\[data-theme="dark"\]\{ --glass-clarity:0;/.test(rtBlock));
+      // the roadmap floats are the surfaces that were missed three times running
+      ok('the roadmap floats are named in both solid paths (backstop for the tokens)',
+        ['rm-rail', 'rm-maps', 'rm-mini', 'rm-cam-bar', 'rm-flyout', 'rm-selbar', 'rm-ctx', 'rm-pop']
+          .every(function (c) { return html.indexOf('html.glass-solid .' + c) >= 0 && new RegExp('[,\\s]\\.' + c + '[,{]').test(rtBlock); }));
       // the chrome layer wears the glass; content does not
       ok('chrome surfaces (island, modal, toast, assistant, tab bar) use the glass tokens',
-        /\.island\{background:var\(--lg-bg\)/.test(html) &&
+        /\.island\{[^}]*background:var\(--lg-tint\)/.test(html) &&
         /\.toast\{background:var\(--lg-bg\)/.test(html) &&
-        /\.modal\{background:color-mix\(in srgb,var\(--bg-card\) calc\(100% - var\(--glass-clarity\) \* 30%\)/.test(html) &&
-        /\.asst-pop\{background:color-mix\(in srgb,var\(--bg-card\)/.test(html));
+        /\.modal\{background:color-mix\(in srgb,var\(--lg-tint\) calc\(100% - var\(--glass-clarity\) \* 30%\)/.test(html) &&
+        /\.asst-pop\{background:color-mix\(in srgb,var\(--lg-tint\)/.test(html));
+      // ---- THE LENS IS SIZED TO THE PANE ----
+      // A displacement map stretched over the border box bends by a fixed pixel
+      // count, so magnification is W/(W-scale) and a wide surface bulges less than a
+      // narrow one: at scale 26 the model predicts 1.131 for a 224px dropdown and
+      // 1.053 for a 520px modal, and measurement agreed to within 1.3%. Apple's bulge
+      // does not thin out on a bigger sheet, so the two large panes run a lens scaled
+      // to them. Deliberately NOT the tab bar: the same map drives Y as well, and at
+      // 55px tall a 44px scale would magnify vertically by 5x.
+      ok('the two large panes run a lens scaled to them, not the narrow one',
+        /<filter id="lg-lens-wide"/.test(html) &&
+        /--lg-blur-wide:url\(#lg-lens-wide\) blur\(/.test(html) &&
+        /\.modal\{background:[^}]*backdrop-filter:var\(--lg-blur-wide\)/.test(html) &&
+        /\.asst-pop\{background:[^}]*backdrop-filter:var\(--lg-blur-wide\)/.test(html) &&
+        !/\.tabbar\{background:var\(--lg-bg\);[\s\S]{0,120}--lg-blur-wide/.test(html));
+      ok('both lenses ride the clarity slider from one function',
+        /\['lg-lensw-x','lg-lensw-y'\]\.forEach/.test(html) && /var w=Math\.round\(13\+c\*56\)/.test(html));
+      // ---- THE MODAL'S LENS HAS SOMETHING TO BEND ----
+      // .modal-overlay used to carry its own backdrop-filter:blur(4px) UNDER the
+      // sheet's blur+lens. Two blurs in series left the sheet's backdrop with 5/255 of
+      // amplitude, and its whole refraction pass measured a lens on/off delta of
+      // 0.2/765 — a filter that provably did nothing on the largest composited surface
+      // in the app. The dim only dims now; the sheet is the material that blurs.
+      ok('the modal overlay dims but does not blur (the sheet is the glass)',
+        /\.modal-overlay\{position:fixed;inset:0;background:rgba\(8,10,22,\.6\);z-index:100/.test(html) &&
+        !/\.modal-overlay\{[^}]*backdrop-filter/.test(html));
 
       // the slider: default, clamping, persistence, and live token application
       var root = d.documentElement;
@@ -994,29 +1108,54 @@ async function main() {
 
     // ---------- iOS 27 · large titles, sheets, SF tracking ----------
     (function () {
-      // large title: sticky bar, compositor-only scaling, one-shot collapse styling
-      // top:0, not the old top:-20px — the sticky offset clipped 20px off a bar that
-      // only keeps 10px of padding once collapsed, so the shrunken title lost its first
-      // rows of pixels. Collapsing is the padding transition's job.
-      ok('the page header is a sticky bar that pins flush without clipping its title',
-        /\.topbar\{position:sticky;top:0;/.test(html) && !/\.topbar\{position:sticky;top:-20px/.test(html) &&
-        /body\.isl-scrolled \.topbar\{padding-top:10px;padding-bottom:10px/.test(html));
-      ok('the title scales on the compositor via --title-p (no layout on scroll)', /\.page-title h1\{[^}]*transform:scale\(calc\(1 - \.34 \* var\(--title-p,0\)\)\)/.test(html));
-      ok('the subtitle fades as the title collapses', /\.page-title p\{[^}]*opacity:calc\(1 - var\(--title-p,0\) \* 2\)/.test(html));
-      ok('the collapsed bar takes glass + a hairline, transitioned once on class change', /body\.isl-scrolled \.topbar\{padding-top:10px/.test(html) && /body\.isl-scrolled \.topbar\{background:color-mix\(in srgb,var\(--bg-card\)/.test(html));
-      ok('large-title collapse honours reduced motion', /@media \(prefers-reduced-motion:reduce\)\{\s*\.page-title h1\{transform:none\}/.test(html));
-      // the scroll driver writes only a custom property
+      // ---- THE PAGE HEADER IS PINNED, AND OPAQUE ----
+      // The reported defect was never "the bar is pinned". It was that page text slid
+      // under a ~66%-opaque GLASS bar and came back as low-frequency grey blotches
+      // (15-30/255 peak-to-peak of bleed in the bar's clear span) with no lit edge to
+      // say where the surface ended. Deleting the pin fixed the ghosting by deleting
+      // the feature — and took the large-title collapse and the reachable per-page
+      // actions with it, neither of which the user asked to lose. An OPAQUE pinned bar
+      // gives the same guarantee for none of the cost: an opaque surface cannot bleed,
+      // whatever passes behind it. Measured on the collapsed bar while scrolled to 700:
+      // peak-to-peak 0.0/255 in both themes.
+      ok('the page header is pinned so the title and its actions stay reachable',
+        /\.topbar\{position:sticky;top:0;z-index:30/.test(html) &&
+        !/\.topbar\{position:fixed/.test(html));
+      ok('the pinned header is opaque, so nothing can ghost through it',
+        /\.topbar\{[^}]*background:var\(--bg\)/.test(html) &&
+        !/body\.isl-scrolled \.topbar\{background:color-mix/.test(html) &&
+        !/\.topbar\{[^}]*backdrop-filter/.test(html) &&
+        !/\.topbar::after/.test(html));
+      // and it carries the lit lower edge whose absence was half the original report
+      ok('the collapsed header shows a hairline that says where the surface ends',
+        /body\.isl-scrolled \.topbar\{padding-top:10px;padding-bottom:10px;border-bottom-color:var\(--border\)\}/.test(html));
+      // The collapse itself: compositor-only scale driven by --title-p, one-shot
+      // padding/hairline switch on a class. Two mechanisms on purpose.
+      ok('the large title collapses on scroll (compositor-only, no per-frame layout)',
+        /--title-p/.test(html) &&
+        /\.page-title h1\{[^}]*transform:scale\(calc\(1 - \.3 \* var\(--title-p,0\)\)\)/.test(html) &&
+        /transition:padding \.42s var\(--spring-smooth\)/.test(html) &&
+        /@media \(prefers-reduced-motion:reduce\)\{\s*\n?\s*\.page-title h1\{transform:none\}/.test(html));
+      // .isl-scrolled drives BOTH the nav's cast and the header's collapse.
       var mainEl = d.getElementById('main');
-      var root = d.documentElement;
       mainEl.scrollTop = 0; window.islandScrollSync();
-      ok('at rest the title is fully expanded', root.style.getPropertyValue('--title-p') === '0.000');
+      ok('at rest the nav carries no scrolled state', !d.body.classList.contains('isl-scrolled'));
+      ok('at rest the large title is at full size', d.documentElement.style.getPropertyValue('--title-p') === '0.000');
       mainEl.scrollTop = 26; window.islandScrollSync();
-      ok('mid-scroll the collapse is partial', root.style.getPropertyValue('--title-p') === '0.500');
+      ok('the collapse is progressive, not a jump', d.documentElement.style.getPropertyValue('--title-p') === '0.500');
       mainEl.scrollTop = 400; window.islandScrollSync();
-      ok('past the threshold the title is fully collapsed', root.style.getPropertyValue('--title-p') === '1.000' && d.body.classList.contains('isl-scrolled'));
-      // opening a new screen resets it, like a fresh push
+      ok('once the page moves the nav is told there is content above it', d.body.classList.contains('isl-scrolled'));
+      ok('past the collapse distance the title is fully compact', d.documentElement.style.getPropertyValue('--title-p') === '1.000');
+      // the primary per-page actions live in the pinned bar, so they stay reachable
+      ok('the page actions are inside the pinned header, not below it',
+        /<div class="topbar">/.test(window.topbar('T', 'S', '<button class="btn">Add</button>')) &&
+        /class="topbar-actions" id="topbar-actions"><button class="btn">Add<\/button>/.test(window.topbar('T', 'S', '<button class="btn">Add</button>')));
+      ok('the scrolled nav answers with a deeper cast and a brighter hairline',
+        /body\.isl-scrolled \.isl-brand,body\.isl-scrolled \.island,body\.isl-scrolled \.isl-right\{/.test(html) &&
+        /html\[data-theme="dark"\] body\.isl-scrolled \.island,/.test(html));
+      // opening a new screen resets the scrollport, like a fresh push
       window.location.hash = '#/goals'; window.render();
-      ok('navigating reopens the next screen with its large title', mainEl.scrollTop === 0 && root.style.getPropertyValue('--title-p') === '0.000');
+      ok('navigating opens the next screen at the top', mainEl.scrollTop === 0);
 
       // sheets
       ok('dialogs carry a grabber for the phone sheet', /<div class="sheet-grabber" aria-hidden="true"><\/div>/.test(html));
