@@ -129,6 +129,17 @@ async function main() {
     ok('no lock initially', window.hasLock() === false);
     await window.setPin('1357');
     ok('setPin stores no plaintext', window.hasLock() && JSON.stringify(window.getLock()).indexOf('1357') === -1);
+    // setPin must REPORT whether the lock actually persisted — a swallowed write
+    // meant a user could set a PIN, see no error, and be left unlocked.
+    ok('setPin resolves true only when the record is readable back', await window.setPin('2468') === true && window.hasLock());
+    await window.setPin('1357'); // restore: later assertions verify against this PIN
+    // the guard itself: setLockRec reads the record back rather than trusting setItem,
+    // and both PIN call sites surface a failure instead of reporting success
+    ok('setLockRec verifies the write instead of swallowing it',
+      /function setLockRec[\s\S]{0,420}?var back=getLock\(\);[\s\S]{0,120}?back\.hash===o\.hash/.test(html) &&
+      !/function setLockRec\(o\)\{ try\{[^}]*\}catch\(_\)\{ \} \}/.test(html));
+    ok('a PIN that cannot be saved tells the user the lock is NOT active',
+      (html.match(/The lock is NOT active/g) || []).length === 2);
     ok('verifyPin correct/wrong', (await window.verifyPin('1357')) === true && (await window.verifyPin('0000')) === false);
     window.sessionUnlocked = false; window.bootApp();
     ok('boot gates to lock screen', d.getElementById('lock-root').innerHTML.indexOf('is locked') > -1);
