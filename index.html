@@ -1049,7 +1049,9 @@ body.rm-shift .rm-canvas{cursor:crosshair}
   background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-xl);
   padding:19px 22px;box-shadow:var(--shadow-sm);
   transition:box-shadow .25s var(--ease),transform .25s var(--ease),border-color .25s;
-  animation:fadeUp .4s var(--ease) backwards;
+  /* entrance is gated to real route changes (#main.view-enter) — every render()
+     replaces main.innerHTML, so an unscoped entrance replayed on every status
+     change, filter tweak and save. That replay was the 'blinking'. */
 }
 /* dark cards get a faint top inner highlight so they read as lit from above */
 html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--shadow-sm),inset 0 1px 0 rgba(255,255,255,.045)}
@@ -1312,7 +1314,7 @@ tr:hover .row-actions{opacity:1}
 .empty p{font-size:.86rem;max-width:340px;line-height:1.6}
 
 /* insights are always rendered inside a card — keep them as clean borderless rows (no card-in-card) */
-.insight{display:flex;gap:12px;padding:10px 2px;border-radius:0;border:none;background:transparent;align-items:flex-start;animation:fadeUp .4s var(--ease) backwards}
+.insight{display:flex;gap:12px;padding:10px 2px;border-radius:0;border:none;background:transparent;align-items:flex-start}
 .insight .i-icon{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;flex-shrink:0}
 .insight .i-icon svg{width:16px;height:16px}
 .insight.good .i-icon{background:var(--good-soft);color:var(--good)}
@@ -1346,7 +1348,7 @@ tr:hover .row-actions{opacity:1}
 .ring .ring-label b{font-size:1.5rem;font-weight:800;letter-spacing:-.03em;line-height:1}
 .ring .ring-label span{font-size:.64rem;color:var(--text-3);text-transform:uppercase;letter-spacing:.1em;font-weight:700;margin-top:3px}
 .ring svg circle.track{stroke:var(--bg-sunken)}
-.ring svg circle.val{transition:stroke-dashoffset 1s var(--ease);animation:cRingIn .9s var(--ease) backwards}
+.ring svg circle.val{transition:stroke-dashoffset 1s var(--ease)}
 @keyframes cRingIn{from{stroke-dashoffset:var(--c0,0)}}
 @media (prefers-reduced-motion:reduce){.ring svg circle.val{animation:none}}
 
@@ -1387,17 +1389,17 @@ tr:hover .row-actions{opacity:1}
 .c-svg .c-pt:hover .c-col{opacity:.07}
 .c-svg .c-guide{stroke:var(--accent);stroke-width:1;stroke-dasharray:3 4;opacity:0;transition:opacity .13s var(--ease)}
 .c-svg .c-pt:hover .c-guide{opacity:.5}
-.c-svg .c-bar{transform-box:fill-box;transform-origin:bottom;animation:cBarIn .55s var(--spring) backwards;transition:filter .13s var(--ease)}
+.c-svg .c-bar{transform-box:fill-box;transform-origin:bottom;transition:filter .13s var(--ease)}
 .c-svg .c-bar.c-rev{fill:var(--income)}
 .c-svg .c-bar.c-exp{fill:var(--expense)}
 .c-svg .c-bar.c-pos{fill:var(--income)}
 .c-svg .c-bar.c-neg{fill:var(--expense);transform-origin:top}
 .c-svg .c-zero{stroke:var(--text-3);stroke-width:1.2;opacity:.55}
 .c-svg .c-pt:hover .c-bar{filter:brightness(1.09) saturate(1.05)}
-.c-svg .c-line{fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:100;stroke-dashoffset:100;animation:cDraw .9s var(--ease) forwards}
+.c-svg .c-line{fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
 .c-svg .c-line.c-rev{stroke:var(--income)}
 .c-svg .c-line.c-exp{stroke:var(--expense);animation-delay:.1s}
-.c-svg .c-area{animation:cFade .7s var(--ease) .2s backwards}
+.c-svg .c-area{}
 .c-svg .c-dot{stroke:var(--bg-card);stroke-width:1.6;opacity:0;transition:opacity .14s var(--ease)}
 .c-svg .c-dot.c-rev{fill:var(--income)}
 .c-svg .c-dot.c-exp{fill:var(--expense)}
@@ -1407,7 +1409,7 @@ tr:hover .row-actions{opacity:1}
 @keyframes cFade{from{opacity:0}to{opacity:1}}
 
 /* donut */
-.c-donut .c-seg{animation:cSegIn .55s var(--ease) backwards;transition:stroke-width .16s var(--ease);cursor:pointer}
+.c-donut .c-seg{transition:stroke-width .16s var(--ease);cursor:pointer}
 .c-donut .c-seg:hover{stroke-width:22}
 .c-donut .c-dnum{fill:var(--text-1);font-size:16px;font-weight:800;font-family:var(--font)}
 .c-donut .c-dlab{fill:var(--text-3);font-size:9px;text-transform:uppercase;letter-spacing:.08em;font-family:var(--font)}
@@ -1419,7 +1421,7 @@ tr:hover .row-actions{opacity:1}
 .cat-bar .cb-top{display:flex;justify-content:space-between;gap:10px;font-size:.8rem;margin-bottom:4px}
 .cat-bar .cb-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-2)}
 .cat-bar .cb-track{height:8px;border-radius:6px;background:var(--bg-sunken,rgba(0,0,0,.06));overflow:hidden}
-.cat-bar .cb-fill{height:100%;border-radius:6px;width:var(--cbw);transform-origin:left;animation:cbGrow .6s var(--spring) backwards;transition:filter .13s var(--ease)}
+.cat-bar .cb-fill{height:100%;border-radius:6px;width:var(--cbw);transform-origin:left;transition:filter .13s var(--ease)}
 .cat-bar:hover .cb-fill{filter:brightness(1.08)}
 @keyframes cbGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 
@@ -1427,14 +1429,14 @@ tr:hover .row-actions{opacity:1}
 .pace-row{display:flex;justify-content:space-between;gap:10px;font-size:.84rem;color:var(--text-2);margin-top:6px}
 .pace-row b{color:var(--text-1)}
 .pace-track{position:relative;height:12px;border-radius:8px;background:var(--bg-sunken);margin-top:12px;overflow:visible}
-.pace-fill{height:100%;border-radius:8px;width:var(--pw);background:var(--accent);background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 70%,#fff));transform-origin:left;animation:cbGrow .7s var(--spring) backwards}
+.pace-fill{height:100%;border-radius:8px;width:var(--pw);background:var(--accent);background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 70%,#fff));transform-origin:left}
 .pace-fill.hit{background:var(--income);background:linear-gradient(90deg,var(--income),color-mix(in srgb,var(--income) 70%,#fff))}
-.pace-mark{position:absolute;top:-4px;bottom:-4px;width:2.5px;border-radius:2px;background:var(--text);opacity:.65;transform:translateX(-50%);animation:cFade .5s var(--ease) .5s backwards}
+.pace-mark{position:absolute;top:-4px;bottom:-4px;width:2.5px;border-radius:2px;background:var(--text);opacity:.65;transform:translateX(-50%)}
 @media (prefers-reduced-motion:reduce){.pace-fill,.pace-mark{animation:none}}
 
 /* sparkline */
-.c-spark-line{stroke-dasharray:100;stroke-dashoffset:100;animation:cDraw 1s var(--ease) forwards}
-.c-spark-area{animation:cFade .8s var(--ease) .15s backwards}
+.c-spark-line{}
+.c-spark-area{}
 .c-spark-dot{animation:cSparkPulse 2.4s var(--ease) 1s infinite}
 @keyframes cSparkPulse{0%,100%{opacity:1}50%{opacity:.35}}
 
@@ -1571,7 +1573,7 @@ details.calc .calc-body{margin-top:10px}
 .hero{
   background:linear-gradient(135deg,rgba(70,83,232,.10),rgba(70,83,232,.04) 45%,transparent 75%);
   border:1px solid var(--border);border-radius:var(--r-xl);
-  padding:36px 32px;position:relative;overflow:hidden;animation:fadeUp .45s var(--ease);margin-bottom:12px;
+  padding:36px 32px;position:relative;overflow:hidden;margin-bottom:12px;
 }
 .hero::after{content:'';position:absolute;top:-70px;right:-70px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(70,83,232,.12),transparent 65%)}
 .hero h2{font-size:1.45rem;font-weight:800;letter-spacing:-.025em}
@@ -1579,7 +1581,7 @@ details.calc .calc-body{margin-top:10px}
 .hero .hero-actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
 /* data-safety banner */
 .backup-banner{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:12px;border-radius:var(--r-lg);
-  background:var(--risk-soft);border:1px solid var(--risk);box-shadow:var(--shadow-sm);animation:fadeUp .35s var(--ease)}
+  background:var(--risk-soft);border:1px solid var(--risk);box-shadow:var(--shadow-sm)}
 .backup-banner .bb-icon{flex-shrink:0;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:var(--bg-card);color:var(--risk)}
 .backup-banner .bb-icon svg{width:19px;height:19px}
 .backup-banner .bb-text{flex:1;min-width:0;font-size:.85rem;line-height:1.45;color:var(--text)}
@@ -1856,7 +1858,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .stat-icon{transition:transform .25s var(--ease)}
 .stat-card:hover .stat-icon{transform:scale(1.06) rotate(-3deg)}
 .empty .e-icon{animation:floatGlow 6s ease-in-out infinite}
-.table-wrap tbody tr{animation:rowIn .3s var(--ease) backwards}
+.table-wrap tbody tr{}
 .table-wrap tbody tr:nth-child(1){animation-delay:.02s}
 .table-wrap tbody tr:nth-child(2){animation-delay:.04s}
 .table-wrap tbody tr:nth-child(3){animation-delay:.06s}
@@ -2395,6 +2397,21 @@ body.greeting-on{overflow:hidden}
 /* smooth section change — opacity only (keeps sticky topbars intact) */
 @keyframes viewEnter{from{opacity:0}to{opacity:1}}
 #main.view-enter{animation:viewEnter .2s var(--ease)}
+/* Entrances belong to arriving at a screen, not to updating one. Scoped here so a
+   status change, filter or save re-renders silently instead of flashing. */
+#main.view-enter .card,#main.view-enter .insight{animation:fadeUp .4s var(--ease) backwards}
+#main.view-enter .ring svg circle.val{animation:cRingIn .9s var(--ease) backwards}
+#main.view-enter .c-svg .c-bar{animation:cBarIn .55s var(--spring) backwards}
+#main.view-enter .c-svg .c-line{stroke-dasharray:100;stroke-dashoffset:100;animation:cDraw .9s var(--ease) forwards}
+#main.view-enter .c-svg .c-area{animation:cFade .7s var(--ease) .2s backwards}
+#main.view-enter .c-donut .c-seg{animation:cSegIn .55s var(--ease) backwards}
+#main.view-enter .cat-bar .cb-fill{animation:cbGrow .6s var(--spring) backwards}
+#main.view-enter .pace-fill{animation:cbGrow .7s var(--spring) backwards}
+#main.view-enter .pace-mark{animation:cFade .5s var(--ease) .5s backwards}
+#main.view-enter .c-spark-line{stroke-dasharray:100;stroke-dashoffset:100;animation:cDraw 1s var(--ease) forwards}
+#main.view-enter .c-spark-area{animation:cFade .8s var(--ease) .15s backwards}
+#main.view-enter .table-wrap tbody tr{animation:rowIn .3s var(--ease) backwards}
+@media (prefers-reduced-motion:reduce){#main.view-enter .card,#main.view-enter .insight{animation:none}}
 
 /* ---- View Transitions: content glides, chrome stays put ----
    Naming only #main means the nav island, sidebar and tab bar are NOT
@@ -2933,7 +2950,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
-var APP_BUILD='2026.08.14b'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
+var APP_BUILD='2026.08.16a'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -3845,7 +3862,7 @@ var ui={
   rmGrid:'dots'
 };
 
-var lastRenderRoute=null;
+var lastRenderRoute=null, viewEnterT=0;
 function render(){
   renderSidebar();
   renderIsland();
@@ -3863,6 +3880,10 @@ function render(){
   // gentle cross-fade when the section actually changes, so switching views never hard-cuts/blinks
   var routeChanged=route!==lastRenderRoute;
   if(routeChanged){ main.classList.remove('view-enter'); void main.offsetWidth; main.classList.add('view-enter'); lastRenderRoute=route;
+    // the class must be TRANSIENT: it gates the entrance, and if it lingers every
+    // later in-place render (status change, filter, save) re-plays that entrance —
+    // which is exactly what read as blinking.
+    clearTimeout(viewEnterT); viewEnterT=setTimeout(function(){ main.classList.remove('view-enter'); },520);
     // a new screen always opens with its large title expanded, like a fresh push
     main.scrollTop=0; if(typeof islandScrollSync==='function') islandScrollSync(); }
   // delight: count key figures up on a fresh page entrance (not on in-page re-renders)
