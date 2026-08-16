@@ -516,6 +516,79 @@ async function main() {
     ok('sidebar nav text uses the themed rail token (light rail in light mode)', /\.nav-item\{[\s\S]{0,220}color:var\(--sidebar-text\)/.test(html) && /--bg-sidebar:#fbfbf9/.test(html) && /html\[data-theme="dark"\]\{[\s\S]{0,400}--bg-sidebar:#121317/.test(html));
     ok('sidebar nav icons follow the themed text colour', /\.nav-item svg\{color:currentColor\}/.test(html));
 
+    // ---------- the glyph set: one system, no emoji doing UI work ----------
+    (function () {
+      const keys = Object.keys(window.ICONS);
+      // every literal icon('name') in the source must exist in the map — an
+      // unknown name renders an EMPTY <svg>, which is invisible, not loud.
+      const lits = new Set((html.match(/\bicon\(\s*'[A-Za-z0-9_-]+'/g) || []).map(function (m) { return m.replace(/^icon\(\s*'/, '').replace(/'$/, ''); }));
+      // …and so must every name reached through data (routes, onboarding,
+      // chart tabs, custom modules, sev maps, ternaries).
+      const data = new Set();
+      (html.match(/\b(?:icon|ico|i)\s*:\s*'[a-zA-Z0-9_-]+'/g) || []).forEach(function (m) { data.add(m.split("'")[1]); });
+      (html.match(/\?\s*'[a-zA-Z0-9_-]+'\s*:\s*'[a-zA-Z0-9_-]+'/g) || []).forEach(function (m) {
+        const parts = m.split("'"); data.add(parts[1]); data.add(parts[3]);
+      });
+      (window.CM_ICONS || []).forEach(function (k) { data.add(k); });
+      const refs = new Set([].concat(Array.from(lits), Array.from(data).filter(function (k) { return keys.indexOf(k) >= 0; })));
+      const unresolved = Array.from(lits).filter(function (k) { return keys.indexOf(k) < 0; });
+      ok('every icon() call site resolves to a glyph (no silent empty svg)', unresolved.length === 0, unresolved);
+      ok('no glyph in the map is an empty path', keys.every(function (k) { return !!window.ICONS[k]; }));
+      ok('no orphan glyphs — every map entry is actually used', keys.every(function (k) { return refs.has(k); }), keys.filter(function (k) { return !refs.has(k); }));
+
+      const svg = window.icon('goals', 20);
+      ok('glyphs are tagged .ic on a 24 grid', /class="ic"/.test(svg) && /viewBox="0 0 24 24"/.test(svg));
+      ok('base weight is no longer the 2px generic default', /stroke-width="1\.9"/.test(svg) && !/stroke-width="2"/.test(svg));
+      ok('stroke is optically weighted per size, not scaled with the box',
+        window.icoStroke(12) > window.icoStroke(20) && window.icoStroke(20) > window.icoStroke(30));
+      ok('the size argument carries its own optical weight inline', /--ics:/.test(svg) && /width:20px/.test(svg));
+      ok('duotone is a real layer: tinted body + solid focal mark',
+        /class="d"/.test(svg) && /class="s"/.test(svg) &&
+        /\.ic \.d\{fill:currentColor;fill-opacity:var\(--ic-tint/.test(html) &&
+        /\.ic \.s\{fill:currentColor;stroke:none\}/.test(html));
+      ok('duotone tint re-balances for the dark surface', /\[data-theme="dark"\] \.ic\{--ic-tint:/.test(html));
+      const duo = keys.filter(function (k) { return /class="[dfs]"/.test(window.ICONS[k]); }).length;
+      ok('the duotone treatment is systemic, not decoration on a few glyphs', duo > keys.length * 0.6, duo + '/' + keys.length);
+      // Corners echo the app's concentric radius scale: rx ≈ 30% of the short
+      // side. Generic sets park every rect at rx≈2 regardless of size, which is
+      // what made an 18-unit panel look like a wireframe box.
+      const rects = [];
+      keys.forEach(function (k) {
+        (window.ICONS[k].match(/<rect[^>]*>/g) || []).forEach(function (r) {
+          const w = parseFloat((r.match(/width="([0-9.]+)"/) || [])[1]);
+          const h = parseFloat((r.match(/height="([0-9.]+)"/) || [])[1]);
+          const rx = parseFloat((r.match(/rx="([0-9.]+)"/) || [])[1]);
+          if (w && h) rects.push({ k: k, side: Math.min(w, h), ratio: (rx || 0) / Math.min(w, h) });
+        });
+      });
+      const panels = rects.filter(function (r) { return r.side >= 6; });
+      const flat = panels.filter(function (r) { return r.ratio < 0.27; });
+      ok('panel forms use the concentric corner ratio (rx ~30% of the short side)',
+        panels.length >= 10 && flat.length === 0, flat);
+    })();
+
+    // ---------- emoji: only where it is genuinely user content ----------
+    (function () {
+      // Arrows (→) and ✕ are typographic — they inherit colour and the type
+      // scale — and stay. Pictographs and status marks do not: toast() already
+      // renders a status glyph from the set, so a second one is noise.
+      const PICTO = /[\u{1F300}-\u{1FAFF}\u{2705}\u{2713}\u{2714}\u{2728}\u{26A0}\u{2605}\u{2B50}]/u;
+      const toasts = html.match(/toast\((?:'[^']*'|"[^"]*")/g) || [];
+      const dirty = toasts.filter(function (t) { return PICTO.test(t); });
+      ok('no toast smuggles an emoji past the status glyph it already renders', dirty.length === 0, dirty);
+      const banned = ['🎉', '💰', '🎯', '🔒', '📦', '📎', '👋', '🏆', '📚', '🧱', '☀', '💡', '📅', '✨', '🏁', '📋', '👍', '😊', '★', '⯇'];
+      const chrome = html
+        .replace(/var RM_EMOJI=\[[^\]]*\]/, '')                    // user stamp palette
+        .replace(/function payQRDocHTML\(\)\{[\s\S]*?\n\}/, '')     // printed customer doc
+        .replace(/lines\.push\('Message us to order![^']*'\)/, '')  // catalog text sent to a chat app
+        .replace(/'🛍 '/, '');
+      const left = banned.filter(function (e) { return chrome.indexOf(e) >= 0; });
+      ok('no emoji left doing UI work in the chrome', left.length === 0, left);
+      ok('the roadmap stamp palette is untouched — that is the user\'s content', (window.RM_EMOJI || []).length >= 10 && window.RM_EMOJI.indexOf('⭐') >= 0);
+      ok('the selected colour swatch is marked with the drawn check, not a text glyph',
+        /\.color-dot\.active::after\{content:''/.test(html) && /data:image\/svg\+xml/.test(html.split('.color-dot.active::after')[1].slice(0, 400)));
+    })();
+
     // ---------- print hygiene: floating overlays must NOT bleed into printed docs ----------
     // (regression: the advisor bubble appeared on a printed invoice)
     // Leak-proof approach: hide EVERY body-level element while printing, reveal only #print-area.

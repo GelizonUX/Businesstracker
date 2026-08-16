@@ -431,6 +431,35 @@ body{
   overflow-x:hidden;
 }
 h1,h2,h3{font-family:var(--font-display);letter-spacing:var(--tr-xl)}
+
+/* ---- Trakora glyph set ----------------------------------------------
+   .d duotone body (tint + hairline) · .f tint only · .s solid focal mark.
+   The tint is the same construction as the Liquid Glass chrome: currentColor
+   held back to a low alpha under a hairline rim, so an icon reads as a small
+   pane of the same material rather than a wireframe. --ics carries the
+   optical stroke width (see icoStroke) and is set inline when the call site
+   knows its size; the 1.9 attribute on the <svg> is the standalone fallback. */
+.ic{stroke-width:var(--ics,1.9)}
+/* Sizes set in CSS never reach icoStroke(), so the buckets far from the ~15px
+   the 1.9 fallback is tuned for carry their own weight. Same curve, applied by
+   context instead of by argument. */
+.st-delivered .st-box .ic,.isl-item .isl-chev .ic,.phase-dot .ic,.rm-tbl-cbtn .ic,.task-check .ic{--ics:2.3}
+.dash-handle .ic,.nav-move-btn .ic,.rm-tool .ic,.ab-x .ic,.nav-edit-done .ic,.rm-qadd .ic{--ics:2.12}
+.rm-rail-btn .ic,.greet-time .ic,.nav-toggle .ic,.asst-attach .ic,.backup-banner .bb-icon .ic,.hamburger .ic,.brand-logo .ic{--ics:1.76}
+.tab-item .ic,.adv-avatar .ic,.chat-bubble .ic,.fab .ic,.empty .e-icon .ic{--ics:1.58}
+.ic .d{fill:currentColor;fill-opacity:var(--ic-tint,.17)}
+/* .f has no rim to hold its edge, so the same alpha reads lighter than .d —
+   corrected optically rather than mathematically. */
+.ic .f{fill:currentColor;fill-opacity:calc(var(--ic-tint,.17)*1.55);stroke:none}
+.ic .s{fill:currentColor;stroke:none}
+/* A glyph set inside a line of type sits on the box baseline, which is ~2px
+   below the type's optical centre — pull it back up so labels do not sag. */
+label .ic,.badge .ic,.gate-msg .ic,p .ic,b .ic,.nav-edit-hint .ic,.pace-row .ic{vertical-align:-.15em}
+[data-theme="dark"] .ic{--ic-tint:.22}
+/* The sidebar is its own dark surface in both themes, so its glyphs take the
+   dark-surface tint regardless of the app theme. */
+.sidebar .ic,.tabbar .ic{--ic-tint:.24}
+
 button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
 input,select,textarea{font-family:inherit;font-size:.95rem;color:var(--text)}
 a{color:var(--accent);text-decoration:none}
@@ -794,6 +823,7 @@ body.rm-connecting .rm-node{cursor:crosshair}
 .rm-stamp-opt{width:38px;height:38px;border-radius:9px;display:grid;place-items:center;cursor:pointer;font-size:22px;background:var(--bg-sunken)}
 .rm-stamp-opt:hover{background:var(--accent-soft)}
 .rm-ghost-stamp{background:none;border:none;font-size:34px;opacity:.5;padding:0}
+.rm-ghost-comment{background:none;border:none;opacity:.5;padding:0;color:var(--accent);display:grid;place-items:center}
 /* comment pins */
 .rm-comment{position:absolute;transform:translate(-50%,-100%);z-index:5;width:28px;height:28px;border-radius:50% 50% 50% 2px;
   display:grid;place-items:center;background:#f4b400;color:#3a2b00;box-shadow:var(--shadow);cursor:pointer}
@@ -922,8 +952,11 @@ body.rm-shift .rm-canvas{cursor:crosshair}
 .nav-item:hover .nav-fav{opacity:.55}
 .nav-fav:hover{opacity:1;color:#fbbf24;transform:scale(1.15)}
 .nav-fav.on{opacity:1;color:#fbbf24}
-.nav-fav svg{width:14px;height:14px;fill:currentColor;stroke:none}
-.nav-fav:not(.on) svg{fill:none;stroke:currentColor;stroke-width:1.7}
+.nav-fav svg{width:14px;height:14px}
+/* Pinned = the star's duotone body goes solid; unpinned = tint drops out and
+   only the hairline is left. Same drawing, two states — no second glyph. */
+.nav-fav.on svg.ic .d{fill-opacity:1}
+.nav-fav:not(.on) svg.ic .d{fill-opacity:0}
 .app.nav-collapsed .nav-fav{display:none}
 .nav-item:hover{background:var(--sidebar-hover);color:var(--sidebar-text-active)}
 /* .nav-item.active is defined once, later, as a single source of truth */
@@ -1634,11 +1667,15 @@ details.calc .calc-body{margin-top:10px}
 .color-dot{width:24px;height:24px;border-radius:50%;border:2.5px solid transparent;cursor:pointer;transition:transform .15s;position:relative;display:inline-grid;place-items:center}
 .color-dot:hover{transform:scale(1.18)}
 .color-dot.active{border-color:var(--text);transform:scale(1.12)}
-.color-dot.active::after{content:'✓';color:#fff;font-size:.7rem;font-weight:900;text-shadow:0 1px 2px rgba(0,0,0,.55)}
+/* The selected swatch is marked with the set's own check, not a text glyph —
+   a data: SVG so it matches the drawn check instead of the system font's. */
+.color-dot.active::after{content:'';width:12px;height:12px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55));
+  background:no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.9 12.5 9.6 17.2 19.1 6.9'/%3E%3C/svg%3E")}
 /* Ledger: wallet cards are flat — colour lives in the left bar + icon chip */
 .acct-balance{font-size:var(--fs-2xl);font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
 /* inline modal errors */
-.modal-error{background:var(--risk-soft);color:var(--risk);border:1.5px solid var(--risk);border-radius:10px;padding:10px 16px;font-size:.86rem;font-weight:600;margin-bottom:16px;animation:fadeUp .25s var(--ease)}
+.modal-error{display:flex;align-items:flex-start;gap:9px;background:var(--risk-soft);color:var(--risk);border:1.5px solid var(--risk);border-radius:10px;padding:10px 16px;font-size:.86rem;font-weight:600;margin-bottom:16px;animation:fadeUp .25s var(--ease)}
+.modal-error .ic{flex-shrink:0;margin-top:1px}
 @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
 .img-thumb{width:42px;height:42px;object-fit:cover;border-radius:9px;border:1px solid var(--border);background:var(--bg-sunken);flex-shrink:0;cursor:zoom-in}
 .img-thumb-lg{width:64px;height:64px;object-fit:cover;border-radius:12px;border:1px solid var(--border);background:var(--bg-sunken);cursor:zoom-in}
@@ -2310,6 +2347,7 @@ body.greeting-on{overflow:hidden}
 .greet-ico::after{content:'';position:absolute;inset:-22px;border-radius:50%;background:radial-gradient(circle,var(--accent-soft),transparent 68%);animation:greetPulse 3s ease-in-out infinite;z-index:0}
 .greet-evening .greet-ico{background:linear-gradient(135deg,var(--accent-2),var(--accent))}
 .greet-hello{font-size:2rem;font-weight:800;letter-spacing:-.03em;line-height:1.15;color:#fff;text-shadow:0 2px 24px rgba(0,0,0,.3)}
+.greet-wave .ic{display:block}
 .greet-name{color:#fff;text-shadow:0 2px 22px var(--accent)}
 .greet-sub{color:rgba(255,255,255,.82);margin-top:8px;font-size:1rem}
 /* match BOTH the id and the class so this can never silently stop applying */
@@ -2562,87 +2600,127 @@ function sum(arr,fn){ return arr.reduce(function(a,x){ return a+(fn?fn(x):x); },
 function byId(id){ return document.getElementById(id); }
 function num(v){ var n=parseFloat(v); return isNaN(n)?0:n; }
 
-/* ---------- icons (inline SVG factory) ---------- */
+/* ---------- icons: the Trakora glyph set ----------
+   One system, four rules — so the set reads as drawn, not assembled:
+   1. KEYLINE. A 24 grid with an ~18.5 keyline box, corrected optically rather
+      than mathematically: panel forms fill 18–19 (rect/page/card), circles run
+      18.4–18.6 because a disc reads larger than a square at equal bounds, and
+      bare single-stroke marks (plus, minus, check, x, chevron) pull in to
+      14–15 because a line with no mass behind it reads larger still. Nothing
+      breaks the box, so no glyph looks bigger than its neighbour in a row.
+   2. CONCENTRIC CORNERS. Every rectangular form uses rx ≈ 30% of its short
+      side — the same ratio the chrome uses (--r-sm 10px … --r-2xl 28px).
+      Generic sets sit at rx 2 on this grid; ours sit at 3–5.4, so the glyphs
+      are visibly soft-square and belong to this product.
+   3. DUOTONE. The enclosing form of each glyph carries currentColor at a low
+      alpha (.d / .f) under a hairline outline — the same construction as the
+      Liquid Glass chrome (--lg-tint under --lg-edge). Focal detail is solid
+      currentColor (.s). Weight is carried by mass, not by a fatter stroke.
+   4. OPTICAL WEIGHT. Stroke is a function of render size (see icoStroke), so
+      the *rendered* stroke stays near-constant instead of scaling with the
+      box. A 30px glyph is no longer chunky and an 11px one is no longer a
+      ghost. Never the flat 2px round-cap default. */
 var ICONS = {
-  dashboard:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
-  finance:'<path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>',
-  goals:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/>',
-  roadmap:'<path d="M9 20l-5.5-2.5v-13L9 7m0 13l6-3m-6 3V7m6 10l5.5 2.5v-13L15 4m0 13V4M9 7l6-3"/>',
-  tasks:'<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>',
-  notes:'<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>',
-  clients:'<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>',
-  idcard:'<rect x="2.5" y="4.5" width="19" height="15" rx="2.2"/><circle cx="8" cy="10.5" r="2.2"/><path d="M4.6 16a3.6 3.6 0 0 1 6.8 0"/><path d="M14.5 9.5h4.5M14.5 13h4.5"/>',
-  star:'<path d="M12 2.6l2.7 5.9 6.4.7-4.8 4.4 1.3 6.3L12 17.7 6.4 19.9l1.3-6.3-4.8-4.4 6.4-.7z"/>',
-  doc:'<path d="M14 2.5H6.5A1.5 1.5 0 0 0 5 4v16a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 20V7.5z"/><path d="M14 2.5V7.5H19"/><path d="M8.5 12h7M8.5 15.5h7M8.5 8.5h2"/>',
-  pen:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
-  metrics:'<path d="M3 3v18h18"/><path d="M7 14l4-5 4 3 5-7"/>',
-  insights:'<path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7c.6.5 1 1.3 1 2.1v.2h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0012 2z"/>',
-  reviews:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M9 16l2 2 4-4"/>',
-  settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>',
-  plus:'<path d="M12 5v14M5 12h14"/>',
-  minus:'<path d="M5 12h14"/>',
-  edit:'<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/>',
-  trash:'<path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"/>',
-  check:'<path d="M20 6L9 17l-5-5"/>',
-  x:'<path d="M18 6L6 18M6 6l12 12"/>',
-  sun:'<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>',
-  moon:'<path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/>',
-  menu:'<path d="M3 12h18M3 6h18M3 18h18"/>',
-  collapseL:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M15.5 9.5L13 12l2.5 2.5"/>',
-  collapseR:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M13 9.5L15.5 12L13 14.5"/>',
-  grip:'<circle cx="9" cy="5" r="1.5" fill="currentColor" stroke="none"/><circle cx="15" cy="5" r="1.5" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="9" cy="19" r="1.5" fill="currentColor" stroke="none"/><circle cx="15" cy="19" r="1.5" fill="currentColor" stroke="none"/>',
-  up:'<path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/>',
-  down:'<path d="M23 18l-9.5-9.5-5 5L1 6"/><path d="M17 18h6v-6"/>',
-  'down-chev':'<path d="M6 9l6 6 6-6"/>',
-  wallet:'<path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 000 4h4v-4z"/>',
-  arrowdr:'<path d="M7 7l10 10M17 7v10H7"/>',
-  arrowur:'<path d="M7 17L17 7M7 7h10v10"/>',
-  pie:'<path d="M21.21 15.89A10 10 0 118 2.83"/><path d="M22 12A10 10 0 0012 2v10z"/>',
-  cbars:'<path d="M3 21h18"/><rect x="5" y="10" width="3.4" height="9" rx="1"/><rect x="10.3" y="5" width="3.4" height="14" rx="1"/><rect x="15.6" y="13" width="3.4" height="6" rx="1"/>',
-  cline:'<path d="M3 3v18h18"/><path d="M6 15l4-4 3 2 5-7"/>',
-  carea:'<path d="M3 3v18h18"/><path d="M6 14l4-4 3 2 5-6v9H6z" fill="currentColor" fill-opacity="0.4" stroke="none"/><path d="M6 14l4-4 3 2 5-6"/>',
-  cdonut:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.4"/>',
-  clist:'<path d="M8 6h13M8 12h13M8 18h13"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
-  alert:'<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/>',
-  spark:'<path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/>',
-  pin:'<path d="M12 17v5M9 10.8V5a3 3 0 116 0v5.8l2.5 3.2H6.5z"/>',
-  download:'<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
-  upload:'<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>',
-  refresh:'<path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>',
-  flag:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7"/>',
-  clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
-  search:'<circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>',
-  calc:'<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h.01M12 19h.01M16 19h.01"/>',
-  shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
-  cash:'<rect x="1" y="6" width="22" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M5 10h.01M19 14h.01"/>',
-  invoice:'<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M8 12h8M8 16h8M8 8h2"/>',
-  report:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 16v-5M12 16V8M16 16v-3"/>',
-  cloud:'<path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/>',
-  print:'<path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>',
-  box:'<path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/>',
-  bank:'<path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/>',
-  ledger:'<path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/><path d="M9 7h7M9 11h5"/>',
-  truck:'<rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>',
-  palette:'<circle cx="12" cy="12" r="10"/><circle cx="8" cy="10" r="1.2" fill="currentColor"/><circle cx="12" cy="7.5" r="1.2" fill="currentColor"/><circle cx="16" cy="10" r="1.2" fill="currentColor"/><path d="M12 22a10 10 0 010-20 10 9 0 0110 9 5 5 0 01-5 5h-2.2a2 2 0 00-1.5 3.3c.3.4.5.8.5 1.2a1.5 1.5 0 01-1.8 1.5z"/>',
-  logo:'<path d="M8 22l5-6 4 3 7-9" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
-  chat:'<path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/><path d="M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01"/>',
-  send:'<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/>',
-  clip:'<path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>',
-  receipt:'<path d="M4 2v20l2-1.5L8 22l2-1.5L12 22l2-1.5L16 22l2-1.5L20 22V2l-2 1.5L16 2l-2 1.5L12 2l-2 1.5L8 2 6 3.5z"/><path d="M8 7h8M8 11h8M8 15h5"/>',
-  cursor:'<path d="M4 3l6.4 16 2.4-6.4 6.4-2.4z"/>',
-  shapes:'<rect x="3" y="3" width="9.5" height="9.5" rx="2"/><circle cx="16.5" cy="16" r="5"/>',
-  layers:'<path d="M12 2l9 5-9 5-9-5 9-5z"/><path d="M3 12l9 5 9-5M3 17l9 5 9-5"/>',
-  expand:'<path d="M8 3H5a2 2 0 00-2 2v3M16 3h3a2 2 0 012 2v3M8 21H5a2 2 0 01-2-2v-3M16 21h3a2 2 0 002-2v-3"/>',
-  contract:'<path d="M8 3v3a2 2 0 01-2 2H3M21 8h-3a2 2 0 01-2-2V3M3 16h3a2 2 0 012 2v3M16 21v-3a2 2 0 012-2h3"/>',
-  copy:'<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>',
-  textT:'<path d="M4 7V5h16v2M12 5v14M9 19h6"/>',
-  sticky:'<path d="M4 4h16v11l-5 5H4z"/><path d="M20 15h-5v5"/>',
-  frame:'<path d="M8 2v20M16 2v20M2 8h20M2 16h20"/>',
-  stamp:'<path d="M12 2.6l2.7 5.9 6.4.7-4.8 4.4 1.3 6.3L12 17.7 6.4 19.9l1.3-6.3-4.8-4.4 6.4-.7z"/>',
-  hand2:'<path d="M18 11V6a2 2 0 00-4 0v5m0-1V4a2 2 0 00-4 0v7m0-1V5a2 2 0 00-4 0v9m8-7v0a2 2 0 014 0v3a8 8 0 01-8 8h-1a8 8 0 01-6.4-3.2L2 15"/>'
+  /* --- navigation --------------------------------------------------- */
+  dashboard:'<rect class="d" x="2.9" y="2.9" width="7.9" height="9.6" rx="2.7"/><rect class="d" x="13.2" y="2.9" width="7.9" height="5.6" rx="2.2"/><rect class="d" x="13.2" y="11.5" width="7.9" height="9.6" rx="2.7"/><rect class="d" x="2.9" y="15.5" width="7.9" height="5.6" rx="2.2"/>',
+  finance:'<circle class="d" cx="12" cy="12" r="9.3"/><path d="M12 5.4v13.2"/><path d="M15.1 8h-4.1a2.3 2.3 0 0 0 0 4.6h2.2a2.3 2.3 0 0 1 0 4.6H8.9"/>',
+  goals:'<circle class="d" cx="12" cy="12" r="9.3"/><circle cx="12" cy="12" r="4.9"/><circle class="s" cx="12" cy="12" r="1.85"/>',
+  roadmap:'<path class="f" d="M9.4 7.1 14.6 4.5v12.4l-5.2 2.6z"/><path d="M9.4 19.5 3.6 17V4.9l5.8 2.2m0 12.4 5.2-2.6m-5.2 2.6V7.1m5.2 9.8 5.6 2.1V6.9l-5.6-2.4m0 12.4V4.5M9.4 7.1l5.2-2.6"/>',
+  tasks:'<rect class="d" x="3" y="3" width="18" height="18" rx="5.4"/><path d="M8.1 12.2l2.9 2.9 5.4-6.3"/>',
+  notes:'<rect class="d" x="4.2" y="2.6" width="15.6" height="18.8" rx="4.6"/><path d="M8.4 2.6v18.8"/><path d="M11.9 8.6h4.5M11.9 12.4h3"/>',
+  clients:'<circle class="d" cx="9.4" cy="8.1" r="3.9"/><path class="d" d="M2.8 20.6v-1a5.3 5.3 0 0 1 5.3-5.3h2.6a5.3 5.3 0 0 1 5.3 5.3v1z"/><path d="M16.2 4.7a3.9 3.9 0 0 1 0 6.8"/><path d="M17.8 14.6a5.3 5.3 0 0 1 3.4 4.9v1.1"/>',
+  idcard:'<rect class="d" x="2.4" y="4.4" width="19.2" height="15.2" rx="4.6"/><circle cx="8.4" cy="10.7" r="2.3"/><path d="M5 16a3.7 3.7 0 0 1 6.8 0"/><path d="M14.7 9.6h4.2M14.7 13.2h4.2"/>',
+  metrics:'<path d="M3.4 3.4v14.3a2.9 2.9 0 0 0 2.9 2.9h14.3"/><path d="M7.6 15.4l3.7-4.6 3.1 2.4 4.4-6.3"/><circle class="s" cx="18.8" cy="6.9" r="1.85"/>',
+  insights:'<path class="d" d="M12 2.6a6.9 6.9 0 0 0-4.1 12.5 2.7 2.7 0 0 1 1.1 2.1v.6h6v-.6a2.7 2.7 0 0 1 1.1-2.1A6.9 6.9 0 0 0 12 2.6z"/><path d="M9.6 18.9h4.8M10.7 21.3h2.6"/>',
+  reviews:'<rect class="d" x="3" y="4.4" width="18" height="16.9" rx="4.8"/><path d="M3 9.7h18M8.4 2.6v3.6M15.6 2.6v3.6"/><path d="M9.3 15.2l1.9 1.9 3.5-3.8"/>',
+  settings:'<path class="d" d="M9.49 2.63 14.51 2.63 15.13 5.85 15.76 6.21 18.86 5.14 21.37 9.49 18.89 11.64 18.89 12.36 21.37 14.51 18.86 18.86 15.76 17.79 15.13 18.15 14.51 21.37 9.49 21.37 8.87 18.15 8.24 17.79 5.14 18.86 2.63 14.51 5.11 12.36 5.11 11.64 2.63 9.49 5.14 5.14 8.24 6.21 8.87 5.85Z"/><circle cx="12" cy="12" r="3.2"/>',
+  chat:'<path class="d" d="M20.8 12.2a8.6 8.6 0 0 1-8.6 8.6 8.6 8.6 0 0 1-3.9-.9L3.2 21.4l1.5-5.1a8.6 8.6 0 0 1-.9-3.9 8.6 8.6 0 0 1 8.6-8.6h.5a8.6 8.6 0 0 1 8 8.1z"/><circle class="s" cx="8.7" cy="12.2" r="1.1"/><circle class="s" cx="12.4" cy="12.2" r="1.1"/><circle class="s" cx="16.1" cy="12.2" r="1.1"/>',
+
+  /* --- money -------------------------------------------------------- */
+  wallet:'<path class="d" d="M3 8.5A3.5 3.5 0 0 1 6.5 5h11A3.5 3.5 0 0 1 21 8.5v9A3.5 3.5 0 0 1 17.5 21h-11A3.5 3.5 0 0 1 3 17.5z"/><rect class="d" x="13.2" y="10.1" width="6.4" height="4.8" rx="2.2"/><circle class="s" cx="16.4" cy="12.5" r="1.15"/>',
+  cash:'<rect class="d" x="2.4" y="5.8" width="19.2" height="12.4" rx="3.6"/><circle cx="12" cy="12" r="2.9"/><path d="M6.2 10.3v3.4M17.8 10.3v3.4"/>',
+  bank:'<path d="M2.8 21h18.4"/><path class="d" d="M4.9 9.9h14.2v8.6H4.9z"/><path d="M4.3 9.9 12 3.3l7.7 6.6"/><path d="M8.6 13v3.2M12 13v3.2M15.4 13v3.2"/>',
+  ledger:'<path class="d" d="M12 6.6C10.3 4.9 7.9 4.2 4.2 4.2v13.2c3.7 0 6.1.7 7.8 2.4 1.7-1.7 4.1-2.4 7.8-2.4V4.2c-3.7 0-6.1.7-7.8 2.4z"/><path d="M12 6.6v13.2"/>',
+  invoice:'<path class="d" d="M13.8 2.6H7A2.5 2.5 0 0 0 4.5 5.1v13.8A2.5 2.5 0 0 0 7 21.4h10a2.5 2.5 0 0 0 2.5-2.5V8.3z"/><path d="M13.8 2.6v4.2a1.5 1.5 0 0 0 1.5 1.5h4.2"/><path d="M8.4 11.6h7.2M8.4 14.8h7.2"/><rect class="s" x="8.4" y="17.6" width="5" height="1.8" rx=".9"/>',
+  receipt:'<path class="d" d="M4.7 2.6h14.6v18.8l-2.4-1.6-2.4 1.6-2.5-1.6-2.4 1.6-2.5-1.6-2.4 1.6z"/><path d="M8.3 7.6h7.4M8.3 11.4h7.4M8.3 15.2h4.6"/>',
+  report:'<rect class="d" x="3.2" y="3.2" width="17.6" height="17.6" rx="5.3"/><path d="M8.4 16.4v-4.1M12 16.4V7.8M15.6 16.4v-2.5"/>',
+  calc:'<rect class="d" x="4.2" y="2.6" width="15.6" height="18.8" rx="4.6"/><rect class="f" x="7.4" y="5.8" width="9.2" height="3.6" rx="1.5"/><circle class="s" cx="8.6" cy="13.4" r="1.15"/><circle class="s" cx="12" cy="13.4" r="1.15"/><circle class="s" cx="15.4" cy="13.4" r="1.15"/><circle class="s" cx="8.6" cy="17.6" r="1.15"/><circle class="s" cx="12" cy="17.6" r="1.15"/><circle class="s" cx="15.4" cy="17.6" r="1.15"/>',
+  arrowur:'<path d="M6.9 17.1 17.1 6.9"/><path d="M9 6.9h8.1V15"/>',
+  arrowdr:'<path d="M6.9 6.9 17.1 17.1"/><path d="M17.1 9v8.1H9"/>',
+  up:'<path d="M21.4 6.8 13.3 14.9l-4-4L2.6 17.6"/><path d="M15.6 6.8h5.8v5.8"/>',
+  down:'<path d="M21.4 17.2 13.3 9.1l-4 4L2.6 6.4"/><path d="M15.6 17.2h5.8v-5.8"/>',
+
+  /* --- charts ------------------------------------------------------- */
+  cbars:'<path d="M4 3.8v16.4h16.2"/><rect class="d" x="7.4" y="11.4" width="3.6" height="8.8" rx="1.5"/><rect class="d" x="12.6" y="6.8" width="3.6" height="13.4" rx="1.5"/><rect class="d" x="17.8" y="14.2" width="3.6" height="6" rx="1.5"/>',
+  cline:'<path d="M4 3.8v16.4h16.2"/><path d="M7.5 16.1l3.8-4.4 3 2.2 5.3-6.5"/><circle class="s" cx="19.6" cy="7.4" r="1.7"/>',
+  carea:'<path d="M4 3.8v16.4h16.2"/><path class="f" d="M7.5 15.7 11.3 11.3 14.3 13.5 19.6 7.1 19.6 20.2 7.5 20.2Z"/><path d="M7.5 15.7l3.8-4.4 3 2.2 5.3-6.4"/>',
+  cdonut:'<path class="f" fill-rule="evenodd" d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2zm0 5a3.6 3.6 0 1 1 0 7.2 3.6 3.6 0 0 1 0-7.2z"/><path class="s" d="M12 3.4A8.6 8.6 0 0 1 20.47 10.51L15.55 11.38A3.6 3.6 0 0 0 12 8.4Z"/><circle cx="12" cy="12" r="8.6"/><circle cx="12" cy="12" r="3.6"/>',
+  pie:'<circle class="d" cx="12" cy="12" r="9.1"/><path class="f" d="M12 2.9a9.1 9.1 0 0 1 9.1 9.1H12z"/><path d="M12 2.9V12h9.1"/>',
+  clist:'<path d="M8.6 6.4h11.8M8.6 12h11.8M8.6 17.6h8.4"/><circle class="s" cx="4.2" cy="6.4" r="1.5"/><circle class="s" cx="4.2" cy="12" r="1.5"/><circle class="s" cx="4.2" cy="17.6" r="1.5"/>',
+
+  /* --- shop --------------------------------------------------------- */
+  box:'<path class="d" d="M20.9 16.1V7.9a1.9 1.9 0 0 0-.95-1.65l-7-4a1.9 1.9 0 0 0-1.9 0l-7 4A1.9 1.9 0 0 0 3.1 7.9v8.2a1.9 1.9 0 0 0 .95 1.65l7 4a1.9 1.9 0 0 0 1.9 0l7-4A1.9 1.9 0 0 0 20.9 16.1z"/><path d="M3.35 6.9 12 11.9l8.65-5M12 21.9V11.9"/>',
+  truck:'<rect class="d" x="1.9" y="4.7" width="12.9" height="11.2" rx="3.4"/><path class="d" d="M14.8 8.6h3.8l3.5 3.6v3.7h-7.3z"/><circle cx="6.6" cy="18.5" r="2.5"/><circle cx="17.6" cy="18.5" r="2.5"/><path d="M9.1 18.5h6"/>',
+
+  /* --- objects & actions -------------------------------------------- */
+  star:'<path class="d" d="M12 3.6 14.65 9.1l6.05.88-4.38 4.24 1.04 6.02L12 17.38l-5.36 2.86 1.04-6.02L3.3 9.98 9.35 9.1z"/>',
+  spark:'<path class="d" d="M11.4 2.6c.92 4.32 2.44 5.84 6.76 6.76-4.32.92-5.84 2.44-6.76 6.76-.92-4.32-2.44-5.84-6.76-6.76 4.32-.92 5.84-2.44 6.76-6.76z"/><path class="s" d="M17.7 14.8c.45 2.09 1.16 2.8 3.25 3.25-2.09.45-2.8 1.16-3.25 3.25-.45-2.09-1.16-2.8-3.25-3.25 2.09-.45 2.8-1.16 3.25-3.25z"/>',
+  stamp:'<path class="d" d="M12 2.6a3.7 3.7 0 0 0-3.7 3.7c0 1.7 1.5 3 1.5 4.4 0 .9-.7 1.6-1.6 1.6H6.4a2.7 2.7 0 0 0-2.7 2.7v1.1h16.6V15a2.7 2.7 0 0 0-2.7-2.7h-1.8c-.9 0-1.6-.7-1.6-1.6 0-1.4 1.5-2.7 1.5-4.4A3.7 3.7 0 0 0 12 2.6z"/><rect class="d" x="3.7" y="17.8" width="16.6" height="3.6" rx="1.6"/>',
+  trophy:'<path class="d" d="M7.2 3.2h9.6v5.4a4.8 4.8 0 0 1-9.6 0z"/><path d="M7.2 5.4H4.6a3.1 3.1 0 0 0 2.9 3.2M16.8 5.4h2.6a3.1 3.1 0 0 1-2.9 3.2"/><path d="M12 13.4v4.4"/><rect class="d" x="6.8" y="17.8" width="10.4" height="3.4" rx="1.5"/>',
+  flag:'<path class="d" d="M4.8 4.4s1-1 4-1 4.8 2 7.7 2 2.7-.8 2.7-.8v9.3s-.4.8-2.7.8-4.8-2-7.7-2-4 1-4 1z"/><path d="M4.8 21.2V3.4"/>',
+  pin:'<path class="d" d="M9 3.6h6a1 1 0 0 1 1 1v6.1l2.1 2.6a1.4 1.4 0 0 1-1.1 2.3H7a1.4 1.4 0 0 1-1.1-2.3L8 10.7V4.6a1 1 0 0 1 1-1z"/><path d="M12 15.6v4.8"/>',
+  clock:'<circle class="d" cx="12" cy="12" r="9.2"/><path d="M12 6.6V12l3.5 2.1"/>',
+  shield:'<path class="d" d="M12 2.5 4.5 5.2v6.4c0 4.9 3.2 8.3 7.5 10.1 4.3-1.8 7.5-5.2 7.5-10.1V5.2z"/><path d="M9.2 11.9l2 2 3.6-4"/>',
+  cloud:'<path class="d" d="M17.6 20H7.3a5.2 5.2 0 0 1-1.1-10.28A6.6 6.6 0 0 1 18.3 9.9a5.05 5.05 0 0 1-.7 10.1z"/>',
+  print:'<path d="M6.6 8.6V3.6a1 1 0 0 1 1-1h8.8a1 1 0 0 1 1 1v5"/><path class="d" d="M5.4 8.6h13.2a2.8 2.8 0 0 1 2.8 2.8v4.2a2.8 2.8 0 0 1-2.8 2.8h-1.2v-4.3H6.6v4.3H5.4a2.8 2.8 0 0 1-2.8-2.8v-4.2a2.8 2.8 0 0 1 2.8-2.8z"/><rect x="6.6" y="14.1" width="10.8" height="7.3" rx="2.3"/><circle class="s" cx="18.1" cy="11.8" r="1.1"/>',
+  doc:'<path class="d" d="M13.8 2.6H7A2.5 2.5 0 0 0 4.5 5.1v13.8A2.5 2.5 0 0 0 7 21.4h10a2.5 2.5 0 0 0 2.5-2.5V8.3z"/><path d="M13.8 2.6v4.2a1.5 1.5 0 0 0 1.5 1.5h4.2"/><path d="M8.4 12.6h7.2M8.4 16.2h4.8"/>',
+  pen:'<path class="d" d="M15.2 3.7a2.9 2.9 0 0 1 4.1 4.1L8.5 18.6l-5.1 1.3 1.3-5.1z"/><path d="M14.4 4.5l4.1 4.1"/><path class="s" d="M3.4 19.9l.5-1.9 1.4 1.4z"/>',
+  edit:'<path d="M11.4 4H6.6A2.9 2.9 0 0 0 3.7 6.9v10.5a2.9 2.9 0 0 0 2.9 2.9h10.5a2.9 2.9 0 0 0 2.9-2.9v-4.8"/><path class="d" d="M17.3 3.2a2.6 2.6 0 0 1 3.7 3.7l-8.6 8.6-4.4 1.1 1.1-4.4z"/>',
+  trash:'<path d="M3.6 6.4h16.8"/><path d="M9.2 6.4V4.9a2.3 2.3 0 0 1 2.3-2.3h1a2.3 2.3 0 0 1 2.3 2.3v1.5"/><path class="d" d="M5.5 6.4h13v12.5a2.5 2.5 0 0 1-2.5 2.5H8a2.5 2.5 0 0 1-2.5-2.5z"/><path d="M10.2 10.9v6M13.8 10.9v6"/>',
+  copy:'<rect class="d" x="8.6" y="8.6" width="12.8" height="12.8" rx="4"/><path d="M5.5 15.4h-.9A2.6 2.6 0 0 1 2 12.8V5.2a2.6 2.6 0 0 1 2.6-2.6h7.6a2.6 2.6 0 0 1 2.6 2.6v.9"/>',
+  clip:'<path d="M20.6 11.4 12 20a5.6 5.6 0 0 1-7.9-7.9l8.6-8.6a3.7 3.7 0 0 1 5.3 5.3l-8.6 8.6a1.9 1.9 0 0 1-2.6-2.6l7.9-7.9"/>',
+  send:'<path class="d" d="M21.4 2.6 2.6 9.5l7.8 3.1 3.1 7.8z"/><path d="M21.4 2.6 10.4 12.6"/>',
+  download:'<path d="M3.6 15.4v3.2a2.8 2.8 0 0 0 2.8 2.8h11.2a2.8 2.8 0 0 0 2.8-2.8v-3.2"/><path d="M7.6 10.8 12 15.2l4.4-4.4M12 15.2V2.8"/>',
+  upload:'<path d="M3.6 15.4v3.2a2.8 2.8 0 0 0 2.8 2.8h11.2a2.8 2.8 0 0 0 2.8-2.8v-3.2"/><path d="M7.6 7.2 12 2.8l4.4 4.4M12 2.8v12.4"/>',
+  refresh:'<path d="M20.6 5.2v5.2h-5.2M3.4 18.8v-5.2h5.2"/><path d="M5.6 9.7a7.2 7.2 0 0 1 11.9-2.7l3.1 3.4M3.4 13.6l3.1 3.4a7.2 7.2 0 0 0 11.9-2.7"/>',
+  search:'<circle class="d" cx="10.8" cy="10.8" r="7.6"/><path d="M16.4 16.4l4.4 4.4"/>',
+  alert:'<path class="d" d="M10.24 3.9 2.3 17.6a2 2 0 0 0 1.74 3h15.92a2 2 0 0 0 1.74-3L13.76 3.9a2 2 0 0 0-3.52 0z"/><path d="M12 9.2v4.3"/><circle class="s" cx="12" cy="17" r="1.2"/>',
+  check:'<path d="M4.9 12.5 9.6 17.2 19.1 6.9"/>',
+  x:'<path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/>',
+  plus:'<path d="M12 4.9v14.2M4.9 12h14.2"/>',
+  minus:'<path d="M4.9 12h14.2"/>',
+  'down-chev':'<path d="M6.4 9.5 12 15.1l5.6-5.6"/>',
+  menu:'<path d="M3.6 6.6h16.8M3.6 12h16.8M3.6 17.4h16.8"/>',
+  grip:'<circle class="s" cx="9" cy="5.6" r="1.55"/><circle class="s" cx="15" cy="5.6" r="1.55"/><circle class="s" cx="9" cy="12" r="1.55"/><circle class="s" cx="15" cy="12" r="1.55"/><circle class="s" cx="9" cy="18.4" r="1.55"/><circle class="s" cx="15" cy="18.4" r="1.55"/>',
+  sun:'<circle class="d" cx="12" cy="12" r="4.9"/><path d="M12 2.1v2.5M12 19.4v2.5M4.6 12H2.1M21.9 12h-2.5M5 5 6.77 6.77M17.23 17.23 19 19M19 5l-1.77 1.77M6.77 17.23 5 19"/>',
+  moon:'<path class="d" d="M20.6 13.4A8.9 8.9 0 1 1 10.6 3.4a7 7 0 0 0 10 10z"/>',
+  palette:'<path class="d" d="M12 2.6a9.4 9.4 0 0 0 0 18.8 2 2 0 0 0 1.9-2.6 2 2 0 0 1 1.9-2.6h1.8a4.4 4.4 0 0 0 4.4-4.4A9.4 9.4 0 0 0 12 2.6z"/><circle class="s" cx="7.8" cy="11.4" r="1.25"/><circle class="s" cx="11.6" cy="7.8" r="1.25"/><circle class="s" cx="16" cy="10.3" r="1.25"/>',
+  collapseL:'<rect class="d" x="3" y="3.9" width="18" height="16.2" rx="4.8"/><path class="f" d="M3 8.7A4.8 4.8 0 0 1 7.8 3.9h1.7v16.2H7.8A4.8 4.8 0 0 1 3 15.3z"/><path d="M9.5 3.9v16.2"/><path d="M16.3 9.6 13.9 12l2.4 2.4"/>',
+  collapseR:'<rect class="d" x="3" y="3.9" width="18" height="16.2" rx="4.8"/><path class="f" d="M3 8.7A4.8 4.8 0 0 1 7.8 3.9h1.7v16.2H7.8A4.8 4.8 0 0 1 3 15.3z"/><path d="M9.5 3.9v16.2"/><path d="M13.9 9.6 16.3 12l-2.4 2.4"/>',
+  expand:'<path d="M8.6 3.4H6A2.6 2.6 0 0 0 3.4 6v2.6M15.4 3.4H18A2.6 2.6 0 0 1 20.6 6v2.6M8.6 20.6H6A2.6 2.6 0 0 1 3.4 18v-2.6M15.4 20.6H18a2.6 2.6 0 0 0 2.6-2.6v-2.6"/>',
+  contract:'<path d="M8.6 3.4V6a2.6 2.6 0 0 1-2.6 2.6H3.4M20.6 8.6H18A2.6 2.6 0 0 1 15.4 6V3.4M3.4 15.4H6A2.6 2.6 0 0 1 8.6 18v2.6M15.4 20.6V18a2.6 2.6 0 0 1 2.6-2.6h2.6"/>',
+  cursor:'<path class="d" d="M4.6 3.4 10.5 20l2.4-6.7 6.7-2.4z"/>',
+  shapes:'<rect class="d" x="2.8" y="2.8" width="9.5" height="9.5" rx="3.2"/><circle class="d" cx="16.3" cy="16" r="5.2"/>',
+  layers:'<path class="d" d="M12 2.6 21.4 7.3 12 12 2.6 7.3z"/><path d="M2.6 12 12 16.7l9.4-4.7M2.6 16.7 12 21.4l9.4-4.7"/>',
+  textT:'<path d="M4.4 6.6V4.4h15.2v2.2M12 4.4v15.2M8.8 19.6h6.4"/>',
+  sticky:'<path class="d" d="M4.2 6.6a2.4 2.4 0 0 1 2.4-2.4h10.8a2.4 2.4 0 0 1 2.4 2.4v7.2l-6 6H6.6a2.4 2.4 0 0 1-2.4-2.4z"/><path d="M19.8 13.8h-3.6a2.4 2.4 0 0 0-2.4 2.4v3.6"/>',
+  frame:'<path class="f" d="M8 8h8v8H8z"/><path d="M8 2.6v18.8M16 2.6v18.8M2.6 8h18.8M2.6 16h18.8"/>',
+  alignL:'<path d="M3.8 5.4h16.4M3.8 9.8h10.2M3.8 14.2h16.4M3.8 18.6h10.2"/>',
+  alignJ:'<path d="M3.8 5.4h16.4M3.8 9.8h16.4M3.8 14.2h16.4M3.8 18.6h16.4"/>',
+  hand2:'<path class="d" d="M7.4 14.6V10a1.6 1.6 0 0 1 3.2 0V6.4a1.6 1.6 0 0 1 3.2 0V5.2a1.6 1.6 0 0 1 3.2 0v2.4a1.6 1.6 0 0 1 3.2 0v7.2a6.4 6.4 0 0 1-6.4 6.4h-1.4a6.4 6.4 0 0 1-4.9-2.3l-3.2-3.8a1.6 1.6 0 0 1 2.4-2.1z"/>',
+  logo:'<path d="M3.8 16.6 8.7 11.1l3.5 2.9 5 -5.6" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20.2" cy="5" r="2.2" fill="#fff" stroke="none"/>'
 };
+/* Optical stroke: the rendered hairline should stay roughly constant instead
+   of scaling 1:1 with the box (2px on a 24 grid renders 1px at 12 and 2.5px at
+   30 — that is why big glyphs looked chunky and small ones washed out).
+   Solving for ~1.05px at 12 up to ~1.8px at 30 gives w = 1.02 + 13.6/size. */
+function icoStroke(size){
+  var s=+size||16;
+  return Math.round((1.02+13.6/s)*100)/100;
+}
 function icon(name,size){
-  return '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'+(size?' style="width:'+size+'px;height:'+size+'px"':'')+'>'+(ICONS[name]||'')+'</svg>';
+  var st=size?' style="width:'+size+'px;height:'+size+'px;--ics:'+icoStroke(size)+'"':'';
+  return '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"'+st+'>'+(ICONS[name]||'')+'</svg>';
 }
 
 /* ---------- license (Tier 0: stamp + key, injected per buyer by the generator) ---------- */
@@ -2834,11 +2912,11 @@ function renderGate(){
     if(!key||!email){ showMsg('Enter both your license key and email.','err'); return; }
     btn.disabled=true; msg.className='gate-msg'; btn.innerHTML='<span class="gate-spin"></span>Verifying…';
     verifyActivation(key,email).then(function(act){
-      showMsg('✓ Welcome, <b>'+esc(act.name)+'</b>! Opening your dashboard…','ok');
+      showMsg(icon('check',15)+' Welcome, <b>'+esc(act.name)+'</b>! Opening your dashboard…','ok');
       setTimeout(function(){ root.innerHTML=''; applyActivationStamp(); bootApp(); },700);
     }).catch(function(err){
       btn.disabled=false; btn.innerHTML='Activate &amp; open →';
-      showMsg('✕ '+esc((err&&err.msg)||'Activation failed. Please try again.'),'err');
+      showMsg(icon('x',15)+' '+esc((err&&err.msg)||'Activation failed. Please try again.'),'err');
     });
   });
   setTimeout(function(){ keyEl.focus(); },120);
@@ -3028,7 +3106,7 @@ function doUndo(){
     state=deepMerge(JSON.parse(JSON.stringify(DEFAULT_STATE)),JSON.parse(undoBuf));
     undoBuf=null;
     commit(); applyTheme();
-    toast('Restored — crisis averted. 🎉');
+    toast('Restored — crisis averted.');
   }catch(e){ toast('Undo failed: '+e.message,'error'); }
 }
 /* show validation errors INSIDE the open modal so a rejected save is unmissable */
@@ -3041,7 +3119,7 @@ function modalInlineError(msg){
     err.className='modal-error';
     form.insertBefore(err,form.firstChild);
   }
-  err.textContent='⚠ '+msg;
+  err.innerHTML=icon('alert',15)+'<span>'+esc(msg)+'</span>';
   var modal=form.closest('.modal');
   if(modal){ modal.style.animation='none'; void modal.offsetWidth; modal.style.animation='shake .45s var(--ease)'; }
   if(err.scrollIntoView) try{ err.scrollIntoView({block:'nearest'}); }catch(_){ }
@@ -3064,7 +3142,8 @@ function probeStorage(){
   if(!storageOk){
     var bar=document.createElement('div');
     bar.style.cssText='position:fixed;top:0;left:0;right:0;z-index:300;background:#b91c1c;color:#fff;font-size:.82rem;font-weight:600;text-align:center;padding:8px 16px;font-family:inherit';
-    bar.textContent='⚠ This browser is blocking storage — your data will NOT survive closing this tab. Open this file in Chrome, Edge, Firefox or Safari directly (not inside a chat app’s built-in viewer) and avoid private/incognito mode.';
+    bar.innerHTML=icon('alert',15)+' This browser is blocking storage — your data will NOT survive closing this tab. Open this file in Chrome, Edge, Firefox or Safari directly (not inside a chat app’s built-in viewer) and avoid private/incognito mode.';
+    bar.style.display='flex'; bar.style.alignItems='center'; bar.style.gap='8px'; bar.style.justifyContent='center';
     document.body.appendChild(bar);
   }
 }
@@ -3074,11 +3153,11 @@ function flashSaved(){
   if(!chip){
     chip=document.createElement('div');
     chip.id='saved-chip';
-    chip.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:250;background:var(--good);color:#fff;font-size:.78rem;font-weight:700;padding:4px 16px;border-radius:99px;box-shadow:var(--shadow);opacity:0;transition:opacity .25s;pointer-events:none;font-family:inherit';
-    chip.textContent='✓ Saved';
+    chip.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:250;display:flex;align-items:center;gap:6px;background:var(--good);color:#fff;font-size:.78rem;font-weight:700;padding:4px 16px;border-radius:99px;box-shadow:var(--shadow);opacity:0;transition:opacity .25s;pointer-events:none;font-family:inherit';
+    chip.innerHTML=icon('check',13)+' Saved';
     document.body.appendChild(chip);
   }
-  chip.textContent=storageOk?'✓ Saved':'✓ Saved (this session only — storage blocked)';
+  chip.innerHTML=icon('check',13)+(storageOk?' Saved':' Saved (this session only — storage blocked)');
   chip.style.opacity='1';
   clearTimeout(savedFlashTimer);
   savedFlashTimer=setTimeout(function(){ chip.style.opacity='0'; },1400);
@@ -3397,7 +3476,7 @@ function buildInsights(){
     var d0=Math.ceil((e0.date-new Date())/86400000);
     var lastYearMK=shiftMonth(thisMonthKey(),-12);
     var lyRevenue=(monthlyMap()[lastYearMK]||{}).revenue;
-    out.push({sev:'info',title:'📅 '+e0.name+' in '+d0+' days',text:e0.tip+(lyRevenue?' Last year this month you made '+fmtMoney(lyRevenue)+'.':'')});
+    out.push({sev:'info',title:e0.name+' in '+d0+' days',text:e0.tip+(lyRevenue?' Last year this month you made '+fmtMoney(lyRevenue)+'.':'')});
   }
   var wb=winBackList();
   if(wb.length) out.push({sev:'info',title:wb.length+' customer'+(wb.length>1?'s':'')+' ready for a win-back message',text:wb[0].name+' last bought '+wb[0].days+' days ago. A candle burns out in ~6 weeks — perfect timing to say hi.'});
@@ -3922,7 +4001,7 @@ function renderSidebar(){
           '<span class="nav-edit-val">'+Math.round(clampNavScale(state.settings.navScale)*100)+'%</span>'+
           '<button class="nav-edit-step" data-action="nav-size" data-dir="1" title="Larger" aria-label="Larger text">A+</button></div>'+
           '<button class="nav-edit-done" data-action="nav-edit-toggle">'+icon('check',13)+' Done</button>'+
-          '<p class="nav-edit-hint">Use the arrows on each section to reorder. Pin items with the ★ that appears on hover.</p></div>'
+          '<p class="nav-edit-hint">Use the arrows on each section to reorder. Pin items with the '+icon('star',12)+' that appears on hover.</p></div>'
       : '<button class="nav-edit-open" data-action="nav-edit-toggle" title="Resize text & reorder the menu">'+icon('edit',13)+'<span>Edit menu</span></button>')+
     '<nav class="nav'+(editing?' nav-editing':'')+'">';
   var labels=state.settings.moduleLabels||{};
@@ -3935,7 +4014,7 @@ function renderSidebar(){
       (r.id==='tasks'&&openTasks>0?'<span class="nav-badge">'+openTasks+'</span>':'')+
       '<span class="nav-fav'+(fav?' on':'')+'" data-action="fav-toggle" data-route="'+r.id+'" role="button" tabindex="0" title="'+(fav?'Unpin from Favorites':'Pin to Favorites')+'" aria-label="'+(fav?'Unpin':'Pin')+'">'+icon('star')+'</span></button>';
   }
-  // ★ Favorites — pinned shortcuts at the very top
+  // Favorites — pinned shortcuts at the very top
   var favItems=(state.settings.favorites||[]).map(function(id){ for(var i=0;i<allVis.length;i++) if(allVis[i].id===id) return allVis[i]; return null; }).filter(Boolean);
   if(favItems.length){
     var favC=collapsed.indexOf('Favorites')>=0;
@@ -4130,7 +4209,7 @@ function viewDashboard(){
   html+=backupSafetyBannerHTML();
 
   if(!hasData && state.goals.length===0 && state.tasks.length===0 && state.settings.startDismissed){
-    html+='<div class="hero"><h2>Welcome to your business command center 🚀</h2>'+
+    html+='<div class="hero"><h2>Welcome to your business command center</h2>'+
       '<p>Track your money, sell without the chaos, and hit your goals — all in one private workspace that lives in this browser. See real profit and cash flow, never oversell, and know exactly what needs attention each day.</p>'+
       '<div class="hero-actions">'+
         '<button class="btn btn-primary" data-action="open-entry-modal">'+icon('plus')+' Add first entry</button>'+
@@ -4358,7 +4437,7 @@ function advisorNarrative(){
   if(recv&&recv.total>0) p.push(recv.overdueTotal>0?'<b class="t-risk">'+fmtMoney(recv.overdueTotal)+' is overdue</b> from clients — that is your fastest cash to collect.':fmtMoney(recv.total)+' is owed to you across '+recv.count+' invoice'+(recv.count>1?'s':'')+'.');
   if(state.settings.monthlyTarget>0){
     var togo=Math.max(0,state.settings.monthlyTarget-cur.revenue);
-    p.push(togo>0?'You are <b>'+fmtMoney(togo)+'</b> away from your monthly target.':'You have <b class="t-good">hit your monthly target</b> 🎉.');
+    p.push(togo>0?'You are <b>'+fmtMoney(togo)+'</b> away from your monthly target.':'You have <b class="t-good">hit your monthly target</b>.');
   }
   return p.join(' ');
 }
@@ -4410,7 +4489,7 @@ function advisorPaceHTML(){
       '<div class="pace-fill'+(pctNow>=100?' hit':'')+'" style="--pw:'+pctNow.toFixed(1)+'%"></div>'+
       (early?'':'<div class="pace-mark" style="left:'+pctProj.toFixed(1)+'%" title="Projected month-end"></div>')+'</div>';
     if(early) html+='<div class="pace-row" style="margin-top:6px"><span>Target: '+fmtMoney(tgt)+'</span><b style="color:var(--text-3)">too early to project — check back after the first week</b></div>';
-    else html+='<div class="pace-row" style="margin-top:6px"><span>Target: '+fmtMoney(tgt)+'</span><b class="'+(proj>=tgt?'t-good':'t-risk')+'">'+(proj>=tgt?'on track 🎯':fmtMoney(Math.max(0,tgt-proj))+' short at this pace')+'</b></div>';
+    else html+='<div class="pace-row" style="margin-top:6px"><span>Target: '+fmtMoney(tgt)+'</span><b class="'+(proj>=tgt?'t-good':'t-risk')+'">'+(proj>=tgt?'on track '+icon('goals',12):fmtMoney(Math.max(0,tgt-proj))+' short at this pace')+'</b></div>';
   } else {
     html+='<p style="font-size:.78rem;color:var(--text-3);margin-top:10px">Set a monthly revenue target in Settings and I’ll pace you against it here.</p>';
   }
@@ -4825,7 +4904,7 @@ function nlSmallTalk(text){
     return 'See you! Everything is saved on this device.';
   if(/^(who are you|what are you|what can you do|help|how do you work|ano kaya mo)$/.test(s))
     return 'I’m your offline logging assistant. Tell me what you spent, earned, who to bill, a task, or a new client — I’ll draft it and ask for anything missing. You can also ask me questions like “how much did I earn this month?”, “who owes me?”, or “what’s due this week?”. Nothing ever leaves your device.';
-  if(/^(ok|okay|sige|cool|nice|great|good)$/.test(s)) return asstPick(['👍 What else?','Noted. Anything more to log?']);
+  if(/^(ok|okay|sige|cool|nice|great|good)$/.test(s)) return asstPick(['Got it. What else?','Noted. Anything more to log?']);
   return null;
 }
 /* time range a question refers to ("this month" default) */
@@ -4861,7 +4940,7 @@ function nlQuery(text,today){
   // receivables / who owes me
   if(/\b(who owes|owes me|receivable|unpaid|outstanding|overdue invoice|collect|utang (sa|ng) (akin|akin)|may utang)\b/.test(s)||(/\binvoice/.test(s)&&/\bunpaid|pending|open|overdue\b/.test(s))){
     var open=(state.invoices||[]).filter(function(i){ return i.status!=='Paid'; });
-    if(!open.length) return 'No unpaid invoices — everyone has settled up. 🎉';
+    if(!open.length) return 'No unpaid invoices — everyone has settled up.';
     var t=sum(open,function(i){return i.amount;});
     var names=open.slice(0,4).map(function(i){ return i.client+' ('+fmtMoney(i.amount)+(i.status==='Overdue'?', overdue':'')+')'; }).join(', ');
     return 'You’re owed '+fmtMoney(t)+' across '+open.length+' invoice'+(open.length>1?'s':'')+': '+names+(open.length>4?'…':'.');
@@ -6023,7 +6102,7 @@ document.addEventListener('dblclick',function(e){ var p=e.target; if(p&&p.getAtt
 var rmCommentEl=null;
 function rmCommentById(id){ var rm=currentRoadmap(); return rm&&(rm.comments||[]).find(function(c){return c.id===id;}); }
 function rmCommentStart(el){ rmPlaceCancel(); if(rmConnect) rmConnectCancel(); if(rmPenMode) rmPenStop(); rmPlace={mode:'comment'}; document.body.classList.add('rm-placing');
-  var board=byId('rm-board'); if(board){ var g=document.createElement('div'); g.className='rm-ghost rm-ghost-stamp'; g.id='rm-ghost'; g.textContent='💬'; g.style.left='-9999px'; g.style.top='-9999px'; board.appendChild(g); }
+  var board=byId('rm-board'); if(board){ var g=document.createElement('div'); g.className='rm-ghost rm-ghost-comment'; g.id='rm-ghost'; g.innerHTML=icon('chat',32); g.style.left='-9999px'; g.style.top='-9999px'; board.appendChild(g); }
   rmArmFromEl(el); toast('Click to drop a comment · Esc to cancel','info'); }
 function rmCommentClose(){ if(rmCommentEl){ rmCommentEl.remove(); rmCommentEl=null; } }
 function rmCommentOpen(id){ rmCommentClose(); var c=rmCommentById(id), cv=byId('rm-canvas'); if(!c||!cv) return; var cam=rmCam();
@@ -7559,8 +7638,8 @@ function contractEditorModal(empId,cid){
       '<span class="doc-div"></span>'+
       '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="formatBlock" data-val="h2" title="Heading">H</button>'+
       '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="formatBlock" data-val="p" title="Normal text">¶</button>'+
-      '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="justifyLeft" title="Align left">⯇</button>'+
-      '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="justifyFull" title="Justify">≡</button>'+
+      '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="justifyLeft" title="Align left">'+icon('alignL',14)+'</button>'+
+      '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="justifyFull" title="Justify">'+icon('alignJ',14)+'</button>'+
       '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="insertUnorderedList" title="Bullets">•</button>'+
       '<button type="button" class="doc-tool" data-action="hr-fmt" data-cmd="insertOrderedList" title="Numbered">1.</button>'+
     '</div>'+
@@ -7613,7 +7692,7 @@ function hrSignSave(){
   var emp=hrEmp(empId); if(!emp) return; var c=(emp.contracts||[]).find(function(x){return x.id===cid;}); if(!c) return;
   var cv=byId('sign-pad'); c.signatureImg=(_signDrew&&cv&&cv.toDataURL)?cv.toDataURL('image/png'):'';
   c.signedBy=nm.slice(0,80); c.signedAt=todayISO(); save();
-  closeModal(); contractEditorModal(empId,cid); toast('Contract signed ✓');
+  closeModal(); contractEditorModal(empId,cid); toast('Contract signed.');
 }
 function contractPrintHTML(c){
   var sz=DOC_SIZES[c.pageSize]||DOC_SIZES.A4, ff=DOC_FONTS[c.font]||DOC_FONTS['Times New Roman'], pt=c.fontPt||12;
@@ -7894,10 +7973,10 @@ function viewReviews(){
       '<div style="background:var(--bg-sunken);border-radius:10px;padding:10px"><div style="font-size:.68rem;color:var(--text-3);text-transform:uppercase;font-weight:700;letter-spacing:.06em">Expenses</div><b class="num" style="font-size:1.05rem;color:var(--expense)">'+fmtMoney(md.expenses)+'</b></div>'+
       '<div style="background:var(--bg-sunken);border-radius:10px;padding:10px"><div style="font-size:.68rem;color:var(--text-3);text-transform:uppercase;font-weight:700;letter-spacing:.06em">Profit</div><b class="num" style="font-size:1.05rem">'+fmtMoney(md.revenue-md.expenses)+'</b></div></div>'+
     '<form data-form="monthly-review"><input type="hidden" name="month" value="'+selected+'">'+
-      '<div class="field"><label>🏆 Wins this month</label><textarea class="input" name="wins" rows="2" placeholder="What went well?">'+esc(rv.wins||'')+'</textarea></div>'+
-      '<div class="field"><label>🧱 Problems & bottlenecks</label><textarea class="input" name="problems" rows="2" placeholder="What slowed you down?">'+esc(rv.problems||'')+'</textarea></div>'+
-      '<div class="field"><label>📚 Lessons learned</label><textarea class="input" name="lessons" rows="2" placeholder="What did the numbers teach you?">'+esc(rv.lessons||'')+'</textarea></div>'+
-      '<div class="field"><label>🎯 Focus for next month</label><textarea class="input" name="focus" rows="2" placeholder="The one thing that matters most next month">'+esc(rv.focus||'')+'</textarea></div>'+
+      '<div class="field"><label>'+icon('trophy',13)+' Wins this month</label><textarea class="input" name="wins" rows="2" placeholder="What went well?">'+esc(rv.wins||'')+'</textarea></div>'+
+      '<div class="field"><label>'+icon('alert',13)+' Problems &amp; bottlenecks</label><textarea class="input" name="problems" rows="2" placeholder="What slowed you down?">'+esc(rv.problems||'')+'</textarea></div>'+
+      '<div class="field"><label>'+icon('ledger',13)+' Lessons learned</label><textarea class="input" name="lessons" rows="2" placeholder="What did the numbers teach you?">'+esc(rv.lessons||'')+'</textarea></div>'+
+      '<div class="field"><label>'+icon('goals',13)+' Focus for next month</label><textarea class="input" name="focus" rows="2" placeholder="The one thing that matters most next month">'+esc(rv.focus||'')+'</textarea></div>'+
       '<button class="btn btn-primary" type="submit">'+icon('check')+' Save review</button>'+(rv.savedAt?'<span style="font-size:.74rem;color:var(--text-3);margin-left:10px">saved '+fmtDate(rv.savedAt.slice(0,10))+'</span>':'')+'</form></div>';
   // weekly checklist
   var wk=state.reviews.weekly;
@@ -7970,7 +8049,7 @@ function viewSettings(){
     '<div class="field"><label>Language / Wika</label><select class="input" name="lang">'+
       '<option value="en"'+((s.lang||'en')==='en'?' selected':'')+'>English</option>'+
       '<option value="tl"'+(s.lang==='tl'?' selected':'')+'>Taglish</option>'+
-      '</select><p style="font-size:.74rem;color:var(--text-3);margin-top:4px">Taglish covers navigation, titles, cards and buttons — detailed content stays in English, parang totoong Taglish lang. 😊</p></div>'+
+      '</select><p style="font-size:.74rem;color:var(--text-3);margin-top:4px">Taglish covers navigation, titles, cards and buttons — detailed content stays in English, parang totoong Taglish lang.</p></div>'+
     '<div class="field"><label>Auto-backup every</label><select class="input" name="autoBackupDays">'+
       [[0,'Off — manual exports only'],[3,'3 days'],[7,'7 days'],[14,'14 days'],[30,'30 days']].map(function(o){return '<option value="'+o[0]+'"'+((s.autoBackupDays||0)===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+
       '</select><p style="font-size:.74rem;color:var(--text-3);margin-top:4px">When due, a JSON backup downloads automatically on app open.</p></div>'+
@@ -7983,7 +8062,7 @@ function viewSettings(){
       return '<div style="margin-top:12px;padding:12px 16px;border-radius:11px;background:var(--accent-soft)">'+
         '<b style="font-size:.84rem">'+icon('shield',13)+' Licensed to '+esc(l.name)+'</b>'+
         '<div style="font-size:.74rem;color:var(--text-2);margin-top:2px">'+esc(l.email)+' · key <span class="mono">'+esc(l.key)+'</span> '+(l.valid?'<span class="badge good" style="font-size:.6rem">valid</span>':'<span class="badge risk" style="font-size:.6rem">invalid key</span>')+'</div>'+
-        (act?'<div style="font-size:.7rem;color:var(--good);margin-top:4px">✓ Activated on this device'+(act.activatedAt?' · '+fmtDate(new Date(act.activatedAt).toISOString().slice(0,10)):'')+'</div>':'')+
+        (act?'<div style="font-size:.7rem;color:var(--good);margin-top:4px">'+icon('check',11)+' Activated on this device'+(act.activatedAt?' · '+fmtDate(new Date(act.activatedAt).toISOString().slice(0,10)):'')+'</div>':'')+
         '<div style="font-size:.7rem;color:var(--text-3);margin-top:4px">This copy is registered to the name above — it appears on all printed documents.</div>'+
         (act&&GATE.enabled?'<button class="btn btn-ghost btn-sm" data-action="deactivate-device" style="margin-top:8px">Sign out / move to another device</button>':'')+'</div>'; })()+
     '<button class="btn btn-ghost btn-sm" data-action="show-tour" style="margin-top:12px">'+icon('spark')+' Replay the welcome tour</button></div>';
@@ -8676,7 +8755,7 @@ document.addEventListener('click',function(e){
     if(!was){ grp.classList.add('open'); el.setAttribute('aria-expanded','true'); }
     return;
   }
-  if(action==='fav-toggle'){ e.stopPropagation(); var fid=el.getAttribute('data-route'); var f=state.settings.favorites=state.settings.favorites||[]; var ix=f.indexOf(fid); if(ix>=0){ f.splice(ix,1); toast('Removed from Favorites.'); } else { f.push(fid); toast('Pinned to Favorites ★'); } save(); renderSidebar(); return; }
+  if(action==='fav-toggle'){ e.stopPropagation(); var fid=el.getAttribute('data-route'); var f=state.settings.favorites=state.settings.favorites||[]; var ix=f.indexOf(fid); if(ix>=0){ f.splice(ix,1); toast('Removed from Favorites.'); } else { f.push(fid); toast('Pinned to Favorites.'); } save(); renderSidebar(); return; }
   if(action==='sec-move'){ var sn=el.getAttribute('data-sec'), dir=el.getAttribute('data-dir')==='up'?-1:1; moveSidebarSection(sn,dir); return; }
   if(action==='nav-edit-toggle'){ ui.navEdit=!ui.navEdit; renderSidebar(); return; }
   if(action==='nav-size'){ setNavScale(el.getAttribute('data-dir')==='1'?1:-1); return; }
@@ -8752,7 +8831,7 @@ document.addEventListener('click',function(e){
   }
   if(action==='complete-goal'){
     var g3=state.goals.find(function(x){return x.id===id;});
-    if(g3){ g3.done=true; g3.completedAt=todayISO(); commit(); toast('🎉 Goal completed: '+g3.title); } return;
+    if(g3){ g3.done=true; g3.completedAt=todayISO(); commit(); toast('Goal completed: '+g3.title); } return;
   }
   if(action==='reopen-goal'){
     var g4=state.goals.find(function(x){return x.id===id;});
@@ -9143,7 +9222,7 @@ document.addEventListener('change',function(e){
     var phase=allPhases().find(function(p){return p.id===el.getAttribute('data-phase');});
     if(phase){
       var t=(phase.tasks||[]).find(function(x){return x.id===el.getAttribute('data-task');});
-      if(t){ t.status=el.value; commit(); if(el.value==='Completed') toast('Milestone completed 🏁'); }
+      if(t){ t.status=el.value; commit(); if(el.value==='Completed') toast('Milestone completed.'); }
     }
     return;
   }
@@ -9730,7 +9809,7 @@ function customizationCardHTML(){
         '<button type="button" class="btn-icon" data-action="sec-move" data-sec="'+esc(name)+'" data-dir="up"'+(i===0?' disabled':'')+' title="Move up">'+icon('up')+'</button>'+
         '<button type="button" class="btn-icon" data-action="sec-move" data-sec="'+esc(name)+'" data-dir="down"'+(i===arr.length-1?' disabled':'')+' title="Move down">'+icon('down')+'</button></span></div>';
     }).join('')+'</div>'+
-    '<p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Move a category (e.g. Shop) up or down. Pin links to ★ Favorites with the star that appears on each sidebar item.</p></div>';
+    '<p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Move a category (e.g. Shop) up or down. Pin links to Favorites with the '+icon('star',12)+' that appears on each sidebar item.</p></div>';
   // modules
   html+='<div class="field"><label>Visible modules</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">'+
     hideable.map(function(r){
@@ -9811,7 +9890,7 @@ function doCloudPut(ep,silent){
       state.settings.sync.lastSyncStamp=state.meta.updatedAt;
       cloudConflictWarned=false;
       try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(_){ toast("Could not save — browser storage may be full.","error"); }
-      if(!silent){ toast('Pushed to cloud ✓'); render(); }
+      if(!silent){ toast('Pushed to cloud.'); render(); }
     })
     .catch(function(e){ if(!silent) toast('Cloud push failed: '+e.message,'error'); })
     .finally(function(){ cloudBusy=false; });
@@ -9853,7 +9932,7 @@ function cloudSyncCardHTML(){
     '<button class="btn btn-ghost btn-sm" type="button" data-action="cloud-push">'+icon('upload')+' Push now</button>'+
     '<button class="btn btn-ghost btn-sm" type="button" data-action="cloud-pull">'+icon('download')+' Pull from cloud</button>'+
     '</div></form>'+
-    '<p style="font-size:.72rem;color:var(--text-3);margin-top:12px">⚠️ Privacy: anyone who can read your database can read your business data. In Firebase console → Realtime Database → Rules, avoid leaving read/write open to the public — lock it down (e.g. to authenticated users) or at least use an unguessable path.</p>'+
+    '<p style="font-size:.72rem;color:var(--text-3);margin-top:12px">'+icon('alert',12)+' Privacy: anyone who can read your database can read your business data. In Firebase console → Realtime Database → Rules, avoid leaving read/write open to the public — lock it down (e.g. to authenticated users) or at least use an unguessable path.</p>'+
     '</div>';
   return html;
 }
@@ -9905,7 +9984,7 @@ document.addEventListener('click',function(e){
     if(iv4&&confirm('Mark '+iv4.number+' ('+fmtInvAmt(iv4)+(iv4.currency&&iv4.currency!=='PHP'?' ≈ '+fmtMoney(invPHP(iv4)):'')+' from '+iv4.client+') as PAID? This records the income in Finance'+(iv4.currency&&iv4.currency!=='PHP'?' in pesos':'')+'.')){
       iv4.status='Paid'; iv4.paidDate=todayISO();
       recordInvoiceIncome(iv4);
-      commit(); toast('💰 '+fmtMoney(invPHP(iv4))+' collected from '+iv4.client+'.');
+      commit(); toast(fmtMoney(invPHP(iv4))+' collected from '+iv4.client+'.');
     } return;
   }
   if(action==='invoice-print'){
@@ -10424,7 +10503,7 @@ function orderModal(o){
       applyOrderStock(data,1);
       ensureClient(data);
       var short=items.filter(function(it){ var p=findProduct(it.productId); return p&&p.stock<0; });
-      toast('Order '+data.number+' created — '+fmtMoney(orderTotal(data))+'. Stock updated.'+(short.length?' ⚠ Some items are now oversold — restock!':''));
+      toast('Order '+data.number+' created — '+fmtMoney(orderTotal(data))+'. Stock updated.'+(short.length?' Some items are now oversold — restock!':''));
     }
     return true;
   }});
@@ -10457,7 +10536,7 @@ function cmFormatCell(f,v){
     if(typeof v==='object'&&v&&v.data){
       if((v.data||'').indexOf('data:image')===0) return '<img class="img-thumb" src="'+esc(v.data)+'" alt="">';
       var safeHref=/^(data:|https?:|blob:)/i.test(v.data||'')?esc(v.data):'#';
-      return '<a href="'+safeHref+'" download="'+esc(v.name||'file')+'" class="badge accent">📎 '+esc(v.name||'file')+'</a>';
+      return '<a href="'+safeHref+'" download="'+esc(v.name||'file')+'" class="badge accent">'+icon('clip',11)+' '+esc(v.name||'file')+'</a>';
     }
     if(String(v).indexOf('data:image')===0) return '<img class="img-thumb" src="'+esc(v)+'" alt="">';
     return '—';
@@ -10597,7 +10676,7 @@ function cmRecordModal(m,rec){
         var isImg=(cur||'').indexOf('data:image')===0;
         return '<div class="field"><label>'+esc(f.label)+'</label><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
           '<img class="img-thumb-lg img-prev" src="'+esc(isImg?cur:'')+'" style="'+(isImg?'':'display:none')+'" alt="">'+
-          (cur&&!isImg?'<span class="badge accent">📎 '+esc((v&&v.name)||'file')+'</span>':'')+
+          (cur&&!isImg?'<span class="badge accent">'+icon('clip',11)+' '+esc((v&&v.name)||'file')+'</span>':'')+
           '<input type="file" class="input img-input" style="flex:1;min-width:140px;padding:8px" data-keep-name="1">'+
           '<input type="hidden" name="'+f.key+'" value="'+esc(cur||'')+'"><input type="hidden" name="'+f.key+'__name" value="'+esc((v&&typeof v==='object'&&v.name)||'')+'">'+
           (cur?'<button type="button" class="btn btn-sm btn-danger" data-action="img-clear">'+icon('x')+' Remove</button>':'')+
@@ -10733,7 +10812,7 @@ document.addEventListener('click',function(e){
       o3.payStatus='Paid';
       o3.paidDate=todayISO();
       recordOrderIncome(o3);
-      commit(); toast('💰 '+fmtMoney(orderTotal(o3))+' collected — income recorded.');
+      commit(); toast(fmtMoney(orderTotal(o3))+' collected — income recorded.');
     }
     return;
   }
@@ -10843,7 +10922,7 @@ document.addEventListener('change',function(e){
       if(el.value==='Cancelled'&&oldStatus!=='Cancelled') applyOrderStock(o,-1);
       if(oldStatus==='Cancelled'&&el.value!=='Cancelled') applyOrderStock(o,1);
       commit();
-      if(el.value==='Delivered') toast('📦 '+o.number+' delivered!'+(o.payStatus!=='Paid'?' Don’t forget to mark it paid once you collect.':''));
+      if(el.value==='Delivered') toast(o.number+' delivered!'+(o.payStatus!=='Paid'?' Don’t forget to mark it paid once you collect.':''));
       else if(el.value==='Cancelled') toast('Order cancelled — stock returned.','warn');
     }
     return;
@@ -11420,7 +11499,7 @@ document.addEventListener('drop',function(e){
     if(o.status!==newStatus){
       o.status=newStatus;
       commit();
-      if(newStatus==='Delivered') toast('📦 '+o.number+' delivered!'+(o.payStatus!=='Paid'?' Mark it paid once you collect.':''));
+      if(newStatus==='Delivered') toast(o.number+' delivered!'+(o.payStatus!=='Paid'?' Mark it paid once you collect.':''));
     }
   }
 });
@@ -11493,7 +11572,7 @@ function copyCatalogText(){
     ta.remove();
   }
   if(navigator.clipboard&&navigator.clipboard.writeText){
-    navigator.clipboard.writeText(text).then(function(){ toast('Catalog copied — paste it into any chat. 📋'); },fallback);
+    navigator.clipboard.writeText(text).then(function(){ toast('Catalog copied — paste it into any chat.'); },fallback);
   } else fallback();
 }
 
@@ -11549,7 +11628,7 @@ function openSetupWizard(){
         Object.keys(BIZ_PRESETS).map(function(k){return '<option value="'+k+'">'+BIZ_PRESETS[k].label+'</option>';}).join('')+'</select>'+
       '<p style="font-size:.72rem;color:var(--text-3);margin-top:4px">This pre-builds your product categories and attributes (you can edit them anytime).</p></div>'+
       wizardSectionPickerHTML();
-    openModal('Welcome to Trakora 👋',body,{wide:true,submitLabel:'Set up my business',onSubmit:function(form){
+    openModal('Welcome to Trakora',body,{wide:true,submitLabel:'Set up my business',onSubmit:function(form){
       var nm=fv(form,'bizname');
       if(nm) state.settings.businessName=nm;
       var ctry=fv(form,'country'); if(ctry) applyCountry(ctry);
@@ -11644,7 +11723,7 @@ document.addEventListener('click',function(e){
     if(confirm('Mark '+sel.length+' order(s) as PAID ('+fmtMoney(sum(sel,orderTotal))+' total)? Income is recorded for each.')){
       sel.forEach(function(o){ o.payStatus='Paid'; o.paidDate=todayISO(); recordOrderIncome(o); });
       ui.selOrders={};
-      commit(); toast('💰 '+fmtMoney(sum(sel,orderTotal))+' collected across '+sel.length+' orders.');
+      commit(); toast(fmtMoney(sum(sel,orderTotal))+' collected across '+sel.length+' orders.');
     }
     return;
   }
@@ -11860,7 +11939,7 @@ function reconcileModal(a){
     if(!acct) return true;
     var actual=num(fv(form,'actual'));
     var delta=Math.round((actual-accountBalance(acct))*100)/100;
-    if(delta===0){ toast('Already matching — nothing to adjust. 🎯'); return true; }
+    if(delta===0){ toast('Already matching — nothing to adjust.'); return true; }
     acct.adjust=acct.adjust||[];
     acct.adjust.push({id:uid(),delta:delta,date:todayISO(),note:'Reconciliation'});
     toast('Adjusted by '+(delta>0?'+':'')+fmtMoney(delta)+' — '+acct.name+' now matches reality.');
@@ -12000,7 +12079,7 @@ function todayPanelHTML(){
     items.push({cls:'good',icon:'bank',text:'Cash on hand: <b>'+fmtMoney(cash)+'</b> · true position <b>'+fmtMoney(cash+receivablesTotal())+'</b>',route:'accounts'});
   }
   if(!items.length) return '';
-  return '<div class="card" style="margin-bottom:12px;padding:12px 16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><b style="font-size:.92rem">☀️ '+esc(tr('Today'))+'</b><span style="font-size:.72rem;color:var(--text-3)">'+new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})+'</span></div>'+
+  return '<div class="card" style="margin-bottom:12px;padding:12px 16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><b style="font-size:.92rem">'+icon('sun',14)+' '+esc(tr('Today'))+'</b><span style="font-size:.72rem;color:var(--text-3)">'+new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})+'</span></div>'+
     '<div style="display:flex;flex-direction:column;gap:4px">'+items.map(function(it){
       return '<button class="today-row" data-action="nav" data-route="'+it.route+'">'+
         '<span style="color:var(--'+(it.cls==='good'?'good':(it.cls==='risk'?'risk':(it.cls==='warn'?'warn':'info')))+');flex-shrink:0;line-height:1.4">'+icon(it.icon,14)+'</span>'+
@@ -12169,7 +12248,7 @@ document.addEventListener('click',function(e){
       if(idx>=0&&idx<KB_COLS.length-1){
         o.status=KB_COLS[idx+1];
         commit();
-        if(o.status==='Delivered') toast('📦 '+o.number+' delivered!'+(o.payStatus!=='Paid'?' Mark it paid once you collect.':''));
+        if(o.status==='Delivered') toast(o.number+' delivered!'+(o.payStatus!=='Paid'?' Mark it paid once you collect.':''));
       }
     }
     return;
@@ -12331,7 +12410,7 @@ function scanReceipt(btn){
       var sel=form.elements['category'];
       for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===parsed.category){ sel.value=parsed.category; filled.push('category'); break; } }
     }
-    if(filled.length) toast('Scanned ✓ Prefilled: '+filled.join(', ')+'. Double-check before saving!');
+    if(filled.length) toast('Scanned — prefilled: '+filled.join(', ')+'. Double-check before saving!');
     else toast('Scanned the photo but could not confidently read values — enter them manually.','warn');
   }).catch(function(err){
     toast('OCR failed: '+err.message,'error');
@@ -12437,7 +12516,7 @@ function viewUtang(){
     });
   }
   html+='</div>';
-  html+='<p style="font-size:.74rem;color:var(--text-3);margin-top:10px">💡 Cash-basis: credit is not income yet. Income is recorded only when a payment is received — so your P&L always matches real money.</p>';
+  html+='<p style="font-size:.74rem;color:var(--text-3);margin-top:10px">'+icon('insights',12)+' Cash-basis: credit is not income yet. Income is recorded only when a payment is received — so your P&L always matches real money.</p>';
   return html;
 }
 function utangModal(u){
@@ -12504,7 +12583,7 @@ function utangPayModal(u){
     if(form.elements['asIncome'].checked){
       state.finance.push({id:uid(),type:'income',amount:amount,date:date,category:'Sales',note:'Credit payment'+(ux.note?' — '+ux.note:'')+(fv(form,'note')?' ('+fv(form,'note')+')':''),client:ux.clientName,offer:'',account:form.elements['account']?fv(form,'account'):''});
     }
-    toast(ux.settled?'🎉 '+ux.clientName+' is fully paid!':'Payment recorded — remaining: '+fmtMoney(utangBalance(ux)));
+    toast(ux.settled?ux.clientName+' is fully paid!':'Payment recorded — remaining: '+fmtMoney(utangBalance(ux)));
     return true;
   }});
 }
@@ -12547,7 +12626,7 @@ function phSeasonalEvents(){
 function trimOldReceipts(){
   var cutoff=shiftMonth(thisMonthKey(),-6)+'-01';
   var targets=state.finance.filter(function(e){ return e.receipt&&e.date<cutoff; });
-  if(!targets.length){ toast('No receipt photos older than 6 months — storage is clean. ✨','good'); return; }
+  if(!targets.length){ toast('No receipt photos older than 6 months — storage is clean.','good'); return; }
   var bytes=sum(targets,function(e){return e.receipt.length;})*2;
   if(!confirm('Remove '+targets.length+' receipt photo'+(targets.length>1?'s':'')+' older than 6 months (frees ~'+fmtNum(bytes/1024,0)+' KB)? The entries and amounts stay — only the images are removed. Export a backup first if you need them for taxes.')) return;
   snapshotForUndo();
@@ -12574,7 +12653,7 @@ document.addEventListener('click',function(e){
       uf.payments.push({id:uid(),amount:b,date:todayISO(),note:'full payment'});
       uf.settled=true;
       state.finance.push({id:uid(),type:'income',amount:b,date:todayISO(),category:'Sales',note:'Credit payment'+(uf.note?' — '+uf.note:''),client:uf.clientName,offer:'',account:''});
-      commit(); toast('🎉 '+fmtMoney(b)+' collected — '+uf.clientName+' fully paid. Income recorded.','good',{undo:true});
+      commit(); toast(fmtMoney(b)+' collected — '+uf.clientName+' fully paid. Income recorded.','good',{undo:true});
     }
     return;
   }
@@ -12731,7 +12810,7 @@ document.addEventListener('change',function(e){
       if(confirm('Mark '+iv.number+' ('+fmtInvAmt(iv)+(iv.currency&&iv.currency!=='PHP'?' ≈ '+fmtMoney(invPHP(iv)):'')+') as PAID? This records the income in Finance.')){
         iv.status='Paid'; iv.paidDate=todayISO();
         recordInvoiceIncome(iv);
-        commit(); toast('💰 '+fmtMoney(invPHP(iv))+' collected from '+iv.client+'.');
+        commit(); toast(fmtMoney(invPHP(iv))+' collected from '+iv.client+'.');
       } else render();
       return;
     }
@@ -13878,16 +13957,16 @@ function pinModal(mode){
       var wasEnc2=encActive();
       verifyPin(fv(form,'curpin')).then(function(ok){ if(!ok){ toast('Your current PIN is incorrect.','error'); return; }
         setPin(np).then(function(){
-          if(wasEnc2){ enableEncryption(np).then(function(){ closeModal(); toast('PIN updated & data re-encrypted. 🔒'); render(); }).catch(function(){ closeModal(); toast('PIN updated.'); render(); }); }
-          else { closeModal(); toast('PIN updated. 🔒'); render(); }
+          if(wasEnc2){ enableEncryption(np).then(function(){ closeModal(); toast('PIN updated & data re-encrypted.'); render(); }).catch(function(){ closeModal(); toast('PIN updated.'); render(); }); }
+          else { closeModal(); toast('PIN updated.'); render(); }
         }); });
       return false;
     }
     var wantEnc=!!(form.elements['encrypt']&&form.elements['encrypt'].checked);
     setPin(np).then(function(){
-      if(wantEnc){ enableEncryption(np).then(function(){ closeModal(); toast('Privacy lock + encryption enabled. 🔒'); render(); })
+      if(wantEnc){ enableEncryption(np).then(function(){ closeModal(); toast('Privacy lock + encryption enabled.'); render(); })
         .catch(function(){ closeModal(); toast('PIN set. Encryption isn’t supported in this browser, so data isn’t encrypted.','warn'); render(); }); }
-      else { closeModal(); toast('Privacy lock enabled. 🔒'); render(); }
+      else { closeModal(); toast('Privacy lock enabled.'); render(); }
     });
     return false;
   }});
@@ -13932,7 +14011,7 @@ function showGreeting(){
     root.innerHTML='<div class="greet-overlay greet-'+g.part+'" data-greet="setup">'+
       '<div class="greet-card">'+
         '<div class="greet-ico">'+greetAvatar()+'</div>'+
-        '<h2 class="greet-hello">Hi there! <span class="greet-wave">👋</span></h2>'+
+        '<h2 class="greet-hello">Hi there! <span class="greet-wave">'+icon('hand2',26)+'</span></h2>'+
         '<p class="greet-sub">How would you like me to call you?</p>'+
         '<form id="greet-form" class="greet-form" autocomplete="off"><input id="greet-name" class="input" maxlength="40" placeholder="e.g. Ira" aria-label="Your name">'+
         '<button class="btn btn-primary" type="submit">'+icon('check')+' That’s me</button></form>'+
