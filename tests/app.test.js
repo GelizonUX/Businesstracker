@@ -2297,6 +2297,282 @@ async function main() {
       window.state.settings.chartStyles = {}; window.render();
     })();
 
+    // =====================================================================
+    // DEFECT 1 — exchange rates and recorded money
+    // Reported: "$1000 is 61,732 pesos in ph money, but the invoice is showing
+    // 58,000". Root cause: seeded constants (USD 58.5) were treated as real
+    // rates, and fxRateFor() fell back to 1:1 when a rate was missing — both
+    // could be FROZEN onto an invoice and booked into Finance.
+    // Rule under test: no money path may write a peso figure from a rate that
+    // was not fetched live or typed in by the owner.
+    // =====================================================================
+    await (async function fxMoneyIntegrity() {
+      const seedFx = () => { window.state.settings.fx = { auto: false, updated: null, lastTryAt: null, lastError: null, phpPer: JSON.parse(JSON.stringify(window.FX_SEED_PHP_PER)), src: {} }; };
+      const savedFin = window.state.finance, savedInv = window.state.invoices, savedRec = window.state.recurringInvoices;
+      const realToast = window.toast, realFetch = window.fetch;
+      let toasts = [];
+      const spyToasts = () => { toasts = []; window.toast = function (m, t) { toasts.push([t || 'ok', m]); }; };
+
+      // ---- the seeded constants are estimates, not rates ----
+      seedFx();
+      ok('seed constants are exposed as FX_SEED_PHP_PER (a documented last resort)',
+        window.FX_SEED_PHP_PER && window.FX_SEED_PHP_PER.USD === 58.5);
+      ok('a seeded rate is NOT usable for recording money', window.fxRecordRate('USD') === null && window.fxVerified('USD') === false);
+      ok('a seeded rate is still shown, labelled as an unverified estimate',
+        window.fxRateFor('USD') === 58.5 && /built-in estimate, never verified/.test(window.fxProvenanceText('USD')));
+      ok('the regression figure: $1000 x the seed would have been 58500, and that path is now closed',
+        1000 * window.FX_SEED_PHP_PER.USD === 58500 && window.fxRecordRate('USD') === null);
+
+      // ---- the 1:1 fallback is gone ----
+      window.state.settings.fx.phpPer = {}; window.state.settings.fx.src = {};
+      ok('fxRateFor returns null (never 1) for a foreign currency with no rate', window.fxRateFor('USD') === null);
+      ok('fxRateFor still returns 1 for the local currency', window.fxRateFor('PHP') === 1 && window.fxRateFor('') === 1);
+      ok('invPHP returns null instead of booking $1000 as PHP 1,000',
+        window.invPHP({ currency: 'USD', amount: 1000 }) === null);
+      ok('an unconvertible invoice is EXCLUDED from a total, not added at 1:1', (function () {
+        const rows = [
+          { currency: 'USD', amount: 1000, fxRate: 61.732 },
+          { currency: 'AUD', amount: 450, fxRate: null }
+        ];
+        return window.sum(rows, window.invPHP) === 61732;
+      })());
+      ok('no source path stamps an invoice with the display rate any more',
+        html.indexOf('fxRate:fxRateFor(') === -1 && html.indexOf('fxRateFor(iv.currency)') === -1 &&
+        html.indexOf("fxRateFor(r.currency||'PHP')") === -1);
+      ok('fxRateFor no longer carries a 1:1 fallback', /return \(r>0\)\?r:null;/.test(html) && html.indexOf('// display fallback; use fxRateValid()') === -1);
+
+      // ---- recording is refused, not fudged ----
+      spyToasts();
+      window.state.finance = []; window.state.invoices = [];
+      const noRate = { id: 'fxr1', number: 'INV-FX1', client: 'Aussie Wellness Co.', amount: 450, currency: 'AUD', fxRate: null, fxRateBy: 'none', status: 'Sent' };
+      ok('invoiceCanBePaid() blocks a foreign invoice with no verified rate', window.invoiceCanBePaid(noRate) === false);
+      ok('recordInvoiceIncome() refuses and writes NOTHING',
+        window.recordInvoiceIncome(noRate) === false && window.state.finance.length === 0 && !noRate.financeId);
+      ok('the refusal is spoken, not silent', toasts.some((t) => t[0] === 'error' && /no verified AUD/.test(t[1])), toasts);
+      ok('the row shows "rate not set" rather than a fabricated peso figure', /rate not set/.test(window.invPHPText(noRate)));
+      window.toast = realToast;
+
+      // ---- the offline path: a manual rate makes it work, correctly ----
+      seedFx();
+      window.state.finance = []; window.state.invoices = [];
+      ok('fxSetManualRate stamps provenance and a timestamp', (function () {
+        const okk = window.fxSetManualRate('USD', 61.732);
+        const i = window.fxRateInfo('USD');
+        return okk === true && i.by === 'manual' && i.verified === true && !!i.at && i.rate === 61.732;
+      })());
+      ok('$1000 at the manual 61.7320 books PHP 61,732 — the figure the user expected',
+        window.invPHP({ currency: 'USD', amount: 1000, fxRate: window.fxRecordRate('USD') }) === 61732);
+      ok('a manual rate is labelled manual wherever it is shown',
+        /entered by you/.test(window.fxProvenanceText('USD')) && /^manual/.test(window.fxShortLabel('USD')));
+
+      // ---- the invoice modal is the gate ----
+      seedFx();
+      window.state.invoices = []; window.state.finance = [];
+      window.location.hash = '#/invoices'; window.render();
+      window.invoiceModal();
+      let form = d.getElementById('modal-form');
+      form.elements['currency'].value = 'USD';
+      fire(form.elements['currency'], 'change');
+      form.elements['client'].value = 'Aussie Wellness Co.';
+      form.elements['amount'].value = '1000';
+      ok('the modal shows the rate provenance where the amount is entered',
+        /estimate — unverified/.test(d.getElementById('inv-fx-wrap').textContent));
+      ok('the modal offers an inline manual rate field when the rate is unverified',
+        !!form.querySelector('[name="fxManual"]'));
+      spyToasts();
+      fire(form, 'submit');
+      ok('submitting against a seeded rate creates NO invoice',
+        window.state.invoices.length === 0 && !!d.getElementById('modal-form'));
+      ok('and says exactly why, in the modal', toasts.some((t) => t[0] === 'error' && /Can.t save this USD invoice/.test(t[1])), toasts);
+      window.toast = realToast;
+      form = d.getElementById('modal-form');
+      form.querySelector('[name="fxManual"]').value = '61.7320';
+      form.elements['status'].value = 'Paid';
+      fire(form, 'submit');
+      ok('typing the rate inline saves the invoice with the rate FROZEN on it', (function () {
+        const iv = window.state.invoices[0];
+        return !!iv && iv.fxRate === 61.732 && iv.fxRateBy === 'manual' && !!iv.fxRateAt && window.invPHP(iv) === 61732;
+      })(), window.state.invoices[0]);
+      ok('and Finance records PHP 61,732 (not 58,500, not 1,000)', (function () {
+        const fe = window.state.finance.find((x) => /INV-/.test(x.note || ''));
+        return !!fe && fe.amount === 61732 && /61\.7320/.test(fe.note);
+      })(), window.state.finance);
+
+      // ---- editing must not silently re-price a recorded invoice ----
+      window.fxSetManualRate('USD', 70);
+      const priced = window.state.invoices[0];
+      window.invoiceModal(priced);
+      form = d.getElementById('modal-form');
+      form.elements['desc'].value = 'edited description';
+      fire(form, 'submit');
+      ok('editing a foreign invoice keeps its ORIGINAL rate (no silent re-pricing)',
+        window.state.invoices[0].desc === 'edited description' &&
+        window.state.invoices[0].fxRate === 61.732 && window.invPHP(window.state.invoices[0]) === 61732);
+
+      // ---- staleness is used but never hidden ----
+      window.state.settings.fx.phpPer.EUR = 65.5;
+      window.state.settings.fx.src.EUR = { by: 'live', at: new Date(Date.now() - 8 * 86400000).toISOString() };
+      ok('an 8-day-old live rate is still usable, and reports its age', (function () {
+        const i = window.fxRateInfo('EUR');
+        return window.fxRecordRate('EUR') === 65.5 && i.stale === true && Math.round(i.ageDays) === 8 &&
+          /8 days old/.test(window.fxProvenanceText('EUR')) && window.fxBadgeClass('EUR') === 'warn';
+      })(), window.fxProvenanceText('EUR'));
+      window.state.settings.fx.src.EUR = { by: 'live', at: new Date(Date.now() - 2 * 3600000).toISOString() };
+      ok('a fresh live rate reads "updated 2 hours ago"',
+        /live rate, updated 2 hours ago/.test(window.fxProvenanceText('EUR')) && window.fxBadgeClass('EUR') === 'good',
+        window.fxProvenanceText('EUR'));
+
+      // ---- the background generator never invents a rate ----
+      seedFx();
+      window.state.invoices = [];
+      window.state.recurringInvoices = [{ id: 'rfx', client: 'Aussie Wellness Co.', desc: 'Retainer', amount: 450, currency: 'AUD', day: 1, netDays: 14, active: true, startMonth: window.thisMonthKey(), lastGenerated: null }];
+      spyToasts();
+      window.processRecurringInvoices();
+      window.toast = realToast;
+      ok('a recurring foreign invoice is still created, but with NO rate (never 1)', (function () {
+        const iv = window.state.invoices[0];
+        return window.state.invoices.length === 1 && iv.fxRate === null && iv.fxRateBy === 'none' && window.invPHP(iv) === null;
+      })(), window.state.invoices[0]);
+
+      // ---- fetch: BOTH paths (fetch does not exist in jsdom, so it is stubbed) ----
+      seedFx();
+      let fetchedUrl = null;
+      window.fetch = function (u) {
+        fetchedUrl = u;
+        return resp(200, JSON.stringify({ rates: { PHP: 1, USD: 1 / 61.732, EUR: 1 / 66.5, GBP: 1 / 79.1, AUD: 1 / 40.2, CAD: 1 / 44, SGD: 1 / 45.9, AED: 1 / 16.8, JPY: 1 / 0.41 } }));
+      };
+      spyToasts();
+      await window.fetchFxRates(true);
+      window.toast = realToast;
+      ok('a successful fetch hits the rate API and stores live, timestamped rates',
+        /open\.er-api\.com/.test(fetchedUrl || '') && window.state.settings.fx.phpPer.USD === 61.732 &&
+        window.state.settings.fx.src.USD.by === 'live' && !!window.state.settings.fx.src.USD.at &&
+        window.state.settings.fx.lastError === null);
+      ok('after a live fetch the rate can finally record money — $1000 = PHP 61,732',
+        window.fxRecordRate('USD') === 61.732 && window.invPHP({ currency: 'USD', amount: 1000, fxRate: window.fxRecordRate('USD') }) === 61732);
+
+      seedFx();
+      window.fetch = function () { return Promise.reject(new Error('Failed to fetch')); };
+      window.fxAutoWarned = false;
+      spyToasts();
+      await window.fetchFxRates(false);      // the AUTOMATIC path — this used to fail in total silence
+      const autoToasts = toasts.slice();
+      await window.fetchFxRates(true);       // and the manual path
+      window.toast = realToast;
+      ok('a failed refresh is recorded on state (lastError + lastTryAt)',
+        window.state.settings.fx.lastError === 'Failed to fetch' && !!window.state.settings.fx.lastTryAt);
+      ok('an AUTOMATIC refresh failure warns the user instead of failing silently',
+        autoToasts.length === 1 && autoToasts[0][0] === 'warn' && /could not be refreshed/.test(autoToasts[0][1]), autoToasts);
+      ok('a manual refresh failure warns too', toasts.length === 2 && toasts[1][0] === 'warn');
+      ok('a failed refresh leaves saved rates untouched AND still unusable for money',
+        window.state.settings.fx.phpPer.USD === 58.5 && window.fxRecordRate('USD') === null);
+      ok('the Settings card surfaces the failure and the unverified currencies', (function () {
+        const t = window.fxCardHTML();
+        return /Last rate refresh failed/.test(t) && /no verified rate/.test(t) && /estimate — unverified/.test(t);
+      })());
+      window.fetch = realFetch;
+
+      // ---- migration of already-saved data ----
+      ok('saved rates get provenance inferred conservatively', (function () {
+        // a) rates that arrived with a successful fetch timestamp -> live
+        window.state.settings.fx = { auto: true, updated: '2026-08-20T00:00:00.000Z', phpPer: { USD: 60 }, src: {} };
+        window.fxMigrate();
+        const a = window.fxRateInfo('USD').by === 'live';
+        // b) no fetch timestamp, value differs from the seed -> only the owner could have typed it
+        window.state.settings.fx = { auto: true, updated: null, phpPer: { USD: 61.7 }, src: {} };
+        window.fxMigrate();
+        const b = window.fxRateInfo('USD').by === 'manual' && window.fxRecordRate('USD') === 61.7;
+        // c) no fetch timestamp, still the shipped seed -> a seed, and NOT usable
+        window.state.settings.fx = { auto: true, updated: null, phpPer: { USD: 58.5 }, src: {} };
+        window.fxMigrate();
+        const c = window.fxRateInfo('USD').by === 'seed' && window.fxRecordRate('USD') === null;
+        return a && b && c;
+      })());
+      ok('history is flagged, never rewritten', (function () {
+        // an invoice recorded before provenance existed keeps its amount and is marked unverified
+        const legacy = { id: 'lg1', number: 'INV-0013', client: 'A', amount: 450, currency: 'USD', fxRate: 58.5, status: 'Sent' };
+        const before = window.invPHP(legacy);
+        window.fxSetManualRate('USD', 70);
+        return before === 26325 && window.invPHP(legacy) === 26325 &&
+          window.ivRateInfo(legacy).verified === false && /unverified rate/.test(window.invPHPText(legacy));
+      })());
+      ok('the Invoices screen warns about rates that need attention', (function () {
+        window.state.invoices = [{ id: 'n1', number: 'INV-N1', client: 'A', amount: 450, currency: 'AUD', fxRate: null, fxRateBy: 'none', status: 'Sent' }];
+        window.state.settings.fx = { auto: true, updated: null, phpPer: {}, src: {} };
+        const t = window.fxInvoiceNoticeHTML();
+        return /no exchange rate/.test(t) && /No verified rate today/.test(t) && /AUD/.test(t);
+      })());
+
+      window.state.finance = savedFin; window.state.invoices = savedInv; window.state.recurringInvoices = savedRec;
+      window.toast = realToast; window.fetch = realFetch;
+      window.state.settings.fx = { auto: true, updated: new Date().toISOString(), lastTryAt: null, lastError: null, phpPer: JSON.parse(JSON.stringify(window.FX_SEED_PHP_PER)), src: {} };
+      window.fxMigrate();
+      window.render();
+    })();
+
+    // =====================================================================
+    // DEFECT 2 — "blinking all over the site when switching tabs or section"
+    // A route change used to replay an entrance on EVERY child of #main.
+    // Measured peak running animations under #main on a route change (Chromium,
+    // el.getAnimations().filter(playState==='running')):
+    //   dashboard 48 -> 4, finance 44 -> 1, insights 39 -> 3, report 16 -> 1.
+    // Everything left is the single container fade plus the intentional
+    // infinite loops. jsdom has no animation timeline, so these assert on the
+    // stylesheet and the render wiring — the browser counts live in the report.
+    // =====================================================================
+    (function calmSectionChange() {
+      const perChild = [
+        ['#main.view-enter .card', 'fadeUp on every card'],
+        ['#main.view-enter .insight', 'fadeUp on every insight'],
+        ['#main.view-enter .table-wrap tbody tr', 'rowIn on every table row'],
+        ['#main.view-enter .c-svg .c-bar', 'cBarIn on every chart bar'],
+        ['#main.view-enter .c-svg .c-line', 'cDraw on every chart line'],
+        ['#main.view-enter .c-svg .c-area', 'cFade on every chart area'],
+        ['#main.view-enter .c-donut .c-seg', 'cSegIn on every donut segment'],
+        ['#main.view-enter .cat-bar .cb-fill', 'cbGrow on every category bar'],
+        ['#main.view-enter .pace-fill', 'cbGrow on the pace meter'],
+        ['#main.view-enter .ring svg circle.val', 'cRingIn on every ring'],
+        ['#main.view-enter .c-spark-line', 'cDraw on every sparkline'],
+        ['#main.view-enter .c-spark-area', 'cFade on every spark area']
+      ];
+      const left = perChild.filter((p) => html.indexOf(p[0] + '{') !== -1).map((p) => p[1]);
+      ok('a section change no longer animates children en masse', left.length === 0, left);
+      ok('the per-card entrance stagger is gone with it', html.indexOf('.grid > .card:nth-child(2){animation-delay') === -1);
+      ok('the per-row entrance stagger is gone with it', html.indexOf('.table-wrap tbody tr:nth-child(1){animation-delay') === -1);
+      ok('one quiet container cross-fade remains', /#main\.view-enter\{animation:viewEnter \.\d+s var\(--ease\)\}/.test(html));
+      ok('the container fade is reduced-motion-safe',
+        /@media \(prefers-reduced-motion:reduce\)\{#main\.view-enter\{animation:none\}\}/.test(html));
+      ok('the View Transitions cross-fade is still the primary section change',
+        /::view-transition-new\(main-content\)\{animation:vtIn/.test(html) &&
+        /@media \(prefers-reduced-motion:reduce\)\{\s*::view-transition-old\(main-content\),::view-transition-new\(main-content\)\{animation:none/.test(html));
+      // the wanted ambience must survive
+      ok('intentional infinite loops are untouched (spark pulse, chart flow, order status)',
+        /\.c-spark-dot\{animation:cSparkPulse 2\.4s var\(--ease\) 1s infinite\}/.test(html) &&
+        /animation:cFlowIn \.6s var\(--ease\) 1s forwards,cFlow 1\.5s linear 1s infinite/.test(html) &&
+        /\.st-pending svg\{animation:st-tick/.test(html) && /\.st-preparing svg\{animation:st-pack/.test(html) &&
+        /animation:cSheen 3\.4s var\(--ease\) infinite/.test(html));
+      // the KPI count-up is no longer wired to navigation (it churned every stat tile for 560ms)
+      ok('the KPI count-up no longer fires on a section change', !/animateCounts\(main\)/.test(html));
+      ok('animateCounts is still exported for deliberate use', typeof window.animateCounts === 'function');
+      // route change still gets the class, and it is still transient (in-place renders stay silent)
+      window.location.hash = '#/dashboard'; window.render();
+      window.location.hash = '#/finance'; window.render();
+      ok('a real route change still marks #main for the container fade',
+        d.getElementById('main').classList.contains('view-enter'));
+      window.render(); // in-place re-render on the same route
+      ok('an in-place re-render does not re-arm the entrance', (function () {
+        const m = d.getElementById('main');
+        m.classList.remove('view-enter');
+        window.render();
+        return !m.classList.contains('view-enter');
+      })());
+      // in-page tabs re-render in place (no route change) — so they get no entrance at all
+      ok('in-page tabs re-render in place, so they never play an entrance',
+        /if\(action==='finance-tab'\)\{ ui\.financeTab=el\.getAttribute\('data-tab'\); render\(\); return; \}/.test(html) &&
+        /if\(action==='settings-tab'\)\{ ui\.settingsTab=el\.getAttribute\('data-tab'\); render\(\); return; \}/.test(html));
+      window.location.hash = '#/dashboard'; window.render();
+    })();
+
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
   } catch (e) {
