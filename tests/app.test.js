@@ -2304,7 +2304,12 @@ async function main() {
     // rates, and fxRateFor() fell back to 1:1 when a rate was missing — both
     // could be FROZEN onto an invoice and booked into Finance.
     // Rule under test: no money path may write a peso figure from a rate that
-    // was not fetched live or typed in by the owner.
+    // was not fetched live or typed in by the owner. The split that makes it
+    // true: invPHP() READS history back at whatever rate was frozen on the
+    // record (never rewritten), invRecordPHP() is the only figure money may be
+    // WRITTEN against and returns null unless ivRateInfo(iv).verified. Every
+    // "mark paid" path funnels through invoiceCanBePaid()/recordInvoiceIncome(),
+    // which both use the write-side figure.
     // =====================================================================
     await (async function fxMoneyIntegrity() {
       const seedFx = () => { window.state.settings.fx = { auto: false, updated: null, lastTryAt: null, lastError: null, phpPer: JSON.parse(JSON.stringify(window.FX_SEED_PHP_PER)), src: {} }; };
@@ -2345,12 +2350,105 @@ async function main() {
       spyToasts();
       window.state.finance = []; window.state.invoices = [];
       const noRate = { id: 'fxr1', number: 'INV-FX1', client: 'Aussie Wellness Co.', amount: 450, currency: 'AUD', fxRate: null, fxRateBy: 'none', status: 'Sent' };
-      ok('invoiceCanBePaid() blocks a foreign invoice with no verified rate', window.invoiceCanBePaid(noRate) === false);
+      ok('invoiceCanBePaid() blocks a foreign invoice with NO rate on it at all', window.invoiceCanBePaid(noRate) === false);
       ok('recordInvoiceIncome() refuses and writes NOTHING',
         window.recordInvoiceIncome(noRate) === false && window.state.finance.length === 0 && !noRate.financeId);
       ok('the refusal is spoken, not silent', toasts.some((t) => t[0] === 'error' && /no verified AUD/.test(t[1])), toasts);
       ok('the row shows "rate not set" rather than a fabricated peso figure', /rate not set/.test(window.invPHPText(noRate)));
       window.toast = realToast;
+
+      // ---- THE REPORTED BUG ITSELF: an invoice an OLDER build stamped with the seed ----
+      // {fxRate:58.5, fxRateBy:undefined} sails through `iv.fxRate>0`, which is what the
+      // first fix still gated on. $1000 then booked PHP 58,500 of income that never
+      // existed. Everything below is the write side refusing that record.
+      seedFx();
+      window.state.invoices = []; window.state.finance = [];
+      const stamped = { id: 'seedstamp', number: 'INV-0013', client: 'Aussie Wellness Co.', amount: 1000, currency: 'USD', fxRate: 58.5, fxRateBy: undefined, status: 'Sent' };
+      ok('a seed-stamped invoice reads back as unverified, not as a real rate',
+        window.ivRateInfo(stamped).by === 'unrecorded' && window.ivRateInfo(stamped).verified === false, window.ivRateInfo(stamped));
+      ok('invPHP() still reports the frozen 58,500 — history is read back, never rewritten',
+        window.invPHP(stamped) === 58500);
+      ok('invRecordPHP() — the ONLY figure money may be written against — refuses it',
+        window.invRecordPHP(stamped) === null);
+      spyToasts();
+      ok('invoiceCanBePaid() blocks an invoice stamped at an UNVERIFIED rate',
+        window.invoiceCanBePaid(stamped) === false);
+      ok('recordInvoiceIncome() creates NO Finance entry for it',
+        window.recordInvoiceIncome(stamped) === false && window.state.finance.length === 0 && !stamped.financeId, window.state.finance);
+      ok('and the refusal names the estimate and the fix, instead of failing silently',
+        toasts.some((t) => t[0] === 'error' && /unverified estimate/.test(t[1]) && /Settings . Currency/.test(t[1])), toasts);
+      window.toast = realToast;
+      // a good rate TODAY must not launder the rate frozen on the record: the invoice has
+      // to be corrected deliberately, not quietly re-priced behind the owner's back
+      window.fxSetManualRate('USD', 61.732);
+      ok('a verified rate today does not launder the frozen unverified stamp',
+        window.fxRecordRate('USD') === 61.732 && window.invRecordPHP(stamped) === null && window.invPHP(stamped) === 58500);
+
+      // ---- all three UI write paths, driven through the real handlers ----
+      const realConfirm = window.confirm;
+      window.confirm = function () { return true; };
+      window.state.invoices = [stamped]; window.state.finance = [];
+      window.location.hash = '#/invoices'; window.render();
+      spyToasts();
+      click(d.querySelector('[data-action="invoice-paid"][data-id="seedstamp"]'));
+      ok('1/3 the Mark-paid BUTTON books nothing and leaves the status unmutated',
+        window.state.finance.length === 0 && stamped.status === 'Sent' && !stamped.paidDate,
+        [stamped.status, stamped.paidDate, window.state.finance.length]);
+      window.render();
+      const statusSel = d.querySelector('[data-action-change="invoice-status"][data-id="seedstamp"]');
+      statusSel.value = 'Paid'; fire(statusSel, 'change');
+      ok('2/3 the status DROPDOWN books nothing and rolls the status back',
+        window.state.finance.length === 0 && window.state.invoices[0].status === 'Sent',
+        [window.state.invoices[0].status, window.state.finance.length]);
+      window.toast = realToast;
+      // the edit modal's Draft -> Paid branch calls recordInvoiceIncome() directly
+      window.state.invoices = [Object.assign({}, stamped, { status: 'Draft', paidDate: null })];
+      window.state.finance = [];
+      window.location.hash = '#/invoices'; window.render();
+      window.invoiceModal(window.state.invoices[0]);
+      let editForm = d.getElementById('modal-form');
+      editForm.elements['status'].value = 'Paid';
+      spyToasts();
+      fire(editForm, 'submit');
+      ok('3/3 the edit modal Draft->Paid books nothing and rolls the whole record back',
+        window.state.finance.length === 0 && window.state.invoices[0].status === 'Draft' &&
+        window.state.invoices[0].fxRate === 58.5 && !!d.getElementById('modal-form'),
+        [window.state.invoices[0].status, window.state.invoices[0].fxRate, window.state.finance.length]);
+      ok('the blocked modal offers the rate field so the owner can actually fix it, blank (never pre-filled)',
+        !!d.querySelector('#inv-fx-wrap [name="fxManual"]') &&
+        d.querySelector('#inv-fx-wrap [name="fxManual"]').value === '' &&
+        /never verified/.test(d.getElementById('inv-fx-wrap').textContent), d.getElementById('inv-fx-wrap').textContent);
+      window.toast = realToast;
+      // typing the rate is the fix — and it books 61,732, not 58,500
+      editForm = d.getElementById('modal-form');
+      editForm.querySelector('[name="fxManual"]').value = '61.7320';
+      editForm.elements['status'].value = 'Paid';
+      fire(editForm, 'submit');
+      ok('typing today’s rate re-records the invoice and books PHP 61,732 (never 58,500)', (function () {
+        const iv = window.state.invoices[0];
+        const fe = window.state.finance[0];
+        return iv.status === 'Paid' && iv.fxRate === 61.732 && iv.fxRateBy === 'manual' &&
+          window.state.finance.length === 1 && fe.amount === 61732;
+      })(), [window.state.invoices[0], window.state.finance]);
+      ok('58,500 never reached the books on any path',
+        window.state.finance.every((e) => e.amount !== 58500), window.state.finance);
+      window.confirm = realConfirm;
+      window.closeModal();
+
+      // ---- a printed invoice never asserts a peso figure from an unverified rate ----
+      ok('printInvoice() suppresses the peso equivalent for an unverified rate', (function () {
+        const printed = [];
+        const realPrintDoc = window.printDoc;
+        window.printDoc = function (h) { printed.push(h); };
+        window.printInvoice({ number: 'INV-P1', client: 'A', desc: 'x', amount: 1000, currency: 'USD', fxRate: 58.5, status: 'Sent', issueDate: window.todayISO(), dueDate: window.todayISO() });
+        const bad = printed[0];
+        window.printInvoice({ number: 'INV-P2', client: 'A', desc: 'x', amount: 1000, currency: 'USD', fxRate: 61.732, fxRateBy: 'manual', fxRateAt: new Date().toISOString(), status: 'Sent', issueDate: window.todayISO(), dueDate: window.todayISO() });
+        const good = printed[1];
+        window.printDoc = realPrintDoc;
+        return bad.indexOf('58,500') === -1 && bad.indexOf('58500') === -1 &&
+          /no verified exchange rate/.test(bad) &&
+          /61,732/.test(good) && /rate set manually/.test(good);
+      })());
 
       // ---- the offline path: a manual rate makes it work, correctly ----
       seedFx();
@@ -2488,6 +2586,22 @@ async function main() {
         const c = window.fxRateInfo('USD').by === 'seed' && window.fxRecordRate('USD') === null;
         return a && b && c;
       })());
+      ok('a global fetch timestamp cannot launder an UNTOUCHED seed into a live rate', (function () {
+        // fx.updated is one global "last successful fetch" stamp. It says nothing about
+        // any particular currency: a value still exactly equal to FX_SEED_PHP_PER was
+        // demonstrably never overwritten by a response, so it stays a seed.
+        window.state.settings.fx = { auto: true, updated: '2026-08-20T00:00:00.000Z', phpPer: { USD: 58.5, EUR: 66.5 }, src: {} };
+        window.fxMigrate();
+        const seedStays = window.fxRateInfo('USD').by === 'seed' && window.fxVerified('USD') === false && window.fxRecordRate('USD') === null;
+        // a currency that actually MOVED off the seed did come from that fetch
+        const movedIsLive = window.fxRateInfo('EUR').by === 'live' && window.fxRecordRate('EUR') === 66.5;
+        return seedStays && movedIsLive;
+      })(), [window.fxRateInfo('USD').by, window.fxRateInfo('EUR').by]);
+      ok('every shipped seed survives migration as a seed, even with a fetch timestamp', (function () {
+        window.state.settings.fx = { auto: true, updated: new Date().toISOString(), phpPer: JSON.parse(JSON.stringify(window.FX_SEED_PHP_PER)), src: {} };
+        window.fxMigrate();
+        return Object.keys(window.FX_SEED_PHP_PER).every((c) => window.fxRateInfo(c).by === 'seed' && window.fxRecordRate(c) === null);
+      })(), Object.keys(window.FX_SEED_PHP_PER).map((c) => c + ':' + window.fxRateInfo(c).by));
       ok('history is flagged, never rewritten', (function () {
         // an invoice recorded before provenance existed keeps its amount and is marked unverified
         const legacy = { id: 'lg1', number: 'INV-0013', client: 'A', amount: 450, currency: 'USD', fxRate: 58.5, status: 'Sent' };
@@ -2501,6 +2615,43 @@ async function main() {
         window.state.settings.fx = { auto: true, updated: null, phpPer: {}, src: {} };
         const t = window.fxInvoiceNoticeHTML();
         return /no exchange rate/.test(t) && /No verified rate today/.test(t) && /AUD/.test(t);
+      })());
+      // ---- totals never look complete when they aren't ----
+      ok('a peso total that rolls up unverified/unconvertible invoices says so, in the banner’s own words', (function () {
+        seedFx();
+        const rows = [
+          { id: 'c1', number: 'INV-C1', client: 'A', amount: 1000, currency: 'USD', fxRate: 58.5, status: 'Sent', dueDate: window.todayISO() },
+          { id: 'c2', number: 'INV-C2', client: 'B', amount: 450, currency: 'AUD', fxRate: null, fxRateBy: 'none', status: 'Sent', dueDate: window.todayISO() },
+          { id: 'c3', number: 'INV-C3', client: 'C', amount: 5000, currency: 'PHP', fxRate: 1, fxRateBy: 'local', status: 'Sent', dueDate: window.todayISO() }
+        ];
+        const t = window.fxTotalsCaveat(rows);
+        return t === '1 at an unverified rate · 1 with no rate, left out' &&
+          window.fxTotalsCaveat([rows[2]]) === '' && window.sum(rows, window.invPHP) === 63500;
+      })(), window.fxTotalsCaveat([{ currency: 'USD', amount: 1000, fxRate: 58.5 }]));
+      ok('all four peso headlines carry that sub-line — the Invoices tiles and the Advisor bars', (function () {
+        const past = window.addDaysISO(window.todayISO(), -5);
+        window.state.invoices = [
+          { id: 'c1', number: 'INV-C1', client: 'A', amount: 1000, currency: 'USD', fxRate: 58.5, status: 'Sent', issueDate: past, dueDate: past },
+          { id: 'c2', number: 'INV-C2', client: 'B', amount: 450, currency: 'AUD', fxRate: null, fxRateBy: 'none', status: 'Sent', issueDate: past, dueDate: past },
+          { id: 'c4', number: 'INV-C4', client: 'D', amount: 900, currency: 'USD', fxRate: 58.5, status: 'Paid', paidDate: window.todayISO(), issueDate: window.todayISO(), dueDate: window.todayISO() }
+        ];
+        const inv = window.viewInvoices();
+        // Outstanding, Overdue, Collected this month, All-time invoiced
+        const tiles = (inv.match(/incl\. \d+ /g) || []).length;
+        // the Advisor's "Waiting on payments" bars roll up the same invoices
+        window.location.hash = '#/insights'; window.render();
+        const advHTML = d.getElementById('main').innerHTML;
+        return tiles === 4 && /Foreign invoices in these figures/.test(advHTML) &&
+          /unverified rate/.test(advHTML) && /no rate, left out/.test(advHTML);
+      })(), (window.viewInvoices().match(/incl\. \d+ [^<]*/g) || []));
+      // ---- the demo data a NEW user loads must not reproduce the bug ----
+      ok('sample data ships its USD invoice explicitly unverified, so it cannot book income', (function () {
+        const src = html.slice(html.indexOf("client:'Aussie Wellness Co.',desc:'Brand kit"), html.indexOf("client:'Aussie Wellness Co.',desc:'Brand kit") + 400);
+        const demo = { number: 'INV-0013', client: 'Aussie Wellness Co.', amount: 450, currency: 'USD', fxRate: window.FX_SEED_PHP_PER.USD, fxRateBy: 'seed', fxRateAt: null, status: 'Sent' };
+        seedFx();
+        return /fxRateBy:'seed'/.test(src) && src.indexOf('fxRate:58.5') === -1 &&
+          window.ivRateInfo(demo).verified === false && window.invRecordPHP(demo) === null &&
+          window.invoiceCanBePaid(demo) === false;
       })());
 
       window.state.finance = savedFin; window.state.invoices = savedInv; window.state.recurringInvoices = savedRec;

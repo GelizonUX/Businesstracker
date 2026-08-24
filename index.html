@@ -4527,6 +4527,8 @@ function advisorPaceHTML(){
       (overdue>0?'<div class="cat-bar"><div class="cb-top"><span class="cb-name">Overdue — chase these</span><b class="num">'+fmtMoney(overdue)+'</b></div><div class="cb-track"><div class="cb-fill" style="--cbw:'+(overdue/pmax*100).toFixed(1)+'%;background:var(--expense)"></div></div></div>':'')+
       (ahead>0?'<div class="cat-bar"><div class="cb-top"><span class="cb-name">Billed, not yet due</span><b class="num">'+fmtMoney(ahead)+'</b></div><div class="cb-track"><div class="cb-fill" style="--cbw:'+(ahead/pmax*100).toFixed(1)+'%;background:var(--accent);animation-delay:.06s"></div></div></div>':'')+
     '</div>'+
+    // same honesty as the Invoices tiles: never let these bars imply a complete peso figure
+    (function(){ var c=fxTotalsCaveat(billed); return c?'<p style="font-size:.72rem;color:var(--text-3);margin-top:8px">Foreign invoices in these figures: '+esc(c)+'.</p>':''; })()+
     (drafts.length?'<p style="font-size:.72rem;color:var(--text-3);margin-top:8px">'+drafts.length+' draft invoice'+(drafts.length>1?'s':'')+' ('+fmtMoney(sum(drafts,invPHP))+') not sent yet — not counted above.</p>':'');
   }
   return html+'</div>';
@@ -8662,7 +8664,7 @@ function loadSampleData(){
     {id:uid(),number:'INV-0012',client:'Northwind Gym',desc:'Rebrand — final 50% milestone',amount:26000,issueDate:d(0,2),dueDate:d(0,Math.min(28,new Date().getDate()+9)),status:'Sent',paidDate:null,createdAt:d(0,2)},
     {id:uid(),number:'INV-0011',client:'Verde Realty',desc:'Brand refresh — balance',amount:15000,issueDate:d(-1,20),dueDate:d(-1,28),status:'Sent',paidDate:null,createdAt:d(-1,20)},
     {id:uid(),number:'INV-0010',client:'Harbor Dental',desc:'Website sprint — 50% deposit',amount:30000,issueDate:d(0,1),dueDate:d(0,4),status:'Paid',paidDate:d(0,4),createdAt:d(0,1)},
-    {id:uid(),number:'INV-0013',client:'Aussie Wellness Co.',desc:'Brand kit — international client',amount:450,currency:'USD',fxRate:58.5,payMethod:'Wise',issueDate:d(0,3),dueDate:d(0,Math.min(28,new Date().getDate()+12)),status:'Sent',paidDate:null,createdAt:d(0,3)}
+    {id:uid(),number:'INV-0013',client:'Aussie Wellness Co.',desc:'Brand kit — international client',amount:450,currency:'USD',fxRate:FX_SEED_PHP_PER.USD,fxRateBy:'seed',fxRateAt:null,payMethod:'Wise',issueDate:d(0,3),dueDate:d(0,Math.min(28,new Date().getDate()+12)),status:'Sent',paidDate:null,createdAt:d(0,3)}
   ];
   state.settings.businessName=state.settings.businessName==='My Business'?'Studio Hiraya':state.settings.businessName;
   state.settings.monthlyTarget=state.settings.monthlyTarget||100000;
@@ -9444,6 +9446,9 @@ function receivablesSummary(){
     total:sum(unpaid,invPHP),
     overdueCount:overdue.length,
     overdueTotal:sum(overdue,invPHP),
+    // carried through so the stat tiles can say what these peso figures do and don't include
+    caveat:fxTotalsCaveatHTML(unpaid),
+    overdueCaveat:fxTotalsCaveatHTML(overdue),
     top:unpaid.slice().sort(function(a,b){return invPHP(b)-invPHP(a);}).slice(0,2)
   };
 }
@@ -9556,14 +9561,17 @@ function invoiceReminderModal(iv){
 function viewInvoices(){
   var recv=receivablesSummary();
   var curM=thisMonthKey();
-  var paidThisMonth=sum((state.invoices||[]).filter(function(iv){return iv.status==='Paid'&&monthKey(iv.paidDate||'')===curM;}),invPHP);
+  var paidList=(state.invoices||[]).filter(function(iv){return iv.status==='Paid'&&monthKey(iv.paidDate||'')===curM;});
+  var paidThisMonth=sum(paidList,invPHP);
   var html=topbar('Invoices','Bill clients, track receivables, and never lose sight of who owes you.',
     '<button class="btn btn-primary" data-action="invoice-new">'+icon('plus')+'<span class="btn-txt">New invoice</span></button>');
+  // every peso headline below rolls up foreign invoices, so every one of them carries the
+  // same sub-line saying what it counted at an unverified rate and what it had to leave out
   html+='<div class="grid grid-4">'+
-    statCard('Outstanding',fmtMoney(recv.total),'<span class="stat-delta flat">'+recv.count+' unpaid invoice'+(recv.count===1?'':'s')+'</span>','','invoice')+
-    statCard('Overdue',fmtMoney(recv.overdueTotal),recv.overdueCount?'<span class="stat-delta down">'+recv.overdueCount+' need follow-up</span>':'<span class="stat-delta up">nothing overdue</span>','','alert')+
-    statCard('Collected this month',fmtMoney(paidThisMonth),'','','check')+
-    statCard('All-time invoiced',fmtMoney(sum(state.invoices||[],invPHP)),'','','cash')+
+    statCard('Outstanding',fmtMoney(recv.total),'<span class="stat-delta flat">'+recv.count+' unpaid invoice'+(recv.count===1?'':'s')+'</span>'+recv.caveat,'','invoice')+
+    statCard('Overdue',fmtMoney(recv.overdueTotal),(recv.overdueCount?'<span class="stat-delta down">'+recv.overdueCount+' need follow-up</span>':'<span class="stat-delta up">nothing overdue</span>')+recv.overdueCaveat,'','alert')+
+    statCard('Collected this month',fmtMoney(paidThisMonth),fxTotalsCaveatHTML(paidList),'','check')+
+    statCard('All-time invoiced',fmtMoney(sum(state.invoices||[],invPHP)),fxTotalsCaveatHTML(state.invoices),'','cash')+
   '</div>';
   html+=fxInvoiceNoticeHTML();
   html+='<div class="card mt-lg">';
@@ -9613,7 +9621,7 @@ function invoiceModal(iv){
     '<div class="field"><label>Status</label><select class="input" name="status">'+['Draft','Sent','Paid'].map(function(s){return '<option'+(iv.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select></div></div>'+
     '<div class="form-row"><div class="field"><label>Currency</label><select class="input" name="currency">'+
       FX_CURRENCIES.map(function(c){return '<option value="'+c+'"'+((iv.currency||'PHP')===c?' selected':'')+'>'+c+' ('+FX_SYMBOLS[c]+')'+(c==='PHP'?' — local':'')+'</option>';}).join('')+
-      '</select><div id="inv-fx-wrap">'+invFxFieldHTML(iv.currency||'PHP')+'</div></div>'+
+      '</select><div id="inv-fx-wrap" data-iv="'+esc(iv.id||'')+'">'+invFxFieldHTML(iv.currency||'PHP',iv)+'</div></div>'+
     '<div class="field"><label>Payment method</label><select class="input" name="ipayMethod">'+
       ['Local bank transfer','GCash','Maya','PayPal','Wise','Payoneer','Card','Cash','Other'].map(function(pm){return '<option'+((iv.payMethod||'Local bank transfer')===pm?' selected':'')+'>'+pm+'</option>';}).join('')+'</select></div></div>'+
     '<div class="field"><label>Payment details on the invoice (account #, PayPal email, payment link…)</label><textarea class="input" name="payDetails" rows="2" placeholder="e.g. BPI 1234-5678-90 · PayPal: you@mail.com · pay.link/yourname">'+esc(iv.payDetails!=null?iv.payDetails:(state.settings.payQRLabel||''))+'</textarea></div>'+
@@ -9663,14 +9671,14 @@ function invoiceModal(iv){
         // toast() mirrors error/warn messages into the open modal as an inline banner,
         // so one message covers both surfaces — keep it complete and actionable.
         toast('Can’t save this '+cur+' invoice: '+why+' Enter today’s ₱ per 1 '+cur+' in the field under Currency (it works offline), or refresh live rates in Settings ▸ Currency.','error');
-        var w=byId('inv-fx-wrap'); if(w){ w.innerHTML=invFxFieldHTML(cur); var f=w.querySelector('[name="fxManual"]'); if(f&&f.focus) try{f.focus();}catch(_){ } }
+        var w=byId('inv-fx-wrap'); if(w){ w.innerHTML=invFxFieldHTML(cur,ex); var f=w.querySelector('[name="fxManual"]'); if(f&&f.focus) try{f.focus();}catch(_){ } }
         // if we're online, try to get a real rate right now so a second submit just works;
         // the modal stays open (it lives in #modal-root, which render() doesn't touch)
         if(navigator.onLine!==false&&(state.settings.fx||{}).auto!==false&&typeof fetchFxRates==='function'){
           var p=fetchFxRates(false);
           if(p&&p.then) p.then(function(got){
             var w2=byId('inv-fx-wrap');
-            if(got&&w2&&byId('modal-form')){ w2.innerHTML=invFxFieldHTML(cur); toast('Live '+cur+' rate fetched — ₱'+fmtNum(fxRateFor(cur),4)+' per 1 '+cur+'. Save again to use it.'); }
+            if(got&&w2&&byId('modal-form')){ w2.innerHTML=invFxFieldHTML(cur,ex); toast('Live '+cur+' rate fetched — ₱'+fmtNum(fxRateFor(cur),4)+' per 1 '+cur+'. Save again to use it.'); }
           });
         }
         return false;
@@ -9686,8 +9694,20 @@ function invoiceModal(iv){
     if(id){
       if(ex){
         var wasPaid=ex.status==='Paid';
+        // snapshot before the edit lands: flipping Draft/Sent -> Paid in this modal writes
+        // income exactly like the Mark-paid button, so it has to pass the same money gate
+        // and roll the WHOLE record back — status included — when the gate refuses.
+        var snap=JSON.parse(JSON.stringify(ex));
         Object.assign(ex,data);
-        if(!wasPaid&&ex.status==='Paid'){ ex.paidDate=todayISO(); recordInvoiceIncome(ex); }
+        if(!wasPaid&&ex.status==='Paid'){
+          ex.paidDate=todayISO();
+          if(!invoiceCanBePaid(ex)||!recordInvoiceIncome(ex)){
+            Object.keys(ex).forEach(function(k){ delete ex[k]; });
+            Object.assign(ex,snap);
+            var wf=byId('inv-fx-wrap'); if(wf){ wf.innerHTML=invFxFieldHTML(cur,ex); var ff=wf.querySelector('[name="fxManual"]'); if(ff&&ff.focus) try{ff.focus();}catch(_){ } }
+            return false; // modal stays open with the inline banner and the rate field
+          }
+        }
         else if(wasPaid&&ex.status==='Paid'){ reconcileInvoiceIncome(ex); }
       }
       toast('Invoice updated.');
@@ -9702,18 +9722,25 @@ function invoiceModal(iv){
   }});
 }
 /* Rate provenance shown right where a foreign amount is entered, with an inline
-   manual override when the rate is unverified or stale. Re-rendered on currency change. */
-function invFxFieldHTML(cur){
+   manual override when the rate is unverified or stale. Re-rendered on currency change.
+   `iv` is the invoice being edited, when there is one: a record already frozen at an
+   unverified rate must offer the field too, otherwise an owner with a good live rate
+   today has no way to correct it and no way to ever mark it paid. */
+function invFxFieldHTML(cur,iv){
   if(!cur||cur==='PHP')
     return '<p style="font-size:.68rem;color:var(--text-3);margin-top:3px">Amounts are in ₱ — no conversion.</p>';
   var i=fxRateInfo(cur);
-  var needsInput=!i.verified||i.stale;
+  var frozenBad=!!(iv&&iv.currency===cur&&iv.fxRate>0&&!ivRateInfo(iv).verified);
+  var needsInput=!i.verified||i.stale||frozenBad;
   return '<div style="margin-top:5px">'+
     '<span class="badge '+fxBadgeClass(cur)+'">'+esc(fxShortLabel(cur))+'</span>'+
     '<div style="font-size:.7rem;color:var(--text-2);margin-top:3px">'+esc(fxProvenanceText(cur))+'</div>'+
+    (frozenBad?'<div style="font-size:.7rem;color:var(--risk);margin-top:3px">This invoice is frozen at ₱'+fmtNum(iv.fxRate,4)+' per 1 '+esc(cur)+', which was never verified. Type today’s rate below to re-record it — it can’t be marked paid until you do.</div>':'')+
     (needsInput
-      ? '<div class="field" style="margin:7px 0 0"><label>Rate to use — ₱ per 1 '+esc(cur)+(i.verified?'':' *')+'</label>'+
-        '<input class="input" type="number" step="any" min="0" name="fxManual" value="'+(i.verified&&i.rate!=null?esc(i.rate):'')+'" placeholder="e.g. 61.7300">'+
+      ? '<div class="field" style="margin:7px 0 0"><label>Rate to use — ₱ per 1 '+esc(cur)+(i.verified&&!frozenBad?'':' *')+'</label>'+
+        // left blank for a record already frozen at an unverified rate: re-pricing an
+        // existing invoice has to be something the owner typed, never a pre-filled default
+        '<input class="input" type="number" step="any" min="0" name="fxManual" value="'+(!frozenBad&&i.verified&&i.rate!=null?esc(i.rate):'')+'" placeholder="e.g. 61.7300">'+
         '<span style="font-size:.66rem;color:var(--text-3)">Saved as your <b>manual rate</b>, stamped with today’s date and frozen onto this invoice. Works offline.</span></div>'
       : '')+
     '</div>';
@@ -9729,6 +9756,18 @@ function invPHP(iv){
   return Math.round(num(iv.amount)*r*100)/100;
 }
 function invHasRate(iv){ return invPHP(iv)!=null; }
+/* The peso figure money may be WRITTEN against — the record side of invPHP().
+   Reading history back at the rate it was frozen at is correct, so invPHP() keeps
+   doing exactly that. Booking NEW income against a rate nobody verified is not, so
+   this returns null unless ivRateInfo() says the rate on the record was live or
+   manual. `iv.fxRate>0` is NOT the test: an invoice stamped 58.5 by an older build
+   carries no fxRateBy and reads back as 'unrecorded', which is unverified. */
+function invRecordPHP(iv){
+  if(!iv||!iv.currency||iv.currency==='PHP') return num(iv&&iv.amount);
+  var i=ivRateInfo(iv);
+  if(!i.verified||!(i.rate>0)) return null;
+  return Math.round(num(iv.amount)*i.rate*100)/100;
+}
 /* the "≈ ₱x" line, with the provenance of the frozen rate attached */
 function invPHPText(iv){
   if(!iv||!iv.currency||iv.currency==='PHP') return fmtMoney(num(iv&&iv.amount));
@@ -9738,6 +9777,26 @@ function invPHPText(iv){
   var note='Recorded at ₱'+fmtNum(i.rate,4)+' per 1 '+iv.currency+(i.at?' ('+i.by+', '+fmtDate(String(i.at).slice(0,10))+')':i.by==='unrecorded'?' (source not recorded)':' ('+i.by+')');
   var flag=i.verified?'':' <span class="badge warn" style="font-size:.58rem;padding:0 4px" title="'+esc(note)+'">unverified rate</span>';
   return '<span title="'+esc(note)+'">≈ '+fmtMoney(v)+'</span>'+flag;
+}
+/* The same two facts fxInvoiceNoticeHTML() states, shrunk to one sub-line so a headline
+   peso total never gets to look complete when it isn't. Deliberately the SAME vocabulary
+   ("unverified rate", "no rate", "left out") — an owner should not have to learn two
+   ways of being told the same thing. Returns '' when the total is fully accounted for. */
+function fxTotalsCaveat(list){
+  list=(list||[]).filter(function(iv){ return iv&&iv.currency&&iv.currency!=='PHP'; });
+  if(!list.length) return '';
+  var missing=list.filter(function(iv){ return invPHP(iv)==null; }).length;
+  var unver=list.filter(function(iv){ return invPHP(iv)!=null&&!ivRateInfo(iv).verified; }).length;
+  var bits=[];
+  if(unver) bits.push(unver+' at an unverified rate');
+  if(missing) bits.push(missing+' with no rate, left out');
+  return bits.join(' · ');
+}
+/* the same sentence as a stat-tile sub-line */
+function fxTotalsCaveatHTML(list){
+  var t=fxTotalsCaveat(list);
+  if(!t) return '';
+  return '<span class="stat-delta flat" title="Foreign invoices inside this figure. An unverified rate is a built-in estimate, or a rate saved before Trakora tracked where rates came from; an invoice with no rate at all cannot be converted, so it is excluded from the total.">incl. '+esc(t)+'</span>';
 }
 /* Honest banner on the Invoices screen. Historical records are NEVER rewritten — this
    only tells the owner which ones the peso totals can't include, and which ones were
@@ -9752,7 +9811,7 @@ function fxInvoiceNoticeHTML(){
   if(!missing.length&&!unverified.length&&!needs.length) return '';
   var lines=[];
   if(missing.length) lines.push('<b>'+missing.length+' invoice'+(missing.length>1?'s have':' has')+' no exchange rate</b> and '+(missing.length>1?'are':'is')+' left out of every peso total. '+(missing.length>1?'They':'It')+' cannot be marked paid until a rate is set.');
-  if(unverified.length) lines.push('<b>'+unverified.length+' invoice'+(unverified.length>1?'s were':' was')+' recorded against an unverified rate</b> (a built-in estimate, or a rate saved before Trakora tracked where rates came from). The recorded amounts are left exactly as they are — open one and re-save it if you want to correct it.');
+  if(unverified.length) lines.push('<b>'+unverified.length+' invoice'+(unverified.length>1?'s were':' was')+' recorded against an unverified rate</b> (a built-in estimate, or a rate saved before Trakora tracked where rates came from). The recorded amounts are left exactly as they are, but '+(unverified.length>1?'they':'it')+' cannot be marked paid and the peso figure is not printed — open one and type today’s rate into it to re-record it.');
   if(needs.length) lines.push('No verified rate today for <b>'+esc(needs.join(', '))+'</b> — set '+(needs.length>1?'them':'it')+' in Settings ▸ Currency, or refresh live rates.');
   return '<div class="card mt-lg" style="border-color:var(--warn);background:var(--warn-soft,transparent)">'+
     '<div class="card-head"><h3>'+icon('alert',16)+' Exchange rates need your attention</h3></div>'+
@@ -9773,13 +9832,16 @@ function invIncomeNote(iv){
     rateNote=' @ ₱'+fmtNum(iv.fxRate,4)+'/'+iv.currency+(iv.fxRateBy&&iv.fxRateBy!=='unrecorded'?' ('+iv.fxRateBy+')':'');
   return 'Invoice '+iv.number+(iv.desc?' — '+iv.desc:'')+(iv.currency&&iv.currency!=='PHP'?' ('+fmtInvAmt(iv)+rateNote+' via '+(iv.payMethod||'—')+')':(iv.payMethod?' via '+iv.payMethod:''));
 }
-/* Writes the peso income for a paid invoice. Returns false and writes NOTHING when the
-   invoice has no rate to convert with — the old behaviour here was to book it at 1:1
-   behind a toast, which turned a $450 invoice into ₱450 in the books. */
+/* Writes the peso income for a paid invoice. This is the single choke point every
+   "mark paid" path funnels through, so it uses invRecordPHP() — NOT invPHP(). Returns
+   false and writes NOTHING when the invoice carries no rate, or carries one nobody
+   verified (a built-in estimate, or a rate stamped by a build that didn't record where
+   rates came from). The old behaviour here was to book it at 1:1 behind a toast, which
+   turned a $450 invoice into ₱450 in the books. */
 function recordInvoiceIncome(iv){
-  var php=invPHP(iv);
+  var php=invRecordPHP(iv);
   if(php==null){
-    toast('Can’t record income for '+iv.number+': no verified '+iv.currency+'→₱ rate. Set the rate in Settings ▸ Currency, then mark it paid again.','error');
+    toast(fxRecordRefusalText(iv,'record income for '+iv.number),'error');
     return false;
   }
   var fid=uid();
@@ -9788,7 +9850,12 @@ function recordInvoiceIncome(iv){
   iv.financeId=fid; // link so an edit-after-paid can reconcile the books
   return true;
 }
-// keep the recorded income in sync if a PAID invoice is later edited (amount/currency/desc/method)
+/* Keeps the recorded income in sync if a PAID invoice is later edited
+   (amount/currency/desc/method). Deliberately invPHP(), not invRecordPHP(): this books
+   no NEW income, it re-states an entry that already exists against the very rate that
+   entry was made with, so the Finance line and the invoice can't drift apart. Nothing
+   unverified can reach this any more — invoiceCanBePaid() no longer lets an invoice
+   become Paid on an unverified rate in the first place. */
 function reconcileInvoiceIncome(iv){
   if(!iv.financeId) return false;
   var fe=(state.finance||[]).find(function(x){return x.id===iv.financeId;});
@@ -9801,12 +9868,25 @@ function reconcileInvoiceIncome(iv){
   fe.amount=php; fe.client=iv.client; fe.note=invIncomeNote(iv); fe.account=accountForMethod(iv.payMethod);
   return true;
 }
-/* the money gate for "mark this invoice paid" — same rule as invoice creation */
+/* One actionable sentence for every refusal to write money against an invoice. The two
+   reasons read differently to the owner — "there is no rate" vs "the rate on this
+   invoice was never verified" — so they are said differently, and both name the fix. */
+function fxRecordRefusalText(iv,what){
+  var i=ivRateInfo(iv);
+  var why=(iv&&iv.fxRate>0&&!i.verified)
+    ? 'the ₱'+fmtNum(iv.fxRate,4)+' per 1 '+iv.currency+' recorded on it is an unverified estimate, not a rate anyone confirmed'
+    : 'no verified '+iv.currency+'→₱ rate';
+  return 'Can’t '+what+': '+why+', so the peso income can’t be recorded. Set today’s rate in Settings ▸ Currency, or open the invoice and type it in.';
+}
+/* the money gate for "mark this invoice paid" — same rule as invoice creation.
+   NOT `iv.fxRate>0`: that passes for a seed-derived stamp, which is how a $1000
+   invoice frozen at the built-in 58.5 used to book ₱58,500 of income that never
+   existed. The record's rate has to be VERIFIED, or a verified one has to exist today
+   for an invoice that was never stamped at all. */
 function invoiceCanBePaid(iv){
   if(!iv||!iv.currency||iv.currency==='PHP') return true;
-  if(iv.fxRate>0) return true;
-  if(fxRecordRate(iv.currency)>0) return true;
-  toast('Can’t mark '+iv.number+' paid: no verified '+iv.currency+'→₱ rate, so the peso income can’t be recorded. Set it in Settings ▸ Currency.','error');
+  if(invRecordPHP(iv)!=null) return true;
+  toast(fxRecordRefusalText(iv,'mark '+iv.number+' paid'),'error');
   return false;
 }
 
@@ -9833,7 +9913,12 @@ function printInvoice(iv){
     (iv.currency&&iv.currency!=='PHP'?(function(){
       var php=invPHP(iv), ri=ivRateInfo(iv);
       if(php==null) return '<tr><td>Equivalent in Philippine Peso</td><td class="num">not shown — no exchange rate recorded</td></tr>';
-      var src=ri.by==='live'?'live rate':ri.by==='manual'?'rate set manually':ri.by==='unrecorded'?'source not recorded':String(ri.by);
+      /* This page is handed to a client. A peso figure derived from a built-in estimate
+         (or from a rate whose source was never recorded) would read as a stated amount
+         owed, so it is not printed at all — silence beats a number nobody can stand
+         behind. Fix the rate on the invoice and print again. */
+      if(!ri.verified) return '<tr><td>Equivalent in Philippine Peso</td><td class="num">not shown — no verified exchange rate on this invoice</td></tr>';
+      var src=/live/.test(ri.by)?'live rate':/manual/.test(ri.by)?'rate set manually':String(ri.by);
       return '<tr><td>Equivalent in Philippine Peso (₱'+fmtNum(ri.rate,4)+' per 1 '+esc(iv.currency)+' · '+esc(src)+(ri.at?', '+fmtDate(String(ri.at).slice(0,10)):'')+')</td>'+
         '<td class="num">≈ ₱'+fmtNum(php,2)+'</td></tr>';
     })():'')+
@@ -12886,10 +12971,13 @@ function fxSettings(){
   return fx;
 }
 /* One-time upgrade of saved data. We can't invent provenance we never stored, so we
-   infer it conservatively: rates that arrived with a successful fetch timestamp are
-   'live'; a value that differs from the shipped seed with no fetch timestamp can only
-   have been typed by the owner, so it is 'manual'; anything still equal to the seed is
-   a seed. Nothing is upgraded to usable without evidence. */
+   infer it conservatively, and the FIRST test is the one that can be proved:
+   fx.updated is a single global "last successful fetch" stamp, so it says nothing about
+   any particular currency — a value that still equals FX_SEED_PHP_PER exactly was
+   demonstrably never overwritten by a response and stays a seed no matter what
+   fx.updated says. Only a value that actually MOVED off the seed carries evidence:
+   with a fetch stamp it came from a fetch ('live'), without one only the owner could
+   have typed it ('manual'). Nothing is upgraded to usable without evidence. */
 function fxMigrate(){
   var fx=fxSettings();
   if(fx.__srcMigrated) return;
@@ -12897,8 +12985,9 @@ function fxMigrate(){
     if(fx.src[c]&&fx.src[c].by) return;
     var v=fx.phpPer[c];
     if(!(v>0)) return;
-    if(fx.updated) fx.src[c]={by:'live',at:fx.updated};
-    else if(FX_SEED_PHP_PER[c]==null||FX_SEED_PHP_PER[c]!==v) fx.src[c]={by:'manual',at:null};
+    // untouched shipped seed -> leave it unstamped; fxRateInfo() reads that as 'seed'
+    if(FX_SEED_PHP_PER[c]!=null&&FX_SEED_PHP_PER[c]===v) return;
+    fx.src[c]=fx.updated?{by:'live',at:fx.updated}:{by:'manual',at:null};
   });
   fx.__srcMigrated=true;
 }
@@ -13223,7 +13312,7 @@ document.addEventListener('change',function(e){
     var sym=byId('inv-amt-sym');
     if(sym) sym.textContent=FX_SYMBOLS[el.value]||el.value;
     var wrap=byId('inv-fx-wrap');
-    if(wrap) wrap.innerHTML=invFxFieldHTML(el.value);
+    if(wrap){ var wid=wrap.getAttribute('data-iv'); wrap.innerHTML=invFxFieldHTML(el.value,wid?(state.invoices||[]).find(function(x){return x.id===wid;}):null); }
     return;
   }
 });
