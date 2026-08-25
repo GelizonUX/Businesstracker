@@ -4343,11 +4343,20 @@ function viewDashboard(){
   var recv=receivablesSummary();
   var recvBlk='<div class="card"><div class="card-head"><h3>Money owed to you</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="nav" data-route="invoices">Invoices</button></div>';
   if(recv.count>0){
-    recvBlk+='<div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:1.45rem;font-variant-numeric:tabular-nums">'+fmtMoney(recv.total)+'</b><span style="font-size:.8rem;color:var(--text-3)">across '+recv.count+' invoice'+(recv.count>1?'s':'')+'</span></div>';
+    recvBlk+='<div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:1.45rem;font-variant-numeric:tabular-nums">'+fmtMoney(recv.total)+'</b><span style="font-size:.8rem;color:var(--text-3)">across '+recv.count+' invoice'+(recv.count>1?'s':'')+'</span></div>'+
+      // .stat-delta is display:inline; inside a stat tile it sits in a flex column, but here
+      // it would share a line with the overdue badge below it.
+      (recv.caveat?'<div style="margin-top:2px">'+recv.caveat+'</div>':'');
     if(recv.overdueTotal>0) recvBlk+='<span class="badge risk" style="margin-top:6px">'+icon('alert')+' '+fmtMoney(recv.overdueTotal)+' overdue ('+recv.overdueCount+')</span>';
     else recvBlk+='<span class="badge good" style="margin-top:6px">Nothing overdue</span>';
     recv.top.forEach(function(iv){
-      recvBlk+='<div class="list-row" style="padding:8px 0"><div style="flex:1;min-width:0"><b style="font-size:.85rem">'+esc(iv.client)+'</b><div style="font-size:.72rem;color:var(--text-3)">'+esc(iv.number)+' · due '+fmtDate(iv.dueDate)+'</div></div><span class="num" style="font-weight:700">'+fmtMoney(iv.amount)+'</span></div>';
+      recvBlk+='<div class="list-row" style="padding:8px 0"><div style="flex:1;min-width:0"><b style="font-size:.85rem">'+esc(iv.client)+'</b><div style="font-size:.72rem;color:var(--text-3)">'+esc(iv.number)+' · due '+fmtDate(iv.dueDate)+'</div></div>'+
+        // fmtInvAmt(), not fmtMoney(iv.amount): that stamped a ₱ on the FOREIGN figure, so a
+        // $450 invoice read "₱450" here — off by the whole exchange rate, in the one place
+        // the owner glances at what they are owed.
+        '<div style="text-align:right"><span class="num" style="font-weight:700">'+fmtInvAmt(iv)+'</span>'+
+        (iv.currency&&iv.currency!=='PHP'?'<div style="font-size:.68rem;color:var(--text-3)">'+invPHPText(iv)+'</div>':'')+
+        '</div></div>';
     });
   } else {
     recvBlk+=emptyState('invoice','No unpaid invoices','Invoices you mark as Sent appear here until they are paid.');
@@ -9811,7 +9820,13 @@ function fxInvoiceNoticeHTML(){
   if(!missing.length&&!unverified.length&&!needs.length) return '';
   var lines=[];
   if(missing.length) lines.push('<b>'+missing.length+' invoice'+(missing.length>1?'s have':' has')+' no exchange rate</b> and '+(missing.length>1?'are':'is')+' left out of every peso total. '+(missing.length>1?'They':'It')+' cannot be marked paid until a rate is set.');
-  if(unverified.length) lines.push('<b>'+unverified.length+' invoice'+(unverified.length>1?'s were':' was')+' recorded against an unverified rate</b> (a built-in estimate, or a rate saved before Trakora tracked where rates came from). The recorded amounts are left exactly as they are, but '+(unverified.length>1?'they':'it')+' cannot be marked paid and the peso figure is not printed — open one and type today’s rate into it to re-record it.');
+  // Split by status: "it cannot be marked paid" is simply false for an invoice that is
+  // ALREADY Paid — and those are the ones with real money already sitting in Finance, so
+  // they need the opposite warning, not the same one.
+  var unvPaid=unverified.filter(function(iv){ return iv.status==='Paid'; });
+  var unvOpen=unverified.filter(function(iv){ return iv.status!=='Paid'; });
+  if(unvOpen.length) lines.push('<b>'+unvOpen.length+' unpaid invoice'+(unvOpen.length>1?'s carry':' carries')+' an unverified rate</b> (a built-in estimate, or a rate saved before Trakora tracked where rates came from). '+(unvOpen.length>1?'They':'It')+' cannot be marked paid and the peso figure is not printed — open '+(unvOpen.length>1?'each one':'it')+' and type today’s rate in.');
+  if(unvPaid.length) lines.push('<b>'+unvPaid.length+' invoice'+(unvPaid.length>1?'s were':' was')+' already marked paid at an unverified rate</b>, so the peso income recorded in Finance came from an estimate. Those figures are left exactly as they are — editing '+(unvPaid.length>1?'those invoices':'that invoice')+' will not re-convert them. Note that the printed invoice omits the peso line, so your books and the client’s copy state different things until you open '+(unvPaid.length>1?'each one':'it')+' and type the rate you were actually paid at.');
   if(needs.length) lines.push('No verified rate today for <b>'+esc(needs.join(', '))+'</b> — set '+(needs.length>1?'them':'it')+' in Settings ▸ Currency, or refresh live rates.');
   return '<div class="card mt-lg" style="border-color:var(--warn);background:var(--warn-soft,transparent)">'+
     '<div class="card-head"><h3>'+icon('alert',16)+' Exchange rates need your attention</h3></div>'+
@@ -9851,18 +9866,24 @@ function recordInvoiceIncome(iv){
   return true;
 }
 /* Keeps the recorded income in sync if a PAID invoice is later edited
-   (amount/currency/desc/method). Deliberately invPHP(), not invRecordPHP(): this books
-   no NEW income, it re-states an entry that already exists against the very rate that
-   entry was made with, so the Finance line and the invoice can't drift apart. Nothing
-   unverified can reach this any more — invoiceCanBePaid() no longer lets an invoice
-   become Paid on an unverified rate in the first place. */
+   (amount/currency/desc/method). invRecordPHP(), NOT invPHP(): re-converting is a WRITE.
+   An invoice that was already Paid before Trakora tracked provenance carries a rate
+   nobody verified, and invoiceCanBePaid() never saw it — so editing one used to re-book
+   it at the built-in 58.5, and editing its AMOUNT minted a brand-new peso figure at that
+   constant ($2,000 silently became ₱117,000). When the rate isn't verified the booked
+   figure is left exactly as it stands — it is what the owner actually recorded — and the
+   note says so, so the books never claim a peso amount matches an edited invoice when
+   nobody can convert it. */
 function reconcileInvoiceIncome(iv){
   if(!iv.financeId) return false;
   var fe=(state.finance||[]).find(function(x){return x.id===iv.financeId;});
   if(!fe) return false;
-  var php=invPHP(iv);
-  if(php==null){ // leave the previously booked figure alone rather than zeroing the books
-    toast('Kept the previously recorded income for '+iv.number+' — there is no verified '+iv.currency+'→₱ rate to re-convert with.','warn');
+  var php=invRecordPHP(iv);
+  if(php==null){ // leave the previously booked figure alone rather than re-pricing it at a rate nobody verified
+    fe.client=iv.client; fe.account=accountForMethod(iv.payMethod);
+    fe.note=invIncomeNote(iv)+' — ₱ amount not re-converted: '+
+      (iv.fxRate>0?'the rate on this invoice was never verified':'no verified '+iv.currency+'→₱ rate');
+    toast('Kept the ₱'+fmtNum(fe.amount,2)+' already recorded for '+iv.number+' — there is no verified '+iv.currency+'→₱ rate to re-convert with. Open the invoice and type today’s rate to re-record it.','warn');
     return false;
   }
   fe.amount=php; fe.client=iv.client; fe.note=invIncomeNote(iv); fe.account=accountForMethod(iv.payMethod);
