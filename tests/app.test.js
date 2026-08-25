@@ -2430,10 +2430,77 @@ async function main() {
         return iv.status === 'Paid' && iv.fxRate === 61.732 && iv.fxRateBy === 'manual' &&
           window.state.finance.length === 1 && fe.amount === 61732;
       })(), [window.state.invoices[0], window.state.finance]);
-      ok('58,500 never reached the books on any path',
+      ok('58,500 never reached the books on the three mark-paid paths',
         window.state.finance.every((e) => e.amount !== 58500), window.state.finance);
       window.confirm = realConfirm;
       window.closeModal();
+
+      // ---- the FOURTH write path: editing an invoice that was ALREADY paid ----
+      // Every gate above gates a transition INTO Paid. An invoice paid before Trakora
+      // tracked provenance never crossed one, so reconcileInvoiceIncome() is reached with
+      // a seed rate and re-books the peso figure on any edit — including an edit of the
+      // AMOUNT, which mints a number nobody ever converted.
+      seedFx();
+      const seedPaid = () => {
+        window.state.invoices = [{ id: 'legacy', number: 'INV-9100', client: 'Acme US', desc: 'Retainer',
+          amount: 1000, currency: 'USD', fxRate: 58.5, status: 'Paid', paidDate: window.todayISO(),
+          payMethod: 'Wise', financeId: 'fl', issueDate: window.todayISO(), dueDate: window.todayISO() }];
+        window.state.finance = [{ id: 'fl', type: 'income', amount: 58500, date: window.todayISO(),
+          category: 'Sales', note: 'old', client: 'Acme US', offer: '' }];
+      };
+      seedPaid();
+      ok('a legacy Paid invoice is still readable at the rate it was frozen at',
+        window.invPHP(window.state.invoices[0]) === 58500 && window.invRecordPHP(window.state.invoices[0]) === null);
+      spyToasts();
+      window.state.invoices[0].desc = 'Retainer (typo fixed)';
+      window.reconcileInvoiceIncome(window.state.invoices[0]);
+      ok('editing its description does NOT re-book 58,500 at the seed rate',
+        window.state.finance[0].amount === 58500 && window.state.finance[0].note !== 'old' &&
+        /not re-converted/.test(window.state.finance[0].note), window.state.finance[0]);
+      seedPaid();
+      window.state.invoices[0].amount = 2000;
+      window.reconcileInvoiceIncome(window.state.invoices[0]);
+      ok('doubling its amount does NOT mint 117,000 (2000 x the built-in 58.5)',
+        window.state.finance[0].amount === 58500, window.state.finance[0]);
+      ok('and the owner is told the peso figure was left alone, not silently updated',
+        toasts.some((t) => /Kept the/.test(t[1]) && /no verified USD/.test(t[1])), toasts);
+      window.toast = realToast;
+      // the same edit on a VERIFIED invoice must still reconcile — this is not a blanket freeze
+      window.fxSetManualRate('USD', 61.732);
+      window.state.invoices = [{ id: 'v', number: 'INV-9200', client: 'Acme US', desc: 'Retainer',
+        amount: 1000, currency: 'USD', fxRate: 61.732, fxRateBy: 'manual', fxRateAt: new Date().toISOString(),
+        status: 'Paid', paidDate: window.todayISO(), payMethod: 'Wise', financeId: 'fv',
+        issueDate: window.todayISO(), dueDate: window.todayISO() }];
+      window.state.finance = [{ id: 'fv', type: 'income', amount: 61732, date: window.todayISO(),
+        category: 'Sales', note: 'x', client: 'Acme US', offer: '' }];
+      window.state.invoices[0].amount = 1500;
+      window.reconcileInvoiceIncome(window.state.invoices[0]);
+      ok('a verified invoice still reconciles at its own frozen rate (1500 x 61.732)',
+        window.state.finance[0].amount === 92598, window.state.finance[0]);
+
+      // ---- the dashboard receivables card states foreign amounts as foreign ----
+      seedFx();
+      window.state.finance = [];
+      window.state.invoices = [{ id: 'r1', number: 'INV-8001', client: 'Aussie Wellness Co.', desc: 'x',
+        amount: 450, currency: 'USD', fxRate: 58.5, status: 'Sent',
+        issueDate: window.todayISO(), dueDate: window.todayISO() }];
+      window.location.hash = '#/dashboard'; window.render();
+      const dashTxt = d.getElementById('main').textContent;
+      ok('a $450 invoice is not rendered as "PHP 450" on the dashboard',
+        dashTxt.includes('$450') && !/₱450\b/.test(dashTxt), dashTxt.slice(0, 0));
+      ok('and the receivables total carries the same unverified-rate caveat as every other tile',
+        /incl\. 1 at an unverified rate/.test(dashTxt));
+
+      // ---- the notice tells a PAID invoice the truth, not the unpaid copy ----
+      window.state.invoices = [{ id: 'p1', number: 'INV-9300', client: 'A', desc: 'x', amount: 1000,
+        currency: 'USD', fxRate: 58.5, status: 'Paid', paidDate: window.todayISO(),
+        issueDate: window.todayISO(), dueDate: window.todayISO() }];
+      const notice = window.fxInvoiceNoticeHTML();
+      ok('the rate notice does not tell an already-Paid invoice it "cannot be marked paid"',
+        /already marked paid at an unverified rate/.test(notice) && !/It cannot be marked paid/.test(notice));
+      ok('and it warns that the books and the printed invoice now state different things',
+        /state different things/.test(notice));
+      window.state.invoices = []; window.state.finance = [];
 
       // ---- a printed invoice never asserts a peso figure from an unverified rate ----
       ok('printInvoice() suppresses the peso equivalent for an unverified rate', (function () {
