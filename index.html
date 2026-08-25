@@ -2028,14 +2028,10 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .chip.rm-chip.active{background:var(--rc,var(--accent));color:#fff;border-color:var(--rc,var(--accent));box-shadow:0 2px 10px rgba(0,0,0,.15)}
 .chip.rm-chip.active .chip-dot{background:#fff}
 
-/* sidebar section editor (Customization) */
+/* menu section editor (Customization) — the .sec-order table that sat here went with
+   the sidebar it was written for; nothing renders those rows any more. */
 .sec-edit{display:flex;flex-direction:column;gap:8px}
 .sec-edit-row{display:flex;align-items:center;gap:8px}
-.sec-order{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:10px;overflow:hidden}
-.sec-order-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;font-size:.86rem;font-weight:600;border-bottom:1px solid var(--border);background:var(--bg-card)}
-.sec-order-row:last-child{border-bottom:none}
-.sec-order-btns{display:flex;gap:3px}
-.sec-order-btns .btn-icon[disabled]{opacity:.3;pointer-events:none}
 .sec-color{width:38px;height:34px;padding:2px;border:1.5px solid var(--border);border-radius:9px;background:var(--bg-input);cursor:pointer;flex-shrink:0}
 .sec-color::-webkit-color-swatch-wrapper{padding:0}
 .sec-color::-webkit-color-swatch{border:none;border-radius:6px}
@@ -8095,7 +8091,7 @@ function viewSettings(){
     '</select></div>'+
     '<div class="field"><label>'+esc(s.taxLabel||'Default tax')+' rate (%)</label><input class="input" type="number" step="any" min="0" max="60" name="taxRate" value="'+esc(s.taxRate)+'"></div></div>'+
     '<div class="field"><label>Monthly revenue target ('+esc(s.currency)+')</label><input class="input" type="number" step="any" min="0" name="monthlyTarget" value="'+(s.monthlyTarget||'')+'" placeholder="e.g. 100000"><p style="font-size:.74rem;color:var(--text-3);margin-top:4px">Used on the dashboard and in insights to track each month’s pace.</p></div>'+
-    '<div class="field"><label>Business logo (sidebar, browser tab icon & favicon)</label><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
+    '<div class="field"><label>Business logo (menu bar, browser tab icon & favicon)</label><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
       '<img class="img-thumb-lg img-prev" src="'+esc(s.bizLogo||'')+'" style="'+(s.bizLogo?'':'display:none')+'" alt="">'+
       '<input type="file" accept="image/*" class="input img-input" style="flex:1;min-width:140px;padding:6px">'+
       '<input type="hidden" name="bizLogo" value="'+esc(s.bizLogo||'')+'">'+
@@ -10087,7 +10083,7 @@ function customizationCardHTML(){
   var s=state.settings;
   var hidden=s.hiddenModules||[];
   var hideable=ROUTES.filter(function(r){ return r.id!=='dashboard'&&r.id!=='settings'; });
-  var html='<div class="card"><div class="card-head"><h3>'+icon('palette',16)+' Appearance &amp; sidebar</h3></div>';
+  var html='<div class="card"><div class="card-head"><h3>'+icon('palette',16)+' Appearance &amp; menu</h3></div>';
   // accent
   html+='<div class="field"><label>Accent color</label><div class="swatches">'+
     '<button class="swatch'+(!s.accent?' active':'')+'" style="background:linear-gradient(135deg,#4653e8,#7c5cd6)" data-action="set-accent" data-color="" title="Default"></button>'+
@@ -10112,7 +10108,7 @@ function customizationCardHTML(){
     '</div>'+
     '<p style="font-size:.72rem;color:var(--text-3);margin-top:4px">How see-through the floating menus, sheets and bars are. Drag toward <b>Solid</b> for maximum readability — your device’s Reduce Transparency setting is always respected.</p></div>';
   // sidebar sections: color + rename
-  html+='<div class="field"><label>Sidebar menu — color &amp; name each section</label><div class="sec-edit">'+
+  html+='<div class="field"><label>Menu sections — color &amp; name each group</label><div class="sec-edit">'+
     sectionList().map(function(name){
       return '<div class="sec-edit-row">'+
         '<input type="color" class="sec-color" data-action-change="section-color" data-sec="'+esc(name)+'" value="'+esc(sectionColorOf(name))+'" title="Color for '+esc(name)+'">'+
@@ -10120,22 +10116,19 @@ function customizationCardHTML(){
       '</div>';
     }).join('')+'</div>'+
     '<div style="display:flex;justify-content:flex-end;margin-top:8px"><button type="button" class="btn btn-ghost btn-sm" data-action="reset-sections">'+icon('refresh')+' Reset to defaults</button></div>'+
-    '<p style="font-size:.72rem;color:var(--text-3);margin-top:3px">Pick a color and rename any section — changes show in the sidebar instantly.</p></div>';
-  // sidebar order
-  html+='<div class="field"><label>Sidebar order — arrange your categories</label><div class="sec-order">'+
-    sidebarSectionOrder().map(function(name,i,arr){
-      return '<div class="sec-order-row"><span>'+esc(sectionLabelOf(name))+'</span><span class="sec-order-btns">'+
-        '<button type="button" class="btn-icon" data-action="sec-move" data-sec="'+esc(name)+'" data-dir="up"'+(i===0?' disabled':'')+' title="Move up">'+icon('up')+'</button>'+
-        '<button type="button" class="btn-icon" data-action="sec-move" data-sec="'+esc(name)+'" data-dir="down"'+(i===arr.length-1?' disabled':'')+' title="Move down">'+icon('down')+'</button></span></div>';
-    }).join('')+'</div>'+
-    '<p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Move a category (e.g. Shop) up or down. Pin links to Favorites with the '+icon('star',12)+' that appears on each sidebar item.</p></div>';
+    '<p style="font-size:.72rem;color:var(--text-3);margin-top:3px">Pick a color and rename any group — changes show in the menu bar instantly.</p></div>';
+  // The section-order table lived here. It was written for the left sidebar, which no
+  // longer exists — the desktop nav is the island bar and the drawer is gone — so the
+  // control read as a setting for something the user cannot see. Menu groups now keep
+  // their built-in order. `sectionOrder` is still honoured by islandSections() so that
+  // anyone who reordered their menu before this keeps the arrangement they chose.
   // modules
   html+='<div class="field"><label>Visible modules</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">'+
     hideable.map(function(r){
       var lbl=(s.moduleLabels||{})[r.id]||r.label;
       return '<label class="checkrow" style="font-size:.84rem"><input type="checkbox" data-action-change="toggle-module" data-id="'+r.id+'"'+(hidden.indexOf(r.id)<0?' checked':'')+'> '+esc(lbl)+
         ' <button type="button" class="btn-icon" style="width:20px;height:20px" data-action="rename-module" data-id="'+r.id+'" title="Rename">'+icon('edit')+'</button></label>';
-    }).join('')+'</div><p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Hide modules you don’t use — nothing is deleted, they just leave the sidebar.</p></div>';
+    }).join('')+'</div><p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Hide modules you don’t use — nothing is deleted, they just leave the menu.</p></div>';
   html+='<div class="field"><label class="checkrow"><input type="checkbox" data-action-change="advisor-bubble-toggle"'+(s.advisorBubbleOff?'':' checked')+'> Show the floating Advisor bubble</label>'+
     '<p style="font-size:.72rem;color:var(--text-3);margin-top:4px">A friendly prompt that nudges you to check your Advisor — appears on every page except the Advisor itself.</p></div>';
   html+='</div>';
