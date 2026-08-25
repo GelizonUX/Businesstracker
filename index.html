@@ -3901,6 +3901,9 @@ function render(){
     clearTimeout(viewEnterT); viewEnterT=setTimeout(function(){ main.classList.remove('view-enter'); },260);
     // a new screen always opens with its large title expanded, like a fresh push
     main.scrollTop=0; if(typeof islandScrollSync==='function') islandScrollSync();
+    // the "rates are up to date" confirmation belongs to the refresh that just happened,
+    // not to every screen the owner opens afterwards
+    fxJustRefreshed=false;
     // opening a money screen refreshes the exchange rate by itself. Deliberately inside
     // routeChanged: "every time i open invoice" is an ENTRY, not every filter tweak and
     // status change on a screen already open. It is async and rate-limited, and it never
@@ -9839,7 +9842,20 @@ function fxInvoiceNoticeHTML(){
   var unverified=list.filter(function(iv){ return invPHP(iv)!=null&&!ivRateInfo(iv).verified; });
   var curs={}; list.forEach(function(iv){ if(!fxVerified(iv.currency)) curs[iv.currency]=1; });
   var needs=Object.keys(curs);
-  if(!missing.length&&!unverified.length&&!needs.length) return '';
+  if(!missing.length&&!unverified.length&&!needs.length){
+    /* Nothing left to warn about. If an AUTOMATIC refresh is what just resolved it, the
+       amber card below was on screen a moment ago: letting it return '' would delete it
+       under the owner with no input and take ~175px of page with it, jumping everything
+       beneath it upward. Say what happened in the same slot instead — the height stays
+       put, and a refresh nobody asked for is seen rather than merely felt. */
+    if(!fxJustRefreshed) return '';
+    var upd=fxSettings().updated;
+    return '<div class="card mt-lg" data-fx-live style="border-color:var(--good)">'+
+      '<div class="card-head"><h3>'+icon('check',16)+' Exchange rates are up to date</h3></div>'+
+      '<p style="font-size:.82rem;color:var(--text-2);margin:0">Live rates refreshed '+
+        esc(upd?fxAgeText({at:upd,ageMs:Date.now()-new Date(upd).getTime()}):'just now')+
+        ' on their own. Every foreign invoice here now converts against a verified rate.</p></div>';
+  }
   var lines=[];
   if(missing.length) lines.push('<b>'+missing.length+' invoice'+(missing.length>1?'s have':' has')+' no exchange rate</b> and '+(missing.length>1?'are':'is')+' left out of every peso total. '+(missing.length>1?'They':'It')+' cannot be marked paid until a rate is set.');
   // Split by status: "it cannot be marked paid" is simply false for an invoice that is
@@ -13165,8 +13181,10 @@ function ivRateInfo(iv){
 /* automatic rates: free open API, no key. Falls back to saved/manual rates offline.
    A FAILURE IS NEVER SILENT: every attempt records fx.lastTryAt, a failure records
    fx.lastError, and both are shown on the Settings card. An automatic failure also
-   warns once per session so a user who never opens Settings still finds out. */
-var fxFetching=false, fxAutoWarned=false;
+   warns once per session so a user who never opens Settings still finds out.
+   fxJustRefreshed is set when an AUTOMATIC refresh has just succeeded and cleared on the
+   next navigation, so the Invoices notice can say what happened instead of vanishing. */
+var fxFetching=false, fxAutoWarned=false, fxJustRefreshed=false;
 function fetchFxRates(manual){
   if(fxFetching) return Promise.resolve(false);
   fxFetching=true;
@@ -13204,6 +13222,7 @@ function fetchFxRates(manual){
       if(manual){ toast('Exchange rates updated — ₱'+fmtNum(fx.phpPer.USD,4)+' per $1.'); fxRefreshInPlace(true); }
       else{
         if(replaced.length) toast('Live rates replaced the '+replaced.join(', ')+' rate you entered yourself — Settings ▸ Currency shows the new figure.');
+        fxJustRefreshed=true;
         fxRefreshInPlace(false);
       }
       return done(true);
@@ -13242,6 +13261,15 @@ function fetchFxRates(manual){
 function fxRefreshInPlace(force){
   var main=byId('main');
   if(!main) return false;
+  /* A navigation is already in flight and has not painted yet: renderRouted() hands
+     render() to startViewTransition(), which can defer it by a second. Rendering now
+     would arm the entrance for a route the navigation has not rendered yet, set
+     lastRenderRoute to it, and leave the real navigation render seeing
+     routeChanged===false — so the screen's own entrance never plays and only a bare
+     fade is left. Measured at 1202ms of the content area under full opacity, the worst
+     window anywhere in the app. The pending render paints the new rate anyway, so the
+     right move is simply to let it. */
+  if(currentRoute()!==lastRenderRoute) return false;
   var a=document.activeElement;
   if(!force&&a&&main.contains(a)&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName||'')) return false;
   var top=main.scrollTop;

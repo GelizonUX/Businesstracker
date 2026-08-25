@@ -2948,6 +2948,79 @@ async function main() {
         /@keyframes fxFlash\{[^}]*box-shadow/.test(html) && !/@keyframes fxFlash\{[^}]*opacity/.test(html) &&
         /data-fx-live/.test(html));
 
+      // The amber "Exchange rates need your attention" card is the one thing on the
+      // Invoices screen an automatic refresh can DELETE. Letting it return '' removed it
+      // under the owner with no input and pulled everything below it upward — measured in
+      // Chromium at -152px on an 18-invoice screen. The slot has to stay occupied.
+      await (async function noticeSlotStaysPut() {
+        window.state.invoices = [{
+          id: 'ns1', number: 'INV-NS1', client: 'Northwind Studio', amount: 1200, currency: 'USD',
+          fxRate: 61.732, fxRateBy: 'manual', fxRateAt: new Date().toISOString(), status: 'Sent',
+          issueDate: window.todayISO(), dueDate: window.todayISO()
+        }];
+        // every invoice carries a verified frozen rate, but there is no verified rate for
+        // USD *today* — so the card's only remaining line is "No verified rate today"
+        window.state.settings.fx = {
+          auto: true, updated: null, lastTryAt: null, lastError: null,
+          phpPer: JSON.parse(JSON.stringify(window.FX_SEED_PHP_PER)), src: {}, __srcMigrated: true
+        };
+        window.fxJustRefreshed = false;
+        const before = window.fxInvoiceNoticeHTML();
+        ok('a foreign invoice with no verified rate today raises the amber notice',
+          /need your attention/.test(before) && /No verified rate today/.test(before));
+
+        window.fetch = goodFetch;
+        // arrive from a screen with no money on it, so the refresh fires on ENTERING
+        // Invoices rather than having already happened somewhere else
+        window.location.hash = '#/tasks'; window.render();
+        window.location.hash = '#/invoices'; window.render();
+        await wait(60);
+        const after = window.fxInvoiceNoticeHTML();
+        ok('after the refresh resolves it, the notice slot is NOT emptied — it says what happened',
+          after !== '' && /up to date/.test(after) && !/need your attention/.test(after),
+          after.slice(0, 90));
+        ok('...and that confirmation carries the flash marker, so the change is seen',
+          /data-fx-live/.test(after));
+        // it belongs to the refresh that just happened, not to every later screen
+        window.fxJustRefreshed = false;
+        ok('once the owner navigates on, the slot goes quiet again rather than nagging',
+          window.fxInvoiceNoticeHTML() === '');
+        window.state.invoices = [];
+      })();
+
+      // A navigation already in flight has not painted yet: renderRouted() hands render()
+      // to startViewTransition(), which can defer it by up to a second. A fetch resolving
+      // inside that gap used to render the NEW route early, which set lastRenderRoute to
+      // it, so the navigation's own render then saw routeChanged === false and the screen's
+      // entrance never played — measured at 1202ms of the content area under full opacity,
+      // the worst window in the app. The pending render paints the new rate anyway.
+      // The gap cannot be produced by changing the hash here: jsdom runs the hashchange
+      // listener straight away, so the navigation render has already happened. What the
+      // gap actually IS, though, is exactly one observable state — the hash names a route
+      // that render() has not painted yet, i.e. currentRoute() !== lastRenderRoute — so
+      // that is what this sets up directly.
+      setFx({ updated: minsAgo(3 * 60) });
+      window.location.hash = '#/invoices';
+      window.render();
+      await wait(40);
+      const sentinel = d.createElement('div');
+      sentinel.id = 'fx-race-sentinel';
+      d.getElementById('main').appendChild(sentinel);
+      window.lastRenderRoute = 'dashboard';  // a render for '#/invoices' is still pending
+      setFx({ updated: minsAgo(3 * 60) });
+      await window.fetchFxRates(false);      // the fetch resolves inside that gap
+      await wait(40);
+      ok('a fetch resolving mid-navigation does not render the new route early and steal its entrance',
+        !!d.getElementById('fx-race-sentinel'),
+        { sentinelSurvived: !!d.getElementById('fx-race-sentinel'), route: window.currentRoute() });
+      ok('...and the rate it fetched is still saved, so the pending navigation paints it',
+        window.state.settings.fx.phpPer.USD === 61.732 && window.state.settings.fx.src.USD.by === 'live');
+      window.render();                       // the navigation's own render finally lands
+      await wait(40);
+      ok('when that navigation does render, it is a real route change and marks the entrance',
+        d.getElementById('main').classList.contains('view-enter') && !d.getElementById('fx-race-sentinel'),
+        d.getElementById('main').className);
+
       window.state.invoices = savedInv; window.state.finance = savedFin2;
       window.toast = realToast2; window.fetch = realFetch2;
       setOnline(realOnline);
@@ -2987,6 +3060,20 @@ async function main() {
       ok('the per-card entrance stagger is gone with it', html.indexOf('.grid > .card:nth-child(2){animation-delay') === -1);
       ok('the per-row entrance stagger is gone with it', html.indexOf('.table-wrap tbody tr:nth-child(1){animation-delay') === -1);
       ok('one quiet container cross-fade remains', /#main\.view-enter\{animation:viewEnter \.\d+s var\(--ease\)\}/.test(html));
+      // THE blink the owner kept reporting, and it was one declaration.
+      // #main.view-enter sets animation-name to viewEnter for the 260ms the class is on.
+      // The .main shell rule also declared `animation:fadeIn .35s`, so the moment the
+      // class came off, animation-name changed BACK to fadeIn — a new animation name is
+      // a new animation, so it restarted from opacity:0. The content area snapped
+      // invisible ~400ms after every navigation, long after the screen was readable.
+      // Measured in Chromium: Invoices 710ms with two collapses to opacity 0 -> 86ms
+      // with one. The entrance must live on #main.view-enter and nowhere else, so the
+      // shell rule must not declare an animation for the class swap to fall back to.
+      ok('the #main shell rule declares NO animation, so removing .view-enter cannot restart one', (function () {
+        const m = html.match(/\n\.main\{[^}]*\}/);
+        return !!m && m[0].indexOf('animation:') === -1;
+      })(), (html.match(/\n\.main\{[^}]*\}/) || ['.main rule not found'])[0].slice(-80));
+      ok('...and the exact declaration that caused it is gone', html.indexOf('padding:20px var(--main-pad-x) 60px;animation:fadeIn') === -1);
       ok('the container fade is reduced-motion-safe',
         /@media \(prefers-reduced-motion:reduce\)\{#main\.view-enter\{animation:none\}\}/.test(html));
       ok('the View Transitions cross-fade is still the primary section change',
