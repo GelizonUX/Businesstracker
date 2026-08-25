@@ -970,7 +970,16 @@ body.rm-shift .rm-canvas{cursor:crosshair}
 .biz-chip .avatar{width:30px;height:30px;border-radius:8px;background:var(--accent-cta);display:grid;place-items:center;color:var(--accent-cta-ink);font-weight:700;font-size:.8rem;flex-shrink:0}
 .biz-chip b{color:var(--sidebar-text-active);display:block;font-size:.84rem;line-height:1.2;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-.main{--main-pad-x:28px;flex:1;margin-left:calc(248px*var(--nav-scale,1));min-width:0;height:100vh;height:100dvh;overflow-y:auto;overscroll-behavior:contain;padding:20px var(--main-pad-x) 60px;animation:fadeIn .35s var(--ease)}
+/* NO animation on this rule. It used to carry `animation:fadeIn .35s`, and that one
+   declaration was the blinking the owner kept reporting. #main.view-enter (:2402) sets
+   animation-name to viewEnter for the 260ms the class is on; the moment render()'s timer
+   takes the class off, animation-name falls back to THIS rule. A changed animation-name
+   is a brand-new animation to the browser, so fadeIn restarted from opacity:0 — the
+   content area snapped invisible ~400ms after every navigation and faded back over
+   350ms, a second entrance nobody asked for and long after the screen was readable.
+   Measured (Chromium): Invoices 710ms with two collapses to opacity 0 -> 86ms with one.
+   The entrance lives on #main.view-enter alone; the shell must not declare one. */
+.main{--main-pad-x:28px;flex:1;margin-left:calc(248px*var(--nav-scale,1));min-width:0;height:100vh;height:100dvh;overflow-y:auto;overscroll-behavior:contain;padding:20px var(--main-pad-x) 60px}
 
 /* topbar */
 /* ---- iOS large title: PINNED AND OPAQUE ----
@@ -1554,6 +1563,14 @@ details.calc .calc-body{margin-top:10px}
 .calc-hidden{display:none!important}
 .calc-flash{animation:calcFlash 1s var(--ease)}
 @keyframes calcFlash{0%,100%{box-shadow:var(--shadow-sm)}45%{box-shadow:0 0 0 3px var(--accent-soft)}}
+/* A rate that refreshed itself has to be VISIBLE — an automatic change the owner cannot
+   see is just their number moving on its own. But it must stay a change to ONE surface,
+   never a page transition: this is a ring pulse on the rate card only, and deliberately
+   touches box-shadow and nothing else. An opacity dip on a container is precisely what
+   reads as the blinking, so this animation must never grow one. */
+@keyframes fxFlash{0%,100%{box-shadow:var(--shadow-sm)}40%{box-shadow:0 0 0 3px var(--accent-soft)}}
+.fx-flash{animation:fxFlash 1.1s var(--ease)}
+@media (prefers-reduced-motion:reduce){.fx-flash{animation:none}}
 .calc-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,108px),1fr));gap:8px;margin-top:8px}
 .calc-fields .field{margin-bottom:0;min-width:0}
 .calc-fields label{font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3)}
@@ -3883,7 +3900,12 @@ function render(){
     // which is exactly what read as blinking.
     clearTimeout(viewEnterT); viewEnterT=setTimeout(function(){ main.classList.remove('view-enter'); },260);
     // a new screen always opens with its large title expanded, like a fresh push
-    main.scrollTop=0; if(typeof islandScrollSync==='function') islandScrollSync(); }
+    main.scrollTop=0; if(typeof islandScrollSync==='function') islandScrollSync();
+    // opening a money screen refreshes the exchange rate by itself. Deliberately inside
+    // routeChanged: "every time i open invoice" is an ENTRY, not every filter tweak and
+    // status change on a screen already open. It is async and rate-limited, and it never
+    // blocks the render — see fxRouteRefreshCheck().
+    if(typeof fxRouteRefreshCheck==='function') fxRouteRefreshCheck(route); }
   // NOTE: the KPI count-up used to fire here on every section change. Six to nineteen
   // stat tiles all churning their digits for 560ms is the same "en masse entrance"
   // problem as the card/row/chart replays — numbers that are wrong for half a second
@@ -9828,7 +9850,7 @@ function fxInvoiceNoticeHTML(){
   if(unvOpen.length) lines.push('<b>'+unvOpen.length+' unpaid invoice'+(unvOpen.length>1?'s carry':' carries')+' an unverified rate</b> (a built-in estimate, or a rate saved before Trakora tracked where rates came from). '+(unvOpen.length>1?'They':'It')+' cannot be marked paid and the peso figure is not printed — open '+(unvOpen.length>1?'each one':'it')+' and type today’s rate in.');
   if(unvPaid.length) lines.push('<b>'+unvPaid.length+' invoice'+(unvPaid.length>1?'s were':' was')+' already marked paid at an unverified rate</b>, so the peso income recorded in Finance came from an estimate. Those figures are left exactly as they are — editing '+(unvPaid.length>1?'those invoices':'that invoice')+' will not re-convert them. Note that the printed invoice omits the peso line, so your books and the client’s copy state different things until you open '+(unvPaid.length>1?'each one':'it')+' and type the rate you were actually paid at.');
   if(needs.length) lines.push('No verified rate today for <b>'+esc(needs.join(', '))+'</b> — set '+(needs.length>1?'them':'it')+' in Settings ▸ Currency, or refresh live rates.');
-  return '<div class="card mt-lg" style="border-color:var(--warn);background:var(--warn-soft,transparent)">'+
+  return '<div class="card mt-lg" data-fx-live style="border-color:var(--warn);background:var(--warn-soft,transparent)">'+
     '<div class="card-head"><h3>'+icon('alert',16)+' Exchange rates need your attention</h3></div>'+
     '<ul style="font-size:.82rem;color:var(--text-2);margin:0 0 10px 18px;display:flex;flex-direction:column;gap:6px">'+
       lines.map(function(l){ return '<li>'+l+'</li>'; }).join('')+'</ul>'+
@@ -12983,7 +13005,36 @@ var FX_SYMBOLS={PHP:'₱',USD:'$',EUR:'€',GBP:'£',AUD:'A$',CAD:'C$',SGD:'S$',
    The fix is not "better constants", it is that constants cannot record money. */
 var FX_SEED_PHP_PER={USD:58.5,EUR:63.5,GBP:74,AUD:38,CAD:42.5,SGD:43.5,AED:16,JPY:0.39};
 var FX_STALE_DAYS=7;          // a live rate older than this is shown as stale
-var FX_REFRESH_HOURS=24;      // auto-refresh cadence
+var FX_REFRESH_HOURS=24;      // auto-refresh cadence at boot
+
+/* Opening a money screen brings the rate up to date by itself, so nobody has to type
+   one in. Two numbers decide how often that is allowed to cost a network request.
+
+   FX_ROUTE_REFRESH_MIN is deliberately in MINUTES. The boot cadence above is 24h,
+   which is far too stale for someone billing a client in USD — the rate has moved by
+   then and the invoice books the wrong peso figure. The other extreme, refetching on
+   every navigation, is worse: the source is a free public API with no key and no
+   funding, and a fetch on every click would be rude to it while making the app feel
+   busier without being any more correct. Half an hour is short enough that the number
+   on screen is never meaningfully old, and slow enough that even a heavy day of
+   clicking around costs a few dozen requests.
+
+   FX_RETRY_MIN exists because a FAILED refresh must not be retried on every screen
+   change. Offline — which this app is built to work in — that would be a doomed
+   request per navigation, forever. Backoff keys off fx.lastTryAt, which every attempt
+   stamps whether it succeeds or not. */
+var FX_ROUTE_REFRESH_MIN=30;
+var FX_RETRY_MIN=10;
+/* The screens where a rate can move a number in front of the owner: the whole 'Money'
+   section of the ROUTES table, plus the three outside it that also convert — the
+   dashboard and the Advisor roll foreign invoices into their peso headlines, and
+   Settings is where the rate card itself lives. Read off ROUTES rather than listed by
+   hand so a route that moves section is not silently left behind. */
+function fxMoneyRoute(route){
+  if(route==='dashboard'||route==='insights'||route==='settings') return true;
+  for(var i=0;i<ROUTES.length;i++) if(ROUTES[i].id===route) return ROUTES[i].section==='Money';
+  return false;
+}
 
 function fxSettings(){
   var fx=state.settings.fx=state.settings.fx||{};
@@ -13132,19 +13183,29 @@ function fetchFxRates(manual){
     .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
     .then(function(d){
       if(!d||!d.rates) throw new Error('no rates in response');
-      var got=0, now=new Date().toISOString();
+      var got=0, now=new Date().toISOString(), replaced=[];
       FX_CURRENCIES.forEach(function(c){
         var v=d.rates[c];
         if(c==='PHP'||!(v>0)) return;
-        fx.phpPer[c]=Math.round((1/v)*10000)/10000;
+        var nv=Math.round((1/v)*10000)/10000, was=fx.src[c], old=fx.phpPer[c];
+        /* A live rate BEATS a rate the owner typed in: it is the more accurate of the
+           two, and the whole point of asking for this to be automatic was to stop
+           hand-typing numbers. But losing your own figure without noticing is the
+           surprise this must not spring, so a replacement that actually moves the
+           number is named out loud below. */
+        if(was&&was.by==='manual'&&old>0&&Math.abs(nv-old)/old>0.001) replaced.push(c);
+        fx.phpPer[c]=nv;
         fx.src[c]={by:'live',at:now};
         got++;
       });
       if(!got) throw new Error('no usable rates in response');
       fx.updated=now; fx.lastError=null; fx.__srcMigrated=true;
       save();
-      if(manual){ toast('Exchange rates updated — ₱'+fmtNum(fx.phpPer.USD,4)+' per $1.'); render(); }
-      else if(/^(settings|calculators|invoices)$/.test(currentRoute())) render();
+      if(manual){ toast('Exchange rates updated — ₱'+fmtNum(fx.phpPer.USD,4)+' per $1.'); fxRefreshInPlace(true); }
+      else{
+        if(replaced.length) toast('Live rates replaced the '+replaced.join(', ')+' rate you entered yourself — Settings ▸ Currency shows the new figure.');
+        fxRefreshInPlace(false);
+      }
       return done(true);
     })
     .catch(function(e){
@@ -13152,7 +13213,7 @@ function fetchFxRates(manual){
       save();
       if(manual){
         toast('Could not fetch live rates ('+fx.lastError+') — your saved rates are unchanged. Enter the rate manually below.','warn');
-        if(/^(settings|calculators)$/.test(currentRoute())) render();
+        if(/^(settings|calculators)$/.test(currentRoute())) fxRefreshInPlace(true);
       } else if(!fxAutoWarned){
         fxAutoWarned=true;
         toast('Exchange rates could not be refreshed ('+fx.lastError+'). Foreign-currency invoices need a rate you set yourself — Settings ▸ Currency.','warn');
@@ -13160,12 +13221,62 @@ function fetchFxRates(manual){
       return done(false);
     });
 }
+/* Painting a rate change that NOBODY asked for.
+
+   This is the part that could have made the "blinking" worse. A background fetch
+   resolving a few seconds after the owner lands on a screen used to call the full
+   render(). Measured in Chromium (CDP screencast, frame by frame), that does NOT
+   cross-fade: the entrance is gated on routeChanged at the top of render(), and the
+   View Transitions wrapper is only bound to hashchange, so a same-route render()
+   produced no blank frame at all. What it DOES do is rebuild #main from scratch —
+   which throws away the scroll position and destroys whatever the owner was in the
+   middle of typing. Doing that to someone who never asked for it, now that this can
+   happen on every navigation, is the actual bug.
+
+   So: an automatic refresh that lands while a field is focused is not painted at all.
+   The rate is already saved to state; the screen catches up on the next navigation,
+   and the owner's half-typed rate survives. Otherwise the scroll position is carried
+   across and the rate surfaces flash once, so the number is seen to change instead of
+   changing behind the owner's back. force=true is the user-initiated path (they
+   pressed "Update live rates now"), where replacing the field IS what they asked for. */
+function fxRefreshInPlace(force){
+  var main=byId('main');
+  if(!main) return false;
+  var a=document.activeElement;
+  if(!force&&a&&main.contains(a)&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName||'')) return false;
+  var top=main.scrollTop;
+  render();
+  main.scrollTop=top;
+  var els=main.querySelectorAll('[data-fx-live]');
+  for(var i=0;i<els.length;i++) els[i].classList.add('fx-flash');
+  return true;
+}
 function fxAutoUpdateCheck(){
   fxMigrate();
   var fx=fxSettings();
   if(fx.auto===false) return;
   var stale=!fx.updated||(Date.now()-new Date(fx.updated).getTime())>FX_REFRESH_HOURS*3600*1000;
   if(stale&&navigator.onLine!==false) setTimeout(function(){ fetchFxRates(false); },3000);
+}
+/* The automatic half of what the owner asked for: opening a money screen refreshes the
+   rate on its own. Everything in here is a reason NOT to fetch — this runs on entry to
+   every money screen and is supposed to do nothing almost every time. */
+function fxRouteRefreshCheck(route){
+  if(!fxMoneyRoute(route)) return false;
+  // no transport at all: say nothing and stamp nothing. A passive navigation is not the
+  // place to record a failure the owner never asked for.
+  if(typeof fetch!=='function') return false;
+  if(fxFetching) return false;                        // one already in flight
+  if(navigator.onLine===false) return false;          // offline-first: the saved/manual rate stands
+  fxMigrate();
+  var fx=fxSettings();
+  if(fx.auto===false) return false;                   // the owner's opt-out
+  var now=Date.now();
+  // a refresh that just failed is not retried on the next screen change
+  if(fx.lastError&&fx.lastTryAt&&(now-new Date(fx.lastTryAt).getTime())<FX_RETRY_MIN*60000) return false;
+  if(fx.updated&&(now-new Date(fx.updated).getTime())<FX_ROUTE_REFRESH_MIN*60000) return false;
+  fetchFxRates(false);
+  return true;
 }
 /* offline-first: the moment the connection comes back, try again */
 window.addEventListener('online',function(){
@@ -13182,7 +13293,9 @@ function fxCardHTML(){
   var unverified=foreign.filter(function(c){ return !fxVerified(c); });
   var staleOnes=foreign.filter(function(c){ var i=fxRateInfo(c); return i.verified&&i.stale; });
   var head=fx.updated?('live rates '+fxAgeText({at:fx.updated,ageMs:Date.now()-new Date(fx.updated).getTime()})):'never fetched';
-  return '<div class="card"><div class="card-head"><h3>Currency conversion</h3><span class="spacer"></span>'+
+  /* data-fx-live marks the surfaces a background refresh actually changes, so it can
+     flash just those instead of the whole view — see fxRefreshInPlace(). */
+  return '<div class="card" data-fx-live><div class="card-head"><h3>Currency conversion</h3><span class="spacer"></span>'+
     '<span class="badge '+(fx.updated?(staleOnes.length?'warn':'good'):'risk')+'">'+esc(head)+'</span></div>'+
     '<p style="font-size:.8rem;color:var(--text-2);margin-bottom:10px">Used when an invoice is in a foreign currency — the peso equivalent shows on the invoice and your books record pesos. '+
       '<b>A rate can only record money once it has been fetched live or typed in by you.</b> The built-in numbers are rough estimates and are never used to write a peso figure.</p>'+

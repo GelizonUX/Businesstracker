@@ -2729,6 +2729,235 @@ async function main() {
     })();
 
     // =====================================================================
+    // Automatic rates: opening a money screen refreshes the rate itself.
+    // The owner asked for this instead of typing a rate in by hand ("is there
+    // a way to make it automatic ... everytime i open invoice or money anything
+    // related to conversion"). Making a fetch happen on navigation is the easy
+    // half; these tests pin the five things that make it safe to do that often:
+    // a freshness window, a backoff after a failure, the opt-out, offline, and
+    // not trampling the screen the owner is looking at.
+    // fetch is stubbed throughout — the suite never touches the network.
+    // =====================================================================
+    await (async function fxAutoOnRouteEntry() {
+      const savedInv = window.state.invoices, savedFin2 = window.state.finance;
+      const realToast2 = window.toast, realFetch2 = window.fetch;
+      const realOnline = window.navigator.onLine;
+      const setOnline = (v) => Object.defineProperty(window.navigator, 'onLine', { value: v, configurable: true });
+      window.state.invoices = []; window.state.finance = [];
+
+      let fetches = 0;
+      const RATES = { rates: { PHP: 1, USD: 1 / 61.732, EUR: 1 / 66.5, GBP: 1 / 79.1, AUD: 1 / 40.2, CAD: 1 / 44, SGD: 1 / 45.9, AED: 1 / 16.8, JPY: 1 / 0.41 } };
+      const goodFetch = () => { fetches++; return resp(200, JSON.stringify(RATES)); };
+      const badFetch = () => { fetches++; return Promise.reject(new Error('Failed to fetch')); };
+      const minsAgo = (m) => new Date(Date.now() - m * 60000).toISOString();
+      // a settled, fully-verified starting point, then override whatever the case needs
+      const setFx = (o) => {
+        window.state.settings.fx = Object.assign({
+          auto: true, updated: minsAgo(1), lastTryAt: null, lastError: null,
+          phpPer: { USD: 61.732 }, src: { USD: { by: 'live', at: minsAgo(1) } }, __srcMigrated: true
+        }, o || {});
+      };
+      // "open" a screen the way the app does: change the hash, then render.
+      const enter = async (route) => {
+        window.location.hash = '#/' + route;
+        window.render();
+        await wait(40);
+      };
+      window.toast = function () {};
+      setOnline(true);
+
+      // ---- which screens count ----
+      ok('the money screens are the ROUTES "Money" section plus dashboard, Advisor and Settings',
+        typeof window.fxMoneyRoute === 'function' && (function () {
+          const money = window.ROUTES.filter((r) => r.section === 'Money').map((r) => r.id);
+          const want = money.concat(['dashboard', 'insights', 'settings']);
+          const got = window.ROUTES.map((r) => r.id).filter(window.fxMoneyRoute);
+          return want.every((r) => window.fxMoneyRoute(r)) && got.length === want.length &&
+            // and the screens with no money on them are left alone
+            !window.fxMoneyRoute('tasks') && !window.fxMoneyRoute('notes') && !window.fxMoneyRoute('roadmap');
+        })(),
+        typeof window.fxMoneyRoute === 'function' ? window.ROUTES.map((r) => r.id).filter(window.fxMoneyRoute) : 'fxMoneyRoute missing');
+
+      // ---- the freshness window ----
+      window.fetch = goodFetch;
+      setFx({ updated: minsAgo(3 * 60) });   // three hours old
+      fetches = 0;
+      await enter('invoices');
+      ok('opening Invoices with a stale rate refreshes it automatically — no manual step',
+        fetches === 1 && window.state.settings.fx.src.USD.by === 'live', { fetches });
+
+      setFx({ updated: minsAgo(2) });        // two minutes old
+      fetches = 0;
+      await enter('finance'); await enter('report'); await enter('calculators');
+      ok('a rate fetched minutes ago is NOT refetched on the next three money screens',
+        fetches === 0, { fetches });
+
+      ok('the freshness window is a named constant in minutes, not hours',
+        typeof window.FX_ROUTE_REFRESH_MIN === 'number' && window.FX_ROUTE_REFRESH_MIN > 0 && window.FX_ROUTE_REFRESH_MIN <= 120,
+        window.FX_ROUTE_REFRESH_MIN);
+
+      // a rate exactly older than the window refreshes; just inside it does not
+      setFx({ updated: minsAgo(window.FX_ROUTE_REFRESH_MIN + 1) });
+      fetches = 0; await enter('dashboard');
+      const pastWindow = fetches;
+      setFx({ updated: minsAgo(window.FX_ROUTE_REFRESH_MIN - 1) });
+      fetches = 0; await enter('invoices');
+      ok('the window is what decides: one minute past it fetches, one minute inside it does not',
+        pastWindow === 1 && fetches === 0, { pastWindow, insideWindow: fetches });
+
+      // ---- a screen with no money on it never fetches ----
+      setFx({ updated: minsAgo(3 * 60) });
+      fetches = 0;
+      await enter('tasks'); await enter('notes'); await enter('roadmap');
+      ok('opening a screen with no money on it never fetches', fetches === 0, { fetches });
+
+      // ---- failure backoff ----
+      window.fetch = badFetch;
+      setFx({ updated: minsAgo(3 * 60) });
+      window.fxAutoWarned = false;
+      fetches = 0;
+      await enter('invoices');
+      const firstTry = fetches;
+      await enter('finance'); await enter('report'); await enter('dashboard');
+      ok('a refresh that just FAILED is not retried on every following navigation',
+        firstTry === 1 && fetches === 1, { firstTry, afterThreeMoreScreens: fetches });
+      ok('the failure is still recorded, and the saved rate is untouched and still usable',
+        window.state.settings.fx.lastError === 'Failed to fetch' && !!window.state.settings.fx.lastTryAt &&
+        window.state.settings.fx.phpPer.USD === 61.732 && window.fxRecordRate('USD') === 61.732);
+
+      ok('the backoff is a named constant, and shorter than the freshness window',
+        typeof window.FX_RETRY_MIN === 'number' && window.FX_RETRY_MIN > 0 && window.FX_RETRY_MIN <= window.FX_ROUTE_REFRESH_MIN,
+        window.FX_RETRY_MIN);
+
+      // once the backoff has expired it does try again
+      window.state.settings.fx.lastTryAt = minsAgo(window.FX_RETRY_MIN + 1);
+      fetches = 0;
+      await enter('invoices');
+      ok('once the backoff expires the next money screen tries again', fetches === 1, { fetches });
+
+      // ---- an automatic failure still warns exactly once per session ----
+      window.fetch = badFetch;
+      setFx({ updated: minsAgo(3 * 60) });
+      window.fxAutoWarned = false;
+      const warns = [];
+      window.toast = function (m, k) { warns.push([k || 'ok', m]); };
+      await enter('invoices');
+      window.state.settings.fx.lastTryAt = minsAgo(window.FX_RETRY_MIN + 1);
+      await enter('finance');
+      window.state.settings.fx.lastTryAt = minsAgo(window.FX_RETRY_MIN + 1);
+      await enter('report');
+      window.toast = function () {};
+      ok('three failed automatic refreshes warn the owner ONCE, not three times',
+        warns.filter((w) => /could not be refreshed/.test(w[1])).length === 1, warns.map((w) => w[1].slice(0, 40)));
+
+      // ---- the opt-out ----
+      window.fetch = goodFetch;
+      setFx({ auto: false, updated: minsAgo(30 * 60) });
+      fetches = 0;
+      await enter('invoices'); await enter('settings'); await enter('finance');
+      ok('fx.auto === false disables automatic refresh entirely', fetches === 0, { fetches });
+
+      // ---- offline is a no-op, and never costs the owner their saved rate ----
+      setOnline(false);
+      setFx({ updated: minsAgo(30 * 60) });
+      fetches = 0;
+      await enter('invoices'); await enter('finance');
+      ok('offline, opening a money screen fetches nothing and the saved rate still records money',
+        fetches === 0 && window.state.settings.fx.phpPer.USD === 61.732 && window.fxRecordRate('USD') === 61.732 &&
+        !window.state.settings.fx.lastError, { fetches });
+      setOnline(true);
+
+      // ---- offline: the manual path still works, which is the whole offline promise ----
+      setOnline(false);
+      ok('offline, a rate typed in by hand is still accepted and can still record money', (function () {
+        window.state.settings.fx.phpPer = {}; window.state.settings.fx.src = {};
+        const okk = window.fxSetManualRate('USD', 59.25);
+        return okk && window.fxRecordRate('USD') === 59.25 && window.fxRateInfo('USD').by === 'manual';
+      })());
+      setOnline(true);
+
+      // ---- a live rate wins over a manual one, but the owner is TOLD ----
+      window.fetch = goodFetch;
+      setFx({ updated: minsAgo(3 * 60), phpPer: { USD: 55 }, src: { USD: { by: 'manual', at: minsAgo(120) } } });
+      const said = [];
+      window.toast = function (m) { said.push(m); };
+      await enter('invoices');
+      window.toast = function () {};
+      ok('a fresh live rate replaces a manual one — the live number is the more accurate of the two',
+        window.state.settings.fx.phpPer.USD === 61.732 && window.state.settings.fx.src.USD.by === 'live');
+      ok('and replacing a manual rate is never silent — the owner is told which one changed',
+        said.some((m) => /USD/.test(m) && /replac/i.test(m)), said);
+
+      // a live rate landing on top of another LIVE rate is not worth a toast
+      setFx({ updated: minsAgo(3 * 60), phpPer: { USD: 55 }, src: { USD: { by: 'live', at: minsAgo(120) } } });
+      const quiet = [];
+      window.toast = function (m) { quiet.push(m); };
+      await enter('invoices');
+      window.toast = function () {};
+      ok('a live rate refreshing another live rate says nothing — that is just it working',
+        quiet.length === 0, quiet);
+
+      // =================================================================
+      // The part that could have multiplied the blink.
+      // A fetch resolving a few seconds after the owner lands on a screen is
+      // a re-render NOBODY asked for. Measured in Chromium, a same-route
+      // render() produces no blank frame (the entrance is gated on
+      // routeChanged), but it still rebuilds #main — which throws away
+      // whatever the owner was typing. That is the failure mode to pin.
+      // =================================================================
+      window.fetch = goodFetch;
+      setFx({ updated: minsAgo(3 * 60) });
+      window.ui.settingsTab = 'business';   // an earlier test leaves this on 'custom'
+      window.location.hash = '#/settings';
+      window.render();
+      await wait(40);
+      const rateInput = d.querySelector('[data-form="fx-rates"] [name="fx_USD"]');
+      ok('the Settings currency card offers a manual rate field (the offline path)', !!rateInput,
+        { route: window.currentRoute(), hasForm: !!d.querySelector('[data-form="fx-rates"]') });
+      if (rateInput) {
+        rateInput.focus();
+        rateInput.value = '60.5';
+        ok('the manual rate field is really focused', d.activeElement === rateInput);
+        setFx({ updated: minsAgo(3 * 60) });
+        await window.fetchFxRates(false);       // a background refresh lands mid-typing
+        await wait(40);
+        const still = d.querySelector('[data-form="fx-rates"] [name="fx_USD"]');
+        ok('a background refresh does NOT destroy the rate the owner is in the middle of typing',
+          still === rateInput && still.value === '60.5' && d.activeElement === still,
+          { sameNode: still === rateInput, value: still && still.value });
+        ok('...and the fetched rate is still saved to state regardless, so nothing is lost',
+          window.state.settings.fx.phpPer.USD === 61.732 && window.state.settings.fx.src.USD.by === 'live');
+        rateInput.blur();
+      }
+
+      // a background refresh must never re-arm the container entrance animation
+      setFx({ updated: minsAgo(3 * 60) });
+      window.location.hash = '#/invoices';
+      window.render();
+      await wait(40);
+      const mainEl = d.getElementById('main');
+      mainEl.classList.remove('view-enter');
+      await window.fetchFxRates(false);
+      await wait(40);
+      ok('a resolving background fetch does not re-arm the #main entrance animation',
+        !d.getElementById('main').classList.contains('view-enter'),
+        d.getElementById('main').className);
+      ok('...and it does not route itself through the View Transitions navigation path',
+        /fxRefreshInPlace/.test(html) && html.indexOf("else if(/^(settings|calculators|invoices)$/.test(currentRoute())) render();") === -1);
+      ok('the rate surfaces flash instead of the whole view cross-fading (a ring, never opacity)',
+        /@keyframes fxFlash\{[^}]*box-shadow/.test(html) && !/@keyframes fxFlash\{[^}]*opacity/.test(html) &&
+        /data-fx-live/.test(html));
+
+      window.state.invoices = savedInv; window.state.finance = savedFin2;
+      window.toast = realToast2; window.fetch = realFetch2;
+      setOnline(realOnline);
+      window.state.settings.fx = { auto: true, updated: new Date().toISOString(), lastTryAt: null, lastError: null, phpPer: JSON.parse(JSON.stringify(window.FX_SEED_PHP_PER)), src: {} };
+      window.fxMigrate();
+      window.location.hash = '#/dashboard';
+      window.render();
+    })();
+
+    // =====================================================================
     // DEFECT 2 — "blinking all over the site when switching tabs or section"
     // A route change used to replay an entrance on EVERY child of #main.
     // Measured peak running animations under #main on a route change (Chromium,
