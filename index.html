@@ -1608,6 +1608,20 @@ details.calc .calc-body{margin-top:10px}
 /* kbd / mono numbers */
 .mono{font-family:var(--mono);font-size:.85em}
 
+/* Pasteable config (Firebase rules). This is text the owner copies into another
+   console, so it must survive being long: it scrolls sideways on its own instead of
+   pushing the card wide, and it keeps its own line breaks. */
+.code-block{
+  font-family:var(--mono);font-size:.72rem;line-height:1.55;
+  background:var(--bg-sunken);border:1px solid var(--border);
+  border-radius:10px;padding:12px 14px;margin:8px 0 10px;
+  white-space:pre;overflow-x:auto;color:var(--text-2);
+  -webkit-overflow-scrolling:touch;
+}
+.code-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px}
+.code-head h4{font-size:.82rem;font-weight:700}
+.code-head .spacer{margin-left:auto}
+
 /* onboarding hero */
 .hero{
   background:linear-gradient(135deg,rgba(70,83,232,.10),rgba(70,83,232,.04) 45%,transparent 75%);
@@ -2796,7 +2810,18 @@ function licTag(){ return ''; } /* documents carry no ownership/licensee waterma
 /* ---------- activation gate (Firebase-verified paid key) ----------
    Only keys the seller registers in Firebase can unlock the app.
    Once a device activates, it works offline forever (re-verifies online when it can).
-   Set GATE.enabled=false to ship an un-gated build. */
+   Set GATE.enabled=false to ship an un-gated build.
+
+   WHAT THIS APP ASKS OF THE LICENSE DATABASE. The whole contract is three requests,
+   and the database rules should allow exactly these and nothing else:
+     GET    /licenses/<KEY>.json                   read one record, by exact key
+     PUT    /licenses/<KEY>/devices/<DEVICE>.json  claim a device slot, body {at,ua}
+     DELETE /licenses/<KEY>/devices/<DEVICE>.json  free that slot again
+   Never GET /licenses.json, and never a query: no key is ever listed or ordered, so
+   the rules need no .indexOn. The URL below is public by nature (it ships in every
+   copy of the app and cannot be hidden in a static page), which is exactly why the
+   rules have to carry the weight. Settings ▸ Data & Sync has the rules to paste,
+   and the two checks that prove they took. */
 var GATE={
   enabled:true,
   url:'https://trakora-30796-default-rtdb.firebaseio.com',
@@ -2833,7 +2858,16 @@ function gateFetch(url,opts,ms){
   });
 }
 /* GET the license record, with one automatic retry on a transient network error.
-   Distinguishes locked rules / missing database / server errors from a real outage. */
+   Distinguishes locked rules / missing database / server errors from a real outage.
+
+   EVERY exit from here that is not a real license record is a rejection, and the gate
+   only opens on a resolved verifyActivation(). Traced once per branch: a dead network
+   and a timeout reject from gateFetch; 401/403/404/5xx reject above; a body that will
+   not parse leaves data null; and null, a bare string, a number and true all fail the
+   `typeof lic!=='object'` test in verifyActivation. An object shaped like neither
+   (say {error:'...'}) carries no emailHash and no email, so the email proof compares
+   against '' and fails. There is no path where the network misbehaving lets someone
+   in. Keep it that way: a fail-open activation check is worth nothing. */
 function gateReadLicense(key,attempt){
   return gateFetch(gateEndpoint(key)).then(function(r){
     return r.text().then(function(body){
@@ -2920,7 +2954,13 @@ function verifyActivation(key,email){
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({at:Date.now(),ua:String(navigator.userAgent||'').slice(0,120)})
       }).then(function(r){
-        // a non-OK PUT (write denied by rules) is not a real claim. Mark it so we don't free a slot we never took
+        /* A non-OK PUT (write denied by rules) is not a real claim. Mark it so we don't
+           free a slot we never took. This does let the copy run without occupying a
+           slot, so a refused claim is a device-limit gap, deliberately: the key and the
+           email were both proved against the database a moment ago, and locking out a
+           paying customer because their seller has not published the rules yet is the
+           worse failure of the two. The limit is still enforced twice, on the count
+           above and by the rules themselves. */
         var act={key:key,email:email,name:lic.name||email,activatedAt:Date.now(),device:mine};
         if(!(r&&r.ok)) act.unclaimed=true;
         setActivation(act);
@@ -8203,6 +8243,7 @@ function settingsDataHTML(){
   html+=privacyLockCardHTML();
   html+=storageCardHTML();
   html+=cloudSyncCardHTML();
+  html+=databaseRulesCardHTML();
   html+='<div class="card"><div class="card-head"><h3>Backup & restore</h3></div>'+
     '<p style="font-size:.84rem;color:var(--text-2);margin-bottom:16px">'+entryCount+' records in this browser. Export a backup regularly. Clearing browser data would erase everything.'+
     (s.lastBackup?' Last backup: <b>'+fmtDate(s.lastBackup)+'</b>.':' <b>No backup yet.</b>')+'</p>'+
@@ -10311,15 +10352,88 @@ function cloudSyncCardHTML(){
     (s.lastSync?'Last sync: <b>'+fmtDate(s.lastSync.slice(0,10))+'</b>.':'Never synced.')+'</p>'+
     '<form data-form="sync-settings">'+
     '<div class="field"><label>Realtime Database URL</label><input class="input" name="url" value="'+esc(s.url||'')+'" placeholder="https://your-project-default-rtdb.firebaseio.com"></div>'+
+    /* The path was fixed at "bizpilot" and had no field, while the note underneath told
+       the owner to use an unguessable one. Sync signs in to nothing, so the path is the
+       only part of the address an outsider has to guess: it deserved a box. */
+    '<div class="field"><label>Path inside the database</label><input class="input" name="path" value="'+esc(s.path||'bizpilot')+'" placeholder="bizpilot" maxlength="64">'+
+      '<p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Your data is stored under this name. A long random one (say <span class="mono">bizpilot-7fq2xk9m</span>) is worth setting: it is the only part of the address a stranger cannot read off this app. Changing it starts an empty copy, so push once afterwards.</p></div>'+
     '<label class="checkrow" style="margin-bottom:12px"><input type="checkbox" name="enabled"'+(s.enabled?' checked':'')+'> Auto-push to cloud after every change</label>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
     '<button class="btn btn-primary btn-sm" type="submit">'+icon('check')+' Save sync settings</button>'+
     '<button class="btn btn-ghost btn-sm" type="button" data-action="cloud-push">'+icon('upload')+' Push now</button>'+
     '<button class="btn btn-ghost btn-sm" type="button" data-action="cloud-pull">'+icon('download')+' Pull from cloud</button>'+
     '</div></form>'+
-    '<p style="font-size:.72rem;color:var(--text-3);margin-top:12px">'+icon('alert',12)+' Privacy: anyone who can read your database can read your business data. In Firebase console → Realtime Database → Rules, avoid leaving read/write open to the public. Lock it down (e.g. to authenticated users) or at least use an unguessable path.</p>'+
+    '<p style="font-size:.72rem;color:var(--text-3);margin-top:12px">'+icon('alert',12)+' Anyone who can read your database can read your books. Trakora talks to it over plain REST and signs in to nothing, so a rule like <span class="mono">auth != null</span> will simply stop sync working. Publish the rules below instead, and treat the URL and path together as the password they are.</p>'+
     '</div>';
   return html;
+}
+
+/* ---------- database rules ----------
+   Both databases Trakora can reach are Firebase Realtime Databases over REST with no
+   sign-in, so their rules are the whole of their security. These blocks are written
+   against the requests the app actually makes, which are listed above gateEndpoint()
+   and cloudEndpoint(): read one license by exact key, claim and release one device
+   slot, and read/write one sync path. Nothing here needs .indexOn, because nothing
+   here is ever a query.
+   Paste-ready means paste-ready: no comments inside the JSON (Firebase rejects them),
+   real newlines, and the sync block filled in with the owner's own path. */
+function syncRulesJSON(){
+  var p=((state.settings.sync&&state.settings.sync.path)||'bizpilot').replace(/[^A-Za-z0-9_-]/g,'')||'bizpilot';
+  return '{\n'+
+    '  "rules": {\n'+
+    '    ".read": false,\n'+
+    '    ".write": false,\n'+
+    '    "'+p+'": {\n'+
+    '      ".read": true,\n'+
+    '      ".write": true\n'+
+    '    }\n'+
+    '  }\n'+
+    '}';
+}
+function licenseRulesJSON(){
+  var n=String(GATE.node||'licenses').replace(/[^A-Za-z0-9_-]/g,'')||'licenses';
+  return '{\n'+
+    '  "rules": {\n'+
+    '    ".read": false,\n'+
+    '    ".write": false,\n'+
+    '    "'+n+'": {\n'+
+    '      "$key": {\n'+
+    '        ".read": true,\n'+
+    '        ".write": false,\n'+
+    '        "devices": {\n'+
+    '          "$device": {\n'+
+    '            ".write": "(!data.exists() && newData.exists() && root.child(\''+n+'\').child($key).exists() && root.child(\''+n+'\').child($key).child(\'devices\').numChildren() < (root.child(\''+n+'\').child($key).child(\'deviceLimit\').exists() ? root.child(\''+n+'\').child($key).child(\'deviceLimit\').val() : '+(GATE.deviceLimit||2)+')) || (data.exists() && !newData.exists())",\n'+
+    '            ".validate": "newData.hasChildren([\'at\'])",\n'+
+    '            "at": { ".validate": "newData.isNumber()" },\n'+
+    '            "ua": { ".validate": "newData.isString() && newData.val().length <= 200" },\n'+
+    '            "$other": { ".validate": false }\n'+
+    '          }\n'+
+    '        }\n'+
+    '      }\n'+
+    '    }\n'+
+    '  }\n'+
+    '}';
+}
+function databaseRulesCardHTML(){
+  var s=state.settings.sync||{};
+  var host=String(s.url||'').replace(/\/+$/,'')||'https://your-project-default-rtdb.firebaseio.com';
+  var p=(s.path||'bizpilot');
+  var gateHost=GATE.url.replace(/\/+$/,'');
+  return '<div class="card"><div class="card-head"><h3>'+icon('shield',16)+' Database rules</h3><span class="sub">paste into Firebase, then check the two lines</span></div>'+
+    '<p style="font-size:.84rem;color:var(--text-2)">A Realtime Database is open to the whole internet until its rules say otherwise, and a URL in a web app is never a secret: anyone can read it out of the page. Publish these in the Firebase console under <b>Realtime Database ▸ Rules</b>, press Publish, then run the checks underneath. Both blocks deny everything by default and open only the exact paths Trakora uses.</p>'+
+
+    '<div class="code-head"><h4>Your cloud sync database</h4><span class="spacer"></span>'+
+      '<button class="btn btn-ghost btn-sm" type="button" data-action="copy-code" data-target="rules-sync">'+icon('copy',13)+' Copy</button></div>'+
+    '<div class="code-block" id="rules-sync">'+esc(syncRulesJSON())+'</div>'+
+    '<p style="font-size:.76rem;color:var(--text-2)">Only <span class="mono">'+esc(p)+'</span> is reachable; the rest of the database is closed. There is still no password on that one path, because Trakora sends no login, so keep the URL and the path to yourself and set a long random path above. If you want more than that, use the PIN lock, which encrypts what is stored on this device.</p>'+
+    '<p style="font-size:.76rem;color:var(--text-3)"><b>Check it worked.</b> Open <span class="mono">'+esc(host)+'/some-other-name.json</span> in a browser: it must answer <span class="mono">{"error":"Permission denied"}</span>. Then press Push now above; it must still say the push went through.</p>'+
+
+    '<div class="code-head"><h4>License database</h4><span class="badge neutral">for whoever sells Trakora</span><span class="spacer"></span>'+
+      '<button class="btn btn-ghost btn-sm" type="button" data-action="copy-code" data-target="rules-license">'+icon('copy',13)+' Copy</button></div>'+
+    '<div class="code-block" id="rules-license">'+esc(licenseRulesJSON())+'</div>'+
+    '<p style="font-size:.76rem;color:var(--text-2)">This is the database the activation screen checks, and it only concerns you if you issue the keys. A key can be looked up one at a time by anyone who already has it, the list of keys cannot be read, nobody can create or edit a key from a browser, and the only public write is a device claiming or releasing its own slot, capped at the license’s own device limit. Issue keys with the offline signed-key generator, or with the database admin secret if you use the cloud path.</p>'+
+    '<p style="font-size:.76rem;color:var(--text-3)"><b>Check it worked.</b> <span class="mono">'+esc(gateHost)+'/'+esc(GATE.node)+'.json</span> must answer <span class="mono">Permission denied</span>, and <span class="mono">'+esc(gateHost)+'/'+esc(GATE.node)+'/AAAA-BBBB-CCCC.json</span> must answer <span class="mono">null</span> rather than an error. The first says your key list is private; the second says a real buyer can still activate.</p>'+
+    '</div>';
 }
 
 /* ---------- auto-backup ---------- */
@@ -10426,6 +10540,27 @@ document.addEventListener('click',function(e){
 
   if(action==='cloud-push'){ cloudPush(false); return; }
   if(action==='cloud-pull'){ cloudPull(); return; }
+  /* Copy a config block (the Firebase rules) to the clipboard. The async clipboard API
+     needs a secure context, which a phone opening the app over plain http will not
+     have, so the textarea fallback stays. Either way the owner is told which one
+     happened, because a copy button that silently did nothing is worse than none. */
+  if(action==='copy-code'){
+    var src=byId(el.getAttribute('data-target'));
+    if(!src){ toast('Could not find that block to copy.','error'); return; }
+    var txt=src.textContent||'';
+    var viaTextarea=function(){
+      var ta=document.createElement('textarea');
+      ta.value=txt; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.top='-1000px';
+      document.body.appendChild(ta); ta.select();
+      try{ document.execCommand('copy'); toast('Rules copied. Paste them into Firebase console ▸ Realtime Database ▸ Rules, then press Publish.'); }
+      catch(_){ toast('Could not copy automatically. Select the block and copy it by hand.','warn'); }
+      ta.remove();
+    };
+    if(navigator.clipboard&&navigator.clipboard.writeText)
+      navigator.clipboard.writeText(txt).then(function(){ toast('Rules copied. Paste them into Firebase console ▸ Realtime Database ▸ Rules, then press Publish.'); },viaTextarea);
+    else viaTextarea();
+    return;
+  }
   if(action==='print-report'){ printDoc(buildReportDoc(el.getAttribute('data-month')||ui.reportMonth||thisMonthKey())); return; }
 });
 
@@ -10454,7 +10589,11 @@ document.addEventListener('submit',function(e){
     state.settings.sync.url=fv(form,'url');
     state.settings.sync.enabled=form.elements['enabled'].checked&&!!fv(form,'url');
     if(form.elements['enabled'].checked&&!fv(form,'url')) toast('Enter the database URL to enable auto-sync.','warn');
-    state.settings.sync.path=state.settings.sync.path||'bizpilot';
+    /* Firebase keys cannot contain . $ # [ ] / or control characters, and a path that
+       breaks the URL would fail every push with an error nobody can act on. Strip it
+       here rather than letting the owner discover it four saves later. */
+    var np=String(form.elements['path']?fv(form,'path'):'').replace(/[^A-Za-z0-9_-]/g,'').slice(0,64);
+    state.settings.sync.path=np||state.settings.sync.path||'bizpilot';
     commit();
     toast(state.settings.sync.enabled?'Auto-sync enabled. Every change pushes to your Firebase database.':'Sync settings saved.');
     return;

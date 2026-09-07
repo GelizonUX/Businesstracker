@@ -1,7 +1,14 @@
 <!DOCTYPE html>
+<!-- SELLER TOOL. This file holds the ECDSA private key that signs license keys.
+     Anyone who can open it can mint licenses for free, forever. Keep it on your own
+     machine and off any host that serves the app: a static host publishes every file
+     in the folder it deploys, so shipping this next to index.html hands the key to the
+     internet. If it has ever been deployed, generate a new keypair, put the new public
+     key in index.html (LICENSE_PUBKEY), and re-issue outstanding keys. -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Trakora — License Generator (seller tool)</title>
 <style>
