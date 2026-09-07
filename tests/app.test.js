@@ -54,6 +54,37 @@ async function main() {
     }
     ok('every one of the 20 views renders without error', viewErrors.length === 0, viewErrors);
 
+    // ---------- Metrics: only tracked numbers get a card ----------
+    (function metricsScreen() {
+      const savedMetrics = window.state.metrics;
+      // sample data saves a value for all eleven, so clear them: what is left is
+      // whatever the app can work out from the owner's own entries.
+      window.state.metrics = {};
+      window.location.hash = '#/metrics'; window.render();
+      const main = d.getElementById('main');
+      const cards = main.querySelectorAll('.metric-card');
+      const rows = main.querySelectorAll('.mtr-row');
+      const tracked = window.METRIC_DEFS.filter((def) => window.metricValue(def) !== null).length;
+      ok('a card exists for each tracked metric and no others', cards.length === tracked && cards.length > 0, cards.length + ' cards / ' + tracked + ' tracked');
+      ok('every untracked metric is one collapsed row, not a card', rows.length === window.METRIC_DEFS.length - tracked && rows.length > 0, rows.length + ' rows');
+      ok('no card reserves hero space for a value that does not exist', Array.from(main.querySelectorAll('.m-val')).every((n) => n.textContent.trim() !== '—' && n.textContent.trim() !== ''));
+      ok('the "Not tracked" badge is gone from the cards', main.innerHTML.indexOf('Not tracked</span>') === -1);
+      ok('the textbook definition sits behind the disclosure, not in the open', Array.from(rows).every((r) => !r.hasAttribute('open') && r.querySelector('.mtr-body p')));
+      ok('each untracked row still carries the form that would give it a value', Array.from(rows).every((r) => r.querySelector('form[data-metric-calc],form[data-metric-set]')));
+      // no entries at all: the screen is a list, not eleven empty cards
+      const savedFin = window.state.finance, savedClients = window.state.clients;
+      window.state.finance = []; window.state.clients = [];
+      window.render();
+      ok('with nothing tracked the screen shows zero cards and eleven rows',
+        d.getElementById('main').querySelectorAll('.metric-card').length === 0 &&
+        d.getElementById('main').querySelectorAll('.mtr-row').length === window.METRIC_DEFS.length,
+        d.getElementById('main').querySelectorAll('.metric-card').length + ' cards');
+      ok('revenue per client reports nothing rather than a confident zero when there is no revenue',
+        window.metricValue(window.METRIC_DEFS.filter((x) => x.key === 'rpc')[0]) === null);
+      window.state.finance = savedFin; window.state.clients = savedClients;
+      window.state.metrics = savedMetrics;
+    })();
+
     // ---------- security: escaping + CSP + safeColor ----------
     ok('no unescaped image src in source', html.match(/src="'\+(?!esc\()/g) === null);
     ok('CSP meta present', !!d.querySelector('meta[http-equiv="Content-Security-Policy"]'));

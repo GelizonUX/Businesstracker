@@ -1618,6 +1618,22 @@ tr:hover .row-actions{opacity:1}
 .metric-card .m-top{display:flex;align-items:flex-start;gap:10px}
 .metric-card .m-val{font-size:var(--fs-2xl);font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:6px 0 2px}
 .metric-card .m-explain{font-size:.79rem;color:var(--text-2);margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)}
+/* metrics the owner has never entered a number for. They get one compact row
+   each instead of a hero card reserving space for a figure that does not exist,
+   and the textbook definition sits behind the disclosure. */
+.mtr-list{display:flex;flex-direction:column}
+.mtr-row{border-top:1px solid var(--border)}
+.mtr-row:first-child{border-top:0}
+.mtr-row>summary{display:flex;align-items:center;gap:10px;padding:11px 2px;cursor:pointer;list-style:none;user-select:none}
+.mtr-row>summary::-webkit-details-marker{display:none}
+.mtr-row>summary::after{content:'▸';margin-left:auto;color:var(--text-3);font-size:.72rem;transition:transform .2s var(--ease)}
+.mtr-row[open]>summary::after{transform:rotate(90deg)}
+.mtr-row>summary:hover{color:var(--accent)}
+.mtr-name{font-size:.88rem;font-weight:600}
+.mtr-unit{font-size:.72rem;color:var(--text-3);font-weight:600}
+.mtr-body{padding:2px 2px 14px;max-width:68ch}
+.mtr-body p{font-size:.82rem;color:var(--text-2);line-height:1.55;margin-bottom:6px}
+.mtr-body p b{color:var(--text)}
 details.calc{margin-top:10px;border-top:1px dashed var(--border);padding-top:8px}
 details.calc summary{font-size:.8rem;font-weight:700;color:var(--accent);cursor:pointer;list-style:none;display:flex;align-items:center;gap:4px;user-select:none}
 details.calc summary::before{content:'▸';transition:transform .2s;font-size:.7rem}
@@ -8113,7 +8129,9 @@ var METRIC_DEFS=[
     explain:'Average revenue each active client generates. Often easier to grow this than to find new clients.',
     healthy:'Track the trend. Rising revenue per client means deeper relationships.',
     evaluate:function(v){ return v>0?'good':'warn'; },
-    auto:function(){ var a=state.clients.filter(function(c){return c.status==='Active';}).length; var t=financeTotals(); return a>0?t.revenue/a:null; }}
+    /* with no revenue recorded this is 0 divided among n clients, which is not a
+       measurement of anything. Report nothing rather than a confident zero. */
+    auto:function(){ var a=state.clients.filter(function(c){return c.status==='Active';}).length; var t=financeTotals(); return (a>0&&t.revenue>0)?t.revenue/a:null; }}
 ];
 function metricValue(def){
   var saved=state.metrics[def.key];
@@ -8128,45 +8146,72 @@ function fmtMetric(def,v){
   if(def.unit==='x') return fmtNum(v,2)+'×';
   return fmtNum(v);
 }
+function metricUnitHint(def){
+  if(def.unit==='money') return state.settings.currency||'₱';
+  if(def.unit==='%') return '%';
+  if(def.unit==='x') return '×';
+  return '';
+}
+/* the form that turns a metric into a number: either the two/three inputs it is
+   calculated from, or a single field when there is nothing to calculate. */
+function metricFormHTML(d){
+  if(d.calc){
+    return '<form data-metric-calc="'+d.key+'">'+
+      d.calc.fields.map(function(f){ return '<div class="field"><label>'+esc(f[1])+'</label><input class="input" type="number" step="any" name="'+f[0]+'" required></div>'; }).join('')+
+      '<button type="submit" class="btn btn-primary btn-sm">'+icon('calc')+' Calculate & save</button></form>';
+  }
+  return '<form data-metric-set="'+d.key+'">'+
+    '<div class="field"><label>Value'+(d.unit==='%'?' (%)':(d.unit==='x'?' (×)':''))+'</label><input class="input" type="number" step="any" name="val" required></div>'+
+    '<button type="submit" class="btn btn-primary btn-sm">'+icon('check')+' Save</button></form>';
+}
 function viewMetrics(){
-  var html=topbar('Metrics & KPIs','Know your numbers. Each metric is explained in plain language with a health check.');
-  var tracked=0,healthy=0,risky=0;
-  METRIC_DEFS.forEach(function(d){ var mv=metricValue(d); if(mv){ tracked++; var st=d.evaluate(mv.value); if(st==='good')healthy++; if(st==='risk')risky++; } });
-  html+='<div class="grid grid-4">'+
-    statCard('Metrics tracked',tracked+' / '+METRIC_DEFS.length,'','','metrics')+
-    statCard('Healthy',String(healthy),'','','check')+
-    statCard('Risky',String(risky),risky?'<span class="stat-delta down">review below</span>':'','','alert')+
-    statCard('Last updated',lastMetricUpdate()||'—','','','clock')+
-  '</div>';
-  html+='<div class="grid grid-3 mt-lg">';
+  // A metric with no number is not a metric, it is a definition. Only the ones
+  // that have a value get a card; the rest are one row each with the textbook
+  // behind a disclosure, so the screen stops reserving hero space for figures
+  // that do not exist.
+  var tracked=[],untracked=[];
   METRIC_DEFS.forEach(function(d){
     var mv=metricValue(d);
-    var st=mv?d.evaluate(mv.value):null;
-    var stBadge=mv?'<span class="badge '+(st==='good'?'good':(st==='warn'?'warn':'risk'))+'">'+(st==='good'?'Healthy':(st==='warn'?'Watch':'Risky'))+'</span>':'<span class="badge neutral">Not tracked</span>';
-    html+='<div class="card metric-card"><div class="m-top"><div class="i-icon" style="width:34px;height:34px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center">'+icon(d.icon,16)+'</div>'+
-      '<div style="flex:1;min-width:0"><b style="font-size:.92rem">'+esc(d.name)+'</b><div style="margin-top:2px">'+stBadge+(mv&&mv.src==='auto'?' <span class="badge accent">auto</span>':'')+'</div></div></div>'+
-      '<div class="m-val">'+(mv?fmtMetric(d,mv.value):'—')+'</div>'+
-      (mv&&mv.date?'<div style="font-size:.7rem;color:var(--text-3)">updated '+fmtDate(mv.date.slice(0,10))+'</div>':'')+
-      '<div class="m-explain"><b style="font-size:.76rem">What it means:</b> '+esc(d.explain)+'<br><b style="font-size:.76rem">Healthy range:</b> '+esc(d.healthy)+'</div>';
-    if(d.calc){
-      html+='<details class="calc"><summary>Calculate & save</summary><div class="calc-body"><form data-metric-calc="'+d.key+'">'+
-        d.calc.fields.map(function(f){ return '<div class="field"><label>'+esc(f[1])+'</label><input class="input" type="number" step="any" name="'+f[0]+'" required></div>'; }).join('')+
-        '<button type="submit" class="btn btn-primary btn-sm">'+icon('calc')+' Calculate & save</button></form></div></details>';
-    } else {
-      html+='<details class="calc"><summary>Enter value manually</summary><div class="calc-body"><form data-metric-set="'+d.key+'">'+
-        '<div class="field"><label>Value'+(d.unit==='%'?' (%)':(d.unit==='x'?' (×)':''))+'</label><input class="input" type="number" step="any" name="val" required></div>'+
-        '<button type="submit" class="btn btn-primary btn-sm">'+icon('check')+' Save</button></form></div></details>';
-    }
-    if(state.metrics[d.key]) html+='<button class="btn btn-sm btn-ghost mt" data-action="clear-metric" data-key="'+d.key+'" style="margin-top:8px">'+icon('x')+' Clear saved value</button>';
-    html+='</div>';
+    if(mv) tracked.push({def:d,mv:mv}); else untracked.push(d);
   });
-  html+='</div>';
+  var sub;
+  if(!tracked.length) sub='Nothing tracked yet. Every metric below needs a number only you have.';
+  else if(!untracked.length) sub='All '+METRIC_DEFS.length+' are tracked.';
+  else sub=tracked.length+' of '+METRIC_DEFS.length+' tracked. The rest need a number only you have.';
+  var html=topbar('Metrics & KPIs',sub);
+
+  if(tracked.length){
+    html+='<div class="grid grid-3">';
+    tracked.forEach(function(t){
+      var d=t.def, mv=t.mv, st=d.evaluate(mv.value);
+      html+='<div class="card metric-card"><div class="m-top"><div class="i-icon" style="width:34px;height:34px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center">'+icon(d.icon,16)+'</div>'+
+        '<div style="flex:1;min-width:0"><b style="font-size:.92rem">'+esc(d.name)+'</b><div style="margin-top:2px"><span class="badge '+(st==='good'?'good':(st==='warn'?'warn':'risk'))+'">'+(st==='good'?'Healthy':(st==='warn'?'Watch':'Risky'))+'</span>'+
+        (mv.src==='auto'?' <span class="badge accent">from your entries</span>':'')+'</div></div></div>'+
+        '<div class="m-val">'+fmtMetric(d,mv.value)+'</div>'+
+        (mv.date?'<div style="font-size:.7rem;color:var(--text-3)">updated '+fmtDate(mv.date.slice(0,10))+'</div>':'')+
+        '<div class="m-explain"><b style="font-size:.76rem">Healthy range:</b> '+esc(d.healthy)+'</div>'+
+        '<details class="calc"><summary>'+(d.calc?'Recalculate':'Change the value')+'</summary><div class="calc-body">'+metricFormHTML(d)+'</div></details>'+
+        (state.metrics[d.key]?'<button class="btn btn-sm btn-ghost mt" data-action="clear-metric" data-key="'+d.key+'" style="margin-top:8px">'+icon('x')+' Clear saved value</button>':'')+
+      '</div>';
+    });
+    html+='</div>';
+  }
+
+  if(untracked.length){
+    html+='<div class="card'+(tracked.length?' mt-lg':'')+'"><div class="card-head"><h3>Not tracked</h3>'+
+      '<span class="spacer"></span><span class="badge neutral">'+untracked.length+'</span></div>'+
+      '<p class="text-muted" style="font-size:.82rem;max-width:68ch;margin-bottom:6px">Open one to read what it measures and enter the numbers it is worked out from. It becomes a card above once it has a value.</p>'+
+      '<div class="mtr-list">';
+    untracked.forEach(function(d){
+      var u=metricUnitHint(d);
+      html+='<details class="mtr-row"><summary><span class="mtr-name">'+esc(d.name)+'</span>'+(u?'<span class="mtr-unit">'+esc(u)+'</span>':'')+'</summary>'+
+        '<div class="mtr-body"><p>'+esc(d.explain)+'</p>'+
+        '<p><b>Healthy range:</b> '+esc(d.healthy)+'</p>'+
+        metricFormHTML(d)+'</div></details>';
+    });
+    html+='</div></div>';
+  }
   return html;
-}
-function lastMetricUpdate(){
-  var latest=null;
-  Object.keys(state.metrics).forEach(function(k){ var u=state.metrics[k].updatedAt; if(u&&(!latest||u>latest)) latest=u; });
-  return latest?fmtDate(latest.slice(0,10)):null;
 }
 
 /* ============================================================
