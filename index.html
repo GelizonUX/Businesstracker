@@ -1160,7 +1160,14 @@ html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--
 
 /* stat cards */
 .stat-card{position:relative;overflow:hidden}
-.stat-card .stat-label{font-size:.7rem;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.1em;display:flex;align-items:center;gap:8px}
+/* .8rem, not .7rem: at 14px root the old label was 9.8px, and uppercase at .1em tracking
+   is already hard work at that size. It also sat inside a band of eight steps between
+   8.7 and 12.3px whose ratios were 1.01-1.07 — close enough that nothing read as a rung. */
+.stat-card .stat-label{font-size:.8rem;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:8px}
+/* the quiet tile: the label leads and the figure recedes, so a row of tiles reads as
+   "here is the number that matters, and here are three that are simply empty" */
+.stat-card.quiet .stat-label{color:var(--text-2)}
+.stat-card.quiet .stat-value{font-size:var(--fs-md);font-weight:600;color:var(--text-3);letter-spacing:normal;margin-top:4px}
 .stat-card .stat-label svg{width:14px;height:14px}
 .stat-card .stat-value{font-family:var(--font-display);font-size:var(--fs-2xl);font-weight:700;letter-spacing:var(--tr-2xl);margin-top:6px}
 .stat-card .stat-delta{font-size:.78rem;font-weight:600;margin-top:5px;display:inline-flex;align-items:center;gap:4px;padding:0;border-radius:0;background:transparent!important}
@@ -2135,7 +2142,9 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
   .fin-table-wrap{display:none}
   .fin-timeline{display:block}
   .stat-card .stat-value{font-size:1.28rem;margin-top:3px}
-  .stat-card .stat-label{font-size:.66rem;letter-spacing:.05em;gap:6px}
+  /* .74rem: .66rem was 9.24px, smaller than the desktop label it was shrinking from
+     and below what uppercase tracked type stays legible at on a phone */
+  .stat-card .stat-label{font-size:.74rem;letter-spacing:.05em;gap:6px}
   .stat-card .stat-label svg{width:12px;height:12px}
   .stat-card .stat-delta{font-size:.68rem;margin-top:5px;padding:1px 7px}
   .stat-card .spark{display:none}              /* the floating sparkline has no room at 2-up */
@@ -4483,8 +4492,20 @@ function dashCustomizeModal(){
     '</div>';
   openModal('Customize dashboard',body,{submitLabel:'Done',extraFooterHTML:'<button type="button" class="btn btn-ghost" data-action="dash-reset">'+icon('refresh')+' Reset layout</button>',onSubmit:function(){ closeModal(); return false; }});
 }
+/* A tile earns its 24px number by having something to say with it. Nothing, a zero and
+   a bare count do not: "Overdue ₱0" and "Products 8" were shouting the same size as
+   "Revenue ₱1,060,650", which flattens a whole screen into one loud row and buries the
+   line that actually needs doing. Those tiles go quiet and the label leads instead. */
+function statQuiet(value){
+  var t=String(value==null?'':value).replace(/<[^>]*>/g,'').replace(/&[a-z]+;/gi,'').trim();
+  if(!t) return true;
+  if(/^[—–-]+$/.test(t)) return true;                        // the no-value placeholder
+  if(/^[^\d]{0,3}0(?:[.,]0+)?\s*%?$/.test(t)) return true;   // ₱0, 0, 0%, 0.0%
+  if(/^\d{1,3}(?:,\d{3})*\s*\/\s*\d{1,3}(?:,\d{3})*$/.test(t)) return true;  // "11 / 11"
+  return /^\d{1,3}(?:,\d{3})*$/.test(t);                     // a bare count, no unit to give it weight
+}
 function statCard(label,value,deltaHTML,sparkHTML,iconName){
-  return '<div class="card stat-card"><div class="stat-accent"></div>'+
+  return '<div class="card stat-card'+(statQuiet(value)?' quiet':'')+'"><div class="stat-accent"></div>'+
     '<div style="display:flex;align-items:center;gap:10px"><span class="stat-icon">'+icon(iconName)+'</span>'+
     '<span class="stat-label">'+esc(tr(label))+'</span></div>'+
     '<div class="stat-value">'+value+'</div>'+(deltaHTML||'')+
@@ -5502,11 +5523,13 @@ function viewFinance(){
   var html=topbar('Finance','Every peso in and out — totals, breakdowns and cash flow update automatically.',
     '<button class="btn btn-primary" data-action="open-entry-modal">'+icon('plus')+'<span class="btn-txt">Add entry</span></button>');
 
-  html+='<div class="grid grid-4">'+
+  /* three, not four: "Expense ratio 32% · of revenue spent" is "Net profit · 67.6%
+     margin" subtracted from 100, and shipping both invited the owner to read one number
+     as two findings. The margin stays where it belongs, under the profit it describes. */
+  html+='<div class="grid grid-3">'+
     statCard('Revenue',fmtMoney(t.revenue),'','','arrowur')+
     statCard('Expenses',fmtMoney(t.expenses),'','','arrowdr')+
     statCard('Net profit',fmtMoney(t.profit),'<span class="stat-delta '+(t.profit>=0?'up':'down')+'">'+(t.margin!=null?fmtPct(t.margin,1)+' margin':'—')+'</span>','','wallet')+
-    statCard('Expense ratio',t.expenseRatio!=null&&isFinite(t.expenseRatio)?fmtPct(t.expenseRatio,0):'—','<span class="stat-delta flat">of revenue spent</span>','','pie')+
   '</div>';
 
   html+='<div class="tabs mt-lg">'+
