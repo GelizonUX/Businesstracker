@@ -1343,6 +1343,33 @@ tr:hover .row-actions{opacity:1}
    toasts
    ============================================================ */
 .toast-root{position:fixed;bottom:20px;right:20px;z-index:200;display:flex;flex-direction:column;gap:8px;max-width:min(360px,calc(100vw - 32px))}
+/* ----- connections notice -----
+   Bottom-left, deliberately opposite the toasts, and deliberately not a modal: it is a
+   notice with two buttons, not a decision the app should hold itself hostage to. It
+   does not cover the nav, the tab bar or the primary action on any screen, and the app
+   is fully usable behind it. No pill, no gradient. At z-index 52 it clears the page but
+   stays under the drawer scrim (55), the tab bar (58) and every dialog, so nothing it
+   overlaps is ever something the owner cannot get to. */
+.consent{
+  position:fixed;left:20px;bottom:20px;z-index:52;
+  width:min(420px,calc(100vw - 32px));
+  background:var(--bg-card);border:1px solid var(--border-2);border-radius:var(--r-lg);
+  box-shadow:var(--shadow-lg);padding:16px 18px;
+  animation:consentIn .32s var(--ease);
+}
+@keyframes consentIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.consent{animation:none}}
+.consent h4{font-size:.92rem;font-weight:700;letter-spacing:var(--tr-md);margin-bottom:6px}
+.consent p{font-size:.8rem;color:var(--text-2);line-height:1.5;max-width:60ch}
+.consent .consent-note{font-size:.72rem;color:var(--text-3);margin-top:8px}
+.consent-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+@media (max-width:860px){
+  /* On a phone the bottom edge is taken: the tab bar owns 0 to 62px and the quick-log
+     bubble sits at 82 to 132. The notice clears both rather than covering the two
+     controls a new owner reaches for first. Toasts stay at 20px, under it, so the two
+     never land on each other. */
+  .consent{left:12px;right:12px;width:auto;bottom:calc(140px + env(safe-area-inset-bottom,0))}
+}
 .toast{
   display:flex;align-items:flex-start;gap:10px;
   background:var(--lg-tint);border:1px solid var(--lg-edge);border-radius:var(--r-xl);
@@ -2647,6 +2674,7 @@ body.greeting-on{overflow:hidden}
 <div id="gate-root"></div>
 <div id="lock-root"></div>
 <div id="greet-root"></div>
+<div id="consent-root"></div>
 <input type="file" id="import-file" accept=".json,application/json" style="display:none">
 <input type="file" id="csv-file" accept=".csv,text/csv,text/plain" style="display:none">
 <script>
@@ -3086,7 +3114,14 @@ var DEFAULT_STATE={
        owner types it in: see the "currency & rate provenance" section. */
     fx:{ auto:true, updated:null, lastTryAt:null, lastError:null,
          phpPer:{USD:58.5,EUR:63.5,GBP:74,AUD:38,CAD:42.5,SGD:43.5,AED:16,JPY:0.39},
-         src:{} } },
+         src:{} },
+    /* The owner's answer to the connections notice. '' means they have not answered
+       yet, which leaves the app exactly as it behaved before: the notice is a notice,
+       not a hold, and an upgrade should not silently stop an existing owner's rates
+       until they click something. 'essential' is the only value that changes behaviour,
+       and it changes it immediately. fxWasAuto remembers the rate setting they had
+       before declining, so allowing again restores their choice rather than ours. */
+    privacy:{ consent:'', at:null, fxWasAuto:null } },
   invoices:[],  // {id,number,client,desc,amount,issueDate,dueDate,status,paidDate,createdAt}
   recurring:[], // {id,type,amount,category,note,client,day,active,lastPosted,startMonth}
   recurringInvoices:[], // {id,client,desc,amount,currency,day,netDays,active,lastGenerated,startMonth}
@@ -8286,6 +8321,7 @@ function settingsDataHTML(){
   var entryCount=state.finance.length+state.goals.length+state.tasks.length+state.notes.length+state.clients.length;
   var html='<div class="grid grid-2">';
   html+=privacyLockCardHTML();
+  html+=connectionsCardHTML();
   html+=storageCardHTML();
   html+=cloudSyncCardHTML();
   html+=databaseRulesCardHTML();
@@ -10655,6 +10691,8 @@ document.addEventListener('click',function(e){
     return;
   }
 
+  if(action==='consent-set'){ setConsent(el.getAttribute('data-choice')); return; }
+  if(action==='consent-details'){ dismissConsent(); nav('privacy'); return; }
   if(action==='cloud-push'){ cloudPush(false); return; }
   if(action==='cloud-pull'){ cloudPull(); return; }
   /* Copy a config block (the Firebase rules) to the clipboard. The async clipboard API
@@ -12966,6 +13004,11 @@ function tr(s){
 var tessPromise=null;
 function loadTesseract(){
   if(window.Tesseract) return Promise.resolve(window.Tesseract);
+  /* The owner chose essential connections only, and this is a 2MB download from a CDN.
+     Refused here rather than in the button, so the choice cannot be routed around, and
+     the message says where to change it: a block with no way back is a trap. */
+  if(typeof optionalConnectionsOff==='function'&&optionalConnectionsOff())
+    return Promise.reject(new Error('Receipt scanning needs to download its engine from cdn.jsdelivr.net, and you chose essential connections only. Settings ▸ Data ▸ Outside connections turns it back on.'));
   if(tessPromise) return tessPromise;
   tessPromise=new Promise(function(resolve,reject){
     var s=document.createElement('script');
@@ -13610,6 +13653,7 @@ function fxRefreshInPlace(force){
 function fxAutoUpdateCheck(){
   fxMigrate();
   var fx=fxSettings();
+  if(optionalConnectionsOff()) return;   // the owner said essential only
   if(fx.auto===false) return;
   var stale=!fx.updated||(Date.now()-new Date(fx.updated).getTime())>FX_REFRESH_HOURS*3600*1000;
   if(stale&&navigator.onLine!==false) setTimeout(function(){ fetchFxRates(false); },3000);
@@ -13623,6 +13667,7 @@ function fxRouteRefreshCheck(route){
   // place to record a failure the owner never asked for.
   if(typeof fetch!=='function') return false;
   if(fxFetching) return false;                        // one already in flight
+  if(optionalConnectionsOff()) return false;          // the owner said essential only
   if(navigator.onLine===false) return false;          // offline-first: the saved/manual rate stands
   fxMigrate();
   var fx=fxSettings();
@@ -13637,6 +13682,7 @@ function fxRouteRefreshCheck(route){
 /* offline-first: the moment the connection comes back, try again */
 window.addEventListener('online',function(){
   var fx=fxSettings();
+  if(optionalConnectionsOff()) return;
   if(fx.auto===false) return;
   fxAutoWarned=false;
   var stale=!fx.updated||(Date.now()-new Date(fx.updated).getTime())>FX_REFRESH_HOURS*3600*1000;
@@ -13699,8 +13745,19 @@ document.addEventListener('submit',function(e){
     if(fxSetManualRate(c,v)) changed++;
   });
   fx.auto=form.elements['fxauto'].checked;
+  /* Ticking "auto-update rates daily" while outside connections are off would leave a
+     switch that does nothing, which is the trap version of a privacy setting. Asking
+     for automatic rates IS asking to reach the rate service, so say what that means and
+     lift the block, rather than silently ignoring the tick. */
+  var reopened=false;
+  if(fx.auto&&optionalConnectionsOff()){
+    var p=privacySettings();
+    p.consent='all'; p.at=new Date().toISOString(); p.fxWasAuto=null;
+    reopened=true;
+  }
   commit();
-  toast(changed?('Saved '+changed+' manual rate'+(changed>1?'s':'')+'. These are now used to record money.'):'Currency settings saved.');
+  toast(reopened?'Automatic rates are back on, which means Trakora can reach open.er-api.com again. Settings ▸ Data has the switch for that.'
+    :(changed?('Saved '+changed+' manual rate'+(changed>1?'s':'')+'. These are now used to record money.'):'Currency settings saved.'));
 });
 
 /* ============================================================
@@ -14973,6 +15030,118 @@ function privacyLockCardHTML(){
     '</div></div>';
 }
 
+/* ---------- connections notice (what the owner asked for as a "cookie banner") ----------
+
+   There are no cookies. document.cookie appears nowhere in this file, so a banner about
+   cookies would be a false statement on the first screen a customer ever sees, and the
+   one thing worse than no notice is a notice that is wrong. What this app actually does
+   is keep everything in localStorage and reach three outside addresses, so that is what
+   the notice is about.
+
+   Declining does something. "Essential only" stops the automatic rate fetch and refuses
+   the OCR download, which are the two calls the owner does not initiate by hand. The
+   license check stays, because it is the lock on the door, and cloud sync is untouched
+   because it is off until the owner sets it up and points it at their own database.
+   A decline that changed nothing would be theatre.
+
+   Where it sits in the launch sequence: last, and it waits. A new owner already meets
+   the activation gate, the onboarding carousel, the setup wizard, the greeting and a
+   backup toast. This one holds back until every overlay is gone, so it is a quiet bar
+   in the corner after the introductions rather than a fifth thing in the pile. */
+function privacySettings(){
+  var s=state.settings;
+  if(!s.privacy||typeof s.privacy!=='object') s.privacy={consent:'',at:null,fxWasAuto:null};
+  return s.privacy;
+}
+/* The one gate every optional outbound call checks. Only an explicit decline blocks:
+   see the note on DEFAULT_STATE.settings.privacy for why silence is not a decline. */
+function optionalConnectionsOff(){ return privacySettings().consent==='essential'; }
+function setConsent(choice){
+  var p=privacySettings(), fx=fxSettings();
+  if(choice==='essential'){
+    if(p.consent!=='essential') p.fxWasAuto=(fx.auto!==false);
+    fx.auto=false;
+  } else if(choice==='all'){
+    // only put back what declining took away; a rate setting they turned off themselves stays off
+    if(p.consent==='essential'&&p.fxWasAuto!==false) fx.auto=true;
+    p.fxWasAuto=null;
+  }
+  p.consent=choice; p.at=new Date().toISOString();
+  save();
+  dismissConsent();
+  if(choice==='essential') toast('Essential only. Rates will not refresh on their own and the receipt scanner will not download. Everything else works as it did.');
+  else if(choice==='all') toast('Thanks. Rates will keep themselves up to date.');
+  if(currentRoute()==='settings'||currentRoute()==='privacy') render();
+}
+function dismissConsent(){
+  var root=byId('consent-root'); if(root) root.innerHTML='';
+  document.body.classList.remove('consent-on');
+}
+function showConsentNotice(){
+  var root=byId('consent-root'); if(!root) return;
+  /* role="alert" with a polite live region: announced when it appears, the way the
+     toast is, but it interrupts nothing because nothing here is urgent. Not modal, so
+     no focus trap and no stolen focus. It is the last thing in the DOM, so Tab reaches
+     it after the page, and Escape closes it without answering for the owner. */
+  root.innerHTML='<div class="consent" role="alert" aria-live="polite" aria-label="How Trakora handles your data">'+
+    '<h4>'+icon('shield',15)+' Your books stay on this device</h4>'+
+    '<p>Trakora has no account and no server holding your numbers. Three things do reach the internet: exchange rates while you are on a money screen, the receipt scanner\'s engine when you press Scan, and your license check. No cookies, no analytics, no trackers.</p>'+
+    '<div class="consent-acts">'+
+      '<button class="btn btn-primary btn-sm" data-action="consent-set" data-choice="all">Keep them on</button>'+
+      '<button class="btn btn-ghost btn-sm" data-action="consent-set" data-choice="essential">Essential only</button>'+
+      '<button class="btn btn-ghost btn-sm" data-action="consent-details">Read the details</button>'+
+    '</div>'+
+    '<p class="consent-note">Essential only turns off automatic rate updates and the scanner download. The app keeps working offline either way, and you can change this in Settings &#9656; Data.</p>'+
+    '</div>';
+  document.body.classList.add('consent-on');
+}
+/* Wait for a clear screen, then show it once. Bounded on purpose: if the owner spends
+   ten minutes in the setup wizard the notice has missed its moment and can wait for the
+   next launch, rather than a timer living forever in the background. */
+var consentTries=0;
+function consentBusy(){
+  return !!((byId('gate-root')&&byId('gate-root').innerHTML)||
+            (byId('lock-root')&&byId('lock-root').innerHTML)||
+            (byId('greet-root')&&byId('greet-root').innerHTML)||
+            (byId('modal-root')&&byId('modal-root').innerHTML)||
+            (byId('lightbox-root')&&byId('lightbox-root').innerHTML));
+}
+function maybeConsentNotice(){
+  if(privacySettings().consent) return;                       // already answered
+  if(byId('consent-root')&&byId('consent-root').innerHTML) return;
+  if(++consentTries>40) return;                               // about a minute of waiting, then next launch
+  /* Checked twice, before and after the wait. The greeting arrives on a 450ms timer and
+     the onboarding carousel on a 600ms one, so a single check at boot sees an empty
+     screen and then drops the notice underneath whatever appeared in the meantime.
+     Measured in Chromium: that is exactly what happened before this second look. */
+  if(consentBusy()){ setTimeout(maybeConsentNotice,1500); return; }
+  setTimeout(function(){
+    if(privacySettings().consent) return;
+    if(consentBusy()){ maybeConsentNotice(); return; }
+    showConsentNotice();
+  },1400);
+}
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Escape') return;
+  if(!document.body.classList.contains('consent-on')) return;
+  dismissConsent();   // closed without answering: it comes back next launch, unchanged
+});
+/* Settings ▸ Data: the same choice, permanently, for anyone who closed the notice or
+   changed their mind six months later. */
+function connectionsCardHTML(){
+  var p=privacySettings(), fx=fxSettings();
+  var off=p.consent==='essential';
+  return '<div class="card"><div class="card-head"><h3>'+icon('shield',16)+' Outside connections</h3><span class="spacer"></span>'+
+      (off?'<span class="badge neutral">Essential only</span>':(p.consent==='all'?'<span class="badge good">On</span>':'<span class="badge neutral">Not set</span>'))+'</div>'+
+    '<p style="font-size:.84rem;color:var(--text-2)">Two of the four things Trakora can reach out to are optional: the daily exchange rates and the receipt scanner\'s engine. Turning them off leaves every screen, calculation and document working exactly as before, offline included. Your license check and cloud sync are not affected.</p>'+
+    (off?'<p style="font-size:.8rem;color:var(--text-3)">Off since '+esc(p.at?fmtDate(String(p.at).slice(0,10)):'you chose it')+'. Rates now only change when you type one in under Currency.</p>':'')+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'+
+      '<button class="btn '+(off?'btn-ghost':'btn-primary')+' btn-sm" data-action="consent-set" data-choice="all">'+icon('check')+' Allow them</button>'+
+      '<button class="btn '+(off?'btn-primary':'btn-ghost')+' btn-sm" data-action="consent-set" data-choice="essential">Essential only</button>'+
+      '<button class="btn btn-ghost btn-sm" data-action="nav" data-route="privacy">'+icon('shield')+' What gets sent</button>'+
+    '</div></div>';
+}
+
 /* ---------- first-open greeting (time-based, animated) ---------- */
 var greetShownThisSession=false;
 function greetingTime(){
@@ -15095,6 +15264,7 @@ function bootApp(){
   storageWarnOnBoot();
   fxAutoUpdateCheck();
   backupReminder();
+  maybeConsentNotice();   // last, and it waits for the overlays above to clear
 }
 /* backup reminder: once per session if data exists and backup is stale */
 function backupReminder(){
