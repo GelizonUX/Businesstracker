@@ -85,6 +85,89 @@ async function main() {
       window.state.metrics = savedMetrics;
     })();
 
+    // ---------- colour contrast, computed from the tokens (WCAG 2.2 AA) ----------
+    (function contrastTokens() {
+      function tok(name, block) { const m = block.match(new RegExp('\\' + name + ':\\s*([^;]+);')); return m ? m[1].trim() : null; }
+      const lightBlock = html.slice(html.indexOf(':root{'), html.indexOf('html[data-theme="dark"]'));
+      const darkBlock = html.slice(html.indexOf('html[data-theme="dark"]'), html.indexOf('html[data-theme="dark"]') + 4000);
+      function rgb(c) {
+        let m = c.match(/^#([0-9a-f]{6})$/i);
+        if (m) { const n = parseInt(m[1], 16); return [n >> 16 & 255, n >> 8 & 255, n & 255, 1]; }
+        m = c.match(/rgba?\(([^)]+)\)/);
+        if (m) { const p = m[1].split(',').map(Number); return [p[0], p[1], p[2], p.length > 3 ? p[3] : 1]; }
+        return null;
+      }
+      function overlay(fg, bg) { const a = fg[3]; return [fg[0] * a + bg[0] * (1 - a), fg[1] * a + bg[1] * (1 - a), fg[2] * a + bg[2] * (1 - a), 1]; }
+      function lum(c) { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); }
+      function ratio(a, b) { const x = lum(a) + 0.05, y = lum(b) + 0.05; return x > y ? x / y : y / x; }
+
+      // house rule: no pure white surface
+      ok('no surface token is pure #ffffff', !/--bg-card:#ffffff/.test(html) && !/--bg-input:#ffffff/.test(html) && /--bg-card:#fafbff/.test(html) && /--bg-input:#fafbff/.test(html));
+
+      const grounds = { card: rgb(tok('--bg-card', lightBlock)), sunken: rgb(tok('--bg-sunken', lightBlock)), page: rgb(tok('--bg', lightBlock)) };
+      const pairs = [['--good', '--good-soft'], ['--warn', '--warn-soft'], ['--risk', '--risk-soft'], ['--info', '--info-soft'], ['--accent-ink', '--accent-soft']];
+      const short = [];
+      pairs.forEach(([ink, soft]) => {
+        const i = rgb(tok(ink, lightBlock)), sf = rgb(tok(soft, lightBlock));
+        Object.keys(grounds).forEach((g) => {
+          const onTint = ratio(i, overlay(sf, grounds[g]));
+          const onPlain = ratio(i, grounds[g]);
+          if (onTint < 4.5) short.push(ink + ' on ' + soft + ' over ' + g + ' = ' + onTint.toFixed(2));
+          if (onPlain < 4.5) short.push(ink + ' on ' + g + ' = ' + onPlain.toFixed(2));
+        });
+      });
+      ok('light semantic text clears 4.5:1 on its own tint and on every ground', short.length === 0, short);
+
+      // 1.4.11: a control's boundary needs 3:1 against its own fill
+      const ctlL = rgb(tok('--border-ctl', lightBlock)), ctlD = rgb(tok('--border-ctl', darkBlock));
+      const ctlFails = [];
+      [['light card', ctlL, grounds.card], ['light page', ctlL, grounds.page], ['light sunken', ctlL, grounds.sunken],
+       ['dark input', ctlD, rgb(tok('--bg-input', darkBlock))], ['dark card', ctlD, rgb(tok('--bg-card', darkBlock))],
+       ['dark page', ctlD, rgb(tok('--bg', darkBlock))]].forEach(([n, a, b]) => {
+        const r = ratio(a, b); if (r < 3) ctlFails.push(n + ' = ' + r.toFixed(2));
+      });
+      ok('--border-ctl clears 3:1 against every surface a control sits on', ctlFails.length === 0, ctlFails);
+      ok('form controls and checkboxes use --border-ctl, decorative hairlines still use --border',
+        /border:1px solid var\(--border-ctl\);background:var\(--bg-input\)/.test(html) &&
+        /\.btn-ghost\{background:var\(--bg-card\);border-color:var\(--border-ctl\)/.test(html) &&
+        /\.task-check\{[^}]*border:2px solid var\(--border-ctl\)/.test(html) &&
+        /\.start-check\{[^}]*border:2px solid var\(--border-ctl\)/.test(html) &&
+        /\.card\{[^}]*border:1px solid var\(--border\)/.test(html));
+
+      // chart series are graphical objects: 3:1 against both grounds, in both themes
+      const light = (html.match(/var CHART_PALETTE=\[([^\]]+)\]/) || [])[1].split(',').map((x) => x.trim().replace(/'/g, ''));
+      const dark = (html.match(/var CHART_PALETTE_DARK=\[([^\]]+)\]/) || [])[1].split(',').map((x) => x.trim().replace(/'/g, ''));
+      const weak = [];
+      light.forEach((c) => { [grounds.card, grounds.page].forEach((g) => { const r = ratio(rgb(c), g); if (r < 3) weak.push('light ' + c + ' = ' + r.toFixed(2)); }); });
+      dark.forEach((c) => { [rgb(tok('--bg-card', darkBlock)), rgb(tok('--bg', darkBlock))].forEach((g) => { const r = ratio(rgb(c), g); if (r < 3) weak.push('dark ' + c + ' = ' + r.toFixed(2)); }); });
+      ok('every chart series clears 3:1 against card and page in both themes', weak.length === 0 && dark.length === light.length, weak);
+      ok('charts pick the palette by theme rather than reusing the light hexes in the dark', /function chartColor\(i\)/.test(html) && !/CHART_PALETTE\[i%CHART_PALETTE\.length\]/.test(html));
+
+      // ink on a filled semantic colour flips with the theme (dark fills are LIGHT)
+      ok('--on-tint flips with the theme so #fff never sits on a light fill',
+        /--on-tint:#ffffff/.test(lightBlock) && /--on-tint:#0e0f13/.test(darkBlock) &&
+        !/background:var\(--risk\);color:#fff/.test(html) && !/background:var\(--good\);color:#fff/.test(html) &&
+        !/background:var\(--accent\);color:#fff\}/.test(html));
+      const onTintFails = [];
+      [['risk', darkBlock], ['good', darkBlock], ['warn', darkBlock], ['info', darkBlock], ['accent', darkBlock]].forEach(([n, b]) => {
+        const r = ratio(rgb(tok('--on-tint', b)), rgb(tok('--' + n, b)));
+        if (r < 4.5) onTintFails.push('dark --on-tint on --' + n + ' = ' + r.toFixed(2));
+      });
+      [['risk', lightBlock], ['good', lightBlock], ['warn', lightBlock], ['info', lightBlock]].forEach(([n, b]) => {
+        const r = ratio(rgb(tok('--on-tint', b)), rgb(tok('--' + n, b)));
+        if (r < 4.5) onTintFails.push('light --on-tint on --' + n + ' = ' + r.toFixed(2));
+      });
+      ok('--on-tint clears 4.5:1 on every semantic fill in both themes', onTintFails.length === 0, onTintFails);
+
+      // the label the earlier audit flagged: still .8rem, and its colour now measured
+      ok('.stat-label keeps its .8rem size and --text-3 clears 4.5:1 on a card in both themes',
+        /\.stat-card \.stat-label\{font-size:\.8rem/.test(html) &&
+        ratio(rgb(tok('--text-3', lightBlock)), grounds.card) >= 4.5 &&
+        ratio(rgb(tok('--text-3', darkBlock)), rgb(tok('--bg-card', darkBlock))) >= 4.5,
+        'light ' + ratio(rgb(tok('--text-3', lightBlock)), grounds.card).toFixed(2) +
+        ' / dark ' + ratio(rgb(tok('--text-3', darkBlock)), rgb(tok('--bg-card', darkBlock))).toFixed(2));
+    })();
+
     // ---------- copy: say what it does, not what it is ----------
     (function positioning() {
       ok('the meta description and title name the job, not a "command center"',
