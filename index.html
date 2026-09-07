@@ -3342,6 +3342,16 @@ function goalProgress(g){
   var pct=g.target>0?clamp(current/g.target*100,0,100):0;
   return {current:current,pct:pct};
 }
+/* One rule for every place a goal figure is printed. The unit decides, not the type:
+   a profit goal carrying unit '%' is a percentage, and a custom goal carrying the
+   currency symbol is money. Gating on type printed '₱1,060,650 of ₱32' for the first
+   and '1,569,970 ₱' for the second, in the same app that writes '₱1,569,970'. */
+function goalAmountText(g,v){
+  var u=(g&&g.unit||'').trim();
+  var sym=(state.settings.currency||'₱');
+  if(!u||u===sym||u.toUpperCase()==='PHP') return fmtMoney(v);
+  return fmtNum(v)+' '+esc(u);
+}
 function goalStatus(g){
   if(g.done) return {label:'Completed',cls:'good'};
   var gp=goalProgress(g);
@@ -5852,7 +5862,7 @@ function goalCardHTML(g){
   var html='<div class="card"><div class="card-head" style="margin-bottom:8px">'+
     '<div style="min-width:0;flex:1"><h3 style="'+(g.done?'text-decoration:line-through;color:var(--text-3)':'')+'">'+esc(g.title)+'</h3><span class="sub">'+typeLbl+(g.startDate&&g.type!=='custom'?' from '+fmtDate(g.startDate):'')+'</span></div>'+
     '<span class="badge '+st.cls+'">'+st.label+'</span></div>';
-  html+='<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px"><b style="font-size:1.25rem;font-variant-numeric:tabular-nums">'+(g.type==='custom'&&g.unit?fmtNum(gp.current)+' '+esc(g.unit):fmtMoney(gp.current))+'</b><span style="color:var(--text-3);font-size:.85rem">of '+(g.type==='custom'&&g.unit?fmtNum(g.target)+' '+esc(g.unit):fmtMoney(g.target))+'</span></div>';
+  html+='<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px"><b style="font-size:1.25rem;font-variant-numeric:tabular-nums">'+goalAmountText(g,gp.current)+'</b><span style="color:var(--text-3);font-size:.85rem">of '+goalAmountText(g,g.target)+'</span></div>';
   html+='<div class="progress thick"><div class="bar '+(st.cls==='good'?'good':(st.cls==='risk'?'risk':(st.cls==='warn'?'warn':'')))+'" style="width:'+gp.pct+'%"></div></div>';
   html+='<div style="display:flex;justify-content:space-between;font-size:.76rem;color:var(--text-3);margin-top:4px"><span>'+fmtPct(gp.pct,0)+' complete</span><span>'+(d==null?'no deadline':(d>=0?d+' days left ('+fmtDate(g.deadline)+')':Math.abs(d)+' days overdue'))+'</span></div>';
   html+='<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap"><span class="badge '+prioCls+'">'+esc(g.priority||'Medium')+' priority</span>'+(steps.length?'<span class="badge neutral">'+steps.filter(function(s){return s.done;}).length+'/'+steps.length+' steps</span>':'')+'</div>';
@@ -8434,7 +8444,7 @@ function updateGoalProgressModal(goal){
   var gp=goalProgress(goal);
   var body=
     '<input type="hidden" name="id" value="'+goal.id+'">'+
-    '<p style="font-size:.86rem;color:var(--text-2);margin-bottom:12px">Currently at <b>'+fmtNum(gp.current)+(goal.unit?' '+esc(goal.unit):'')+'</b> of '+fmtNum(goal.target)+(goal.unit?' '+esc(goal.unit):'')+'.</p>'+
+    '<p style="font-size:.86rem;color:var(--text-2);margin-bottom:12px">Currently at <b>'+goalAmountText(goal,gp.current)+'</b> of '+goalAmountText(goal,goal.target)+'.</p>'+
     '<div class="field"><label>New progress value</label><input class="input" type="number" step="any" min="0" name="current" value="'+(goal.current||0)+'" required></div>';
   openModal('Update progress — '+goal.title,body,{submitLabel:'Update',onSubmit:function(form){
     var g=state.goals.find(function(x){return x.id===fv(form,'id');});
@@ -13313,11 +13323,17 @@ function fxCardHTML(){
   var foreign=FX_CURRENCIES.filter(function(c){return c!=='PHP';});
   var unverified=foreign.filter(function(c){ return !fxVerified(c); });
   var staleOnes=foreign.filter(function(c){ var i=fxRateInfo(c); return i.verified&&i.stale; });
-  var head=fx.updated?('live rates '+fxAgeText({at:fx.updated,ageMs:Date.now()-new Date(fx.updated).getTime()})):'never fetched';
+  /* The badge answers "can this app convert money right now?", so an unverified
+     currency has to reach it. A fetch that returned nothing verifiable still stamps
+     fx.updated, which printed a green "live rates just now" directly above the red
+     line saying invoices in those currencies cannot be saved. */
+  var fxCls=unverified.length?'risk':(staleOnes.length?'warn':'good');
+  var head=unverified.length?(unverified.length===foreign.length?'no verified rates':unverified.length+' without a verified rate')
+    :(fx.updated?('live rates '+fxAgeText({at:fx.updated,ageMs:Date.now()-new Date(fx.updated).getTime()})):'never fetched');
   /* data-fx-live marks the surfaces a background refresh actually changes, so it can
      flash just those instead of the whole view — see fxRefreshInPlace(). */
   return '<div class="card" data-fx-live><div class="card-head"><h3>Currency conversion</h3><span class="spacer"></span>'+
-    '<span class="badge '+(fx.updated?(staleOnes.length?'warn':'good'):'risk')+'">'+esc(head)+'</span></div>'+
+    '<span class="badge '+fxCls+'">'+esc(head)+'</span></div>'+
     '<p style="font-size:.8rem;color:var(--text-2);margin-bottom:10px">Used when an invoice is in a foreign currency — the peso equivalent shows on the invoice and your books record pesos. '+
       '<b>A rate can only record money once it has been fetched live or typed in by you.</b> The built-in numbers are rough estimates and are never used to write a peso figure.</p>'+
     /* animation:none — this banner is part of a re-rendered card, not an arriving
