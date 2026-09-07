@@ -1,0 +1,5 @@
+# Seller-only tools must never be reachable from the deployed site. A static host
+# publishes every file in the folder it deploys, so these are refused at the edge
+# rather than relying on nobody guessing the filename.
+/trakora-keygen.html  /  404
+/license.html         /  404

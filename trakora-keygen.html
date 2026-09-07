@@ -124,6 +124,9 @@ td.k{font-family:var(--mono);font-size:.8rem;white-space:nowrap}
         </div>
         <div class="field"><label>Database admin secret (optional — only needed to LIST all keys from cloud)</label><input class="input mono" id="secret" placeholder="leave blank if your rules already allow read/write" autocomplete="off"></div>
         <div class="field"><label>Your seller name (shown to buyers)</label><input class="input" id="seller" placeholder="e.g. Studio Hiraya"></div>
+        <div class="field"><label>Signing key (EC P-256 JWK, stays in this browser)</label>
+          <textarea class="input mono" id="privkey" rows="3" autocomplete="off" spellcheck="false" placeholder='{"kty":"EC","crv":"P-256","x":"...","y":"...","d":"..."}'></textarea>
+          <div id="privkey-state" style="font-size:.78rem;margin-top:4px"></div></div>
       </div>
     </details>
   </div>
@@ -199,9 +202,29 @@ function licEmailHash(key,email){ return sha256Hex(normKey(key)+'|'+String(email
 
 /* ===== OFFLINE signed licenses (no Firebase needed) — sign with the private key; the Trakora
    app verifies with the matching PUBLIC key embedded in it. Keep this file private. ===== */
-var LICENSE_PRIVKEY={"kty":"EC","crv":"P-256","x":"ehXZYwQBYbP8HhHKZ6_hvK1Yp3e2fgQyzqJTXCqdXBc","y":"tyv_vdWFYP84K8O3gYfpLR5RIYQx_s0rm6jmySyysFg","d":"6mksRId8vn1ZRhc4O34WgWVroFsWm9JFPhKaTq9apjg"};
+/* The signing key is NOT stored in this file any more. A static host publishes every
+   file in the folder it deploys, so a key written here is a key on the internet, and a
+   comment asking people not to look is not a control. Paste it once below and it lives
+   in this browser's localStorage on your own machine. */
+var PRIVKEY_LS='trakora.keygen.privkey';
+function getPrivKey(){
+  try{ var raw=localStorage.getItem(PRIVKEY_LS); if(!raw) return null;
+    var k=JSON.parse(raw);
+    return (k&&k.kty==='EC'&&k.crv==='P-256'&&k.d)?k:null;
+  }catch(_){ return null; }
+}
+function setPrivKey(txt){
+  var k;
+  try{ k=JSON.parse(txt); }catch(_){ return 'That is not valid JSON.'; }
+  if(!k||k.kty!=='EC'||k.crv!=='P-256') return 'Expected an EC P-256 JWK.';
+  if(!k.d) return 'That is the public half. The signing key has a "d" value.';
+  try{ localStorage.setItem(PRIVKEY_LS,JSON.stringify(k)); }catch(e){ return 'Could not save: '+e.message; }
+  return '';
+}
 function b64u(bytes){ var bin=''; for(var i=0;i<bytes.length;i++) bin+=String.fromCharCode(bytes[i]); return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
 function signLicense(email,limit){
+  var LICENSE_PRIVKEY=getPrivKey();
+  if(!LICENSE_PRIVKEY) return Promise.reject(new Error('No signing key in this browser. Paste your EC P-256 JWK into the Signing key box above.'));
   return crypto.subtle.importKey('jwk',LICENSE_PRIVKEY,{name:'ECDSA',namedCurve:'P-256'},false,['sign']).then(function(pk){
     return sha256Hex(String(email||'').trim().toLowerCase()).then(function(eh){
       var pb=new TextEncoder().encode(JSON.stringify({eh:eh,d:limit,i:new Date().toISOString().slice(0,10)}));
@@ -219,6 +242,23 @@ var LS='trakora.keygen.';
   var v=localStorage.getItem(LS+id); if(v!=null) el.value=v;
   el.addEventListener('input',function(){ localStorage.setItem(LS+id,this.value); });
 });
+/* the signing key gets its own handling: never echoed back into the box, so a shoulder
+   or a screenshare does not reveal it, and the state line says whether one is loaded */
+(function(){
+  var box=$('privkey'), out=$('privkey-state'); if(!box||!out) return;
+  var show=function(){
+    var k=getPrivKey();
+    out.textContent=k?'Signing key loaded in this browser.':'No signing key yet. Paste it once; it is never written back into this page.';
+    out.style.color=k?'#0c7d5c':'#cd352d';
+  };
+  box.addEventListener('change',function(){
+    var v=this.value.trim(); if(!v){ show(); return; }
+    var err=setPrivKey(v);
+    this.value='';
+    if(err){ out.textContent=err; out.style.color='#cd352d'; } else show();
+  });
+  show();
+})();
 $('deflimit').addEventListener('input',function(){ $('blimit').value=this.value||'2'; });
 if(localStorage.getItem(LS+'deflimit')) $('blimit').value=localStorage.getItem(LS+'deflimit');
 
