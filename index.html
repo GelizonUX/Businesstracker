@@ -10,7 +10,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%234653e8'/%3E%3Cstop offset='1' stop-color='%233a43cf'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpath d='M8 22l5-6 4 3 7-9' stroke='%23fff' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>
 /* ============================================================
-   Trakora design system v2 — "Ledger"
+   Trakora design system v2: "Ledger"
    Premium-fintech language: warm paper canvas, ink typography,
    hairline surfaces, one confident indigo. Fonts are embedded
    (Schibsted Grotesk display / Instrument Sans UI) so the app
@@ -46,7 +46,7 @@
   --sidebar-active:rgba(70,83,232,.08);
 
   --text:#16171d;
-  --text-1:var(--text); /* alias — several chart rules reference --text-1 */
+  --text-1:var(--text); /* alias: several chart rules reference --text-1 */
   --text-2:#4e5058;
   --text-3:#5d5f6a;
   --sheen-hi:rgba(255,255,255,.45); /* moving-light sweep strength (softer in dark) */
@@ -68,7 +68,7 @@
 
   --income:#0c7d5c; --expense:#cd352d;
 
-  /* concentric radius scale — iOS 27 unified corner radii toward larger,
+  /* concentric radius scale: iOS 27 unified corner radii toward larger,
      continuous curvature; nested surfaces step down one rung so their
      curves stay concentric instead of fighting each other */
   --r-sm:10px; --r:13px; --r-lg:17px; --r-xl:22px; --r-2xl:28px;
@@ -76,7 +76,7 @@
      opens it up at caption sizes, so large text never looks loose and small
      text never looks cramped. One token per step keeps that consistent. */
   --tr-2xl:-.032em; --tr-xl:-.024em; --tr-lg:-.016em; --tr-md:-.008em; --tr-sm:0em; --tr-xs:.012em;
-  /* type scale — one set of steps for value/heading/body roles (snap new CSS to these) */
+  /* type scale: one set of steps for value/heading/body roles (snap new CSS to these) */
   --fs-xs:.72rem; --fs-sm:.82rem; --fs-md:.92rem; --fs-base:1rem; --fs-lg:1.12rem; --fs-xl:1.3rem; --fs-2xl:1.72rem; --fs-3xl:2.1rem;
   --grid-gap:14px; /* one consistent gutter for the card grids */
   --shadow-sm:0 1px 2px rgba(22,23,29,.03),0 4px 14px rgba(22,23,29,.045);
@@ -86,7 +86,7 @@
   --ease-snappy:cubic-bezier(.25,.46,.45,.94);
   --chart-grid:#ecece7;
   /* ============================================================
-     Liquid Glass (iOS 27) — ONE material for every floating surface.
+     Liquid Glass (iOS 27): ONE material for every floating surface.
      Everything derives from --glass-clarity (0 = solid & maximally
      readable · 1 = ultra clear), which the Settings slider drives live.
      iOS 27's own default sits a notch away from fully clear, favouring
@@ -94,19 +94,19 @@
      ============================================================ */
   --glass-clarity:.55;
   /* SURFACE TINT. Apple's own description of the material is "blurs content behind
-     it, reflects color and light of surrounding content" — colour and light, not
+     it, reflects color and light of surrounding content". Colour and light, not
      detail.
      The tint is mixed from --lg-tint, NOT from --bg-card. --bg-card is #ffffff,
      which put the island at L=254.9 against a page at L=235: BRIGHTER than the
      thing it covers, when real glass over a light ground reads slightly darker
      and cooler than its surroundings. Worse, it left only ~0.9/255 of headroom
      above the surface, so the white specular rim was mathematically incapable of
-     showing — measured rim-vs-interior was +1 in light against +127 in dark.
+     showing: measured rim-vs-interior was +1 in light against +127 in dark.
      A cool, slightly-sunk tint fixes the value separation AND restores the
      headroom the bevel needs. */
   --lg-tint:#e7e9f0;
   --lg-bg:color-mix(in srgb,var(--lg-tint) calc(100% - var(--glass-clarity) * 52%),transparent);
-  /* BACKDROP TREATMENT — a REFRACTION plus a light frost, in that order.
+  /* BACKDROP TREATMENT: a REFRACTION plus a light frost, in that order.
      A previous build ran blur(3px + clarity*26px) = 17.3px at the default and
      deleted the displacement lens after measuring it as a no-op. The measurement
      was right; the conclusion was wrong. Blur and refraction do cancel, but only
@@ -116,7 +116,7 @@
          amplitude: 255   255   250   229   193   158   103   71      61    82
          magnif.: 1.132 1.132 1.132 1.132 1.132 1.130 1.143   -    1.042  1.008
      The lens is fully intact up to ~6px and is destroyed by ~10px, where there is
-     no structure left to bend. 17.3px sat deep in the dead zone — that, not the
+     no structure left to bend. 17.3px sat deep in the dead zone, that, not the
      impossibility of refraction, is why the old lens measured flat.
      So the budget goes the other way: a small blur that keeps detail, and a real
      lens that bends it. See #lg-lens for the displacement maps.
@@ -161,9 +161,9 @@
   /* the outer stroke has to survive white-on-white, so it is a neutral ink veil
      rather than the page border colour */
   --lg-edge:rgba(17,20,34,calc(.10 + var(--glass-clarity) * .05));
-  /* layered shadow — the material only reads as a separate LAYER if it casts */
+  /* layered shadow: the material only reads as a separate LAYER if it casts */
   --lg-shadow:0 1px 2px rgba(22,23,29,.06),0 8px 22px rgba(22,23,29,.10),0 22px 50px rgba(22,23,29,.08);
-  /* legacy material aliases — the roadmap chrome inherits the glass for free */
+  /* legacy material aliases: the roadmap chrome inherits the glass for free */
   --mat-float-bg:var(--lg-bg);
   --mat-float-blur:var(--lg-blur);
   --mat-panel-bg:color-mix(in srgb,var(--bg-card) calc(100% - var(--glass-clarity) * 26%),transparent);
@@ -171,7 +171,7 @@
   --mat-border:var(--lg-edge);
   --mat-hi:var(--lg-rim); /* top-edge light catch */
   /* ============================================================
-     Motion — SwiftUI's spring vocabulary (Apple's, not Material's).
+     Motion: SwiftUI's spring vocabulary (Apple's, not Material's).
      SwiftUI models motion as a unit-step damped harmonic oscillator,
      Spring(duration:bounce:), where bounce sets the damping ratio:
         bounce  0   -> zeta 1        critically damped, never overshoots
@@ -195,12 +195,12 @@
 }
 @supports (animation-timing-function:linear(0,1)){
   :root{
-    /* Spring(duration:.5, bounce:0) — critically damped, 0% overshoot.
+    /* Spring(duration:.5, bounce:0): critically damped, 0% overshoot.
        This is the workhorse: it replaces the old Material ease everywhere. */
     --spring-smooth:linear(0,.0192,.0669,.1318,.2055,.2825,.3588,.4319,.5003,.5632,.6202,.6712,.7166,.7565,.7915,.822,.8484,.8712,.8908,.9076,.9219,.9341,.9445,.9534,.9608,.9671,.9725,.977,.9807,.9839,.9866,.9888,.9907,.9922,.9935,.9946,.9955,.9963,.9969,.9974,.9979,.9982,.9985,.9988,1);
-    /* Spring(duration:.5, bounce:.15) — 0.63% overshoot, subtle life */
+    /* Spring(duration:.5, bounce:.15): 0.63% overshoot, subtle life */
     --spring-snappy:linear(0,.0177,.0632,.1271,.2018,.2819,.363,.4422,.5173,.5871,.6506,.7076,.7581,.8021,.8402,.8727,.9001,.923,.9419,.9573,.9697,.9796,.9873,.9933,.9977,1.001,1.0032,1.0048,1.0057,1.0062,1.0063,1.0062,1.0059,1.0055,1.005,1.0045,1.004,1.0035,1.003,1.0026,1.0022,1.0018,1.0015,1.0012,1);
-    /* Spring(duration:.5, bounce:.3) — 4.59% overshoot, clearly playful */
+    /* Spring(duration:.5, bounce:.3): 4.59% overshoot, clearly playful */
     --spring-bouncy:linear(0,.0245,.0874,.1752,.2768,.3836,.4892,.589,.68,.7605,.8296,.8874,.9342,.971,.9989,1.0191,1.0327,1.041,1.0451,1.0459,1.0444,1.0413,1.0371,1.0323,1.0274,1.0226,1.0181,1.014,1.0104,1.0073,1.0047,1.0027,1.0011,.9998,.999,.9984,.9981,.9979,.9979,.998,.9981,.9983,.9986,.9988,1);
     /* every existing transition inherits Apple's deceleration for free */
     --ease:var(--spring-smooth);
@@ -232,7 +232,7 @@ html[data-theme="dark"]{
   --border-2:#33343d;
   /* dark glass: same construction, quieter numbers. The surface stays denser so
      text keeps its contrast against bright content scrolling underneath, and the
-     backdrop is DARKENED rather than brightened — dark Liquid Glass is a smoked
+     backdrop is DARKENED rather than brightened. Dark Liquid Glass is a smoked
      pane, so lifting it would make the chrome glow. */
   --lg-tint:var(--bg-card);
   --lg-bg:color-mix(in srgb,var(--lg-tint) calc(100% - var(--glass-clarity) * 42%),transparent);
@@ -243,7 +243,7 @@ html[data-theme="dark"]{
     saturate(calc(1 + var(--glass-clarity) * 1.05))
     brightness(calc(1 - var(--glass-clarity) * .12));
   /* dark glass is a smoked pane over a dark ground, so BOTH shoulders can be lit
-     white — there is plenty of headroom below 255 and no near-white to dirty.
+     white: there is plenty of headroom below 255 and no near-white to dirty.
      This construction already measured +127/255 rim-vs-interior; it stays. */
   --lg-rim:inset 1.5px 1.5px 1px -.5px rgba(255,255,255,calc(var(--glass-clarity) * .46)),
     inset -1.5px -1.5px 1px -.5px rgba(255,255,255,calc(var(--glass-clarity) * .26)),
@@ -291,7 +291,7 @@ html[data-theme="dark"]{
 .glass-range:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:999px}
 
 /* ============================================================
-   Liquid Glass — ONE material, worn by every floating surface.
+   Liquid Glass: ONE material, worn by every floating surface.
    Chrome floats in glass; CONTENT stays opaque. That's Apple's own
    split, and it keeps backdrop-filter cost bounded to a handful of
    elements instead of every card in a long list.
@@ -300,7 +300,7 @@ html[data-theme="dark"]{
    chat bubble and the tab bar are visibly the same material:
      1. the tinted, refracting backdrop (--lg-bg + --lg-blur, which leads
         with the #lg-lens displacement pass)
-     2. a bevel: white specular upper-left, and — in light mode — a DARK
+     2. a bevel: white specular upper-left, and, in light mode, a DARK
         refracted band lower-right, because over a light ground that is
         where the ray bends back out (--lg-rim)
      3. a vertical sheen with a chromatic edge fringe (::after)
@@ -312,12 +312,12 @@ html[data-theme="dark"]{
    painted behind the element, and an ancestor that has one establishes a
    Backdrop Root that clips its descendants to that ancestor's own subtree.
      · .island / .isl-brand / .isl-right sit in the in-flow nav band, so
-       NOTHING passes behind them — which is precisely the property that
+       NOTHING passes behind them, which is precisely the property that
        killed the page-content ghosting the user reported first. Forcing a
        backdrop-filter onto .island and measuring over the real, scrolled
        dashboard at 1440: peak-to-peak luminance of the backdrop behind the
        pills 0.0/255; lens on-vs-off delta 0.7/765 light, 0.3/765 dark;
-       whole-filter on-vs-off 8.2/765 light, 0.7/765 dark — i.e. a flat tint
+       whole-filter on-vs-off 8.2/765 light, 0.7/765 dark, i.e. a flat tint
        shift with no gradient to bend, for three composited layers. The
        reference is .isl-drop at 42.5/765 on the same page.
      · Worse, it is not free. .isl-drop is a DESCENDANT of .island, so a
@@ -329,7 +329,7 @@ html[data-theme="dark"]{
        the scrollport, and translucency there is what produced the grey
        ghosting in the first place.
    So those four are honestly SOLID surfaces wearing the same tint, bevel,
-   sheen and cast — not a translucent tint pretending to refract.
+   sheen and cast, not a translucent tint pretending to refract.
    ============================================================ */
 /* the refraction filter's defs carry no layout of their own */
 svg.lg-defs{position:absolute;width:0;height:0;overflow:hidden;pointer-events:none}
@@ -339,8 +339,8 @@ svg.lg-defs{position:absolute;width:0;height:0;overflow:hidden;pointer-events:no
   content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;
   background:
     /* the light catch along the top lip and the bounce picked up off the bottom
-       one. Bright top, clear middle, faint bottom is the read of a DOMED pane —
-       one raking corner-to-corner streak (what this used to be) reads as a smudge
+       one. Bright top, clear middle, faint bottom is the read of a DOMED pane.
+       One raking corner-to-corner streak (what this used to be) reads as a smudge
        on a wide pill, because the streak's angle fights the element's aspect. */
     linear-gradient(180deg,
       color-mix(in srgb,#fff calc(var(--glass-clarity) * 38%),transparent) 0,
@@ -351,7 +351,7 @@ svg.lg-defs{position:absolute;width:0;height:0;overflow:hidden;pointer-events:no
   /* the rim, plus a warm/cool fringe on the two vertical edges. Dispersion is what
      tells you a material has THICKNESS, and at the edge of a frosted pane it is the
      only place dispersion can still show. Lifted from the liquid-glass package's
-     `inset 1px 0 red / inset -1px 0 cyan` trick — two box-shadows instead of a
+     `inset 1px 0 red / inset -1px 0 cyan` trick. Two box-shadows instead of a
      second displacement pass through the whole backdrop. */
   box-shadow:var(--lg-rim),
     inset 1.5px 0 0 var(--lg-fringe-warm),
@@ -368,7 +368,7 @@ html[data-theme="dark"] .tabbar::after{
     linear-gradient(0deg,color-mix(in srgb,#fff calc(var(--glass-clarity) * 7%),transparent) 0,transparent 24%)}
 
 /* Accessibility + user intent: when the OS asks for reduced transparency, or the
-   user drags the slider to solid, glass collapses to a plain opaque surface —
+   user drags the slider to solid, glass collapses to a plain opaque surface:
    no lens, no sheen, nothing for the GPU to chew on.
 
    THE TOKENS COLLAPSE, NOT A LIST OF SELECTORS. This shipped broken three times
@@ -378,7 +378,7 @@ html[data-theme="dark"] .tabbar::after{
    remembered in a hand-written list here and in the accessibility media query,
    and never was. Measured at clarity 0 with .glass-solid active, four of them
    were still running `url("#lg-lens") blur(1px)` behind a fully opaque
-   background — two feDisplacementMap passes each, producing zero pixels of
+   background: two feDisplacementMap passes each, producing zero pixels of
    difference. Setting the four backdrop TOKENS to `none` reaches every consumer
    that exists or will ever exist; the explicit !important list below is only a
    backstop for the surfaces that name a filter literally rather than through a
@@ -448,12 +448,12 @@ h1,h2,h3{font-family:var(--font-display);letter-spacing:var(--tr-xl)}
 .rm-rail-btn .ic,.greet-time .ic,.nav-toggle .ic,.asst-attach .ic,.backup-banner .bb-icon .ic,.hamburger .ic,.brand-logo .ic{--ics:1.76}
 .tab-item .ic,.adv-avatar .ic,.chat-bubble .ic,.fab .ic,.empty .e-icon .ic{--ics:1.58}
 .ic .d{fill:currentColor;fill-opacity:var(--ic-tint,.17)}
-/* .f has no rim to hold its edge, so the same alpha reads lighter than .d —
+/* .f has no rim to hold its edge, so the same alpha reads lighter than .d,
    corrected optically rather than mathematically. */
 .ic .f{fill:currentColor;fill-opacity:calc(var(--ic-tint,.17)*1.55);stroke:none}
 .ic .s{fill:currentColor;stroke:none}
 /* A glyph set inside a line of type sits on the box baseline, which is ~2px
-   below the type's optical centre — pull it back up so labels do not sag. */
+   below the type's optical centre: pull it back up so labels do not sag. */
 label .ic,.badge .ic,.gate-msg .ic,p .ic,b .ic,.nav-edit-hint .ic,.pace-row .ic{vertical-align:-.15em}
 [data-theme="dark"] .ic{--ic-tint:.22}
 /* The sidebar is its own dark surface in both themes, so its glyphs take the
@@ -476,12 +476,12 @@ a{color:var(--accent);text-decoration:none}
 ::-webkit-scrollbar-thumb:hover{background:var(--text-3);border:2px solid transparent;background-clip:content-box}
 
 /* ============================================================
-   island top navigation (desktop) — floating command bar:
+   island top navigation (desktop): floating command bar:
    brand island · menu island (dropdown per section, ink-filled
    active pill) · utility island. Hidden ≤860px (drawer + tab bar).
    ============================================================ */
 /* The bar is IN FLOW, not fixed. It used to be position:fixed with .main padding-
-   compensating, which meant every scrolled pixel of the dashboard ran underneath it —
+   compensating, which meant every scrolled pixel of the dashboard ran underneath it:
    chart lines, badges and headings collided with the nav pills through the glass.
    As a flex row in .app (which becomes a column at desktop widths) the bar reserves
    its own band, so nothing can ever pass behind it. z-index only has to beat .main
@@ -490,11 +490,11 @@ a{color:var(--accent);text-decoration:none}
   padding:14px 22px 10px;pointer-events:none}
 .island-bar>*{pointer-events:auto}
 /* THE THREE NAV PILLS ARE AN OPAQUE MATERIAL, NOT GLASS. They used to be a
-   71%-opaque tint with backdrop-filter:none — neither one thing nor the other.
+   71%-opaque tint with backdrop-filter:none: neither one thing nor the other.
    Measured, over the real page at 1440, with a backdrop-filter forced onto
    .island: lens on-vs-off delta 0.7/765 light and 0.3/765 dark, against 42.5/765
    on .isl-drop; peak-to-peak luminance of the backdrop behind the pills 0.0/255.
-   There is nothing behind an in-flow bar to bend — that is the whole point of the
+   There is nothing behind an in-flow bar to bend, that is the whole point of the
    in-flow bar, and it is what killed the page-content ghosting the user reported.
    And filtering them is not free either: with a filter on .island the dropdown's
    own lens collapses from MAG 1.117 / delta 42.5 to MAG 1.000 / delta 1.2,
@@ -543,7 +543,7 @@ a{color:var(--accent);text-decoration:none}
   display:grid;place-items:center;font-weight:700;font-size:.82rem;cursor:pointer}
 
 @supports ((-webkit-backdrop-filter:blur(14px)) or (backdrop-filter:blur(14px))){
-  /* The pills stay opaque even where backdrop-filter IS supported — see the
+  /* The pills stay opaque even where backdrop-filter IS supported. See the
      .isl-brand note above for the measurements. They are the same material as the
      glass (tint, bevel, sheen, cast), just without a backdrop pass they cannot use. */
   .isl-brand,.island,.isl-right{
@@ -553,7 +553,7 @@ a{color:var(--accent);text-decoration:none}
      so there is signal left for the displacement pass to bend. */
   .isl-drop{background:color-mix(in srgb,var(--lg-tint) calc(100% - var(--glass-clarity) * 52%),transparent);
     -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur)}
-  /* The nav used to be pixel-identical at scrollTop 0 and 2000 — nothing signalled
+  /* The nav used to be pixel-identical at scrollTop 0 and 2000. Nothing signalled
      that there was content above. It doesn't re-tint (that would flicker), but it
      does pick up a deeper cast and a brighter hairline once the page has moved. */
   body.isl-scrolled .isl-brand,body.isl-scrolled .island,body.isl-scrolled .isl-right{
@@ -565,7 +565,7 @@ a{color:var(--accent);text-decoration:none}
     box-shadow:0 3px 10px rgba(0,0,0,.55),0 18px 44px rgba(0,0,0,.5),0 34px 70px rgba(0,0,0,.4),var(--lg-rim);
     border-color:rgba(255,255,255,calc(.16 + var(--glass-clarity) * .07))}
 }
-/* island entrance — one gentle settle on first load (the bar persists across
+/* island entrance: one gentle settle on first load (the bar persists across
    renders; its children are rebuilt, so the animation lives on the bar) */
 @keyframes islIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
 .island-bar{animation:islIn .55s var(--ease) backwards}
@@ -589,7 +589,7 @@ body.rm-grabbing .rm-canvas,body.rm-hand .rm-canvas{cursor:grab}
 body.rm-grabbing .rm-canvas{cursor:grabbing}
 body.rm-selecting .rm-canvas{cursor:crosshair}
 .rm-board{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
-/* fullscreen canvas — the card lifts to fill the viewport with a soft spring */
+/* fullscreen canvas: the card lifts to fill the viewport with a soft spring */
 .rm-canvas-card.rm-full{position:fixed;inset:0;z-index:300;margin:0;border-radius:0;max-width:none;
   animation:rmFullIn .28s var(--spring) both;box-shadow:none}
 .rm-canvas-card.rm-full .rm-canvas{height:100dvh!important;max-height:none;border-radius:0}
@@ -652,11 +652,11 @@ body.rm-full-on{overflow:hidden}
 @media (max-width:640px){.rm-mini{display:none}.rm-cam-bar{bottom:46px}.rm-maps{display:none}}
 @media (max-width:560px){.rm-canvas{height:56vh}.rm-node{max-width:190px}.rm-rail{bottom:10px;padding:4px;gap:1px}.rm-rail-btn{width:32px;height:32px}.rm-cam-bar{bottom:60px}}
 /* ============================================================
-   M2 · direct-manipulation canvas — tool rail, maps, shapes,
+   M2 · direct-manipulation canvas: tool rail, maps, shapes,
    ghost placement, predictive quick-add, resize, selection
    ============================================================ */
 .rm-canvas{height:var(--rm-h,calc(100dvh - 250px))}
-/* node shapes (instant switch) — base radius comes from the shape class */
+/* node shapes (instant switch): base radius comes from the shape class */
 .rm-node.rm-s-rounded{border-radius:16px}
 .rm-node.rm-s-rect{border-radius:5px}
 .rm-node.rm-s-ellipse{border-radius:50%;padding:16px 26px;text-align:center}
@@ -672,7 +672,7 @@ body.rm-full-on{overflow:hidden}
 .rm-stamp.rm-fsel,.rm-comment.rm-fsel{outline-offset:5px;border-radius:50%}
 .rm-edges polyline.rm-ink.rm-ink-sel{stroke-dasharray:7 5;filter:drop-shadow(0 0 4px color-mix(in srgb,var(--accent) 80%,transparent))}
 /* bottom resize handle */
-/* full-width invisible bottom drag-strip (FigJam-style — no centre pill to collide with the toolbar) */
+/* full-width invisible bottom drag-strip (FigJam-style, no centre pill to collide with the toolbar) */
 .rm-resize{position:absolute;left:0;right:0;bottom:0;height:6px;z-index:9;cursor:ns-resize;background:none;transition:background .12s}
 .rm-resize:hover{background:color-mix(in srgb,var(--accent) 22%,transparent)}
 body.rm-resizing{cursor:ns-resize!important;user-select:none}
@@ -755,7 +755,7 @@ body.rm-placing .rm-canvas{cursor:copy}
 .rm-ctx-item:hover{background:var(--bg-sunken);color:var(--text)}
 .rm-ctx-item.danger{color:var(--risk)}.rm-ctx-item.danger:hover{background:var(--risk-soft);color:var(--risk)}
 .rm-ctx-sep{height:1px;background:var(--border);margin:4px 6px}
-/* inline node popover — colour · shape · status · delete */
+/* inline node popover: colour · shape · status · delete */
 .rm-pop{position:absolute;z-index:20;width:212px;padding:10px;border-radius:14px;border:1px solid var(--mat-border);
   box-shadow:var(--shadow-lg),var(--mat-hi);background:var(--bg-card);background:var(--mat-panel-bg);
   -webkit-backdrop-filter:var(--mat-panel-blur);backdrop-filter:var(--mat-panel-blur)}
@@ -780,7 +780,7 @@ body.rm-placing .rm-canvas{cursor:copy}
 .rm-node{transition:box-shadow .15s var(--ease),left .18s var(--ease),top .18s var(--ease)}
 .rm-node.dragging{transition:box-shadow .15s var(--ease)}
 .rm-pop,.rm-ctx{animation:rmPopIn .16s var(--spring) both}
-/* press physics — every interactive chrome control compresses under the pointer
+/* press physics: every interactive chrome control compresses under the pointer
    and springs back on release (back-out easing). One rule, whole product. */
 .rm-cam-btn,.rm-selbar-btn,.rm-tool,.rm-pop-shape,.rm-pop-sw,.rm-pop-icon,.rm-stamp-opt,.rm-map-item,.rm-fold{transition:background .12s,color .12s,opacity .12s,transform .14s var(--press)}
 .rm-rail-btn:active,.rm-cam-btn:active,.rm-selbar-btn:active,.rm-tool:active,.rm-pop-shape:active,.rm-pop-sw:active,.rm-pop-icon:active,.rm-stamp-opt:active,.rm-map-item:active,.rm-fold:active{transform:scale(.9)}
@@ -840,7 +840,7 @@ body.rm-connecting .rm-node{cursor:crosshair}
 .rm-tbl-grid{border-collapse:collapse;table-layout:fixed;background:var(--bg-card);border-radius:0 0 8px 8px;overflow:hidden}
 .rm-tbl-cell{height:32px;border:1px solid var(--border);padding:4px 8px;font-size:.82rem;color:var(--text);outline:none;overflow:hidden;text-overflow:ellipsis}
 .rm-tbl-cell:focus{box-shadow:0 0 0 2px var(--accent) inset}
-/* persistent control bar — shown on hover AND while the table is selected, so there's no
+/* persistent control bar: shown on hover AND while the table is selected, so there's no
    hover dead-zone (the old +buttons vanished the moment you reached for them) */
 .rm-tbl-ctrls{position:absolute;top:-34px;right:0;display:none;gap:3px;z-index:4}
 .rm-table:hover .rm-tbl-ctrls,.rm-table.rm-fsel .rm-tbl-ctrls{display:flex}
@@ -850,7 +850,7 @@ body.rm-connecting .rm-node{cursor:crosshair}
 .rm-tbl-cbtn.danger:hover{background:var(--risk);color:#fff;border-color:var(--risk)}
 .rm-tbl-colrz{position:absolute;top:0;bottom:0;width:8px;margin-left:-4px;cursor:col-resize;z-index:3}
 .rm-tbl-colrz:hover{background:color-mix(in srgb,var(--accent) 32%,transparent)}
-/* sticky note polish — proper square note with a soft fold */
+/* sticky note polish: proper square note with a soft fold */
 .rm-node.rm-s-sticky{min-width:120px;min-height:80px;align-items:flex-start;padding:12px 12px 16px;border-radius:2px;
   background:color-mix(in srgb,var(--nc) 22%,var(--bg-card));border:none;box-shadow:2px 3px 8px rgba(0,0,0,.18);white-space:normal}
 /* freeform sticky / text NOTES (real FigJam-style objects, not tree nodes) */
@@ -897,7 +897,7 @@ body.rm-connecting .rm-node{cursor:crosshair}
 .rm-node.rm-s-text{background:none;border:none;box-shadow:none;font-weight:600;padding:6px 8px}
 .rm-node.rm-s-text:hover{box-shadow:none}
 .rm-node.rm-s-text.rm-sel{box-shadow:0 0 0 2px var(--accent)}
-/* floating selection toolbar (top-centre) — surfaces duplicate/shape/delete */
+/* floating selection toolbar (top-centre): surfaces duplicate/shape/delete */
 .rm-selbar{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:11;display:flex;align-items:center;gap:3px;padding:5px 7px;border-radius:12px;
   box-shadow:var(--shadow-lg),var(--mat-hi);border:1px solid var(--mat-border);background:var(--bg-card);background:var(--mat-float-bg);
   -webkit-backdrop-filter:var(--mat-float-blur);backdrop-filter:var(--mat-float-blur);animation:rmPopIn .12s var(--ease-snappy) both}
@@ -954,7 +954,7 @@ body.rm-shift .rm-canvas{cursor:crosshair}
 .nav-fav.on{opacity:1;color:#fbbf24}
 .nav-fav svg{width:14px;height:14px}
 /* Pinned = the star's duotone body goes solid; unpinned = tint drops out and
-   only the hairline is left. Same drawing, two states — no second glyph. */
+   only the hairline is left. Same drawing, two states: no second glyph. */
 .nav-fav.on svg.ic .d{fill-opacity:1}
 .nav-fav:not(.on) svg.ic .d{fill-opacity:0}
 .app.nav-collapsed .nav-fav{display:none}
@@ -974,7 +974,7 @@ body.rm-shift .rm-canvas{cursor:crosshair}
    declaration was the blinking the owner kept reporting. #main.view-enter (:2402) sets
    animation-name to viewEnter for the 260ms the class is on; the moment render()'s timer
    takes the class off, animation-name falls back to THIS rule. A changed animation-name
-   is a brand-new animation to the browser, so fadeIn restarted from opacity:0 — the
+   is a brand-new animation to the browser, so fadeIn restarted from opacity:0. The
    content area snapped invisible ~400ms after every navigation and faded back over
    350ms, a second entrance nobody asked for and long after the screen was readable.
    Measured (Chromium): Invoices 710ms with two collapses to opacity 0 -> 86ms with one.
@@ -988,7 +988,7 @@ body.rm-shift .rm-canvas{cursor:crosshair}
    reachable instead of scrolling away.
 
    WHAT THE USER ACTUALLY COMPLAINED ABOUT, AND WHY THIS IS NOT IT. The reported
-   defect was never "the bar is pinned" — it was that page text slid under a
+   defect was never "the bar is pinned": it was that page text slid under a
    ~66%-opaque GLASS bar and came back as low-frequency grey blotches, measured
    15-30/255 peak-to-peak of bleed, with no lit edge to say where the surface
    ended. It read as a smudge, not a pane. Blurring harder is what produced the
@@ -1001,7 +1001,7 @@ body.rm-shift .rm-canvas{cursor:crosshair}
    invisible and there is no fade-in flicker at the moment the class flips; the
 /* The page header scrolls away with the content. It is deliberately NOT sticky:
    a pinned bar was the reported defect. The iOS collapsing-large-title pattern
-   depends on a pinned bar, so it is intentionally absent too — the two cannot
+   depends on a pinned bar, so it is intentionally absent too. The two cannot
    coexist, and not-pinned is the requirement. */
 .topbar{position:relative;z-index:30;display:flex;align-items:center;gap:12px;
   padding:20px var(--main-pad-x,0px) 12px;margin-inline:calc(-1 * var(--main-pad-x,0px));
@@ -1058,15 +1058,15 @@ body.rm-shift .rm-canvas{cursor:crosshair}
   background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-xl);
   padding:19px 22px;box-shadow:var(--shadow-sm);
   transition:box-shadow .25s var(--ease),transform .25s var(--ease),border-color .25s;
-  /* entrance is gated to real route changes (#main.view-enter) — every render()
+  /* entrance is gated to real route changes (#main.view-enter). Every render()
      replaces main.innerHTML, so an unscoped entrance replayed on every status
      change, filter tweak and save. That replay was the 'blinking'. */
 }
 /* dark cards get a faint top inner highlight so they read as lit from above */
 html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--shadow-sm),inset 0 1px 0 rgba(255,255,255,.045)}
 /* ONE consistent interactive state for every card surface: the hover stroke uses the
-   single brand accent (--accent, set in Settings → Accent color) — the SAME colour on every
-   section, never a per-section tint — with the same lift, shadow and press everywhere.
+   single brand accent (--accent, set in Settings → Accent color). The SAME colour on every
+   section, never a per-section tint, with the same lift, shadow and press everywhere.
    Per-card overrides below were removed so nothing drifts. */
 .card:hover,.kb-card:hover{border-color:var(--border-2);box-shadow:var(--shadow)}
 .card:active,.kb-card:active{transform:translateY(0);box-shadow:var(--shadow-sm)}
@@ -1076,7 +1076,7 @@ html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--
 .card-head .spacer{margin-left:auto}
 /* Explanatory prose gets a measure. Past roughly 70 characters the eye loses the line
    on the return sweep, and these paragraphs ran to 230ch on a wide screen because
-   nothing capped them — the action cards already sit at 63-64ch and .hero p at 520px,
+   nothing capped them: the action cards already sit at 63-64ch and .hero p at 520px,
    so this is the rest of the app catching up to what it already knew. Cards and field
    hints only; table cells, badges and centred empty states are not prose. */
 .card>p,.card>form>p,.card>div>p,.field>p,.main>p,.adv-narrative{max-width:68ch}
@@ -1127,12 +1127,12 @@ html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--
 @media (prefers-reduced-motion:reduce){.asst-spin{animation-duration:2s}}
 @media (max-width:560px){ .asst-wrap{height:calc(100vh - 220px)} .asst-msg{max-width:94%} }
 /* (the per-card entrance stagger that used to live here is gone with the card
-   entrance itself — see the "section change" block: staggered children were the
+   entrance itself: see the "section change" block: staggered children were the
    blink.) */
 .mt{margin-top:12px}.mt-lg{margin-top:20px}
 
 /* ============================================================================
-   Tailwind-compatible atomic utility layer — authored IN-FILE (no CDN, no build).
+   Tailwind-compatible atomic utility layer: authored IN-FILE (no CDN, no build).
    Same naming/scale as Tailwind so markup reads identically, but it ships inside
    the single-file app and respects the strict CSP + offline-first architecture
    (a Tailwind CDN script/stylesheet would be CSP-blocked and break offline use,
@@ -1162,7 +1162,7 @@ html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--
 .stat-card{position:relative;overflow:hidden}
 /* .8rem, not .7rem: at 14px root the old label was 9.8px, and uppercase at .1em tracking
    is already hard work at that size. It also sat inside a band of eight steps between
-   8.7 and 12.3px whose ratios were 1.01-1.07 — close enough that nothing read as a rung. */
+   8.7 and 12.3px whose ratios were 1.01-1.07: close enough that nothing read as a rung. */
 .stat-card .stat-label{font-size:.8rem;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:8px}
 /* the quiet tile: the label leads and the figure recedes, so a row of tiles reads as
    "here is the number that matters, and here are three that are simply empty" */
@@ -1214,7 +1214,7 @@ html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--
   border:1px solid var(--border);background:var(--bg-input);
   transition:border-color .18s,box-shadow .18s;
 }
-/* a width:auto select grows to its widest option — cap it so long user-defined categories
+/* a width:auto select grows to its widest option. Cap it so long user-defined categories
    never push the page wider than the viewport (the source of mobile horizontal scroll) */
 select.input{max-width:100%}
 input[type="file"].input::file-selector-button{font:inherit;font-size:.82rem;font-weight:600;background:var(--bg-sunken);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:5px 10px;margin-right:10px;cursor:pointer}
@@ -1262,7 +1262,7 @@ tr:hover .row-actions{opacity:1}
    backdrop-filter:blur(4px) underneath the sheet's blur+lens. Two blurs in series
    over the same pixels left the modal's backdrop with a measured amplitude of
    5/255, so the sheet's whole refraction pass resolved to a lens on/off delta of
-   0.2/765 — a filter that provably did nothing, on the largest composited surface
+   0.2/765: a filter that provably did nothing, on the largest composited surface
    in the app. (The project already deleted an entire lens engine for measuring
    4.18/765.) iOS does the same thing: the dim layer only dims, and the SHEET is
    the material that blurs. So the blur moves up one layer, where it is visible. */
@@ -1344,7 +1344,7 @@ tr:hover .row-actions{opacity:1}
 .empty h4{color:var(--text);font-size:1rem;font-weight:700}
 .empty p{font-size:.86rem;max-width:340px;line-height:1.6}
 
-/* insights are always rendered inside a card — keep them as clean borderless rows (no card-in-card) */
+/* insights are always rendered inside a card: keep them as clean borderless rows (no card-in-card) */
 .insight{display:flex;gap:12px;padding:10px 2px;border-radius:0;border:none;background:transparent;align-items:flex-start}
 .insight .i-icon{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;flex-shrink:0}
 .insight .i-icon svg{width:16px;height:16px}
@@ -1358,7 +1358,7 @@ tr:hover .row-actions{opacity:1}
 .emp-detail .card{border:none;box-shadow:none;background:transparent;border-radius:0;padding:16px 0;margin-top:0;border-top:1px solid var(--border)}
 .emp-detail .grid.grid-2{gap:10px;margin-top:4px}
 .emp-detail .grid.grid-2 .card{background:var(--bg-sunken);border-top:none;border-radius:var(--r);padding:12px 12px}
-/* lead-icon card head — the in-house alternative to the colored left-stripe motif */
+/* lead-icon card head: the in-house alternative to the colored left-stripe motif */
 .lead-card .card-head{flex-wrap:nowrap;align-items:flex-start}
 .lead-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex-shrink:0;background:var(--accent-soft);color:var(--accent)}
 .lead-icon svg{width:17px;height:17px}
@@ -1397,7 +1397,7 @@ tr:hover .row-actions{opacity:1}
 .chart-tab.on{background:var(--bg-card);color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.12)}
 .chart-tab svg{width:15px;height:15px}
 
-/* floating hover tooltip (shared singleton) — always a dark surface with white text,
+/* floating hover tooltip (shared singleton): always a dark surface with white text,
    independent of theme (like Linear/Notion tooltips), so contrast never inverts */
 .chart-tip{position:fixed;left:0;top:0;z-index:400;pointer-events:none;min-width:120px;max-width:240px;
   padding:9px 11px;border-radius:12px;background:rgba(21,22,26,.94);color:#fff;
@@ -1472,7 +1472,7 @@ tr:hover .row-actions{opacity:1}
 @keyframes cSparkPulse{0%,100%{opacity:1}50%{opacity:.35}}
 
 /* ---- "alive" loops: ONE subtle current flows along the hero (revenue) chart line,
-   and a soft light sweeps across the few hero meters (opt-in .live — never dense
+   and a soft light sweeps across the few hero meters (opt-in .live, never dense
    table rows, to keep it premium and cheap) ---- */
 .c-svg .c-flow{fill:none;stroke-linecap:round;stroke-dasharray:1.6 11;stroke-width:2.5;opacity:0;animation:cFlowIn .6s var(--ease) 1s forwards,cFlow 1.5s linear 1s infinite}
 .c-svg .c-flow.c-rev{stroke:var(--income)}
@@ -1587,7 +1587,7 @@ details.calc .calc-body{margin-top:10px}
 .calc-hidden{display:none!important}
 .calc-flash{animation:calcFlash 1s var(--ease)}
 @keyframes calcFlash{0%,100%{box-shadow:var(--shadow-sm)}45%{box-shadow:0 0 0 3px var(--accent-soft)}}
-/* A rate that refreshed itself has to be VISIBLE — an automatic change the owner cannot
+/* A rate that refreshed itself has to be VISIBLE. An automatic change the owner cannot
    see is just their number moving on its own. But it must stay a change to ONE surface,
    never a page transition: this is a ring pulse on the rate card only, and deliberately
    touches box-shadow and nothing else. An opacity dip on a container is precisely what
@@ -1630,11 +1630,11 @@ details.calc .calc-body{margin-top:10px}
 .backup-banner .bb-x{width:30px;height:30px;color:var(--text-3)}
 /* Only the buttons wrap. flex-basis:100% on .bb-text used to push the text off the
    icon's row, and the order:-1 that pulled it back above the icon left the shield
-   stranded on a line by itself — the app's most consequential message rendering like
+   stranded on a line by itself: the app's most consequential message rendering like
    a bug. Basis auto keeps shield and sentence together, the way they read. */
 /* Only the buttons wrap. flex-basis:100% on .bb-text used to push the sentence off the
    icon's row, and the order:-1 that pulled it back above the icon left the shield
-   stranded on a line of its own — the app's most consequential message rendering like
+   stranded on a line of its own: the app's most consequential message rendering like
    a bug on the device the owner uses daily. The base flex:1 already sizes the text to
    the space beside the icon, so neither override was needed. */
 @media (max-width:640px){ .backup-banner{flex-wrap:wrap;align-items:flex-start} .backup-banner .bb-actions{width:100%;justify-content:flex-end} }
@@ -1699,14 +1699,14 @@ details.calc .calc-body{margin-top:10px}
   .ring-wrap{flex-direction:column;align-items:flex-start}
 }
 /* very narrow phones (≤360px, e.g. iPhone SE): metric cards (.grid-3) carry nowrap action
-   buttons that won't fit 2-up — give them the full width */
+   buttons that won't fit 2-up: give them the full width */
 @media (max-width:360px){
   .grid-3{grid-template-columns:minmax(0,1fr)}
 }
 /* depth & polish */
-/* ambient colour mesh — subtle, fixed so the frosted glass surfaces have something to refract
+/* ambient colour mesh: subtle, fixed so the frosted glass surfaces have something to refract
    (a flat background makes backdrop-blur look like a dull grey panel instead of real glass) */
-/* canvas stays a clean, calm paper surface — data provides the colour */
+/* canvas stays a clean, calm paper surface: data provides the colour */
 .stat-icon{width:29px;height:29px;border-radius:9px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);flex-shrink:0}
 .stat-icon svg{width:16px;height:16px}
 .stat-card .stat-value{margin-top:10px}
@@ -1719,11 +1719,11 @@ details.calc .calc-body{margin-top:10px}
 .color-dot{width:24px;height:24px;border-radius:50%;border:2.5px solid transparent;cursor:pointer;transition:transform .15s;position:relative;display:inline-grid;place-items:center}
 .color-dot:hover{transform:scale(1.18)}
 .color-dot.active{border-color:var(--text);transform:scale(1.12)}
-/* The selected swatch is marked with the set's own check, not a text glyph —
+/* The selected swatch is marked with the set's own check, not a text glyph,
    a data: SVG so it matches the drawn check instead of the system font's. */
 .color-dot.active::after{content:'';width:12px;height:12px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55));
   background:no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.9 12.5 9.6 17.2 19.1 6.9'/%3E%3C/svg%3E")}
-/* Ledger: wallet cards are flat — colour lives in the left bar + icon chip */
+/* Ledger: wallet cards are flat, colour lives in the left bar + icon chip */
 .acct-balance{font-size:var(--fs-2xl);font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
 /* inline modal errors */
 .modal-error{display:flex;align-items:flex-start;gap:9px;background:var(--risk-soft);color:var(--risk);border:1.5px solid var(--risk);border-radius:10px;padding:10px 16px;font-size:.86rem;font-weight:600;margin-bottom:16px;animation:fadeUp .25s var(--ease)}
@@ -1846,7 +1846,7 @@ body.dragging-active .kb-col{transition:outline-color .12s var(--ease)}
 .gate-input::placeholder{color:#6a7095}
 .gate-input:focus{outline:none;border-color:#8b8cf6;box-shadow:0 0 0 3px rgba(124,124,246,.22)}
 .gate-input.key{font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;text-align:center;font-size:1.05rem}
-/* the license key field accepts long signed tokens too — don't upper-case / space them */
+/* the license key field accepts long signed tokens too. Don't upper-case / space them */
 #gate-key{text-transform:none;letter-spacing:normal;text-align:left;font-size:.85rem}
 .gate-btn{width:100%;margin-top:8px;padding:12px;border:none;border-radius:11px;cursor:pointer;
   background:var(--accent-cta);color:var(--accent-cta-ink);font-size:.98rem;font-weight:700;font-family:var(--font);
@@ -1867,7 +1867,7 @@ body.dragging-active .kb-col{transition:outline-color .12s var(--ease)}
 .gate-steps .dot{width:5px;height:5px;border-radius:50%;background:var(--accent)}
 
 /* ============================================================
-   welcome tour — refined card + "why it matters" highlight
+   welcome tour: refined card + "why it matters" highlight
    ============================================================ */
 .tour-card{width:330px;padding:20px 20px 16px;overflow:hidden}
 .tour-card::before{content:'';position:absolute;inset:0 0 auto 0;height:3px;background:var(--accent-grad)}
@@ -1892,7 +1892,7 @@ body.dragging-active .kb-col{transition:outline-color .12s var(--ease)}
 @keyframes tourPulse{0%,100%{box-shadow:0 0 0 9999px rgba(5,8,18,.62),0 0 0 3px var(--accent),0 0 0 6px var(--accent-soft),0 0 26px rgba(70,83,232,.45)}50%{box-shadow:0 0 0 9999px rgba(5,8,18,.62),0 0 0 3px var(--accent),0 0 0 9px var(--accent-soft),0 0 40px rgba(70,83,232,.7)}}
 
 /* ============================================================
-   advanced motion & polish — additive, layout-safe
+   advanced motion & polish: additive, layout-safe
    ============================================================ */
 @keyframes floatGlow{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
 @keyframes sheen{0%{background-position:-180% 0}100%{background-position:180% 0}}
@@ -1908,7 +1908,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .stat-icon{transition:transform .25s var(--ease)}
 .stat-card:hover .stat-icon{transform:scale(1.06) rotate(-3deg)}
 .empty .e-icon{animation:floatGlow 6s ease-in-out infinite}
-/* (rows used to stagger in on every section change — a 38-row Finance table meant
+/* (rows used to stagger in on every section change, a 38-row Finance table meant
    38 simultaneous animations. Rows now paint in place; see the section-change block.) */
 .card:hover,.kb-card:hover{will-change:transform}
 .dash-widget.dragging{will-change:transform}
@@ -1999,7 +1999,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .today-row:last-child{border-bottom:none}
 .today-row:hover{background:var(--bg-hover)}
 
-/* page accents use the single brand accent (--accent) — consistent across every section */
+/* page accents use the single brand accent (--accent). Consistent across every section */
 .page-title{position:relative;padding-left:16px}
 .page-title::before{content:'';position:absolute;left:0;top:.22rem;width:3px;height:1.05rem;border-radius:99px;background:var(--accent-grad)}
 
@@ -2009,7 +2009,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .swatch-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .swatch{width:24px;height:24px;border-radius:7px;border:2px solid transparent;cursor:pointer;transition:transform .12s var(--ease);padding:0}
 .hr-avatar{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;font-weight:800;font-size:.74rem;flex-shrink:0}
-/* employee directory — scannable preview cards */
+/* employee directory: scannable preview cards */
 .hr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:var(--grid-gap)}
 .hr-emp-card{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;gap:3px;padding:24px 16px 20px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);cursor:pointer;transition:transform .18s var(--ease),box-shadow .18s var(--ease),border-color .18s}
 .hr-emp-card:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:var(--accent)}
@@ -2065,7 +2065,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .chip.rm-chip.active{background:var(--rc,var(--accent));color:#fff;border-color:var(--rc,var(--accent));box-shadow:0 2px 10px rgba(0,0,0,.15)}
 .chip.rm-chip.active .chip-dot{background:#fff}
 
-/* menu section editor (Customization) — the .sec-order table that sat here went with
+/* menu section editor (Customization): the .sec-order table that sat here went with
    the sidebar it was written for; nothing renders those rows any more. */
 .sec-edit{display:flex;flex-direction:column;gap:8px}
 .sec-edit-row{display:flex;align-items:center;gap:8px}
@@ -2074,7 +2074,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .sec-color::-webkit-color-swatch{border:none;border-radius:6px}
 .sec-edit-row .sec-label{flex:1;min-width:0;padding:8px 10px}
 
-/* collapsible sidebar — desktop icon rail */
+/* collapsible sidebar: desktop icon rail */
 .nav-toggle{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);box-shadow:var(--shadow-sm);color:var(--text-2);transition:all .18s var(--ease);flex-shrink:0}
 .nav-toggle:hover{border-color:var(--accent);color:var(--accent)}
 .nav-toggle svg{width:18px;height:18px}
@@ -2107,7 +2107,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 @media (max-width:680px){.dash-widget[data-span="2"]{grid-column:span 1}}
 .dash-widget>.card{flex:1;min-width:0;margin-top:0}
 /* ============================================================
-   MOBILE (phones ≤560px): compact, balanced grids — not big stacked cards
+   MOBILE (phones ≤560px): compact, balanced grids, not big stacked cards
    Placed after the dashboard CSS so these rules win the cascade.
    ============================================================ */
 @media (max-width:560px){
@@ -2130,7 +2130,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
   .acct-card{padding:14px 14px;border-radius:var(--r-xl)}
   /* in a ~160px tile a single-line ellipsis ate the name ("BPI Busines…"); let it use two lines */
   .acct-card .acct-name{font-size:.9rem;line-height:1.22;white-space:normal!important;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis}
-  /* a long balance shouldn't wrap/spill the narrow tile — clip it gracefully */
+  /* a long balance shouldn't wrap/spill the narrow tile. Clip it gracefully */
   .acct-card .acct-balance{font-size:1.32rem;margin-top:10px!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .acct-card .acct-chip,.acct-card .acct-logo{width:30px;height:30px}
   .acct-card .badge{font-size:.6rem;padding:1px 6px}
@@ -2153,7 +2153,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
   .card-head h3{font-size:.95rem}
   /* keep the value baselines aligned when a 2-up sibling's label wraps to 2 lines */
   .stat-card .stat-label{min-height:2.1em;align-items:flex-start}
-  /* phones get a real iOS large title — it's the pattern's home turf, and it
+  /* phones get a real iOS large title: it's the pattern's home turf, and it
      collapses to compact as soon as the user scrolls */
   .page-title h1{font-size:1.62rem;letter-spacing:var(--tr-2xl)}
   .topbar{padding-bottom:10px;margin-bottom:14px}
@@ -2180,10 +2180,10 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
   .table-wrap td[data-inline]::before{display:inline-block;margin-bottom:0;flex:0 0 auto;align-self:center}
   .table-wrap td[data-inline]>*{text-align:right!important}
   .table-wrap td:not([data-label]){padding:10px 0 0;text-align:right} /* action-button cell on its own line, right-aligned */
-  /* mobile cards want the FULL value — override any desktop ellipsis/nowrap/max-width/right-align on cell content */
+  /* mobile cards want the FULL value: override any desktop ellipsis/nowrap/max-width/right-align on cell content */
   .table-wrap td span,.table-wrap td div,.table-wrap td b,.table-wrap td a,.table-wrap td p{max-width:none!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;text-align:left!important;float:none!important}
   .table-wrap td:empty,.table-wrap td[data-mobempty]{display:none}
-  /* Orders are hand-built flex rows with fixed-width columns — stack them on phones */
+  /* Orders are hand-built flex rows with fixed-width columns. Stack them on phones */
   .order-row{flex-wrap:wrap;gap:10px!important;padding:14px 16px!important}
   .order-row>div{min-width:0!important;flex:1 1 100%!important}
   .order-row>input[type="checkbox"]{flex:0 0 auto}
@@ -2203,13 +2203,13 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .chat-bubble{position:fixed;right:20px;bottom:20px;width:54px;height:54px;border-radius:50%;display:grid;place-items:center;
   /* Tinted glass whose job is to stay a legible BUTTON. Two measured failures fixed
      here, at opposite ends of the slider:
-       · light, clarity 100 — the accent thinned to 66% over a pale page and the
+       · light, clarity 100: the accent thinned to 66% over a pale page and the
          white glyph fell to 2.73:1, under the 3:1 non-text minimum. The clarity
          ramp is 18% now, not 34%. MEASURED over the light dashboard, white glyph
          against the rendered disc: 5.73:1 at clarity 0, 4.37:1 at 55, 3.53:1 at
-         100 — i.e. the worst case clears the 3:1 non-text minimum with room, but
+         100, i.e. the worst case clears the 3:1 non-text minimum with room, but
          it is 3.53, not the ~4.1 an earlier commit message claimed.
-       · dark, clarity 0 — the SOLID end used --accent (#8a92ff), a pale lavender
+       · dark, clarity 0: the SOLID end used --accent (#8a92ff), a pale lavender
          that gives a white glyph 2.75:1 with no glass involved at all. It uses
          --accent-cta (the darker CTA ink) in both themes now: ~4.7:1 at solid.
      Contrast on this control is set by the tint, not the backdrop, so it holds
@@ -2229,7 +2229,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
   display:flex;flex-direction:column;overflow:hidden;animation:abPop .2s var(--ease) both}
 @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
   /* --lg-tint, not --bg-card: mixed from #ffffff this surface rendered at 255/255
-     in light mode and the bevel measured TOP +0.5 / LEFT -2.6 — regex-green and
+     in light mode and the bevel measured TOP +0.5 / LEFT -2.6. Regex-green and
      pixel-invisible. There is no alpha that fixes a ceiling. --lg-blur-wide for
      the same reason as .modal: 380px of pane needs a bigger bend. */
   .asst-pop{background:color-mix(in srgb,var(--lg-tint) calc(100% - var(--glass-clarity) * 44%),transparent);
@@ -2275,7 +2275,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
    two floating surfaces so content stays crisp and older phones don't pay a blur cost. */
 @supports ((-webkit-backdrop-filter:blur(12px)) or (backdrop-filter:blur(12px))){
   @media (max-width:860px){
-    /* the tab bar is the most-glassed surface in the product — it floats over
+    /* the tab bar is the most-glassed surface in the product. It floats over
        scrolling content, so it rides the same clarity token as everything else */
     .tabbar{background:var(--lg-bg);
       -webkit-backdrop-filter:var(--lg-blur);backdrop-filter:var(--lg-blur);
@@ -2284,7 +2284,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
     html[data-theme="dark"] .tabbar{background:var(--lg-bg);
       border-top:1px solid var(--lg-edge);
       box-shadow:0 -8px 30px rgba(0,0,0,.5),var(--lg-rim)}
-    /* FAB: translucent accent glass — clearly the action colour, with a lit top rim */
+    /* FAB: translucent accent glass, clearly the action colour, with a lit top rim */
     .fab{background:linear-gradient(140deg,color-mix(in srgb,var(--accent) 86%,transparent),color-mix(in srgb,var(--accent) 72%,transparent));
       -webkit-backdrop-filter:blur(10px) saturate(1.5);backdrop-filter:blur(10px) saturate(1.5);
       box-shadow:var(--shadow-lg),inset 0 1px 0 rgba(255,255,255,.5),inset 0 0 0 1px rgba(255,255,255,.16)}
@@ -2292,7 +2292,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 }
 /* never show the mobile shell over the gate/lock or greeting overlays */
 body.greeting-on .tabbar,body.greeting-on .fab{display:none!important}
-/* KPI + wallet tiles are clean hairline surfaces in the Ledger design — no glass */
+/* KPI + wallet tiles are clean hairline surfaces in the Ledger design. No glass */
 /* small floating per-card drag handle (appears on hover) */
 .dash-handle{position:absolute;top:-9px;right:14px;z-index:6;display:inline-flex;align-items:center;gap:4px;
   padding:2px 8px 2px 8px;border-radius:99px;background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--shadow-sm);
@@ -2303,8 +2303,8 @@ body.greeting-on .tabbar,body.greeting-on .fab{display:none!important}
 .dash-handle:active{cursor:grabbing}
 .dash-handle svg{width:12px;height:12px}
 /* while dragging, the real card floats under the cursor (drag image) and its slot becomes
-   an empty highlighted "drop here" placeholder that follows the cursor's insertion point —
-   even into empty white space — while the other cards smoothly make room (FLIP). */
+   an empty highlighted "drop here" placeholder that follows the cursor's insertion point,
+   even into empty white space, while the other cards smoothly make room (FLIP). */
 .dash-widget.dragging{opacity:1}
 .dash-widget.dragging>.card{background:var(--accent-soft);border:2px dashed var(--accent);box-shadow:none}
 .dash-widget.dragging>.card>*{visibility:hidden}
@@ -2446,7 +2446,7 @@ body.greeting-on{overflow:hidden}
    route change: 48 running animations on Dashboard, 44 on Finance, 39 on
    Insights. Dozens of children each starting on their own delay is what the user
    was calling "blinking all over the site". The container fade below (plus the
-   View Transitions cross-fade underneath) is the whole entrance now — the content
+   View Transitions cross-fade underneath) is the whole entrance now. The content
    itself is painted in its final state on the first frame, so a section switch
    reads as instant. Intentional INFINITE loops (cSparkPulse, cFlow/cFlowIn,
    st-pack/st-tick, cSheen) are untouched: they're ambience, not entrance. */
@@ -2456,7 +2456,7 @@ body.greeting-on{overflow:hidden}
 
 /* ---- View Transitions: content glides, chrome stays put ----
    Naming only #main means the nav island, sidebar and tab bar are NOT
-   snapshotted — they persist across the change while the content area
+   snapshotted: they persist across the change while the content area
    cross-fades and rises, which is how a native screen change reads.
    Falls back to the .view-enter animation above where unsupported. */
 #main{view-transition-name:main-content}
@@ -2503,12 +2503,12 @@ body.greeting-on{overflow:hidden}
   .app{flex-direction:column}
   .island-bar{display:flex}
   .sidebar{display:none}
-  /* no padding-top compensation — the bar occupies real space in the column, so
+  /* no padding-top compensation: the bar occupies real space in the column, so
      nothing can ever pass behind it and the page cannot collide with the pills. */
   .main{--main-pad-x:30px;margin-left:0;padding:0 var(--main-pad-x) 60px;
     height:auto;flex:1 1 auto;min-height:0}
   .hamburger,.nav-toggle{display:none!important}
-  /* island owns global search/theme on desktop — the per-view copies retire */
+  /* island owns global search/theme on desktop: the per-view copies retire */
   .topbar .theme-toggle{display:none}
 }
 @media (min-width:861px) and (max-width:1180px){
@@ -2530,7 +2530,7 @@ body.greeting-on{overflow:hidden}
 </head>
 <body>
 <!-- ============================================================
-     Liquid Glass — the refraction pass.
+     Liquid Glass: the refraction pass.
 
      Apple's glass does not merely blur what is behind it, it BENDS it: the
      surface has thickness, so content read through it is displaced outward and
@@ -2541,25 +2541,25 @@ body.greeting-on{overflow:hidden}
      scale * (channel/255 - 0.5). Two feImage maps are stretched over the
      element's border box (preserveAspectRatio="none", filter region pinned to
      0/0/100%/100% so the maps align with the box exactly):
-       · mx  — R ramps 255 -> 0 left to right, G held at 128, so it displaces
+       · mx: R ramps 255 -> 0 left to right, G held at 128, so it displaces
                on X only. At the left edge R=255 -> +scale/2 (sample from the
                right); at the right edge R=0 -> -scale/2 (sample from the left).
                Every sample is drawn INWARD, which is a magnification and also
                means the filter never reaches outside its own region for a pixel.
-       · my  — the same profile rotated: G ramps top to bottom, R held at 128.
+       · my: the same profile rotated: G ramps top to bottom, R held at 128.
      The ramp is not linear. Its stops trace 0.55u + 0.45u^3, so the middle of
      the pane magnifies gently and the bend tightens toward the rim, which is
      how a real thick-edged pane behaves.
 
      WHY TWO MAPS INSTEAD OF ONE. A single map would have to carry the X ramp in
      R and the Y ramp in G simultaneously, which needs the two gradients composited
-     — and blending inside an feImage'd document is the fragile part. Two plain
+, and blending inside an feImage'd document is the fragile part. Two plain
      one-axis gradients chained through two displacement passes needs no blending
      at all, and each map is a single <linearGradient>.
 
      WHY STATIC MARKUP AND NOT A CANVAS. An earlier build generated its maps at
      runtime. If that JS had not run, feImage resolved to nothing, the R/G channels
-     read as 0, and every pixel got displaced by a uniform -scale/2 — the whole
+     read as 0, and every pixel got displaced by a uniform -scale/2. The whole
      backdrop visibly slid sideways. These are literal data: URIs in the document,
      so the failure mode does not exist. They are same-document data: images, which
      the page's own CSP allows via `img-src 'self' data:`.
@@ -2608,7 +2608,7 @@ body.greeting-on{overflow:hidden}
 <script>
 'use strict';
 /* ============================================================
-   Trakora — single-file business command center
+   Trakora: single-file business command center
    All data lives in localStorage under one key. No backend.
    ============================================================ */
 
@@ -2659,7 +2659,7 @@ function byId(id){ return document.getElementById(id); }
 function num(v){ var n=parseFloat(v); return isNaN(n)?0:n; }
 
 /* ---------- icons: the Trakora glyph set ----------
-   One system, four rules — so the set reads as drawn, not assembled:
+   One system, four rules, so the set reads as drawn, not assembled:
    1. KEYLINE. A 24 grid with an ~18.5 keyline box, corrected optically rather
       than mathematically: panel forms fill 18–19 (rect/page/card), circles run
       18.4–18.6 because a disc reads larger than a square at equal bounds, and
@@ -2667,11 +2667,11 @@ function num(v){ var n=parseFloat(v); return isNaN(n)?0:n; }
       14–15 because a line with no mass behind it reads larger still. Nothing
       breaks the box, so no glyph looks bigger than its neighbour in a row.
    2. CONCENTRIC CORNERS. Every rectangular form uses rx ≈ 30% of its short
-      side — the same ratio the chrome uses (--r-sm 10px … --r-2xl 28px).
+      side: the same ratio the chrome uses (--r-sm 10px … --r-2xl 28px).
       Generic sets sit at rx 2 on this grid; ours sit at 3–5.4, so the glyphs
       are visibly soft-square and belong to this product.
    3. DUOTONE. The enclosing form of each glyph carries currentColor at a low
-      alpha (.d / .f) under a hairline outline — the same construction as the
+      alpha (.d / .f) under a hairline outline: the same construction as the
       Liquid Glass chrome (--lg-tint under --lg-edge). Focal detail is solid
       currentColor (.s). Weight is carried by mass, not by a fatter stroke.
    4. OPTICAL WEIGHT. Stroke is a function of render size (see icoStroke), so
@@ -2770,7 +2770,7 @@ var ICONS = {
 };
 /* Optical stroke: the rendered hairline should stay roughly constant instead
    of scaling 1:1 with the box (2px on a 24 grid renders 1px at 12 and 2.5px at
-   30 — that is why big glyphs looked chunky and small ones washed out).
+   30, that is why big glyphs looked chunky and small ones washed out).
    Solving for ~1.05px at 12 up to ~1.8px at 30 gives w = 1.02 + 13.6/size. */
 function icoStroke(size){
   var s=+size||16;
@@ -2784,7 +2784,7 @@ function icon(name,size){
 /* ---------- license (Tier 0: stamp + key, injected per buyer by the generator) ---------- */
 var EMBEDDED_LICENSE=null;/*@LICENSE@*/
 /* The key-derivation secret/algorithm intentionally does NOT ship in the
-   buyer's app — keys are generated only by the seller tool and verified
+   buyer's app: keys are generated only by the seller tool and verified
    server-side (Firebase). The embedded stamp below is display-only. */
 function licenseInfo(){
   if(!EMBEDDED_LICENSE||!EMBEDDED_LICENSE.name) return null;
@@ -2857,7 +2857,7 @@ function gateReadLicense(key,attempt){
 }
 /* verify a key+email against Firebase, claim a device slot, store activation locally */
 /* Privacy-preserving email proof: the license DB stores only a SHA-256 hash of
-   (key|email), never the plaintext email — so even a readable record leaks no PII.
+   (key|email), never the plaintext email, so even a readable record leaks no PII.
    Canonical input must match the keygen exactly. */
 function licEmailHash(key,email){
   var msg=normKey(key)+'|'+String(email||'').trim().toLowerCase();
@@ -2873,7 +2873,7 @@ function licEmailMatches(key,email,lic){
 }
 /* ---- offline signed licenses (ZERO backend) ----
    The keygen signs {eh:emailHash, d:deviceLimit, i:issued} with an ECDSA P-256 private key
-   held only in the seller's private keygen. The app verifies it with this PUBLIC key — fully
+   held only in the seller's private keygen. The app verifies it with this PUBLIC key: fully
    offline: no database, no Firebase rules, no network. A signed key is a long
    "payloadBase64url.signatureBase64url" token. Short XXXX-XXXX-XXXX keys still use the cloud path. */
 var LICENSE_PUBKEY={"kty":"EC","crv":"P-256","x":"ehXZYwQBYbP8HhHKZ6_hvK1Yp3e2fgQyzqJTXCqdXBc","y":"tyv_vdWFYP84K8O3gYfpLR5RIYQx_s0rm6jmySyysFg"};
@@ -2901,7 +2901,7 @@ function verifySignedKey(token,email){
 }
 function verifyActivation(key,email){
   var raw=String(key||'').trim();
-  if(isSignedKey(raw)) return verifySignedKey(raw,email);   // offline signed token — no network
+  if(isSignedKey(raw)) return verifySignedKey(raw,email);   // offline signed token: no network
   key=normKey(raw); email=String(email||'').trim().toLowerCase();
   return gateReadLicense(key,0).then(function(lic){
     if(!lic||typeof lic!=='object') throw {code:'nokey',msg:'That license key wasn’t found. Double-check the key from your purchase email, and that it was issued on the current activation database.'};
@@ -2920,13 +2920,13 @@ function verifyActivation(key,email){
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({at:Date.now(),ua:String(navigator.userAgent||'').slice(0,120)})
       }).then(function(r){
-        // a non-OK PUT (write denied by rules) is not a real claim — mark it so we don't free a slot we never took
+        // a non-OK PUT (write denied by rules) is not a real claim. Mark it so we don't free a slot we never took
         var act={key:key,email:email,name:lic.name||email,activatedAt:Date.now(),device:mine};
         if(!(r&&r.ok)) act.unclaimed=true;
         setActivation(act);
         return act;
       }).catch(function(){
-        // device-claim write failed (network) — still let them in; the key & email are verified
+        // device-claim write failed (network): still let them in; the key & email are verified
         var act={key:key,email:email,name:lic.name||email,activatedAt:Date.now(),device:mine,unclaimed:true};
         setActivation(act);
         return act;
@@ -2953,9 +2953,9 @@ function renderGate(){
       '<div class="gate-foot">Don’t have a key yet? Get one from '+esc(GATE.sellerContact)+'.<br>Your business data stays private on this device.</div>'+
     '</div></div>';
   var keyEl=byId('gate-key'), emailEl=byId('gate-email'), btn=byId('gate-go'), msg=byId('gate-msg');
-  // pretty-format SHORT keys as they type — but leave long signed tokens (which contain ".") untouched
+  // pretty-format SHORT keys as they type, but leave long signed tokens (which contain ".") untouched
   keyEl.addEventListener('input',function(){
-    if(this.value.indexOf('.')>=0||this.value.length>20) return; // signed offline token — don't reformat
+    if(this.value.indexOf('.')>=0||this.value.length>20) return; // signed offline token: don't reformat
     var c=this.selectionStart, raw=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,12);
     var out=raw.replace(/(.{4})(.{4})(.{1,4})/,'$1-$2-$3').replace(/(.{4})(.{1,4})$/,function(m){return m;});
     if(raw.length>4&&raw.length<=8) out=raw.slice(0,4)+'-'+raw.slice(4);
@@ -2991,7 +2991,7 @@ function deactivateDevice(){
 
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
-var APP_BUILD='2026.08.16a'; // bump per release — shown in Settings + console so "did it update?" is a 2-second check
+var APP_BUILD='2026.08.16a'; // bump per release: shown in Settings + console so "did it update?" is a 2-second check
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -3006,7 +3006,7 @@ var DEFAULT_STATE={
        resort for rough on-screen estimates only: fx.src has no entry for them, so
        fxVerified()/fxRecordRate() reject them and NO money can be recorded against
        them. A rate only becomes usable for money once a live fetch succeeds or the
-       owner types it in — see the "currency & rate provenance" section. */
+       owner types it in: see the "currency & rate provenance" section. */
     fx:{ auto:true, updated:null, lastTryAt:null, lastError:null,
          phpPer:{USD:58.5,EUR:63.5,GBP:74,AUD:38,CAD:42.5,SGD:43.5,AED:16,JPY:0.39},
          src:{} } },
@@ -3017,13 +3017,13 @@ var DEFAULT_STATE={
   products:[],  // {id,name,sku,category,price,cost,stock,lowStock,attrs:{},active,desc}
   orders:[],    // {id,number,clientName,contact,address,items:[{productId,name,qty,price}],shipFee,discount,status,payStatus,orderDate,deliveryDate,note,incomeRecorded}
   customModules:[], // {id,name,icon,fields:[{key,label,type,options}],records:[]}
-  materials:[],     // {id,name,unit,stock,lowStock,cost}  — raw materials; products reference via bom
+  materials:[],     // {id,name,unit,stock,lowStock,cost}: raw materials; products reference via bom
   utang:[],         // {id,clientName,amount,date,note,payments:[{id,amount,date,note}],settled}
   accounts:[],      // {id,name,type,opening,note,adjust:[{id,delta,date,note}]}
-  transfers:[],     // {id,from,to,amount,date,note} — not revenue/expense, just money moving
+  transfers:[],     // {id,from,to,amount,date,note}, not revenue/expense, just money moving
   finance:[],   // {id,type:'income'|'expense',amount,category,date,note,client}
   goals:[],     // {id,title,type:'revenue'|'profit'|'custom',target,current,unit,deadline,priority,steps:[{id,text,done}],done,createdAt}
-  phases:[],    // legacy (v1–v14) — migrated into roadmaps on load
+  phases:[],    // legacy (v1–v14): migrated into roadmaps on load
   roadmaps:[],  // {id,name,phases:[{id,name,desc,order,tasks:[{id,title,deadline,status,priority}]}]}
   tasks:[],     // {id,title,deadline,priority,bucket,done,createdAt,completedAt}
   notes:[],     // {id,title,body,category,tags:[],pinned,updatedAt}
@@ -3033,7 +3033,7 @@ var DEFAULT_STATE={
   hrPayouts:[], // {id,employeeId,date,periodLabel,daysWorked,gross,deductions,valeRepaid,bonus,net}
   metrics:{},   // {key:{value,updatedAt}}
   reviews:{ monthly:{}, weekly:{ week:null, items:{} }, decisions:[], swot:{s:'',w:'',o:'',t:''} },
-  chat:[],      // {id,role:'user'|'bot',text,kind,parsed,resolved,ts} — Assistant (beta) conversation log
+  chat:[],      // {id,role:'user'|'bot',text,kind,parsed,resolved,ts}. Assistant (beta) conversation log
   assistant:{ terms:{} }, // learned word→intent/category counts so logging adapts to the owner's wording
   meta:{ createdAt:null }
 };
@@ -3072,7 +3072,7 @@ function migrateState(){
   }
   // give existing roadmaps a color so the new color-coding is varied
   (state.roadmaps||[]).forEach(function(r,i){ if(!r.color) r.color=ROADMAP_COLORS[i%ROADMAP_COLORS.length]; });
-  // give saved exchange rates a provenance (live / manual / seed) — see fxMigrate()
+  // give saved exchange rates a provenance (live / manual / seed). See fxMigrate()
   if(typeof fxMigrate==='function') try{ fxMigrate(); }catch(_){ }
   // scrub the old bundled default cloud URL so each owner connects their own database
   if(state.settings.sync&&state.settings.sync.url==='https://love-notes-eae0b-default-rtdb.firebaseio.com'){
@@ -3090,7 +3090,7 @@ function loadState(){
     if(raw){
       var parsed=JSON.parse(raw);
       if(parsed&&parsed.__enc){
-        // data is encrypted at rest — load a safe shell; the real data is decrypted after PIN unlock
+        // data is encrypted at rest: load a safe shell; the real data is decrypted after PIN unlock
         pendingEncBlob=parsed;
         state=JSON.parse(JSON.stringify(DEFAULT_STATE));
         return;
@@ -3417,7 +3417,7 @@ function healthScore(){
   var marginPts=0;
   if(t.margin!=null) marginPts=clamp(t.margin/40*30,0,30);
   parts.push({k:'Profit margin',pts:marginPts,max:30});
-  // expense control (25 pts) — expense ratio under 70% is healthy
+  // expense control (25 pts): expense ratio under 70% is healthy
   var expPts=0;
   if(t.expenseRatio!=null&&isFinite(t.expenseRatio)) expPts=clamp((1-(t.expenseRatio-30)/70)*25,0,25);
   parts.push({k:'Expense control',pts:expPts,max:25});
@@ -3606,7 +3606,7 @@ function moneyShort(n){
   else s=String(Math.round(a));
   return (n<0?'−':'')+sym+s;
 }
-/* tooltip payload is structured JSON (NEVER HTML) — user text is rendered with textContent,
+/* tooltip payload is structured JSON (NEVER HTML). User text is rendered with textContent,
    so a category named "><img onerror=…> can never become live markup (attribute decode +
    innerHTML round-trips are the classic double-decode XSS; we avoid the sink entirely) */
 function ctipData(head,rows){ return esc(JSON.stringify({h:head,r:rows})); }
@@ -3652,7 +3652,7 @@ function installChartHover(){
   },{passive:true});
 }
 
-/* Monthly series — style: 'bars' (grouped) | 'line' | 'area' */
+/* Monthly series: style: 'bars' (grouped) | 'line' | 'area' */
 function svgSeries(months,mm,style,w,h){
   style=style||'bars'; w=w||620; h=h||248;
   var pad={l:46,r:12,t:16,b:26}, iw=w-pad.l-pad.r, ih=h-pad.t-pad.b;
@@ -3765,7 +3765,7 @@ function svgRing(pct,size,color,labelTop,labelBottom){
   size=size||120;
   var stroke=10, r=(size-stroke)/2, c=size/2, circ=2*Math.PI*r;
   var p=clamp(pct||0,0,100);
-  var uid='rg'+(++_chartUID); // unique per ring — a shared id breaks when two rings render at once
+  var uid='rg'+(++_chartUID); // unique per ring: a shared id breaks when two rings render at once
   return '<div class="ring" style="width:'+size+'px;height:'+size+'px">'+
     '<svg viewBox="0 0 '+size+' '+size+'" style="width:'+size+'px;height:'+size+'px">'+
       '<circle class="track" cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke-width="'+stroke+'"/>'+
@@ -3817,14 +3817,14 @@ function sectionList(){
   var out=[]; ROUTES.forEach(function(r){ if(out.indexOf(r.section)<0) out.push(r.section); });
   out.push('My Modules'); return out;
 }
-/* only allow well-formed CSS colors into inline styles — blocks attribute-injection via imported/synced data */
+/* only allow well-formed CSS colors into inline styles. Blocks attribute-injection via imported/synced data */
 function safeColor(c,fb){
   c=String(c==null?'':c).trim();
   return /^(#[0-9a-fA-F]{3,8}|[a-zA-Z]{1,20}|rgba?\([0-9.,%\s/]+\)|hsla?\([0-9.,%\s/]+\))$/.test(c)?c:(fb||'#4653e8');
 }
 /* designer's colour discipline: user-picked colours never hit the UI raw.
    Saturation is capped and lightness pinned per theme, so a pure red reads
-   as muted brick and a pure blue as slate — decorative accents stay in the
+   as muted brick and a pure blue as slate: decorative accents stay in the
    palette's register. (Sanitises via safeColor first.) */
 function tameColor(c,fb){
   c=safeColor(c,fb||'#4653e8');
@@ -3866,7 +3866,7 @@ function hexA(hex,a){
 }
 var ROADMAP_COLORS=['#4653e8','#7c5cd6','#c2417f','#cd352d','#a85900','#0c7d5c','#0f8b8b','#2c69c8'];
 
-/* ---------- country / location presets — drive currency, tax & guidelines ---------- */
+/* ---------- country / location presets: drive currency, tax & guidelines ---------- */
 var COUNTRIES={
   PH:{name:'Philippines',flag:'🇵🇭',cur:'₱',code:'PHP',locale:'en-PH',tax:8,taxLabel:'Income tax (8% option)',
       note:'Small businesses under the ₱3M threshold typically use the 8% income tax option or 3% percentage tax. VAT (12%) applies once you exceed the threshold. Set aside taxes for the BIR.'},
@@ -3941,7 +3941,7 @@ function render(){
   var routeChanged=route!==lastRenderRoute;
   if(routeChanged){ main.classList.remove('view-enter'); void main.offsetWidth; main.classList.add('view-enter'); lastRenderRoute=route;
     // the class must be TRANSIENT: it gates the entrance, and if it lingers every
-    // later in-place render (status change, filter, save) re-plays that entrance —
+    // later in-place render (status change, filter, save) re-plays that entrance,
     // which is exactly what read as blinking.
     clearTimeout(viewEnterT); viewEnterT=setTimeout(function(){ main.classList.remove('view-enter'); },260);
     // a new screen always opens with its large title expanded, like a fresh push
@@ -3952,16 +3952,16 @@ function render(){
     // opening a money screen refreshes the exchange rate by itself. Deliberately inside
     // routeChanged: "every time i open invoice" is an ENTRY, not every filter tweak and
     // status change on a screen already open. It is async and rate-limited, and it never
-    // blocks the render — see fxRouteRefreshCheck().
+    // blocks the render: see fxRouteRefreshCheck().
     if(typeof fxRouteRefreshCheck==='function') fxRouteRefreshCheck(route); }
   // NOTE: the KPI count-up used to fire here on every section change. Six to nineteen
   // stat tiles all churning their digits for 560ms is the same "en masse entrance"
-  // problem as the card/row/chart replays — numbers that are wrong for half a second
+  // problem as the card/row/chart replays: numbers that are wrong for half a second
   // on a books app, on every single navigation. animateCounts is still exported and
   // still non-destructive; it is simply no longer wired to route changes. To bring the
   // count-up back on a specific screen, call it there behind the routeChanged flag.
   // NOTE: card strokes & accents intentionally use the single brand accent (--accent, set in
-  // Settings → Accent color) for ONE consistent colour across every section — no per-section tint.
+  // Settings → Accent color) for ONE consistent colour across every section. No per-section tint.
   applyNavCollapse();
   if(typeof updateAdvisorBubble==='function') updateAdvisorBubble(route);
   enhanceA11y(main);
@@ -3977,7 +3977,7 @@ function render(){
   main.scrollTop=0;
 }
 /* Auto-label every table cell from its column header so tables can render as clean
-   stacked rows on phones (CSS at ≤560px). Generic — no render site needs editing. */
+   stacked rows on phones (CSS at ≤560px). Generic: no render site needs editing. */
 function labelizeTables(root){
   if(!root||!root.querySelectorAll) return;
   Array.prototype.forEach.call(root.querySelectorAll('.table-wrap table'),function(t){
@@ -4031,7 +4031,7 @@ document.addEventListener('click',function(e){
   ta.classList.remove('open');
   var mb=document.querySelector('.topbar-more'); if(mb) mb.setAttribute('aria-expanded','false');
 });
-/* Post-render accessibility pass — applied globally so no markup site has to remember it:
+/* Post-render accessibility pass, applied globally so no markup site has to remember it:
    associate field labels with their control, label icon-only buttons, and make
    role=button controls keyboard-focusable. */
 function enhanceA11y(root){
@@ -4107,7 +4107,7 @@ function renderSidebar(){
       (r.id==='tasks'&&openTasks>0?'<span class="nav-badge">'+openTasks+'</span>':'')+
       '<span class="nav-fav'+(fav?' on':'')+'" data-action="fav-toggle" data-route="'+r.id+'" role="button" tabindex="0" title="'+(fav?'Unpin from Favorites':'Pin to Favorites')+'" aria-label="'+(fav?'Unpin':'Pin')+'">'+icon('star')+'</span></button>';
   }
-  // Favorites — pinned shortcuts at the very top
+  // Favorites: pinned shortcuts at the very top
   var favItems=(state.settings.favorites||[]).map(function(id){ for(var i=0;i<allVis.length;i++) if(allVis[i].id===id) return allVis[i]; return null; }).filter(Boolean);
   if(favItems.length){
     var favC=collapsed.indexOf('Favorites')>=0;
@@ -4229,7 +4229,7 @@ function emptyState(iconName,title,text,btnHTML){
   return '<div class="empty"><div class="e-icon">'+icon(iconName)+'</div><h4>'+esc(title)+'</h4><p>'+esc(text)+'</p>'+(btnHTML||'')+'</div>';
 }
 
-/* getting-started checklist — guides new owners through first setup */
+/* getting-started checklist: guides new owners through first setup */
 function getStartedSteps(){
   var s=state.settings;
   return [
@@ -4422,7 +4422,7 @@ function viewDashboard(){
     recv.top.forEach(function(iv){
       recvBlk+='<div class="list-row" style="padding:8px 0"><div style="flex:1;min-width:0"><b style="font-size:.85rem">'+esc(iv.client)+'</b><div style="font-size:.72rem;color:var(--text-3)">'+esc(iv.number)+' · due '+fmtDate(iv.dueDate)+'</div></div>'+
         // fmtInvAmt(), not fmtMoney(iv.amount): that stamped a ₱ on the FOREIGN figure, so a
-        // $450 invoice read "₱450" here — off by the whole exchange rate, in the one place
+        // $450 invoice read "₱450" here: off by the whole exchange rate, in the one place
         // the owner glances at what they are owed.
         '<div style="text-align:right"><span class="num" style="font-weight:700">'+fmtInvAmt(iv)+'</span>'+
         (iv.currency&&iv.currency!=='PHP'?'<div style="font-size:.68rem;color:var(--text-3)">'+invPHPText(iv)+'</div>':'')+
@@ -4448,7 +4448,7 @@ function viewDashboard(){
 
   /* keep the grid clean: only show cards that actually have content, so a new
      (or sparse) dashboard isn't a wall of "no data yet" placeholders. The KPI
-     tiles (rev/exp/prof/margin) always show — they read cleanly at zero. */
+     tiles (rev/exp/prof/margin) always show: they read cleanly at zero. */
   var emptyIds=[];
   if(!hs) emptyIds.push('health');
   if(!hasData) emptyIds.push('chart','month','cats');
@@ -4555,7 +4555,7 @@ function advisorNarrative(){
   }
   return p.join(' ');
 }
-/* diverging profit-by-month chart — bars grow from a zero line: green above, red below */
+/* diverging profit-by-month chart: bars grow from a zero line, green above and red below */
 function svgProfitBars(months,mm,w,h){
   w=w||620;h=h||248;
   var pad={l:46,r:12,t:16,b:26}, iw=w-pad.l-pad.r, ih=h-pad.t-pad.b;
@@ -4607,7 +4607,7 @@ function advisorPaceHTML(){
   } else {
     html+='<p style="font-size:.78rem;color:var(--text-3);margin-top:10px">Set a monthly revenue target in Settings and I’ll pace you against it here.</p>';
   }
-  // billed money only — a Draft the client never saw isn't "waiting on payment"
+  // billed money only: a Draft the client never saw isn't "waiting on payment"
   var billed=(state.invoices||[]).filter(function(iv){ return iv.status!=='Paid'&&iv.status!=='Draft'; });
   var drafts=(state.invoices||[]).filter(function(iv){ return iv.status==='Draft'; });
   var overdue=sum(billed.filter(function(iv){ var dd=daysUntil(iv.dueDate); return iv.status==='Overdue'||(dd!=null&&dd<0); }),invPHP);
@@ -4640,7 +4640,7 @@ function viewInsights(){
     '<div style="flex:1;min-width:0"><h3>Here is your read</h3><div class="adv-sub">Generated live from your latest numbers</div></div>'+
     (hs?svgRing(hs.score,64,null,String(hs.score),'/100'):'')+'</div>'+
     '<p class="adv-narrative">'+advisorNarrative()+'</p></div>';
-  // 2) the numbers behind the read — interactive, animated charts
+  // 2) the numbers behind the read: interactive, animated charts
   var months6=lastNMonths(6), mmv=monthlyMap();
   var aStyle=chartStyleGet('advisor','area');
   html+='<div class="grid grid-2 mt">';
@@ -4654,7 +4654,7 @@ function viewInsights(){
   // 3) where the money goes + this month's pace
   var expMix=categoryMap('expense');
   var mixEntries=Object.keys(expMix).map(function(k){return {label:k,value:expMix[k]};}).sort(function(a,b){return b.value-a.value;}).slice(0,6);
-  var mixStyle=chartStyleGet('advisorCats','donut'); // private key — switching here shouldn't restyle the dashboard
+  var mixStyle=chartStyleGet('advisorCats','donut'); // private key: switching here shouldn't restyle the dashboard
   html+='<div class="grid grid-2 mt">';
   html+='<div class="card"><div class="card-head"><h3>Where the money goes</h3><span class="spacer"></span>'+
     (mixEntries.length?chartToolbar('advisorCats',[{v:'donut',i:'cdonut',t:'Donut'},{v:'bars',i:'clist',t:'Bars'}],mixStyle):'')+'</div>'+
@@ -4685,7 +4685,7 @@ function viewInsights(){
 }
 
 /* ============================================================
-   view: assistant (beta) — type plain words, log to the right place
+   view: assistant (beta): type plain words, log to the right place
    ============================================================ */
 /* ---- natural-language parser (pure, no DOM, unit-tested) ---- */
 function nlPad2(n){ return String(n).length<2?('0'+n):String(n); }
@@ -4722,7 +4722,7 @@ function nlParseDate(text, today){
   if(m){ var a=+m[1], b=+m[2], yy=+m[3]; if(yy<100) yy+=2000; var mm,dd;
     if(a>12){ dd=a; mm=b-1; } else if(b>12){ mm=a-1; dd=b; } else { mm=a-1; dd=b; }
     if(mm>=0&&mm<12&&dd>=1&&dd<=31) return {iso:nlIsoFrom(yy,mm,dd), source:m[0].trim()}; }
-  // calendar-day arithmetic (DST-safe — never milliseconds)
+  // calendar-day arithmetic (DST-safe, never milliseconds)
   function shift(n){ var x=new Date(today.getFullYear(),today.getMonth(),today.getDate()+n); return nlIsoFrom(x.getFullYear(),x.getMonth(),x.getDate()); }
   if(/\btoday\b/.test(low)) return {iso:nlIsoToday(today), source:'today'};
   if(/\btomorrow\b/.test(low)) return {iso:shift(1), source:'tomorrow'};
@@ -4789,7 +4789,7 @@ function nlParseAmount(text){
     || s.match(/\b(?:php|usd)\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\b/i);
   if(m) return nlApplyMult(m[1],m[2]);
   var qm=nlQtyMath(s); if(qm!=null) return qm; // 3 x 250 → 750
-  // labelled amount — but NOT "for/at" (those grab a quantity: "for 2 cakes")
+  // labelled amount, but NOT "for/at" (those grab a quantity: "for 2 cakes")
   m=s.match(/\b(?:amount|cost|price|worth|sum|total)\s*(?:is|of|was|:|=|to)?\s*[\$₱]?\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\b/i);
   if(m) return nlApplyMult(m[1],m[2]);
   m=s.match(/\b([\d,]+(?:\.\d+)?)\s*(k|m)\b/i);
@@ -4797,7 +4797,7 @@ function nlParseAmount(text){
   var nums=s.match(/\b\d[\d,]*(?:\.\d+)?\b/g), best=null;
   if(nums) nums.forEach(function(x){ var v=nlApplyMult(x,''); if(v!=null&&(best==null||v>best)) best=v; });
   if(best!=null) return best;
-  // spelled-out amount — only when a real magnitude word is present, so a stray
+  // spelled-out amount: only when a real magnitude word is present, so a stray
   // "one"/"two" in a note ("paid one staff member") never becomes an amount
   if(/\b(hundred|thousand|million)\b/i.test(s)) return nlWordsToNumber(s);
   return null;
@@ -4811,7 +4811,7 @@ function nlGrabAfter(text, prep){
   if(/^(?:the|a|an|on|for|to|and|of|with|my|some)$/i.test(v)) return '';
   return v;
 }
-/* category keyword maps — English + common Filipino/Taglish terms a local owner uses */
+/* category keyword maps: English + common Filipino/Taglish terms a local owner uses */
 var NL_EXP_CATS=[
   [/\b(ads?|advert\w*|marketing|facebook|fb|tiktok|instagram|ig|google\s*ads|boost\w*|promo\w*|campaign|flyer[s]?|tarp\w*|poster[s]?)\b/i,'Marketing & Ads'],
   [/\b(rent|rental|renta|upa|electric\w*|kuryente|ilaw|meralco|water|tubig|utilit\w*|internet|wifi|power\s*bill|cable|phone\s*bill)\b/i,'Rent & Utilities'],
@@ -4840,7 +4840,7 @@ function nlGenericParty(name){
 }
 function nlIntent(text){
   var s=' '+String(text).toLowerCase()+' ';
-  // explicit task markers win outright — "remind me to invoice John" is a to-do, not an invoice
+  // explicit task markers win outright: "remind me to invoice John" is a to-do, not an invoice
   if(/\b(?:remind me|to-?do|don'?t forget|set a task|new task|add task)\b/.test(s) || /\btask\s*:/.test(s)) return 'task';
   if(/\binvoice\b/.test(s)) return 'invoice';
   if(/\b(?:add|new|create|save|register)\s+(?:a\s+)?(?:client|customer|contact|lead|supplier\s+contact)\b/.test(s)) return 'client';
@@ -4853,7 +4853,7 @@ function nlIntent(text){
   if(/\b(?:reminder|follow ?up|chase up)\b/.test(s)) return 'task';
   if(/\d/.test(s) && NL_EXP_NOUNS.test(s)) return 'expense'; // bare "rent 15000", "load 300", "kuryente 2400"
   if(nlQtyMath(text)!=null) return 'expense'; // bare receipt-style "3 x 250", "5 boxes at 120 each"
-  if(/\bbill\b/.test(s)) return 'invoice'; // "bill Acme 5000" — bill used as a verb (last resort)
+  if(/\bbill\b/.test(s)) return 'invoice'; // "bill Acme 5000": bill used as a verb (last resort)
   return null;
 }
 function nlInvoiceDesc(text){
@@ -4905,7 +4905,7 @@ function nlLearnRecord(store, text, intent, category){
     if(intent) e.intent[intent]=(e.intent[intent]||0)+1;
     if(category) e.category[category]=(e.category[category]||0)+1;
   });
-  // keep the store bounded — drop the weakest tokens if it grows large
+  // keep the store bounded: drop the weakest tokens if it grows large
   var keys=Object.keys(store);
   if(keys.length>600){
     keys.map(function(k){ var e=store[k],n=0,o; for(o in e.intent)n+=e.intent[o]; for(o in e.category)n+=e.category[o]; return [k,n]; })
@@ -4954,8 +4954,8 @@ function nlParse(text, today, learn){
     out.date=dateInfo?dateInfo.iso:nlIsoToday(today);
     var cat=intent==='income'?nlIncomeCategory(text):nlExpenseCategory(text);
     // learned category wins only when the built-in guess is the generic fallback
-    // ("Other …"), or when the same correction has been confirmed at least twice —
-    // a confidently-matched category (e.g. "Sales", "Transport") needs 2 corrections
+    // ("Other …"), or when the same correction has been confirmed at least twice.
+    // A confidently-matched category (e.g. "Sales", "Transport") needs 2 corrections
     var isDefault=(cat==='Other expense'||cat==='Other income');
     if(learned.category && (isDefault || learned.category.n>=2)) cat=learned.category.key;
     out.category=cat;
@@ -4970,7 +4970,7 @@ function nlSplitClauses(text){
   return String(text).split(/\s*(?:;|\n|\+|&|\band\b|\bthen\b|\btapos\b|\bsaka\b|,)\s*/i).map(function(s){return s.trim();}).filter(Boolean);
 }
 /* a clause that is just a small count + a noun ("2 boxes") is a quantity fragment,
-   not its own money entry — don't log it as a peso amount */
+   not its own money entry: don't log it as a peso amount */
 function nlBareQty(c){
   var nums=String(c).match(/\d[\d,]*(?:\.\d+)?/g)||[];
   if(nums.length!==1) return false;
@@ -5004,7 +5004,7 @@ function nlMatchAccount(text, accounts){
 
 /* ---- conversational layer: small talk, answers about the data, and human
    follow-up questions that fill in whatever the first message left out.
-   Pure rules + arithmetic over local state — no AI, nothing leaves the device. ---- */
+   Pure rules + arithmetic over local state: no AI, nothing leaves the device. ---- */
 function asstPick(arr){ return arr[(state.chat?state.chat.length:0)%arr.length]; }
 function asstBot(text,kind){ state.chat.push({id:uid(),role:'bot',kind:kind||null,text:text,ts:Date.now()}); }
 function nlSmallTalk(text){
@@ -5037,9 +5037,9 @@ function nlRange(text,today){
   if(/\blast\s+month\b/.test(s)){ return {a:iso(new Date(y,mo-1,1)),b:iso(new Date(y,mo,0)),label:'last month'}; }
   if(/\bthis\s+year\b/.test(s)) return {a:y+'-01-01',b:iso(new Date(y,11,31)),label:'this year'};
   if(/\b(all\s*time|overall|ever)\b/.test(s)) return {a:'0000-01-01',b:'9999-12-31',label:'overall'};
-  return {a:iso(new Date(y,mo,1)),b:iso(new Date(y,mo+1,0)),label:'this month'}; // full calendar month — matches monthlyMap, so answers agree with post-save readbacks
+  return {a:iso(new Date(y,mo,1)),b:iso(new Date(y,mo+1,0)),label:'this month'}; // full calendar month, matching monthlyMap, so answers agree with post-save readbacks
 }
-/* answer questions about the owner's own data — spend, income, profit, top
+/* answer questions about the owner's own data. Spend, income, profit, top
    categories, receivables, tasks due, goals, balances */
 function nlQuery(text,today){
   var s=' '+String(text).toLowerCase()+' ';
@@ -5256,7 +5256,7 @@ function viewAssistant(){
   return html;
 }
 /* the same chat lives in the page view (#asst-input) and the floating popover
-   (#asst-pop-input) — helpers operate on whichever surface is mounted */
+   (#asst-pop-input): helpers operate on whichever surface is mounted */
 function assistantInputEl(){ return byId('asst-input')||byId('asst-pop-input'); }
 function assistantPaint(){
   [byId('asst-log'),byId('asst-pop-log')].forEach(function(l){ if(l){ l.innerHTML=assistantLogInnerHTML(); l.scrollTop=l.scrollHeight; } });
@@ -5308,10 +5308,10 @@ function assistantRoute(text){
   var draft=asstLatestDraft(), s=String(text).toLowerCase().trim();
   var confirmWord=/^(yes|yep|yup|sure|ok|okay|oo|sige|go|confirm|log it|save( it)?|do it|correct|tama)[!. ]*$/.test(s);
   var cancelWord=/^(no|nope|cancel|discard|never ?mind|nvm|wag|huwag|wrong|mali|delete( it)?)[!. ]*$/.test(s);
-  // confirm/cancel outrank small talk — "ok" must log the draft, not chat about it
+  // confirm/cancel outrank small talk: "ok" must log the draft, not chat about it
   if(draft){
     // while I'm asking about an OPTIONAL slot, a bare "no" answers that question
-    // ("no deadline") — it does not throw the whole draft away
+    // ("no deadline"): it does not throw the whole draft away
     var optionalPending=A.ctx&&A.ctx.msgId===draft.id&&(A.ctx.slot==='deadline'||A.ctx.slot==='dueDate'||A.ctx.slot==='category');
     if(confirmWord){ assistantConfirm(draft.id); return; }
     if(cancelWord&&!(optionalPending&&/^(no|nope)[!. ]*$/.test(s))){ A.ctx=null; assistantCancel(draft.id); asstBot('Discarded. What really happened?'); return; }
@@ -5327,7 +5327,7 @@ function assistantRoute(text){
   var looksQuestion=/\?\s*$/.test(s)||/^(how|what|who|when|where|any|do i|am i|is there|magkano|ilan)\b/.test(s);
   // answer to my last question (only when the reply isn't clearly a new entry)
   if(A.ctx&&draft&&A.ctx.msgId===draft.id&&!standsAlone){
-    // a question outranks slot-filling — "any tasks due in 7 days?" must not become ₱7
+    // a question outranks slot-filling: "any tasks due in 7 days?" must not become ₱7
     if(looksQuestion){ var q0=nlQuery(text,today); if(q0){ asstBot(q0); return; } }
     if(asstApplyAnswer(draft.parsed,A.ctx.slot,text,today)){
       var next=asstQuestionFor(draft.parsed);
@@ -5336,11 +5336,11 @@ function assistantRoute(text){
       return;
     }
     var q=nlQuery(text,today);
-    if(q){ asstBot(q); return; } // they changed topic to a question — answer it, keep the draft
+    if(q){ asstBot(q); return; } // they changed topic to a question: answer it, keep the draft
     asstBot('Sorry, I didn’t catch that. '+(asstQuestionFor(draft.parsed)||{q:'Could you rephrase?'}).q);
     return;
   }
-  // questions about their data — but a message that parses as a complete
+  // questions about their data, but a message that parses as a complete
   // entry is a LOG even when it carries a "?" ("can you log 500 on ads?")
   var ans=standsAlone?null:nlQuery(text,today);
   if(ans){ asstBot(ans); return; }
@@ -5354,7 +5354,7 @@ function assistantRoute(text){
   if(parses.length>1) state.chat.push({id:uid(),role:'bot',text:'I found '+parses.length+' entries. Review and confirm each:',ts:Date.now()});
   var lastId=null;
   parses.forEach(function(parsed){
-    // pre-select a wallet/account if the wording names one ("from gcash") — per clause
+    // pre-select a wallet/account if the wording names one ("from gcash"). Per clause
     if((parsed.type==='income'||parsed.type==='expense')) parsed.account=nlMatchAccount(parsed.src||text, state.accounts);
     var mid=uid(); lastId=mid;
     state.chat.push({id:mid,role:'bot',kind:'preview',parsed:parsed,srcText:text,resolved:false,text:(parses.length>1?'':(leads[parsed.intent]||'Review and confirm:')),ts:Date.now()});
@@ -5400,7 +5400,7 @@ function assistantConfirm(id){
     var inv={id:uid(),number:nextInvoiceNumber(),client:client,desc:g('desc'),amount:amount,
       issueDate:p.issueDate||todayISO(),dueDate:g('dueDate'),status:g('status')||'Pending',
       // the assistant only ever creates local-currency invoices (cur is 'PHP' above),
-      // so 1 is the true rate here, not a fallback — stamped explicitly so it reads that way
+      // so 1 is the true rate here, not a fallback: stamped explicitly so it reads that way
       currency:cur,fxRate:1,fxRateBy:'local',fxRateAt:null,
       payMethod:'',payDetails:'',payQR:'',payQRPos:'br',createdAt:todayISO()};
     if(inv.status==='Paid') inv.paidDate=todayISO();
@@ -5454,7 +5454,7 @@ function parseReceiptItems(text){
   });
   return items.slice(0,25);
 }
-/* build an expense draft from OCR text (+ the image) — pure, unit-tested */
+/* build an expense draft from OCR text (+ the image). Pure, unit-tested */
 function buildReceiptDraft(ocrText, dataURL){
   var base=parseReceiptText(ocrText||''), items=parseReceiptItems(ocrText||'');
   var sum=Math.round(items.reduce(function(a,it){ return a+(it.total||0); },0)*100)/100;
@@ -5605,13 +5605,13 @@ function financeEntriesHTML(){
   return html;
 }
 // Mobile-only finance timeline: groups entries by day with a coloured dot, category,
-// note/client and a colour-coded amount — far more scannable than a stacked table card.
+// note/client and a colour-coded amount: far more scannable than a stacked table card.
 function financeTimelineHTML(rows,totalCount,ft){
   if(!rows.length) return '';
   var today=todayISO();
   var yest=(function(){ var d=new Date(today+'T00:00:00'); d.setDate(d.getDate()-1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); })();
   function dayLabel(d){ if(!d) return 'Undated'; if(d===today) return 'Today'; if(d===yest) return 'Yesterday'; return fmtDate(d); }
-  // rows are already sorted by date desc — group consecutive same-date entries
+  // rows are already sorted by date desc: group consecutive same-date entries
   var groups=[],cur=null;
   rows.forEach(function(e){ var d=e.date||''; if(!cur||cur.date!==d){ cur={date:d,items:[],inn:0,out:0}; groups.push(cur); } cur.items.push(e); if(e.type==='income') cur.inn+=(+e.amount||0); else cur.out+=(+e.amount||0); });
   var html='<div class="fin-timeline">';
@@ -5721,7 +5721,7 @@ function financeCashflowHTML(){
    view: calculators
    ============================================================ */
 function viewCalculators(){
-  /* prefill every calculator from real business data — answers appear with zero clicks */
+  /* prefill every calculator from real business data. Answers appear with zero clicks */
   var mm=monthlyMap();
   var avg3=Math.round(avgMonthlyRevenue(3))||'';
   var avgExp3=(function(){ var ms=lastNMonths(3),t=0,c=0; ms.forEach(function(k){ if(mm[k]){ t+=mm[k].expenses; c++; } }); return c?Math.round(t/c):''; })();
@@ -5864,7 +5864,7 @@ function runCalculator(key,form){
     resEl.classList.add('show');
   }
 }
-/* live recalculation as you type — zero clicks */
+/* live recalculation as you type: zero clicks */
 var calcLiveTimer=null;
 document.addEventListener('input',function(e){
   var f=e.target&&e.target.closest&&e.target.closest('form[data-calc]');
@@ -6004,10 +6004,10 @@ function rmEdgePath(a,b){
   var dx=b.x-a.x, dy=b.y-a.y, len=Math.sqrt(dx*dx+dy*dy)||1, ux=dx/len, uy=dy/len;
   var pad0=Math.min(46,len*0.42), pad1=Math.min(38,len*0.42);
   var ax=Math.round(a.x+ux*pad0), ay=Math.round(a.y+uy*pad0), bx=Math.round(b.x-ux*pad1), by=Math.round(b.y-uy*pad1);
-  var mx=Math.round((ax+bx)/2); // horizontal-tangent cubic — smooth organic branch curve
+  var mx=Math.round((ax+bx)/2); // horizontal-tangent cubic: smooth organic branch curve
   return 'M'+ax+' '+ay+' C'+mx+' '+ay+', '+mx+' '+by+', '+bx+' '+by;
 }
-/* recursive board builder — center → phases → unlimited task subtrees */
+/* recursive board builder: center → phases → unlimited task subtrees */
 function rmDescCount(node,isPhase){ var n=0; (function walk(list){ (list||[]).forEach(function(t){ n++; walk(t.children); }); })(isPhase?node.tasks:node.children); return n; }
 /* single source of truth: collect ordered node/edge descriptors from the tree */
 function rmCollect(rm,pos){
@@ -6030,7 +6030,7 @@ function rmCollect(rm,pos){
       count:(collapsed&&hasKids)?('+'+rmDescCount(p,true)):(ts.length?doneN+'/'+ts.length:''),collapsed:collapsed,hasKids:hasKids,shape:p.shape||'capsule'};
     order.push(nid); if(!collapsed) walkKids(p.tasks,nid);
   });
-  // free connectors (FigJam) — user-drawn links between any two nodes
+  // free connectors (FigJam): user-drawn links between any two nodes
   (rm.links||[]).forEach(function(lk){ var a=pos[lk.from], b=pos[lk.to]; if(!a||!b) return;
     edges.push({key:'link:'+lk.id, from:lk.from, d:rmEdgePath(a,b), stroke:lk.color||'#8a90a0', link:true}); });
   return {order:order,nodes:nodes,edges:edges};
@@ -6139,7 +6139,7 @@ function rmMiniDots(pos){
     out+='<span class="rm-mini-dot'+(isC?' c':(isP?' p':''))+'" style="left:'+(ox+(pos[id].x-minX)*sc)+'px;top:'+(oy+(pos[id].y-minY)*sc)+'px"></span>'; }
   return out;
 }
-/* smooth in-place update — KEYED RECONCILIATION: update existing nodes/edges in place,
+/* smooth in-place update by KEYED RECONCILIATION: update existing nodes/edges in place,
    create only new ones (which animate in), remove only gone ones. No innerHTML wipe → no blink. */
 function rmPatchBoard(){
   var rm=currentRoadmap(), board=byId('rm-board'); if(!rm||!board){ if(typeof render==='function') render(); return; }
@@ -6184,7 +6184,7 @@ function rmPatchBoard(){
     rmReconcileList(board,'.rm-table','data-table',(rm.tables||[]),function(t){ var el=rmMakeEl(rmTableHTML(t)); el.classList.add('rm-in'); return el; },
       function(el,t){ el.style.left=t.x+'px'; el.style.top=t.y+'px';
         var cols=(t.cells[0]||[]).length, sig=(t.cells.length)+'x'+cols;
-        if(el.dataset.sig!==sig){ // a rows×cols change is structural — rebuild even if a cell/control holds focus (else +row/+col do nothing while editing)
+        if(el.dataset.sig!==sig){ // a rows×cols change is structural: rebuild even if a cell/control holds focus (else +row/+col do nothing while editing)
           var ae=document.activeElement, ar=ae&&el.contains(ae)&&ae.classList&&ae.classList.contains('rm-tbl-cell')?ae.getAttribute('data-r'):null, ac=ar!=null?ae.getAttribute('data-c'):null;
           var fresh=rmMakeEl(rmTableHTML(t)); el.innerHTML=fresh.innerHTML; el.style.width=fresh.style.width; el.dataset.sig=sig;
           if(ar!=null){ var back=el.querySelector('.rm-tbl-cell[data-r="'+ar+'"][data-c="'+ac+'"]'); if(back){ try{ back.focus(); var rg=document.createRange(); rg.selectNodeContents(back); rg.collapse(false); var se=window.getSelection(); se.removeAllRanges(); se.addRange(rg); }catch(_){} } }
@@ -6245,7 +6245,7 @@ function rmTableRowDel(id){ var t=rmTableById(id); if(!t||t.cells.length<=1) ret
 function rmTableColDel(id){ var t=rmTableById(id); if(!t||(t.cells[0]||[]).length<=1) return; rmSnapshot(); t.cells.forEach(function(r){ r.pop(); }); t.cols=(t.cells[0]||[]).length; if(t.widths) t.widths.pop(); rmCommitSoft(); }
 function rmTableDelete(id){ var rm=currentRoadmap(); if(!rm) return; rmSnapshot(); rm.tables=(rm.tables||[]).filter(function(t){return t.id!==id;}); rmCommitSoft(); toast('Table removed.','warn',{undo:true}); }
 document.addEventListener('input',function(e){ var cell=e.target.closest&&e.target.closest('.rm-tbl-cell'); if(!cell) return; var t=rmTableById(cell.getAttribute('data-table')); if(!t) return; var r=+cell.getAttribute('data-r'), c=+cell.getAttribute('data-c'); if(t.cells[r]!=null){ t.cells[r][c]=cell.textContent; save(); } });
-/* ---- freeform sticky / text notes (FigJam) — drop, type immediately, drag, resize, recolour ---- */
+/* ---- freeform sticky / text notes (FigJam): drop, type immediately, drag, resize, recolour ---- */
 function rmNoteById(id){ var rm=currentRoadmap(); return rm&&(rm.notes||[]).find(function(n){return n.id===id;}); }
 function rmNoteStart(el,kind,shape){ rmPlaceCancel(); if(rmConnect) rmConnectCancel(); if(rmPenMode) rmPenStop(); rmPlace={mode:'note',kind:kind||'sticky',shape:shape}; document.body.classList.add('rm-placing');
   var board=byId('rm-board'); if(board){ var g=document.createElement('div'); g.className='rm-ghost rm-ghost-note rm-note-'+(kind||'sticky')+(kind==='shape'?' rm-fshape-'+(shape||'rect'):''); g.id='rm-ghost'; g.textContent=kind==='text'?'Text':(kind==='shape'?'':'Note'); g.style.left='-9999px'; g.style.top='-9999px'; board.appendChild(g); }
@@ -6261,12 +6261,12 @@ function rmNoteEdit(id){ var b=byId('rm-board'), el=b&&b.querySelector('.rm-note
   body.addEventListener('blur',done,{once:true}); body.addEventListener('keydown',kh);
 }
 /* ============================================================
-   M4 · transform engine — ONE pointer pipeline for every board
+   M4 · transform engine: ONE pointer pipeline for every board
    object. Adapters declare what a gesture MEANS (which styles
    move, what persists); the core owns the mechanics: movement
    threshold, screen→world math, lifecycle classes, and
    persistence + undo timing. Every completed transform is
-   snapshotted, so drag/resize of anything is undoable —
+   snapshotted, so drag/resize of anything is undoable,
    consistently, by construction.
    ============================================================ */
 var rmXf=null;
@@ -6287,7 +6287,7 @@ document.addEventListener('pointerup',function(e){
   if(st.moved){ rmSnapshot(); st.adapter.end(st,e); save(); }
   else if(st.adapter.click) st.adapter.click(st,e);
 });
-/* generic freeform move — frames, stamps, tables and notes share it verbatim */
+/* generic freeform move: frames, stamps, tables and notes share it verbatim */
 var rmXfMove={
   move:function(dx,dy,st){ st.el.style.left=(st.ox+dx)+'px'; st.el.style.top=(st.oy+dy)+'px'; },
   end:function(st){ var o=st.lookup(st.id); if(o&&st.el){ o.x=Math.round(parseFloat(st.el.style.left)); o.y=Math.round(parseFloat(st.el.style.top)); } },
@@ -6310,7 +6310,7 @@ var rmXfTableCol={
     var handles=st.el.querySelectorAll('.rm-tbl-colrz'), cum=0; for(var i=0;i<handles.length;i++){ cum+=widths[i]; handles[i].style.left=cum+'px'; } },
   end:function(st){ var t=rmTableById(st.id), tbl=st.el.querySelector('.rm-tbl-grid'); if(t&&tbl){ t.widths=[]; tbl.querySelectorAll('col').forEach(function(c){ t.widths.push(Math.round(parseFloat(c.style.width)||90)); }); } }
 };
-/* tree nodes — group move with snap guides + live edge re-routing; taps select/connect */
+/* tree nodes: group move with snap guides + live edge re-routing; taps select/connect */
 var rmXfNode={
   begin:function(st){ st.items.forEach(function(it){ it.el.classList.add('dragging'); }); },
   move:function(dx,dy,st){
@@ -6396,7 +6396,7 @@ document.addEventListener('dblclick',function(e){
   var st=e.target.closest&&e.target.closest('.rm-stamp'); if(st){ e.preventDefault(); e.stopPropagation(); rmStampDelete(st.getAttribute('data-stamp')); return; }
   var lbl=e.target.closest&&e.target.closest('.rm-frame-label'); if(lbl){ e.preventDefault(); e.stopPropagation(); rmFrameEditLabel(lbl); }
 },true);
-/* auto-layout "Tidy" — drop stored positions so the radial layout re-flows cleanly */
+/* auto-layout "Tidy": drop stored positions so the radial layout re-flows cleanly */
 function rmTidy(){ var rm=currentRoadmap(); if(!rm) return; rmSnapshot();
   function clr(list){ (list||[]).forEach(function(t){ delete t.x; delete t.y; clr(t.children); }); }
   (rm.phases||[]).forEach(function(p){ delete p.x; delete p.y; clr(p.tasks); });
@@ -6436,12 +6436,12 @@ function rmSetNodePos(kind,id,x,y){
   save();
 }
 /* ============================================================
-   roadmap camera engine — Figma-style viewport
+   roadmap camera engine: Figma-style viewport
    cam: {x,y,z} where  screen = world*z + (x,y)  (canvas-local px)
    Pan/zoom mutate the DOM directly (no re-render) for 60fps.
    ============================================================ */
 function rmCam(){ if(!ui.rmCam) ui.rmCam={x:0,y:0,z:1}; return ui.rmCam; }
-/* viewport rect cache — one layout read per gesture window, not per frame.
+/* viewport rect cache: one layout read per gesture window, not per frame.
    Invalidated on resize / patch / canvas-height drag, with a 1s TTL backstop. */
 var rmCvRectCache=null, rmCvRectAt=0;
 function rmCanvasRect(){
@@ -6454,7 +6454,7 @@ function rmCanvasRect(){
 function rmCvRectInvalidate(){ rmCvRectCache=null; }
 if(typeof window!=='undefined'){ window.addEventListener('resize',rmCvRectInvalidate);
   document.addEventListener('scroll',rmCvRectInvalidate,true); } // any scroller moving the canvas refreshes the cache
-/* rAF-coalesced camera writes — high-frequency pan input (wheel deltas, pointer
+/* rAF-coalesced camera writes: high-frequency pan input (wheel deltas, pointer
    moves, momentum) collapses to ONE style write per frame. Discrete ops
    (zoom, fit) stay synchronous so interaction + tests read a settled DOM. */
 var rmCamRaf=0;
@@ -6515,7 +6515,7 @@ function rmSyncMiniView(){
 }
 function rmScreenToWorld(cx,cy){ var cam=rmCam(), r=rmCanvasRect(); if(!r) return {x:0,y:0};
   return {x:(cx-r.left-cam.x)/cam.z, y:(cy-r.top-cam.y)/cam.z}; }
-/* fullscreen canvas — the card fills the viewport so the whole map is one immersive surface */
+/* fullscreen canvas: the card fills the viewport so the whole map is one immersive surface */
 function rmToggleFullscreen(force){
   var cv=byId('rm-canvas'), card=cv&&cv.closest('.rm-canvas-card'); if(!card) return;
   var on=(force!=null)?force:!card.classList.contains('rm-full');
@@ -6525,7 +6525,7 @@ function rmToggleFullscreen(force){
   requestAnimationFrame(function(){ rmCvRectInvalidate(); rmApplyCam(); }); // relayout: refit the viewport rect after the transition frame
 }
 /* ============================================================
-   spatial index + viewport culling — the board scales to
+   spatial index + viewport culling: the board scales to
    thousands of objects because offscreen nodes stop painting.
    Uniform grid (512 world px cells) rebuilt on each patch;
    culling re-runs only when the camera leaves a padded window
@@ -6576,7 +6576,7 @@ function rmCullView(){
   rmCull={on:true,x0:qx0,y0:qy0,x1:qx1,y1:qy1,z:cam.z};
 }
 /* ============================================================
-   momentum panning — release a pan with speed and the camera
+   momentum panning: release a pan with speed and the camera
    glides out with exponential decay (tau ≈ 325ms, iOS-feel).
    Physics is real input velocity, not a canned animation; any
    new input (pointer, wheel, key) interrupts it instantly.
@@ -6584,11 +6584,11 @@ function rmCullView(){
 var rmMomentumRaf=0, rmGlideRaf=0;
 function rmMomentumActive(){ return !!rmMomentumRaf; }
 function rmGlideActive(){ return !!rmGlideRaf; }
-function rmMomentumCancel(){ // cancels ALL programmatic camera motion — any input takes over instantly
+function rmMomentumCancel(){ // cancels ALL programmatic camera motion: any input takes over instantly
   if(rmMomentumRaf){ if(typeof cancelAnimationFrame==='function') cancelAnimationFrame(rmMomentumRaf); rmMomentumRaf=0; }
   if(rmGlideRaf){ if(typeof cancelAnimationFrame==='function') cancelAnimationFrame(rmGlideRaf); rmGlideRaf=0; }
 }
-/* eased camera interpolation for programmatic moves (minimap jump, focus) —
+/* eased camera interpolation for programmatic moves (minimap jump, focus):
    the camera never teleports; reduced-motion users get the instant jump */
 function rmCamGlideTo(tx,ty,tz,ms){
   var cam=rmCam(); tz=(tz==null)?cam.z:clamp(tz,0.12,4); ms=ms||260;
@@ -6609,7 +6609,7 @@ function rmMomentumStep(v,dt){ return v*Math.exp(-dt/325); } // pure decay, unit
 function rmStartMomentum(vx,vy){
   if(typeof matchMedia==='function' && matchMedia('(prefers-reduced-motion:reduce)').matches) return;
   var sp=Math.sqrt(vx*vx+vy*vy);
-  if(sp<0.25||sp>5) return; // px/ms — ignore twitches and impossible flings (also guards synthetic events)
+  if(sp<0.25||sp>5) return; // px/ms: ignore twitches and impossible flings (also guards synthetic events)
   if(typeof requestAnimationFrame!=='function'||typeof performance==='undefined') return;
   rmMomentumCancel();
   var last=performance.now();
@@ -6624,11 +6624,11 @@ function rmStartMomentum(vx,vy){
   rmMomentumRaf=requestAnimationFrame(step);
 }
 
-/* drag nodes + pan the camera — pointer events (mouse + touch) */
+/* drag nodes + pan the camera: pointer events (mouse + touch) */
 var rmPan=null, rmSpace=false, rmHand=false, rmMarquee=null; // node/object drags live in the M4 transform engine (rmXf)
 document.addEventListener('keydown',function(e){
   var cv=byId('rm-canvas'); if(!cv) return;
-  // only claim camera keys when the canvas is the intended target — otherwise a
+  // only claim camera keys when the canvas is the intended target. Otherwise a
   // focused button keeps its Space activation and typing keys stay untouched
   var ae=document.activeElement;
   if(ae && ae!==document.body && ae!==cv && !cv.contains(ae)) return;
@@ -6661,13 +6661,13 @@ document.addEventListener('keydown',function(e){
 document.addEventListener('keyup',function(e){ if(e.code==='Space'){ rmSpace=false; document.body.classList.remove('rm-grabbing'); } if(e.key==='Shift') document.body.classList.remove('rm-shift'); });
 document.addEventListener('pointerdown',function(e){
   var cv=e.target.closest&&e.target.closest('#rm-canvas'); if(!cv) return;
-  if(rmPlace) return; // in placement mode a single click drops the node — never drag/pan
+  if(rmPlace) return; // in placement mode a single click drops the node. Never drag/pan
   if(e.target.closest('.rm-qadd')||e.target.closest('.rm-rail')||e.target.closest('.rm-maps')||e.target.closest('.rm-resize')||e.target.closest('.rm-ctx')||e.target.closest('.rm-pop')||e.target.closest('.rm-selbar')||e.target.closest('.rm-table')||e.target.closest('.rm-comment')||e.target.closest('.rm-comment-pop')||e.target.closest('.rm-note-obj')) return;
   rmCtxClose(); if(!e.target.closest('.rm-tool')) rmPopClose();
   rmMomentumCancel(); // any new touch takes over from a camera glide
   var node=e.target.closest('.rm-node');
   var onEmpty=!node&&e.button===0&&(e.target.id==='rm-canvas'||(e.target.closest&&e.target.closest('#rm-board')));
-  // arrow-tool default (Figma model): left-drag on empty = marquee select — so a user can
+  // arrow-tool default (Figma model): left-drag on empty = marquee select, so a user can
   // rubber-band everything and Delete it. Shift+drag ADDS to the selection.
   // Panning is Space+drag, middle-drag, or the Hand tool only.
   if(onEmpty&&!rmSpace&&!rmHand){
@@ -6782,7 +6782,7 @@ document.addEventListener('dblclick',function(e){
   var cv=e.target.closest&&e.target.closest('#rm-canvas'); if(!cv) return;
   if(e.target.closest('.rm-node')||e.target.closest('.rm-mini')||e.target.closest('.rm-rail')||e.target.closest('.rm-maps')) return;
   if(rmPlace||(Date.now()-rmLastPlace<500)) return; // don't double-create right after a placement click
-  // double-click empty canvas drops a branch right there and opens inline rename — no modal
+  // double-click empty canvas drops a branch right there and opens inline rename. No modal
   var rm=currentRoadmap(); if(!rm) return;
   var w=rmScreenToWorld(e.clientX,e.clientY);
   var np={id:uid(),name:'New branch',desc:'',order:(rm.phases||[]).length,tasks:[],
@@ -6798,7 +6798,7 @@ document.addEventListener('wheel',function(e){
   if(e.ctrlKey||e.metaKey){ rmZoomTo(cam.z*Math.exp(-e.deltaY*0.0016), e.clientX, e.clientY); }
   else { cam.x-=e.deltaX; cam.y-=e.deltaY; rmApplyCamSoon(); } // deltas coalesce to one write per frame
 },{passive:false});
-/* edge index — O(degree) live re-routing during drag instead of scanning every path.
+/* edge index: O(degree) live re-routing during drag instead of scanning every path.
    Rebuilt lazily; nulled after any structural patch. */
 var rmEdgeIdx=null;
 function rmEdgeIndex(board){
@@ -6827,7 +6827,7 @@ function rmUpdateEdges(nid,x,y){
    ============================================================ */
 var RM_SHAPES=[['capsule','Capsule'],['rounded','Rounded'],['rect','Rectangle'],['ellipse','Ellipse'],['diamond','Diamond'],['sticky','Sticky']];
 var RM_FSHAPES=[['rect','Rectangle'],['rounded','Rounded'],['ellipse','Ellipse'],['diamond','Diamond'],['triangle','Triangle'],['capsule','Pill']];
-/* quick-start templates (FigJam) — prebuilt boards */
+/* quick-start templates (FigJam): prebuilt boards */
 function rmTplPhase(name,tasks){ return {name:name,tasks:(tasks||[]).map(function(t){ return {title:t,status:'Not Started',children:[]}; })}; }
 var RM_TEMPLATES=[
   {name:'Now · Next · Later',build:function(){ return {name:'Now · Next · Later',phases:[rmTplPhase('Now',['In progress','Blocked']),rmTplPhase('Next',['Up next','Planned']),rmTplPhase('Later',['Someday','Ideas'])]}; }},
@@ -6898,7 +6898,7 @@ function rmMapsHTML(rm){
   return '<div class="rm-maps'+(open?'':' hidden')+'" id="rm-maps"><div class="rm-maps-h"><span>'+icon('layers',11)+' Boards</span>'+
     '<button data-action="roadmap-new" title="New board">'+icon('plus',12)+'</button></div>'+items+tpls+'</div>';
 }
-/* placement mode — a faint predictive ghost you position by clicking */
+/* placement mode: a faint predictive ghost you position by clicking */
 var rmPlace=null;
 function rmPlaceStart(mode,phaseId){
   rmPlaceCancel();
@@ -6938,7 +6938,7 @@ function rmPlaceCommit(world){
   rmPlaceCancel(); rmCommitSoft();
 }
 var rmLastPlace=0;
-/* predictive quick-add — spawn a connected node toward the chosen side */
+/* predictive quick-add: spawn a connected node toward the chosen side */
 function rmQuickAdd(nid,dir){
   var rm=currentRoadmap(); if(!rm) return; rmSnapshot();
   var board=byId('rm-board'), node=board&&board.querySelector('.rm-node[data-nid="'+nid+'"]');
@@ -6955,7 +6955,7 @@ function rmQuickAdd(nid,dir){
     var ph=(rm.phases||[]).find(function(q){return q.id===nid.slice(2);}); if(!ph) return;
     var nt=rmKids(ph,true); var t={id:uid(),title:'New node',status:'Not Started',priority:'Medium',children:[],x:x,y:y,shape:rmShape()};
     nt.push(t); newNid='t:'+t.id;
-  } else if(nid.indexOf('t:')===0){ // unlimited depth — any node spawns children
+  } else if(nid.indexOf('t:')===0){ // unlimited depth: any node spawns children
     var ref=rmNodeRef(nid); if(!ref) return; var kids=rmKids(ref.node,false);
     var ct={id:uid(),title:'New node',status:'Not Started',children:[],x:x,y:y,shape:rmShape()};
     kids.push(ct); newNid='t:'+ct.id;
@@ -7144,7 +7144,7 @@ function rmUpdateStatStrip(){ var rm=currentRoadmap(); if(!rm||typeof roadmapSta
   strip.innerHTML='<span>'+icon('roadmap',13)+' <b>'+fmtPct(rs.pct,0)+'</b> done</span><span>'+icon('flag',13)+' '+rs.done+'/'+rs.total+'</span>'+
     (rs.blocked?'<span class="t-risk">'+icon('alert',13)+' '+rs.blocked+' blocked</span>':'')+(rs.late?'<span class="t-risk">'+icon('clock',13)+' '+rs.late+' delayed</span>':'');
 }
-/* ---- undo / redo (roadmap keyboard) — single level over the app undo buffer ---- */
+/* ---- undo / redo (roadmap keyboard): single level over the app undo buffer ---- */
 var rmRedoBuf=null, rmClip=null;
 /* deep multi-level undo/redo stack for the roadmap (FigJam-grade history) */
 var rmHist={u:[],r:[]};
@@ -7194,14 +7194,14 @@ function rmSyncToolButtons(){
   });
   var camHand=document.querySelector('.rm-cam-bar [data-action="rm-tool-toggle"]'); if(camHand) camHand.classList.toggle('on',rmHand);
 }
-/* apply a shape — to the selection if any, else set the default for new nodes */
+/* apply a shape: to the selection if any, else set the default for new nodes */
 function rmPickShape(shape){
   ui.rmShape=shape;
   var fo=byId('rm-flyout'); if(fo) fo.querySelectorAll('.rm-shape-opt').forEach(function(o){ o.classList.toggle('on',o.getAttribute('data-shape')===shape); });
   var ids=Object.keys(rmSelSet()).filter(function(nid){ return nid!=='center'; });
   if(ids.length){ var changed=false; ids.forEach(function(nid){ var ref=rmNodeRef(nid); if(ref&&ref.type!=='center'){ ref.node.shape=shape; changed=true; } }); if(changed){ save(); rmPatchBoard(); } }
 }
-/* inline rename — double-click a node label, or auto-opens on create */
+/* inline rename: double-click a node label, or auto-opens on create */
 function rmStartInlineEdit(nid){
   var b=byId('rm-board'); if(!b) return;
   var node=b.querySelector('.rm-node[data-nid="'+nid+'"]'); if(!node) return;
@@ -7225,7 +7225,7 @@ function rmConsumeEdit(){
   if(!ui.rmEditNid) return; var nid=ui.rmEditNid; ui.rmEditNid=null;
   requestAnimationFrame(function(){ rmStartInlineEdit(nid); });
 }
-/* bottom edge resize — drag to grow/shrink the whole canvas height */
+/* bottom edge resize: drag to grow/shrink the whole canvas height */
 var rmResize=null;
 document.addEventListener('pointerdown',function(e){
   var h=e.target.closest&&e.target.closest('.rm-resize'); if(!h) return;
@@ -7310,7 +7310,7 @@ function viewRoadmap(){
     if(rs.total>0) html+='<div class="card mt"><div class="progress thick"><div class="bar good" style="--p:'+rs.pct+'"></div></div><p style="font-size:.78rem;color:var(--text-3);margin-top:8px">'+fmtPct(rs.pct,0)+' of "'+esc(rm.name)+'" completed</p></div>';
   }
   if(mode==='map'){
-    // always render the canvas (even empty) — the centre node's quick-add / double-click
+    // always render the canvas (even empty): the centre node's quick-add / double-click
     // adds the first branch inline, no form
     html+=rmMapHTML(rm);
     return html;
@@ -7674,7 +7674,7 @@ function hrPhotoPick(){
           var c=document.createElement('canvas'); c.width=cw; c.height=ch;
           c.getContext('2d').drawImage(img,0,0,cw,ch);
           hrPhotoSet(c.toDataURL('image/jpeg',0.85));
-        }catch(e){ hrPhotoSet(r.result); } // tainted/odd format — fall back to original
+        }catch(e){ hrPhotoSet(r.result); } // tainted/odd format: fall back to original
       };
       img.onerror=function(){ hrPhotoSet(r.result); };
       img.src=r.result;
@@ -7719,7 +7719,7 @@ function sanitizeContractHTML(html){
     var URLA={href:1,src:1,'xlink:href':1,formaction:1,action:1,data:1,poster:1,background:1};
     (function walk(node){
       Array.prototype.slice.call(node.children||[]).forEach(function(el){
-        if(BAD[String(el.tagName||'').toLowerCase()]){ el.remove(); return; } // case-insensitive — also kills SVG/MathML <script>
+        if(BAD[String(el.tagName||'').toLowerCase()]){ el.remove(); return; } // case-insensitive: also kills SVG/MathML <script>
         Array.prototype.slice.call(el.attributes).forEach(function(at){
           var n=String(at.name).toLowerCase();
           if(/^on/.test(n) || n==='style' || (URLA[n] && /^\s*(javascript|data|vbscript):/i.test(at.value))) el.removeAttribute(at.name);
@@ -8430,7 +8430,7 @@ function roadmapModal(rm){
       if(ex){ ex.name=name; ex.color=color; }
       toast('Roadmap updated.');
     } else {
-      var nr={id:uid(),name:name,color:color,phases:[],noCenter:true}; // start empty — the user builds their own roots
+      var nr={id:uid(),name:name,color:color,phases:[],noCenter:true}; // start empty; the user builds their own roots
       state.roadmaps.push(nr);
       ui.roadmapId=nr.id; ui.rmCam=null; ui.rmSelSet=null; ui.rmSel=null;
       toast('"'+name+'" created. The canvas is empty; add branches from the toolbar or double-click.');
@@ -8561,7 +8561,7 @@ function loadSampleData(){
   var fin=[];
   function inc(off,day,amt,cat,note,client){ fin.push({id:uid(),type:'income',amount:amt,date:d(off,day),category:cat,note:note,client:client||''}); }
   function exp(off,day,amt,cat,note){ fin.push({id:uid(),type:'expense',amount:amt,date:d(off,day),category:cat,note:note,client:''}); }
-  // 5 months of history + current month — a growing design studio
+  // 5 months of history + current month: a growing design studio
   inc(-5,5,28000,'Services','Brand identity project','Lumina Café');     exp(-5,3,4500,'Software & Tools','Design suite subscriptions');
   inc(-5,18,12000,'Consulting','Marketing consult','Harbor Dental');     exp(-5,10,6000,'Marketing & Ads','FB ads test');
   exp(-5,25,3000,'Transport','Client meetings');
@@ -8788,7 +8788,7 @@ function applyTheme(){
 /* ---- Liquid Glass (iOS 27) transparency ----
    One 0–100 setting drives --glass-clarity, and every floating surface in the
    product derives its tint, blur, rim and edge from it. 0 renders everything
-   solid — the accessible end of the scale, not a degraded one. */
+   solid: the accessible end of the scale, not a degraded one. */
 function glassLevel(){
   var v=state.settings&&state.settings.glass;
   return (v==null||isNaN(v))?55:clamp(Math.round(+v),0,100); // iOS 27 ships a touch shy of fully clear
@@ -9214,7 +9214,7 @@ document.addEventListener('submit',function(e){
   var form=e.target;
   e.preventDefault();
 
-  /* form.getAttribute('id') — NOT form.id — because a control named "id"
+  /* form.getAttribute('id'), NOT form.id, because a control named "id"
      shadows the form's id property in real browsers (LegacyOverrideBuiltIns) */
   if(form.getAttribute('id')==='modal-form'){
     if(modalSubmitHandler){
@@ -9308,7 +9308,7 @@ document.addEventListener('submit',function(e){
   }
 });
 
-/* live inputs (search) — re-render but keep focus */
+/* live inputs (search): re-render but keep focus */
 document.addEventListener('input',function(e){
   var el=e.target;
   var act=el.getAttribute('data-action-input');
@@ -9367,7 +9367,7 @@ document.addEventListener('change',function(e){
     el.value='';
     return;
   }
-  /* smart CSV import — in-modal selects re-render preview */
+  /* smart CSV import: in-modal selects re-render preview */
   if(el.getAttribute('data-imp')==='entity'){ csvSetEntity(el.value); return; }
   if(el.getAttribute('data-imp')==='option'){ csvSetOption(el.getAttribute('data-opt'),el.type==='checkbox'?el.checked:el.value); return; }
   if(el.getAttribute('data-imp')==='map'){ csvSetMap(el.getAttribute('data-field'),el.value); return; }
@@ -9571,7 +9571,7 @@ function processRecurringInvoices(){
     var rc=r.currency||'PHP';
     /* An unattended background job must never invent a rate. If there is no verified
        one we still create the invoice (the client genuinely owes that USD amount) but
-       we record NO fxRate — the row shows "rate not set", the invoice is excluded from
+       we record NO fxRate: the row shows "rate not set", the invoice is excluded from
        peso totals and cannot be marked paid until the owner supplies a rate. */
     var stamp=fxStamp(rc);
     if(rc!=='PHP'&&!(stamp.fxRate>0&&(stamp.fxRateBy==='live'||stamp.fxRateBy==='manual'))){
@@ -9762,7 +9762,7 @@ function invoiceModal(iv){
           ? 'The built-in ₱'+fmtNum(i.rate,2)+' per 1 '+cur+' is an unverified estimate, not a real rate.'
           : 'There is no '+cur+'→₱ rate at all.';
         // toast() mirrors error/warn messages into the open modal as an inline banner,
-        // so one message covers both surfaces — keep it complete and actionable.
+        // so one message covers both surfaces: keep it complete and actionable.
         toast('Can’t save this '+cur+' invoice: '+why+' Enter today’s ₱ per 1 '+cur+' in the field under Currency (it works offline), or refresh live rates in Settings ▸ Currency.','error');
         var w=byId('inv-fx-wrap'); if(w){ w.innerHTML=invFxFieldHTML(cur,ex); var f=w.querySelector('[name="fxManual"]'); if(f&&f.focus) try{f.focus();}catch(_){ } }
         // if we're online, try to get a real rate right now so a second submit just works;
@@ -9789,7 +9789,7 @@ function invoiceModal(iv){
         var wasPaid=ex.status==='Paid';
         // snapshot before the edit lands: flipping Draft/Sent -> Paid in this modal writes
         // income exactly like the Mark-paid button, so it has to pass the same money gate
-        // and roll the WHOLE record back — status included — when the gate refuses.
+        // and roll the WHOLE record back, status included, when the gate refuses.
         var snap=JSON.parse(JSON.stringify(ex));
         Object.assign(ex,data);
         if(!wasPaid&&ex.status==='Paid'){
@@ -9838,7 +9838,7 @@ function invFxFieldHTML(cur,iv){
       : '')+
     '</div>';
 }
-/* Peso value of an invoice. Returns null — NEVER a 1:1 guess — when the rate is unknown.
+/* Peso value of an invoice. Returns null, never a 1:1 guess, when the rate is unknown.
    `null` sums as 0 (so totals under-count rather than over-count) and every display
    path routes through invPHPText(), which says "rate not set" instead of printing a
    number nobody can justify. */
@@ -9849,7 +9849,7 @@ function invPHP(iv){
   return Math.round(num(iv.amount)*r*100)/100;
 }
 function invHasRate(iv){ return invPHP(iv)!=null; }
-/* The peso figure money may be WRITTEN against — the record side of invPHP().
+/* The peso figure money may be WRITTEN against. The record side of invPHP().
    Reading history back at the rate it was frozen at is correct, so invPHP() keeps
    doing exactly that. Booking NEW income against a rate nobody verified is not, so
    this returns null unless ivRateInfo() says the rate on the record was live or
@@ -9873,7 +9873,7 @@ function invPHPText(iv){
 }
 /* The same two facts fxInvoiceNoticeHTML() states, shrunk to one sub-line so a headline
    peso total never gets to look complete when it isn't. Deliberately the SAME vocabulary
-   ("unverified rate", "no rate", "left out") — an owner should not have to learn two
+   ("unverified rate", "no rate", "left out"): an owner should not have to learn two
    ways of being told the same thing. Returns '' when the total is fully accounted for. */
 function fxTotalsCaveat(list){
   list=(list||[]).filter(function(iv){ return iv&&iv.currency&&iv.currency!=='PHP'; });
@@ -9891,7 +9891,7 @@ function fxTotalsCaveatHTML(list){
   if(!t) return '';
   return '<span class="stat-delta flat" title="Foreign invoices inside this figure. An unverified rate is a built-in estimate, or a rate saved before Trakora tracked where rates came from; an invoice with no rate at all cannot be converted, so it is excluded from the total.">incl. '+esc(t)+'</span>';
 }
-/* Honest banner on the Invoices screen. Historical records are NEVER rewritten — this
+/* Honest banner on the Invoices screen. Historical records are NEVER rewritten: this
    only tells the owner which ones the peso totals can't include, and which ones were
    booked against a rate that was never verified, so they can decide what to do. */
 function fxInvoiceNoticeHTML(){
@@ -9905,7 +9905,7 @@ function fxInvoiceNoticeHTML(){
     /* Nothing left to warn about. If an AUTOMATIC refresh is what just resolved it, the
        amber card below was on screen a moment ago: letting it return '' would delete it
        under the owner with no input and take ~175px of page with it, jumping everything
-       beneath it upward. Say what happened in the same slot instead — the height stays
+       beneath it upward. Say what happened in the same slot instead: the height stays
        put, and a refresh nobody asked for is seen rather than merely felt. */
     if(!fxJustRefreshed) return '';
     var upd=fxSettings().updated;
@@ -9918,7 +9918,7 @@ function fxInvoiceNoticeHTML(){
   var lines=[];
   if(missing.length) lines.push('<b>'+missing.length+' invoice'+(missing.length>1?'s have':' has')+' no exchange rate</b> and '+(missing.length>1?'are':'is')+' left out of every peso total. '+(missing.length>1?'They':'It')+' cannot be marked paid until a rate is set.');
   // Split by status: "it cannot be marked paid" is simply false for an invoice that is
-  // ALREADY Paid — and those are the ones with real money already sitting in Finance, so
+  // ALREADY Paid, and those are the ones with real money already sitting in Finance, so
   // they need the opposite warning, not the same one.
   var unvPaid=unverified.filter(function(iv){ return iv.status==='Paid'; });
   var unvOpen=unverified.filter(function(iv){ return iv.status!=='Paid'; });
@@ -9945,7 +9945,7 @@ function invIncomeNote(iv){
   return 'Invoice '+iv.number+(iv.desc?' · '+iv.desc:'')+(iv.currency&&iv.currency!=='PHP'?' ('+fmtInvAmt(iv)+rateNote+' via '+(iv.payMethod||'—')+')':(iv.payMethod?' via '+iv.payMethod:''));
 }
 /* Writes the peso income for a paid invoice. This is the single choke point every
-   "mark paid" path funnels through, so it uses invRecordPHP() — NOT invPHP(). Returns
+   "mark paid" path funnels through, so it uses invRecordPHP(), NOT invPHP(). Returns
    false and writes NOTHING when the invoice carries no rate, or carries one nobody
    verified (a built-in estimate, or a rate stamped by a build that didn't record where
    rates came from). The old behaviour here was to book it at 1:1 behind a toast, which
@@ -9965,10 +9965,10 @@ function recordInvoiceIncome(iv){
 /* Keeps the recorded income in sync if a PAID invoice is later edited
    (amount/currency/desc/method). invRecordPHP(), NOT invPHP(): re-converting is a WRITE.
    An invoice that was already Paid before Trakora tracked provenance carries a rate
-   nobody verified, and invoiceCanBePaid() never saw it — so editing one used to re-book
+   nobody verified, and invoiceCanBePaid() never saw it, so editing one used to re-book
    it at the built-in 58.5, and editing its AMOUNT minted a brand-new peso figure at that
    constant ($2,000 silently became ₱117,000). When the rate isn't verified the booked
-   figure is left exactly as it stands — it is what the owner actually recorded — and the
+   figure is left exactly as it stands, it is what the owner actually recorded, and the
    note says so, so the books never claim a peso amount matches an edited invoice when
    nobody can convert it. */
 function reconcileInvoiceIncome(iv){
@@ -9987,8 +9987,8 @@ function reconcileInvoiceIncome(iv){
   return true;
 }
 /* One actionable sentence for every refusal to write money against an invoice. The two
-   reasons read differently to the owner — "there is no rate" vs "the rate on this
-   invoice was never verified" — so they are said differently, and both name the fix. */
+   reasons read differently to the owner: "there is no rate" vs "the rate on this
+   invoice was never verified", so they are said differently, and both name the fix. */
 function fxRecordRefusalText(iv,what){
   var i=ivRateInfo(iv);
   var why=(iv&&iv.fxRate>0&&!i.verified)
@@ -9996,7 +9996,7 @@ function fxRecordRefusalText(iv,what){
     : 'no verified '+iv.currency+'→₱ rate';
   return 'Can’t '+what+': '+why+', so the peso income can’t be recorded. Set today’s rate in Settings ▸ Currency, or open the invoice and type it in.';
 }
-/* the money gate for "mark this invoice paid" — same rule as invoice creation.
+/* the money gate for "mark this invoice paid". Same rule as invoice creation.
    NOT `iv.fxRate>0`: that passes for a seed-derived stamp, which is how a $1000
    invoice frozen at the built-in 58.5 used to book ₱58,500 of income that never
    existed. The record's rate has to be VERIFIED, or a verified one has to exist today
@@ -10033,7 +10033,7 @@ function printInvoice(iv){
       if(php==null) return '<tr><td>Equivalent in Philippine Peso</td><td class="num">not shown, no exchange rate recorded</td></tr>';
       /* This page is handed to a client. A peso figure derived from a built-in estimate
          (or from a rate whose source was never recorded) would read as a stated amount
-         owed, so it is not printed at all — silence beats a number nobody can stand
+         owed, so it is not printed at all: silence beats a number nobody can stand
          behind. Fix the rate on the invoice and print again. */
       if(!ri.verified) return '<tr><td>Equivalent in Philippine Peso</td><td class="num">not shown, no verified exchange rate on this invoice</td></tr>';
       var src=/live/.test(ri.by)?'live rate':/manual/.test(ri.by)?'rate set manually':String(ri.by);
@@ -10062,7 +10062,7 @@ function viewReport(){
   var html=topbar('Reports','P&L summaries. Print any of them or save as PDF.',
     '<button class="btn btn-primary" data-action="print-report" data-month="'+selected+'">'+icon('print')+'<span class="btn-txt">Print / Save PDF</span></button>');
   /* a toolbar, not a card: wrapping it in .card put four .card.stat-card tiles inside
-     a surface with the identical background, radius, border and shadow — the one place
+     a surface with the identical background, radius, border and shadow. The one place
      in the app where a card sits on a card instead of stepping down a rung */
   html+='<div class="view-toolbar"><div class="seg">'+
     '<button class="active" data-action="report-period" data-val="month">Monthly</button>'+
@@ -10155,14 +10155,14 @@ function customizationCardHTML(){
     '<button class="swatch'+(!s.accent?' active':'')+'" style="background:linear-gradient(135deg,#4653e8,#7c5cd6)" data-action="set-accent" data-color="" title="Default"></button>'+
     ACCENTS.map(function(c){return '<button class="swatch'+(s.accent===c?' active':'')+'" style="background:'+c+'" data-action="set-accent" data-color="'+c+'"></button>';}).join('')+
     '</div></div>';
-  // theme — same control as the topbar toggle, where users expect to find it
+  // theme: same control as the topbar toggle, where users expect to find it
   html+='<div class="field"><label>Theme</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+
     [['light','Light'],['dark','Dark'],['','System']].map(function(p){
       var on=(s.theme||'')===p[0];
       return '<button type="button" class="btn btn-sm '+(on?'':'btn-ghost')+'" data-action="set-theme" data-theme="'+p[0]+'">'+esc(p[1])+'</button>';
     }).join('')+'</div>'+
     '<p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Switch between light and dark, or follow your device.</p></div>';
-  // Liquid Glass clarity — iOS 27's transparency slider, from solid to ultra clear
+  // Liquid Glass clarity: iOS 27's transparency slider, from solid to ultra clear
   var gv=glassLevel();
   html+='<div class="field"><label>Liquid Glass '+
       '<span class="glass-val" id="glass-val">'+(gv===0?'Solid':(gv>=90?'Ultra clear':gv+'%'))+'</span></label>'+
@@ -10184,7 +10184,7 @@ function customizationCardHTML(){
     '<div style="display:flex;justify-content:flex-end;margin-top:8px"><button type="button" class="btn btn-ghost btn-sm" data-action="reset-sections">'+icon('refresh')+' Reset to defaults</button></div>'+
     '<p style="font-size:.72rem;color:var(--text-3);margin-top:3px">Pick a color and rename any section. Changes show in the menu bar instantly.</p></div>';
   // The section-order table lived here. It was written for the left sidebar, which no
-  // longer exists — the desktop nav is the island bar and the drawer is gone — so the
+  // longer exists, the desktop nav is the island bar and the drawer is gone, so the
   // control read as a setting for something the user cannot see. Menu groups now keep
   // their built-in order. `sectionOrder` is still honoured by islandSections() so that
   // anyone who reordered their menu before this keeps the arrangement they chose.
@@ -10501,7 +10501,7 @@ function productFields(){ return state.settings.productFields||[]; }
 function fieldsForCategory(cat){
   return productFields().filter(function(f){ return !f.cat||f.cat===cat; });
 }
-/* legacy shim: union of field labels — used by the table and CSV export */
+/* legacy shim: the union of field labels, used by the table and CSV export */
 function productAttrs(){ return productFields().map(function(f){return f.label;}); }
 function prodFieldInputHTML(f,val){
   if(f.type==='select'){
@@ -10522,7 +10522,7 @@ function stockBadge(p){
   if(p.stock<=lo) return '<span class="badge warn">Low · '+p.stock+' left</span>';
   return '<span class="badge good">'+p.stock+' in stock</span>';
 }
-/* inner markup of the inline stock control — re-rendered in place on +/- so the screen never flashes */
+/* inner markup of the inline stock control: re-rendered in place on +/- so the screen never flashes */
 function stockCellInner(p){
   return '<div style="display:flex;align-items:center;gap:6px">'+
     '<button class="btn-icon step-btn" data-action="stock-adjust" data-id="'+p.id+'" data-delta="-1" title="−1 stock" aria-label="Decrease stock">−</button>'+
@@ -11566,7 +11566,7 @@ document.addEventListener('click',function(e){
 });
 
 /* ============================================================
-   v6: sandbox-proof saving — never rely on native form submission.
+   v6: sandbox-proof saving: never rely on native form submission.
    Some viewers/in-app browsers block native <form> submit entirely
    (clicks land but no submit event fires). We intercept the click
    on any submit button ourselves and dispatch the submit event
@@ -11578,7 +11578,7 @@ function dispatchSubmit(form){
   catch(_){ ev=document.createEvent('Event'); ev.initEvent('submit',true,true); }
   form.dispatchEvent(ev);
 }
-/* every click on a submit button saves directly — no native submit needed */
+/* every click on a submit button saves directly. No native submit needed */
 document.addEventListener('click',function(e){
   var btn=e.target.closest('button');
   if(!btn||btn.disabled) return;
@@ -11606,7 +11606,7 @@ document.addEventListener('keydown',function(e){
         toast('You are viewing this inside another app’s preview. If anything misbehaves, download the file and open it directly in Chrome, Safari, Edge or Firefox.','warn');
       },2200);
     }
-  }catch(_){ /* cross-origin frame check can throw — that itself means we are framed */
+  }catch(_){ /* cross-origin frame check can throw, that itself means we are framed */
     setTimeout(function(){
       toast('You are viewing this inside another app’s preview. For full reliability open the file directly in your browser.','warn');
     },2200);
@@ -11865,7 +11865,7 @@ document.addEventListener('dragover',function(e){
 });
 document.addEventListener('dragleave',function(e){
   var col=e.target.closest&&e.target.closest('[data-drop-status]');
-  // only un-highlight when the pointer actually leaves the column — not when it
+  // only un-highlight when the pointer actually leaves the column, not when it
   // crosses onto a child element (which would otherwise flicker the outline)
   if(col && !col.contains(e.relatedTarget)) col.classList.remove('drag-over');
 });
@@ -11977,7 +11977,7 @@ function maybeOnboard(){
   // carousel intro first; the setup wizard opens when it ends
   setTimeout(function(){ showOnboard(0); },600);
 }
-/* first-run section picker — the owner chooses which parts of the app appear in
+/* first-run section picker: the owner chooses which parts of the app appear in
    their sidebar. Essentials (dashboard, assistant, finance, settings) always show. */
 var WIZ_ESSENTIAL={dashboard:1,assistant:1,finance:1,settings:1};
 function wizardSectionPickerHTML(){
@@ -12141,7 +12141,7 @@ document.addEventListener('keydown',function(e){
 });
 
 /* ============================================================
-   v9 additions: Accounts & Cash — banks, e-wallets, cash box,
+   v9 additions: Accounts & Cash: banks, e-wallets, cash box,
    transfers, reconciliation, true cash position
    ============================================================ */
 var ACCOUNT_TYPES=['Bank','E-wallet','Cash','Credit card','Other'];
@@ -13062,10 +13062,10 @@ var FX_SYMBOLS={PHP:'₱',USD:'$',EUR:'€',GBP:'£',AUD:'A$',CAD:'C$',SGD:'S$',
    A recorded peso figure is a fact about the owner's books. It must never come
    from a number nobody checked. So every rate carries WHERE it came from:
 
-     'live'   — fetched from the rate API, timestamped
-     'manual' — typed by the owner, timestamped (this is the offline path)
-     'seed'   — the built-in constants below. An ESTIMATE. Never records money.
-     'none'   — no number at all
+     'live': fetched from the rate API, timestamped
+     'manual': typed by the owner, timestamped (this is the offline path)
+     'seed': the built-in constants below. An ESTIMATE. Never records money.
+     'none': no number at all
 
    Two separate accessors enforce the split, and the old silent 1:1 fallback is
    gone from both:
@@ -13075,7 +13075,7 @@ var FX_SYMBOLS={PHP:'₱',USD:'$',EUR:'€',GBP:'£',AUD:'A$',CAD:'C$',SGD:'S$',
    fxRecordRate and refuse to write when it returns null.
 
    FX_SEED_PHP_PER is deliberately NOT dated or dressed up as truth: whatever
-   values ship here are stale the day after they ship. That was the whole bug —
+   values ship here are stale the day after they ship. That was the whole bug:
    $1000 billed at the seeded 58.5 booked ₱58,500 when the market said ₱61,732.
    The fix is not "better constants", it is that constants cannot record money. */
 var FX_SEED_PHP_PER={USD:58.5,EUR:63.5,GBP:74,AUD:38,CAD:42.5,SGD:43.5,AED:16,JPY:0.39};
@@ -13086,7 +13086,7 @@ var FX_REFRESH_HOURS=24;      // auto-refresh cadence at boot
    one in. Two numbers decide how often that is allowed to cost a network request.
 
    FX_ROUTE_REFRESH_MIN is deliberately in MINUTES. The boot cadence above is 24h,
-   which is far too stale for someone billing a client in USD — the rate has moved by
+   which is far too stale for someone billing a client in USD. The rate has moved by
    then and the invoice books the wrong peso figure. The other extreme, refetching on
    every navigation, is worse: the source is a free public API with no key and no
    funding, and a fetch on every click would be rude to it while making the app feel
@@ -13095,13 +13095,13 @@ var FX_REFRESH_HOURS=24;      // auto-refresh cadence at boot
    clicking around costs a few dozen requests.
 
    FX_RETRY_MIN exists because a FAILED refresh must not be retried on every screen
-   change. Offline — which this app is built to work in — that would be a doomed
+   change. Offline, which this app is built to work in, that would be a doomed
    request per navigation, forever. Backoff keys off fx.lastTryAt, which every attempt
    stamps whether it succeeds or not. */
 var FX_ROUTE_REFRESH_MIN=30;
 var FX_RETRY_MIN=10;
 /* The screens where a rate can move a number in front of the owner: the whole 'Money'
-   section of the ROUTES table, plus the three outside it that also convert — the
+   section of the ROUTES table, plus the three outside it that also convert. The
    dashboard and the Advisor roll foreign invoices into their peso headlines, and
    Settings is where the rate card itself lives. Read off ROUTES rather than listed by
    hand so a route that moves section is not silently left behind. */
@@ -13120,7 +13120,7 @@ function fxSettings(){
 /* One-time upgrade of saved data. We can't invent provenance we never stored, so we
    infer it conservatively, and the FIRST test is the one that can be proved:
    fx.updated is a single global "last successful fetch" stamp, so it says nothing about
-   any particular currency — a value that still equals FX_SEED_PHP_PER exactly was
+   any particular currency: a value that still equals FX_SEED_PHP_PER exactly was
    demonstrably never overwritten by a response and stays a seed no matter what
    fx.updated says. Only a value that actually MOVED off the seed carries evidence:
    with a fetch stamp it came from a fetch ('live'), without one only the owner could
@@ -13155,8 +13155,8 @@ function fxRateInfo(cur){
   var stale=!verified||(by==='live'&&(ageDays==null||ageDays>FX_STALE_DAYS));
   return {cur:cur,rate:r,by:by,at:at,ageMs:ageMs,ageDays:ageDays,stale:stale,verified:verified,usable:verified};
 }
-/* DISPLAY rate. Returns null — never 1 — when there is no rate for a foreign currency,
-   so a caller that forgets to check renders "—" instead of inventing a 1:1 conversion. */
+/* DISPLAY rate. Returns null, never 1, when there is no rate for a foreign currency,
+   so a caller that forgets to check renders ". " instead of inventing a 1:1 conversion. */
 function fxRateFor(cur){
   if(!cur||cur==='PHP') return 1;
   var r=fxSettings().phpPer[cur];
@@ -13183,7 +13183,7 @@ function fxSetManualRate(cur,v){
   fx.src[cur]={by:'manual',at:new Date().toISOString()};
   return true;
 }
-/* "2 hours ago" / "8 days old" — the age has to be readable, not an ISO string */
+/* "2 hours ago" / "8 days old": the age has to be readable, not an ISO string */
 function fxAgeText(info){
   if(!info||!info.at||info.ageMs==null) return '';
   var m=info.ageMs/60000;
@@ -13225,13 +13225,13 @@ function fxStamp(cur){
   var i=fxRateInfo(cur);
   return {fxRate:i.rate,fxRateBy:i.by,fxRateAt:i.at||(i.by==='live'||i.by==='manual'?new Date().toISOString():null)};
 }
-/* the rate a RECORD was made with, read back — falls back to the record's own frozen
+/* the rate a RECORD was made with, read back: falls back to the record's own frozen
    values and never to a live lookup, so history cannot drift */
 function ivRateInfo(iv){
   if(!iv||!iv.currency||iv.currency==='PHP') return {cur:'PHP',rate:1,by:'local',at:null,stale:false,verified:true,usable:true};
   if(iv.fxRate>0) return {cur:iv.currency,rate:iv.fxRate,by:iv.fxRateBy||'unrecorded',at:iv.fxRateAt||null,
     stale:!(iv.fxRateBy==='live'||iv.fxRateBy==='manual'),verified:(iv.fxRateBy==='live'||iv.fxRateBy==='manual'),usable:true};
-  // legacy/imported record with no rate at all — resolve against today's VERIFIED rate only
+  // legacy/imported record with no rate at all: resolve against today's VERIFIED rate only
   var live=fxRecordRate(iv.currency);
   if(live>0){ var i=fxRateInfo(iv.currency); i.by='today:'+i.by; return i; }
   return {cur:iv.currency,rate:null,by:'none',at:null,stale:true,verified:false,usable:false};
@@ -13306,7 +13306,7 @@ function fetchFxRates(manual){
    render(). Measured in Chromium (CDP screencast, frame by frame), that does NOT
    cross-fade: the entrance is gated on routeChanged at the top of render(), and the
    View Transitions wrapper is only bound to hashchange, so a same-route render()
-   produced no blank frame at all. What it DOES do is rebuild #main from scratch —
+   produced no blank frame at all. What it DOES do is rebuild #main from scratch,
    which throws away the scroll position and destroys whatever the owner was in the
    middle of typing. Doing that to someone who never asked for it, now that this can
    happen on every navigation, is the actual bug.
@@ -13324,7 +13324,7 @@ function fxRefreshInPlace(force){
      render() to startViewTransition(), which can defer it by a second. Rendering now
      would arm the entrance for a route the navigation has not rendered yet, set
      lastRenderRoute to it, and leave the real navigation render seeing
-     routeChanged===false — so the screen's own entrance never plays and only a bare
+     routeChanged===false, so the screen's own entrance never plays and only a bare
      fade is left. Measured at 1202ms of the content area under full opacity, the worst
      window anywhere in the app. The pending render paints the new rate anyway, so the
      right move is simply to let it. */
@@ -13346,7 +13346,7 @@ function fxAutoUpdateCheck(){
   if(stale&&navigator.onLine!==false) setTimeout(function(){ fetchFxRates(false); },3000);
 }
 /* The automatic half of what the owner asked for: opening a money screen refreshes the
-   rate on its own. Everything in here is a reason NOT to fetch — this runs on entry to
+   rate on its own. Everything in here is a reason NOT to fetch. This runs on entry to
    every money screen and is supposed to do nothing almost every time. */
 function fxRouteRefreshCheck(route){
   if(!fxMoneyRoute(route)) return false;
@@ -13387,12 +13387,12 @@ function fxCardHTML(){
   var head=unverified.length?(unverified.length===foreign.length?'no verified rates':unverified.length+' without a verified rate')
     :(fx.updated?('live rates '+fxAgeText({at:fx.updated,ageMs:Date.now()-new Date(fx.updated).getTime()})):'never fetched');
   /* data-fx-live marks the surfaces a background refresh actually changes, so it can
-     flash just those instead of the whole view — see fxRefreshInPlace(). */
+     flash just those instead of the whole view: see fxRefreshInPlace(). */
   return '<div class="card" data-fx-live><div class="card-head"><h3>Currency conversion</h3><span class="spacer"></span>'+
     '<span class="badge '+fxCls+'">'+esc(head)+'</span></div>'+
     '<p style="font-size:.8rem;color:var(--text-2);margin-bottom:10px">Used when an invoice is in a foreign currency. The peso equivalent shows on the invoice and your books record pesos. '+
       '<b>A rate can only record money once it has been fetched live or typed in by you.</b> The built-in numbers are rough estimates and are never used to write a peso figure.</p>'+
-    /* animation:none — this banner is part of a re-rendered card, not an arriving
+    /* animation:none, because this banner is part of a re-rendered card, not an arriving
        element; letting it fadeUp made it flash on every in-place Settings render */
     (fx.lastError?'<div class="modal-error" style="margin-bottom:10px;animation:none">'+icon('alert',15)+'<span>Last rate refresh failed: '+esc(fx.lastError)+
       (fx.lastTryAt?' (tried '+esc(fxAgeText({at:fx.lastTryAt,ageMs:Date.now()-new Date(fx.lastTryAt).getTime()}))+')':'')+
@@ -13426,7 +13426,7 @@ document.addEventListener('submit',function(e){
     if(c==='PHP') return;
     var v=num(fv(form,'fx_'+c));
     if(!(v>0)) return;
-    if(fx.phpPer[c]===v&&fxRateInfo(c).by==='manual') return;   // unchanged manual rate — don't re-stamp
+    if(fx.phpPer[c]===v&&fxRateInfo(c).by==='manual') return;   // unchanged manual rate: don't re-stamp
     if(fxSetManualRate(c,v)) changed++;
   });
   fx.auto=form.elements['fxauto'].checked;
@@ -13534,7 +13534,7 @@ document.addEventListener('change',function(e){
     return;
   }
   /* invoice modal: amount symbol AND the rate-provenance line follow the chosen currency,
-     so the rate that will be recorded — and how old it is — is visible before saving */
+     so the rate that will be recorded, and how old it is, is visible before saving */
   if(el.name==='currency'&&el.closest('#modal-form')){
     var sym=byId('inv-amt-sym');
     if(sym) sym.textContent=FX_SYMBOLS[el.value]||el.value;
@@ -13856,7 +13856,7 @@ function showOnboard(idx){
     if(typeof updateAdvisorBubble==='function') updateAdvisorBubble(currentRoute());
     return;
   }
-  // subsequent slides: swap only the inner content with a directional slide — the card never blinks
+  // subsequent slides: swap only the inner content with a directional slide. The card never blinks
   stage.innerHTML=onbStageHTML();
   stage.classList.remove('onb-in-l','onb-in-r');
   void stage.offsetWidth; // restart the animation
@@ -13874,7 +13874,7 @@ function endOnboard(){
   document.addEventListener('touchend',function(e){ if(x0==null) return; var dx=(e.changedTouches[0]?e.changedTouches[0].clientX:x0)-x0; x0=null; if(Math.abs(dx)<40) return; showOnboard(dx<0?onboardIdx+1:onboardIdx-1); });
 })();
 
-/* floating Advisor bubble with typing prompt — shows everywhere except the Advisor/Settings page */
+/* floating Advisor bubble with typing prompt: shows everywhere except the Advisor/Settings page */
 var advisorTypeTimer=null, lastBubbleState='';
 var ADVISOR_GENERIC=['Want to know what is happening with your money this month?','Curious how your business is really doing?','Your numbers have a story. Want the quick read?','Tap me for a plain-English take on your budget.'];
 /* a small set of context-aware lines so the bubble feels like it is talking, not frozen on one line */
@@ -13897,11 +13897,11 @@ function updateAdvisorBubble(route){
   var root=byId('advisor-bubble'); if(!root) return;
   // "blocked" controls whether the bubble CONTENT exists (route/settings/lock/gate/empty app).
   var blocked=route==='insights'||route==='settings'||route==='assistant'||(state.settings&&state.settings.advisorBubbleOff)||(byId('lock-root')&&byId('lock-root').innerHTML)||(byId('gate-root')&&byId('gate-root').innerHTML)||!state.finance||!state.finance.length;
-  // "suppressed" is a transient overlay (modal / onboarding carousel) — hide the bubble
+  // "suppressed" is a transient overlay (modal / onboarding carousel). Hide the bubble
   // WITHOUT rebuilding so it never re-pops or re-types just because a dialog opened/closed.
   var suppressed=(byId('modal-root')&&byId('modal-root').innerHTML)||(byId('lightbox-root')&&byId('lightbox-root').querySelector('.onb-card'));
   root.style.display=suppressed?'none':'';
-  // only rebuild (and re-type) when the visible/hidden state actually changes — not on every render
+  // only rebuild (and re-type) when the visible/hidden state actually changes, not on every render
   var key=blocked?'hidden':'shown';
   if(key===lastBubbleState && (blocked? root.innerHTML==='' : root.querySelector('.advisor-bubble'))) return;
   lastBubbleState=key;
@@ -13913,7 +13913,7 @@ function updateAdvisorBubble(route){
     '<span class="ab-x" data-action="advisor-bubble-dismiss" role="button" tabindex="0" aria-label="Hide advisor bubble">'+icon('x')+'</span></button>';
   typeAdvisor(msgs);
 }
-// Types each line, holds, erases, and moves on — cycles through the set ~twice
+// Types each line, holds, erases, and moves on. Cycles through the set ~twice
 // then rests on the last line, so it feels like it is talking without nagging forever.
 function typeAdvisor(msgs){
   if(!Array.isArray(msgs)) msgs=[msgs];
@@ -13968,7 +13968,7 @@ document.addEventListener('keydown',function(e){
 });
 
 /* ============================================================
-   smart CSV import — detect entity, map columns, normalize,
+   smart CSV import: detect entity, map columns, normalize,
    preview & confirm, then route rows into the right store.
    Accuracy: deterministic parsing + value normalization +
    mandatory human review. Nothing commits without confirmation.
@@ -14343,7 +14343,7 @@ function commitCsvImport(){
   toast('Imported '+n+' '+noun+(dupes?' · '+dupes+' duplicate'+(dupes>1?'s':'')+' skipped':'')+(invalid?' · '+invalid+' invalid skipped':''),'ok',{undo:true});
 }
 
-/* delight: animate key figures counting up on page entrance. Non-destructive — the final
+/* delight: animate key figures counting up on page entrance. Non-destructive; the final
    frame restores the EXACT rendered text, so values are always pixel-correct afterwards. */
 function animateCounts(scope){
   if(!scope||typeof requestAnimationFrame!=='function') return;
@@ -14352,14 +14352,14 @@ function animateCounts(scope){
   Array.prototype.forEach.call(els,function(el){
     var finalText=el.textContent;
     var m=finalText.match(/-?[0-9][0-9,]*(\.[0-9]+)?/);
-    if(!m) return;                                   // no number (e.g. "—") → leave as is
+    if(!m) return;                                   // no number (e.g. ", ") → leave as is
     var target=parseFloat(m[0].replace(/,/g,''));
-    if(!isFinite(target)||Math.abs(target)<10) return; // skip tiny/zero — nothing to count
+    if(!isFinite(target)||Math.abs(target)<10) return; // skip tiny/zero: nothing to count
     var prefix=finalText.slice(0,m.index), suffix=finalText.slice(m.index+m[0].length);
     var dec=m[1]?m[1].length-1:0, neg=target<0?'-':'', abs=Math.abs(target);
     var dur=560, start=null;
     function step(ts){
-      if(el.isConnected===false) return;              // view navigated away — stop
+      if(el.isConnected===false) return;              // view navigated away: stop
       if(start===null) start=ts;
       var p=(ts-start)/dur;
       if(p>=1){ el.textContent=finalText; return; }   // exact, canonical value
@@ -14371,7 +14371,7 @@ function animateCounts(scope){
   });
 }
 
-/* dashboard widgets: live drag-to-reorder — the picked-up card becomes a placeholder gap
+/* dashboard widgets, live drag-to-reorder: the picked-up card becomes a placeholder gap
    that follows the cursor while the others smoothly make room (FLIP); order saves on drop. */
 var dashDragId=null, dashPhTimer=null, dashRaf=0, dashPtrX=0, dashPtrY=0;
 var dashTouch={el:null,grabX:0,grabY:0,timer:null,startX:0,startY:0,active:false};
@@ -14413,8 +14413,8 @@ function dashDragCleanup(){
   document.body.classList.remove('dash-dragging');
   dashDragId=null;
 }
-// where should the dragged card land for a pointer at (x,y)? works anywhere in the grid —
-// over a card OR over empty white space — by finding the nearest card centre in reading order.
+// where should the dragged card land for a pointer at (x,y)? works anywhere in the grid:
+// over a card OR over empty white space: by finding the nearest card centre in reading order.
 function dashInsertRef(g,x,y,dragEl){
   var els=dashWidgetEls(g).filter(function(w){ return w!==dragEl; });
   if(!els.length) return null;
@@ -14457,7 +14457,7 @@ document.addEventListener('dragover',function(e){
   if(!dashDragId) return;
   var g=dashGridEl(); if(!g) return;
   var gr=g.getBoundingClientRect();
-  // accept hovering anywhere over (or near) the grid — including gaps and trailing white space
+  // accept hovering anywhere over (or near) the grid, including gaps and trailing white space
   if(e.clientX<gr.left-60||e.clientX>gr.right+60||e.clientY<gr.top-80||e.clientY>gr.bottom+80) return;
   e.preventDefault(); if(e.dataTransfer) e.dataTransfer.dropEffect='move';
   dashPtrX=e.clientX; dashPtrY=e.clientY;
@@ -14494,7 +14494,7 @@ document.addEventListener('pointerdown',function(e){
 },{passive:true});
 document.addEventListener('pointermove',function(e){
   if(e.pointerType!=='touch') return;
-  if(dashTouch.timer){ // still waiting for the hold — a real move means the user is scrolling
+  if(dashTouch.timer){ // still waiting for the hold: a real move means the user is scrolling
     if(Math.abs(e.clientX-dashTouch.startX)>9||Math.abs(e.clientY-dashTouch.startY)>9) dashTouchReset();
     return;
   }
@@ -14508,7 +14508,7 @@ function dashTouchEnd(){
   if(dashTouch.timer){ clearTimeout(dashTouch.timer); dashTouch.timer=null; if(dashTouch.el) dashTouch.el.classList.remove('dash-press'); }
   if(dashTouch.active){
     dashPersistOrder(); dashDragCleanup();
-    // a touch sequence fires a click after pointerup — swallow it so the drag doesn't also navigate
+    // a touch sequence fires a click after pointerup. Swallow it so the drag doesn't also navigate
     document.addEventListener('click',function sup(ev){ ev.stopPropagation(); ev.preventDefault(); document.removeEventListener('click',sup,true); },true);
   }
   dashTouch.el=null; dashTouch.active=false;
@@ -14531,14 +14531,14 @@ window.addEventListener('hashchange',renderRouted);
    init
    ============================================================ */
 /* ============================================================
-   App Lock — optional PIN gate (privacy). The PIN is stored only on
+   App Lock: optional PIN gate (privacy). The PIN is stored only on
    this device as a salted PBKDF2 hash (never synced, never reversible).
    ============================================================ */
 var LOCK_KEY='trakora.lock';
 var sessionUnlocked=false, lockHiddenAt=null;
 function getLock(){ try{ return JSON.parse(localStorage.getItem(LOCK_KEY)||'null'); }catch(_){ return null; } }
 /* A swallowed failure here meant a user could set a PIN, see no error, and be
-   left unlocked — so this reports rather than hides. Returns whether the record
+   left unlocked, so this reports rather than hides. Returns whether the record
    is actually readable back, not merely that setItem didn't throw. */
 function setLockRec(o){
   try{
@@ -14629,7 +14629,7 @@ function renderLockScreen(){
               .then(function(key){ return decryptBlob(pendingEncBlob,key).then(function(obj){ cryptoKey=key; applyLoaded(obj); pendingEncBlob=null; finish(); }); })
               .catch(function(){ btn.disabled=false; btn.innerHTML='Unlock →'; showM('Could not decrypt your data on this device. If this keeps happening, restore from a JSON backup.','err'); });
           } else if(l&&l.enc&&!cryptoKey){
-            // mid-session re-lock dropped the key — re-derive it so saves stay encrypted
+            // mid-session re-lock dropped the key: re-derive it so saves stay encrypted
             deriveAesKey(pinEl.value,l.encSalt,l.encIter||200000).then(function(key){ cryptoKey=key; finish(); })
               .catch(function(){ btn.disabled=false; btn.innerHTML='Unlock →'; showM('Could not re-establish the encryption key. Reload and try again.','err'); });
           } else { finish(); }
@@ -14763,7 +14763,7 @@ function maybeGreet(){
   if(byId('lock-root')&&byId('lock-root').innerHTML) return;
   if(byId('gate-root')&&byId('gate-root').innerHTML) return;
   if(byId('modal-root')&&byId('modal-root').innerHTML) return;
-  if(byId('lightbox-root')&&byId('lightbox-root').querySelector('.onb-card')) return; // onboarding is up — greet after
+  if(byId('lightbox-root')&&byId('lightbox-root').querySelector('.onb-card')) return; // onboarding is up: greet after
   greetShownThisSession=true;
   setTimeout(showGreeting,450);
 }
@@ -14827,7 +14827,7 @@ function bootApp(){
   fxAutoUpdateCheck();
   backupReminder();
 }
-/* backup reminder — once per session if data exists and backup is stale */
+/* backup reminder: once per session if data exists and backup is stale */
 function backupReminder(){
   // the dashboard shows a persistent safety banner now; only nudge with a toast when
   // the user is NOT on the dashboard (so they still get one gentle heads-up), and never
