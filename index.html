@@ -35,8 +35,8 @@
 })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="description" content="Trakora is a local-first business command center: finance, goals, roadmap, tasks, notes, CRM, metrics and smart insights. All data stays in your browser.">
-<title>Trakora Business Command Center</title>
+<meta name="description" content="Trakora keeps a small business’s books in one browser tab: income and expenses, invoices, orders, stock, staff pay and what customers still owe. The data stays in the browser you type it into.">
+<title>Trakora · Small-business books in one browser tab</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%234653e8'/%3E%3Cstop offset='1' stop-color='%233a43cf'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpath d='M8 22l5-6 4 3 7-9' stroke='%23fff' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>
 /* ============================================================
@@ -2680,7 +2680,7 @@ body.greeting-on{overflow:hidden}
 <script>
 'use strict';
 /* ============================================================
-   Trakora: single-file business command center
+   Trakora: one HTML file that keeps a small business’s books
    All data lives in localStorage under one key. No backend.
    ============================================================ */
 
@@ -4207,7 +4207,7 @@ function renderSidebar(){
   var html='<div class="brand">'+
     (bl?'<img src="'+esc(bl)+'" alt="" style="width:36px;height:36px;border-radius:10px;object-fit:cover;flex-shrink:0;box-shadow:0 4px 14px rgba(0,0,0,.35)">'
        :'<div class="brand-logo">'+icon('logo')+'</div>')+
-    '<div><div class="brand-name" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(state.settings.businessName||'Trakora')+'</div><div class="brand-sub">Command Center</div></div></div>'+
+    '<div><div class="brand-name" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(state.settings.businessName||'Trakora')+'</div><div class="brand-sub">Books &amp; stock</div></div></div>'+
     '<button class="sidebar-cta" data-action="go-import" title="Import a spreadsheet, opens Data \& Sync">'+icon('upload')+'<span>Smart CSV import</span><span class="cta-beta">Beta</span></button>'+
     (editing
       ? '<div class="nav-edit-bar"><div class="nav-edit-size"><span class="nav-edit-lbl">Menu size</span>'+
@@ -4417,7 +4417,7 @@ function backupSafetyBannerHTML(){
 function viewDashboard(){
   var t=financeTotals();
   var hasData=state.finance.length>0;
-  var html=topbar('Dashboard','Hello! Here is how '+(state.settings.businessName||'your business')+' is doing today.',
+  var html=topbar('Dashboard','Where '+(state.settings.businessName||'your business')+' stands today.',
     '<button class="btn btn-ghost" data-action="dash-customize" title="Show, hide & reorder cards">'+icon('palette')+'<span class="btn-txt">Customize</span></button>'+
     '<button class="btn btn-primary" data-action="open-entry-modal">'+icon('plus')+'<span class="btn-txt">Add entry</span></button>');
   html+=backupSafetyBannerHTML();
@@ -4427,7 +4427,7 @@ function viewDashboard(){
        state says what to do next; the dashboard makes the case on its own once there
        is a number in it. */
     html+='<div class="hero"><h2>Start with one entry</h2>'+
-      '<p>Log an income or expense and this page fills itself in: profit, cash flow, and what needs attention today. Everything stays in this browser.</p>'+
+      '<p>Log an income or expense and this page fills itself in. Everything stays in this browser.</p>'+
       '<div class="hero-actions">'+
         '<button class="btn btn-primary" data-action="open-entry-modal">'+icon('plus')+' Add first entry</button>'+
         '<button class="btn btn-ghost" data-action="load-sample">'+icon('spark')+' Load sample data</button>'+
@@ -4749,9 +4749,9 @@ function advisorPaceHTML(){
   return html+'</div>';
 }
 function viewInsights(){
-  var html=topbar('Advisor','Your business, read and explained: what is working, what needs attention, and what to do next.');
+  var html=topbar('Advisor','Reads the entries you have logged and says what to do about them.');
   if(!state.finance.length){
-    html+='<div class="card">'+emptyState('spark','Your advisor is ready','Add your first income or expense and I will summarize your money, flag the risks, and tell you exactly what to do next. No spreadsheets.','<button class="btn btn-sm btn-primary" data-action="open-entry-modal">'+icon('plus')+' Add first entry</button>')+'</div>';
+    html+='<div class="card">'+emptyState('spark','Nothing to read yet','Log an income or expense and this page will summarise where the money went and what needs attention.','<button class="btn btn-sm btn-primary" data-action="open-entry-modal">'+icon('plus')+' Add first entry</button>')+'</div>';
     return html;
   }
   var ins=buildInsights();
@@ -5189,7 +5189,7 @@ function nlQuery(text,today){
   if(/\b(what('| i)?s due|tasks? due|due (this|next|today|soon)|deadline|anything due)\b/.test(s)){
     var due=(state.tasks||[]).filter(function(t){ var dd=daysUntil(t.deadline); return !t.done&&dd!=null&&dd<=7; })
       .sort(function(a,b){ return (a.deadline||'').localeCompare(b.deadline||''); });
-    if(!due.length) return 'Nothing due in the next 7 days. Clear runway!';
+    if(!due.length) return 'Nothing due in the next 7 days.';
     return due.length+' task'+(due.length>1?'s':'')+' coming up: '+due.slice(0,4).map(function(t){ var dd=daysUntil(t.deadline); return '“'+t.title+'” ('+(dd<0?'overdue':dd===0?'today':dd+'d')+')'; }).join(', ')+(due.length>4?'…':'.');
   }
   // goals
@@ -5212,7 +5212,7 @@ function nlQuery(text,today){
   // profit
   if(/\b(profit\w*|net|tubo|kita net|margin)\b/.test(s)||/how('| a)?m i doing|how('|s| is) (the )?business/.test(s)){
     var inc0=tot('income'), exp0=tot('expense'), pf=inc0-exp0;
-    if(!fin.length) return 'No entries '+r.label+' yet, so nothing to compute. Log something and ask me again!';
+    if(!fin.length) return 'No entries '+r.label+' yet, so there is nothing to compute.';
     return (pf>=0?'You’re up ':'You’re down ')+fmtMoney(Math.abs(pf))+' '+r.label+': '+fmtMoney(inc0)+' in, '+fmtMoney(exp0)+' out'+(inc0>0?' ('+fmtPct(pf/inc0*100,0)+' margin)':'')+'.';
   }
   // income
@@ -5863,7 +5863,7 @@ function viewCalculators(){
   var target=state.settings.monthlyTarget||(avg3?Math.round(avg3*1.2):'');
   var monthProfit=Math.max(0,Math.round(cur.revenue-cur.expenses))||'';
 
-  var html=topbar('Business Calculators','Pre-filled from your real numbers and computed live. Change anything and the answer updates instantly.');
+  var html=topbar('Business Calculators','Pre-filled from your own numbers. Change a field and the answer follows.');
   // search-first: type what you need instead of scanning every card
   html+='<div class="calc-search-wrap"><span class="calc-search-ico">'+icon('search')+'</span>'+
     '<input class="calc-search-input" id="calc-search" placeholder="Search calculators: try “price”, “tax”, “break-even”, “forecast”…" autocomplete="off" aria-label="Search calculators"></div>';
@@ -6001,7 +6001,7 @@ document.addEventListener('input',function(e){
    view: goals
    ============================================================ */
 function viewGoals(){/* goal cards align to their own height (no stretched hollows) */
-  var html=topbar('Goals','Set targets, track progress automatically, and always know the next move.',
+  var html=topbar('Goals','Set a target. Revenue and profit goals fill themselves in from your entries.',
     '<button class="btn btn-primary" data-action="open-goal-modal">'+icon('plus')+'<span class="btn-txt">New goal</span></button>');
   var open=state.goals.filter(function(g){return !g.done;});
   var done=state.goals.filter(function(g){return g.done;});
@@ -7491,7 +7491,7 @@ function viewTasks(){
   var done=state.tasks.filter(function(t){return t.done;});
   var overdue=open.filter(function(t){ var d=daysUntil(t.deadline); return d!=null&&d<0; });
   var donePct=state.tasks.length?done.length/state.tasks.length*100:0;
-  var html=topbar('Tasks & Actions','Daily, weekly and monthly actions that move the business forward.',
+  var html=topbar('Tasks & Actions','What still has to be done, and what is already late.',
     '<button class="btn btn-primary" data-action="open-task-modal">'+icon('plus')+'<span class="btn-txt">New task</span></button>');
   html+='<div class="grid grid-4">'+
     statCard('Open tasks',String(open.length),'','','tasks')+
@@ -7571,7 +7571,7 @@ function taskRowHTML(t){
 var NOTE_CATS=['General','Idea','Meeting','Strategy','Decision'];
 function viewNotes(){
   var nf=ui.noteFilter;
-  var html=topbar('Notes','Ideas, meeting notes and strategy: searchable, taggable, pinnable.',
+  var html=topbar('Notes','Write it down before it goes. Tag a note to find it again later.',
     '<button class="btn btn-primary" data-action="open-note-modal">'+icon('plus')+'<span class="btn-txt">New note</span></button>');
   html+='<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">'+
     '<div class="searchbar">'+icon('search')+'<input class="input" placeholder="Search notes, tags…" value="'+esc(nf.q)+'" data-action-input="note-search"></div>'+
@@ -7658,7 +7658,7 @@ function viewManpower(){
   var vale=hrValeOutstanding();
   var th=emps.reduce(function(s,e){return s+hrThirteenth(e);},0);
   var hidden=state.settings.hrHidden||[];
-  var html=topbar('Manpower','Your team at a glance: pay, time, advances, bonuses & 13th-month. Every card and field is yours to customize.',
+  var html=topbar('Manpower','Pay, days worked, advances (vale) and 13th-month, per person. The cards and fields are yours to change.',
     '<button class="btn btn-ghost" data-action="hr-customize" title="Show, hide & add stat cards">'+icon('palette')+'<span class="btn-txt">Cards</span></button>'+
     '<button class="btn btn-primary" data-action="hr-add">'+icon('plus')+'<span class="btn-txt">Add employee</span></button>');
   var cards=[];
@@ -8288,7 +8288,7 @@ function viewSettings(){
   var s=state.settings;
   var entryCount=state.finance.length+state.goals.length+state.tasks.length+state.notes.length+state.clients.length;
   var tab=ui.settingsTab||'business';
-  var html=topbar('Settings & Data','Your business profile, plus full control of your data. · build '+APP_BUILD);
+  var html=topbar('Settings & Data','Business profile, backups, and everything this app stores. · build '+APP_BUILD);
   html+='<div class="tabs">'+[['business','Business'],['custom','Customization'],['data','Data & Sync']].map(function(x){
     return '<button class="'+(tab===x[0]?'active':'')+'" data-action="settings-tab" data-tab="'+x[0]+'">'+esc(tr(x[1]))+'</button>';}).join('')+'</div>';
   if(tab==='custom'){ return html+'<div class="grid grid-2">'+customizationCardHTML()+customizationExtrasCardHTML()+'</div>'; }
@@ -8312,7 +8312,7 @@ function viewSettings(){
       '<input type="file" accept="image/*" class="input img-input" style="flex:1;min-width:140px;padding:6px">'+
       '<input type="hidden" name="bizLogo" value="'+esc(s.bizLogo||'')+'">'+
       (s.bizLogo?'<button type="button" class="btn btn-sm btn-danger" data-action="img-clear">'+icon('x')+' Remove</button>':'')+
-    '</div><p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Square images look best. Your logo replaces the Trakora mark everywhere. Your software, your brand.</p></div>'+
+    '</div><p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Square images look best. Your logo replaces the Trakora mark everywhere, including on printed invoices.</p></div>'+
     '<div class="field"><label>Payment QR (GCash / Maya, shows on invoices, delivery slips & catalog)</label><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
       '<img class="img-thumb-lg img-prev" src="'+esc(s.payQR||'')+'" style="'+(s.payQR?'':'display:none')+'" alt="">'+
       '<input type="file" accept="image/*" class="input img-input" style="flex:1;min-width:140px;padding:6px">'+
@@ -8329,7 +8329,7 @@ function viewSettings(){
     '<button class="btn btn-primary" type="submit">'+icon('check')+' Save settings</button></form></div>';
   html+=fxCardHTML();
   html+='<div class="card"><div class="card-head"><h3>About</h3></div>'+
-    '<p style="font-size:.84rem;color:var(--text-2)">Trakora is a single-file, local-first business command center. No accounts, no servers, no tracking. Your numbers never leave this device unless you enable cloud sync. Works offline once loaded.</p>'+
+    '<p style="font-size:.84rem;color:var(--text-2)">Trakora is one HTML file. It records income and expenses, invoices, orders, stock, staff pay and unpaid balances, and it keeps all of it in this browser. There is no account and no server. Turning cloud sync on is the only thing that sends a copy anywhere. It keeps working with the network off.</p>'+
     (function(){ var l=licenseInfo(); if(!l) return '';
       var act=getActivation();
       return '<div style="margin-top:12px;padding:12px 16px;border-radius:11px;background:var(--accent-soft)">'+
@@ -9885,7 +9885,7 @@ function viewInvoices(){
   var curM=thisMonthKey();
   var paidList=(state.invoices||[]).filter(function(iv){return iv.status==='Paid'&&monthKey(iv.paidDate||'')===curM;});
   var paidThisMonth=sum(paidList,invPHP);
-  var html=topbar('Invoices','Bill clients, see who owes you, and never lose sight of it.',
+  var html=topbar('Invoices','Bill a client, then see who still owes you.',
     '<button class="btn btn-primary" data-action="invoice-new">'+icon('plus')+'<span class="btn-txt">New invoice</span></button>');
   // every peso headline below rolls up foreign invoices, so every one of them carries the
   // same sub-line saying what it counted at an unverified rate and what it had to leave out
@@ -10914,7 +10914,7 @@ function viewProducts(){
     '<div class="grid grid-2"><div><div class="field"><label>Product categories</label><div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">'+
     cats.map(function(c){return '<span class="tag" style="background:var(--accent-soft);color:var(--accent)">'+esc(c)+' <button class="btn-icon" style="width:14px;height:14px;display:inline-grid;vertical-align:middle" data-action="product-cat-del" data-name="'+esc(c)+'">'+icon('x')+'</button></span>';}).join('')+
     '</div><form data-form="product-cat-add" style="display:flex;gap:8px"><input class="input" name="name" placeholder="e.g. Soap, Diffuser, Bundle…" style="flex:1"><button class="btn btn-ghost btn-sm" type="submit">'+icon('plus')+' Add</button></form></div></div>'+
-    '<div><div class="field"><label>Custom product fields: your form, your business</label><div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px">'+
+    '<div><div class="field"><label>Custom product fields</label><div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px">'+
     (productFields().length?productFields().map(function(f){
       return '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--bg-sunken);border-radius:9px;padding:6px 10px"><b style="font-size:.8rem;flex:1;min-width:0">'+esc(f.label)+'</b>'+
         '<span class="badge neutral" style="font-size:.62rem">'+esc(f.type)+(f.type==='select'&&f.options?': '+esc(f.options.join('/')):'')+'</span>'+
@@ -11077,7 +11077,7 @@ function viewOrders(){
   var unpaid=orders.filter(function(o){return o.payStatus!=='Paid'&&o.status!=='Cancelled';});
   var curM=thisMonthKey();
   var monthOrders=orders.filter(function(o){return monthKey(o.orderDate)===curM&&o.status!=='Cancelled';});
-  var html=topbar('Orders','From order to doorstep: stock, payments, profit and income all update automatically.',
+  var html=topbar('Orders','Stock, payment status and income update as an order moves.',
     '<button class="btn btn-ghost" data-action="export-csv" data-what="orders">'+icon('download')+'<span class="btn-txt">CSV</span></button>'+
     '<button class="btn btn-primary" data-action="order-new">'+icon('plus')+'<span class="btn-txt">New order</span></button>');
   var monthProfit=sum(monthOrders,orderProfit);
@@ -11260,7 +11260,7 @@ function cmFormatCell(f,v){
 function viewCustomModule(id){
   var m=findModule(id);
   if(!m) return viewDashboard();
-  var html=topbar(m.name,'Your table, your fields, your data.',
+  var html=topbar(m.name,'A table you defined, with the columns you chose.',
     '<button class="btn btn-ghost" data-action="custom-module-fields" data-id="'+m.id+'">'+icon('settings')+'<span class="btn-txt">Fields</span></button>'+
     '<button class="btn btn-primary" data-action="cm-record-new" data-id="'+m.id+'">'+icon('plus')+'<span class="btn-txt">Add record</span></button>');
   if(!(m.fields||[]).length){
@@ -11632,7 +11632,7 @@ document.addEventListener('change',function(e){
       if(el.value==='Cancelled'&&oldStatus!=='Cancelled') applyOrderStock(o,-1);
       if(oldStatus==='Cancelled'&&el.value!=='Cancelled') applyOrderStock(o,1);
       commit();
-      if(el.value==='Delivered') toast(o.number+' delivered!'+(o.payStatus!=='Paid'?' Don’t forget to mark it paid once you collect.':''));
+      if(el.value==='Delivered') toast(o.number+' delivered.'+(o.payStatus!=='Paid'?' Don’t forget to mark it paid once you collect.':''));
       else if(el.value==='Cancelled') toast('Order cancelled. Stock returned.','warn');
     }
     return;
@@ -11984,7 +11984,7 @@ function viewMaterials(){
   var mats=state.materials||[];
   var lowCount=mats.filter(function(m){return m.stock<=(m.lowStock!=null?m.lowStock:0);}).length;
   var invValue=sum(mats,function(m){return (m.cost||0)*Math.max(0,m.stock);});
-  var html=topbar('Products & Stock','Raw materials and recipes: know exactly how many you can still make.',
+  var html=topbar('Products & Stock','Raw materials and recipes, so the app can work out how many you can still make.',
     '<button class="btn btn-primary" data-action="material-new">'+icon('plus')+'<span class="btn-txt">Add material</span></button>');
   html+=productTabsHTML('materials');
   html+='<div class="grid grid-3">'+
@@ -12209,7 +12209,7 @@ document.addEventListener('drop',function(e){
     if(o.status!==newStatus){
       o.status=newStatus;
       commit();
-      if(newStatus==='Delivered') toast(o.number+' delivered!'+(o.payStatus!=='Paid'?' Mark it paid once you collect.':''));
+      if(newStatus==='Delivered') toast(o.number+' delivered.'+(o.payStatus!=='Paid'?' Mark it paid once you collect.':''));
     }
   }
 });
@@ -12509,7 +12509,7 @@ function viewAccounts(){
   var cur=mm[mk]||{revenue:0,expenses:0};
   var recv=receivablesTotal();
   var t=financeTotals();
-  var html=topbar('Accounts & Cash','Where your money actually sits: banks, e-wallets and cash, reconciled to reality.',
+  var html=topbar('Accounts & Cash','What is actually in each bank account, wallet and cash box.',
     '<button class="btn btn-ghost" data-action="transfer-new">'+icon('refresh')+'<span class="btn-txt">Transfer</span></button>'+
     '<button class="btn btn-primary" data-action="account-new">'+icon('plus')+'<span class="btn-txt">Add account</span></button>');
   // business position summary
@@ -12958,7 +12958,7 @@ document.addEventListener('click',function(e){
       if(idx>=0&&idx<KB_COLS.length-1){
         o.status=KB_COLS[idx+1];
         commit();
-        if(o.status==='Delivered') toast(o.number+' delivered!'+(o.payStatus!=='Paid'?' Mark it paid once you collect.':''));
+        if(o.status==='Delivered') toast(o.number+' delivered.'+(o.payStatus!=='Paid'?' Mark it paid once you collect.':''));
       }
     }
     return;
@@ -13021,7 +13021,7 @@ var TL={
   'Today':'Ngayon','Scan & prefill from photo (beta)':'I-scan at i-prefill mula sa litrato (beta)',
   'Customer Credit':'Utang / Lista','Total credit owed':'Kabuuang utang','30+ days old':'30+ araw na','Settled all-time':'Nabayaran na (lahat)',
   'Add credit':'Ilista','Record payment':'Hulog / Bayad','balance':'balanse','payment':'hulog','fully paid':'bayad na lahat','Credit':'Utang',
-  'The digital credit notebook: customer tabs, partial payments, nothing forgotten.':'Ang digital na listahan: utang ng mga suki, hulog-hulog na bayad, walang nakakalimutan.'
+  'Who still owes you, and what they have paid so far.':'Sino pa ang may utang sa iyo, at magkano na ang nabayaran nila.'
 };
 function tr(s){
   if(state&&state.settings&&state.settings.lang==='tl'&&TL[s]) return TL[s];
@@ -13173,7 +13173,7 @@ function viewUtang(){
   var mk=thisMonthKey();
   var collected=0;
   (state.utang||[]).forEach(function(u){ (u.payments||[]).forEach(function(p){ if(monthKey(p.date)===mk) collected+=p.amount; }); });
-  var html=topbar('Customer Credit','The digital credit notebook: customer tabs, partial payments, nothing forgotten.',
+  var html=topbar('Customer Credit','Who still owes you, and what they have paid so far.',
     '<button class="btn btn-primary" data-action="utang-new">'+icon('plus')+'<span class="btn-txt">'+esc(tr('Add credit'))+'</span></button>');
   html+='<div class="grid grid-4">'+
     statCard('Total credit owed',fmtMoney(ut.total),'<span class="stat-delta flat">'+ut.customers+' customer'+(ut.customers===1?'':'s')+'</span>','','ledger')+
@@ -13304,7 +13304,7 @@ function utangPayModal(u){
     if(form.elements['asIncome'].checked){
       state.finance.push({id:uid(),type:'income',amount:amount,date:date,category:'Sales',note:'Credit payment'+(ux.note?' · '+ux.note:'')+(fv(form,'note')?' ('+fv(form,'note')+')':''),client:ux.clientName,offer:'',account:form.elements['account']?fv(form,'account'):''});
     }
-    toast(ux.settled?ux.clientName+' is fully paid!':'Payment recorded. Remaining: '+fmtMoney(utangBalance(ux)));
+    toast(ux.settled?ux.clientName+' is fully paid.':'Payment recorded. Remaining: '+fmtMoney(utangBalance(ux)));
     return true;
   }});
 }

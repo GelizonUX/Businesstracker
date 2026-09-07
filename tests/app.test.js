@@ -85,6 +85,30 @@ async function main() {
       window.state.metrics = savedMetrics;
     })();
 
+    // ---------- copy: say what it does, not what it is ----------
+    (function positioning() {
+      ok('the meta description and title name the job, not a "command center"',
+        !/command cent/i.test(html) && /<meta name="description" content="Trakora keeps a small business/.test(html));
+      ok('the About blurb describes the same product in the same nouns',
+        /Trakora is one HTML file\. It records income and expenses, invoices, orders, stock, staff pay and unpaid balances/.test(html));
+      // the register the owner objects to: tricolons, possessive couplets, cheering
+      const banned = [
+        'Your software, your brand', 'Your table, your fields, your data',
+        'your form, your business', 'Your business, read and explained',
+        'Your team at a glance', 'From order to doorstep', 'The digital credit notebook',
+        'reconciled to reality', 'Clear runway!', 'Your advisor is ready',
+        'never lose sight of it', 'searchable, taggable, pinnable',
+        'move the business forward', 'ask me again!'
+      ].filter((p) => html.indexOf(p) !== -1);
+      ok('no tricolons, possessive couplets or cheering left in the surveyed copy', banned.length === 0, banned);
+      ok('the greeting subtitle stopped exclaiming at the owner', html.indexOf('Hello! Here is how ') === -1);
+      // and the em-dash budget is unchanged apart from the two placeholder values
+      // the Metrics rewrite deleted along with the cards that showed them
+      const ems = (html.match(/—/g) || []).length;
+      ok('no em dash was reintroduced (60 placeholder glyphs remain)', ems === 60, String(ems));
+      ok('the mobile-table placeholder regex still has its glyph', /\/\^\[—–-\]\+\$\//.test(html));
+    })();
+
     // ---------- security: escaping + CSP + safeColor ----------
     ok('no unescaped image src in source', html.match(/src="'\+(?!esc\()/g) === null);
     ok('CSP meta present', !!d.querySelector('meta[http-equiv="Content-Security-Policy"]'));
