@@ -6,3 +6,32 @@
   Cache-Control: public, max-age=0, must-revalidate
 /*.html
   Cache-Control: public, max-age=0, must-revalidate
+
+# Security headers, every path.
+/*
+  # A year of forced HTTPS, subdomains included, and eligible for the preload list.
+  # This is the one header that has to be right the first time: a browser that has seen
+  # it will refuse plain http to this host for a year, and there is no undo faster than
+  # that. Trakora is served over TLS by Cloudflare Pages on every path, so there is
+  # nothing left on http to break.
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  # The app is one HTML file plus data: URIs. Nothing it serves should ever be
+  # re-typed by a browser guessing at content.
+  X-Content-Type-Options: nosniff
+  # A license key, a device id and an invoice number can all end up in a URL. Send no
+  # Referer anywhere, which also matches the <meta name="referrer"> already in the page.
+  Referrer-Policy: no-referrer
+  # Nothing here is meant to be framed.
+  X-Frame-Options: DENY
+  # frame-ancestors is ignored inside a <meta> CSP, which is where the app's policy
+  # lives, so Chrome logs "directive 'frame-ancestors' is ignored" on every load and the
+  # page has been framable all along. A second policy sent as a header fixes that: the
+  # two are enforced together, each on its own terms, so this one line adds the framing
+  # rule without duplicating (and eventually contradicting) the policy in index.html.
+  Content-Security-Policy: frame-ancestors 'none'
+  # Deny the device APIs the app never calls. Camera is the exception and is left open
+  # to the page itself: receipts are photographed on phones through the file picker,
+  # and that flow is the last thing that should break on a locked-down header. There is
+  # no getUserMedia anywhere in index.html, and nothing is embedded, so 'self' grants
+  # this to no one but the app.
+  Permissions-Policy: accelerometer=(), autoplay=(), camera=(self), display-capture=(), encrypted-media=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), usb=(), xr-spatial-tracking=()

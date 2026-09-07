@@ -2,8 +2,38 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https:; media-src 'self' data: blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'">
+<!-- connect-src stays at https: on purpose. The two fixed endpoints (open.er-api.com,
+     the activation database) could be named, but cloud sync points at whatever Firebase
+     database the owner types into Settings, and that address is not knowable when this
+     line is written. Naming the two we know while leaving a wildcard for the third
+     would buy nothing and would break sync the first time someone used it.
+     upgrade-insecure-requests rewrites any http:// asset request to https:// before it
+     leaves the browser, which is the half of "force HTTPS" that a redirect cannot do. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https:; media-src 'self' data: blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests">
 <meta name="referrer" content="no-referrer">
+<script>
+/* Belt and braces for HTTPS, and the first thing in the file that runs.
+
+   The _headers file sends HSTS, but HSTS only binds a browser that has already reached
+   the site once over TLS. Someone typing the domain into a phone for the first time
+   starts on http, and that request carries their session before any header can say
+   otherwise. This turns it around before the page paints.
+
+   Everything local is left alone on purpose. 127.0.0.1, localhost, a .local name, a
+   LAN address and file:// have no certificate to redirect to, and sending them to
+   https would break local testing and, worse, an owner who opens the app from a folder
+   on a laptop with no internet. Any explicit port means a dev server, not a deploy. */
+(function(){
+  try{
+    if(location.protocol!=='http:') return;
+    if(location.port) return;
+    var h=location.hostname||'';
+    if(!h||h==='localhost'||h==='127.0.0.1'||h==='[::1]') return;
+    if(/\.local$/i.test(h)||/^(10|127)\./.test(h)||/^192\.168\./.test(h)||/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return;
+    location.replace('https://'+h+location.pathname+location.search+location.hash);
+  }catch(_){ }
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Trakora is a local-first business command center: finance, goals, roadmap, tasks, notes, CRM, metrics and smart insights. All data stays in your browser.">
 <title>Trakora Business Command Center</title>
