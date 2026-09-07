@@ -3062,6 +3062,13 @@ function deactivateDevice(){
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
 var APP_BUILD='2026.08.16a'; // bump per release: shown in Settings + console so "did it update?" is a 2-second check
+/* Privacy page (#/privacy). PRIVACY_UPDATED is the date the wording last changed, and
+   it is the only signal a returning customer gets that it is worth re-reading, so it
+   moves when the list of connections moves and not for a typo. PRIVACY_CONTACT is where
+   questions go: left empty, the page tells the reader to ask whoever sold them the copy,
+   which is true for a buyer but is not what belongs on the copy being sold. */
+var PRIVACY_UPDATED='2026-09-07';
+var PRIVACY_CONTACT='';   // e.g. 'support@yourdomain.com'
 var DEFAULT_STATE={
   v:2,
   settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
@@ -3874,9 +3881,14 @@ function visibleRoutes(){
   var hidden=state.settings.hiddenModules||[];
   return ROUTES.filter(function(r){ return hidden.indexOf(r.id)<0; });
 }
+/* Privacy is a real page with its own address, so it can be linked to from the consent
+   banner and sent to a customer who asks. It is deliberately NOT in ROUTES: the menu is
+   the owner's working set and every entry there can be hidden in Customization, which
+   is the wrong thing to be able to do to a policy page. Hence the check here. */
 function currentRoute(){
   var h=(location.hash||'#/dashboard').replace('#/','');
   if(h.indexOf('custom-')===0&&(state.customModules||[]).some(function(m){return 'custom-'+m.id===h;})) return h;
+  if(h==='privacy') return 'privacy';
   return visibleRoutes().some(function(r){return r.id===h;})?h:'dashboard';
 }
 function nav(route){ location.hash='#/'+route; }
@@ -4007,7 +4019,7 @@ function render(){
     invoices:viewInvoices, report:viewReport, products:viewProducts, orders:viewOrders, accounts:viewAccounts, utang:viewUtang,
     calculators:viewCalculators, metrics:viewMetrics, goals:viewGoals,
     roadmap:viewRoadmap, tasks:viewTasks, clients:viewClients, manpower:viewManpower,
-    notes:viewNotes, reviews:viewReviews, settings:viewSettings
+    notes:viewNotes, reviews:viewReviews, settings:viewSettings, privacy:viewPrivacy
   };
   if(route.indexOf('custom-')===0) main.innerHTML=viewCustomModule(route.slice(7));
   else main.innerHTML=(views[route]||viewDashboard)();
@@ -8262,7 +8274,10 @@ function viewSettings(){
         (act?'<div style="font-size:.7rem;color:var(--good);margin-top:4px">'+icon('check',11)+' Activated on this device'+(act.activatedAt?' · '+fmtDate(new Date(act.activatedAt).toISOString().slice(0,10)):'')+'</div>':'')+
         '<div style="font-size:.7rem;color:var(--text-3);margin-top:4px">This copy is registered to the name above. It appears on all printed documents.</div>'+
         (act&&GATE.enabled?'<button class="btn btn-ghost btn-sm" data-action="deactivate-device" style="margin-top:8px">Sign out / move to another device</button>':'')+'</div>'; })()+
-    '<button class="btn btn-ghost btn-sm" data-action="show-tour" style="margin-top:12px">'+icon('spark')+' Replay the welcome tour</button></div>';
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'+
+      '<button class="btn btn-ghost btn-sm" data-action="show-tour">'+icon('spark')+' Replay the welcome tour</button>'+
+      '<button class="btn btn-ghost btn-sm" data-action="nav" data-route="privacy">'+icon('shield')+' Privacy</button>'+
+    '</div></div>';
   html+='</div>';
   return html;
 }
@@ -8292,6 +8307,78 @@ function settingsDataHTML(){
     (state.settings.startDismissed?'<button class="btn btn-ghost" data-action="start-show">'+icon('spark')+' Show getting-started checklist</button>':'')+
     '<button class="btn btn-danger" data-action="reset-data">'+icon('trash')+' Reset all data</button></div></div>';
   html+='</div>';
+  return html;
+}
+
+/* ============================================================
+   view: privacy (#/privacy)
+   Every sentence below is checked against the code, and it is meant to stay that way.
+   If you add a fetch, a script tag or a storage key, this page is part of the change:
+   a policy that quietly stops being true is worse than no policy, and it is the one
+   page a customer will quote back at you.
+   Single column on purpose. This is reading, not a dashboard, and .card>p already caps
+   the measure at 68ch.
+   ============================================================ */
+function privacyConnectionHTML(title,when,body,ctrl){
+  return '<h4 style="font-size:.86rem;font-weight:700;margin:18px 0 2px">'+title+'</h4>'+
+    '<div style="font-size:.72rem;color:var(--text-3);margin-bottom:6px">'+esc(when)+'</div>'+
+    '<p style="font-size:.84rem;color:var(--text-2);margin-bottom:6px">'+body+'</p>'+
+    '<p style="font-size:.78rem;color:var(--text-3)">'+ctrl+'</p>';
+}
+function viewPrivacy(){
+  var s=state.settings, sync=s.sync||{};
+  var enc=(typeof encActive==='function')?encActive():false;
+  var html=topbar('Privacy','What stays on this device, what leaves it, and how to stop each one.');
+  html+='<div class="card"><div class="card-head"><h3>'+icon('shield',16)+' The short version</h3>'+
+      '<span class="spacer"></span><span class="badge neutral">Updated '+esc(fmtDate(PRIVACY_UPDATED))+'</span></div>'+
+    '<p style="font-size:.9rem;color:var(--text-2)">Your books live in this browser, on this device. There is no Trakora account and no Trakora server holding them, which means nobody here can read your numbers, and nobody here can get them back for you either. Four things reach the internet, all of them listed below, none of them carrying your business data unless you switch cloud sync on yourself.</p></div>';
+
+  html+='<div class="card mt"><div class="card-head"><h3>Where your data lives</h3></div>'+
+    '<p style="font-size:.86rem;color:var(--text-2)">Your browser stores it under three names on this device: <span class="mono">bizpilot.v1</span> for everything you have typed in, <span class="mono">bizpilot.device</span> for a random id that counts this device against your license, and <span class="mono">bizpilot.activation</span> for the license itself. Receipt photos are saved inside that same record as image data, not as files.</p>'+
+    '<p style="font-size:.86rem;color:var(--text-2)">That is the whole storage story, and it cuts both ways. Clearing site data, a browser reset, a private window, a new laptop: any of those and it is gone, because there is no copy anywhere else. Export a backup and keep it somewhere that is not this browser.</p>'+
+    (enc?'<p style="font-size:.86rem;color:var(--good)">'+icon('shield',13)+' Your saved data is encrypted with AES-256 on this device and cannot be read without your PIN.</p>'
+        :'<p style="font-size:.86rem;color:var(--text-2)">Anyone who can open this browser profile can read it. The PIN lock in Settings encrypts what is stored, so a borrowed laptop is not a copy of your books.</p>')+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'+
+      '<button class="btn btn-primary btn-sm" data-action="export-data">'+icon('download')+' Export a backup now</button>'+
+      '<button class="btn btn-ghost btn-sm" data-action="settings-go" data-tab="data">'+icon('settings')+' Backup, sync &amp; lock settings</button>'+
+    '</div></div>';
+
+  html+='<div class="card mt"><div class="card-head"><h3>What leaves this device</h3><span class="sub">four connections, and no others</span></div>'+
+    '<p style="font-size:.86rem;color:var(--text-2)">Adding an entry, printing an invoice, running a report and every calculator work entirely offline. Nothing below is sent while you do any of that.</p>'+
+
+    privacyConnectionHTML('Exchange rates','open.er-api.com · automatic, on money screens',
+      'Opening the app, or a money screen whose saved rate is more than '+FX_ROUTE_REFRESH_MIN+' minutes old, fetches the day\'s rates. The request asks for one thing: the peso against a fixed list of currencies. It carries no license key, no device id and nothing you have typed. Like any web request it does reveal your IP address to that service, and therefore the fact that a copy of Trakora asked for rates.',
+      'Turn it off with <b>Auto-update rates daily</b> in Settings &#9656; Currency, or by choosing essential connections only. Rates you type in yourself keep working offline.')+
+
+    privacyConnectionHTML('Receipt scanning','cdn.jsdelivr.net · only when you press Scan',
+      'Your receipt photo is never uploaded. It goes from the file you picked straight into this page and no further, and whatever the scan reads lands in the form for you to check before anything is saved. What the scanner does reach for is its own engine, about 2MB from that CDN, which would show your IP address there. As this build ships, the app\'s security policy refuses to load code from anywhere but itself, so that download is stopped inside your browser and the request never goes out. Pressing Scan today ends in an error rather than a scan.',
+      'Nothing is downloaded unless you press Scan. Choosing essential connections only blocks the attempt outright.')+
+
+    privacyConnectionHTML('License activation','the license database · once per device',
+      'Activating sends your license key and that random device id, so a paid copy can be told from an unpaid one and so the device limit means something. Your email address is not sent: the app hashes it here and compares the hash with the record, which is also why the record itself holds no readable email. After activation the app runs offline forever.',
+      'Signing out from Settings &#9656; Data removes this device from that record and frees the slot.')+
+
+    privacyConnectionHTML('Cloud sync','your own database · off unless you set it up',
+      'This is the only connection that carries your business data, and it goes to a Firebase database <b>you</b> create, address and control. Trakora has no access to it. Turned on, it pushes your whole file: entries, clients, invoices, notes, receipt photos.'+
+      (sync.enabled&&sync.url?' <b>It is on right now</b>, pushing to '+esc(String(sync.url).replace(/^https?:\/\//,'').replace(/\/+$/,''))+'.':' It is off.'),
+      'Set it up, or turn it off, in Settings &#9656; Data &#9656; Cloud sync. The rules to lock that database down are on the same screen.')+
+    '</div>';
+
+  html+='<div class="card mt"><div class="card-head"><h3>What Trakora does not do</h3></div>'+
+    '<p style="font-size:.86rem;color:var(--text-2)">No cookies. Not "essential cookies only": the app never touches <span class="mono">document.cookie</span>, and the storage it does use is listed above. No analytics of any kind, no advertising, no third-party trackers or pixels, no crash or usage reporting, no A/B testing, no email list. The fonts are built into the file rather than pulled from a font CDN, which is why the app still looks right with the internet off.</p>'+
+    '<p style="font-size:.86rem;color:var(--text-2)">There is no account to create, so there is nothing to profile. The seller learns that a license was activated and on how many devices. Not what you sell, not who your customers are, not a peso of it.</p></div>';
+
+  html+='<div class="card mt"><div class="card-head"><h3>The people in your records</h3></div>'+
+    '<p style="font-size:.86rem;color:var(--text-2)">Client names, contact details, credit ledgers, order addresses: you put those in, and under your own country\'s data protection law they are your responsibility, not Trakora\'s. Practically, that means the backup file you export is a full copy of your customer list, so treat it like one. The PIN lock encrypts what is stored on this device, and deleting a client here deletes them everywhere Trakora keeps them.</p></div>';
+
+  html+='<div class="card mt"><div class="card-head"><h3>Changes, and asking about any of this</h3></div>'+
+    '<p style="font-size:.86rem;color:var(--text-2)">This page is dated at the top and ships inside the app, so a new version arrives with a new build and you can compare. If a connection is ever added or removed, that date moves.</p>'+
+    '<p style="font-size:.86rem;color:var(--text-2)">Questions, or a request to have something explained in writing: '+
+      (PRIVACY_CONTACT?'<a href="mailto:'+esc(PRIVACY_CONTACT)+'">'+esc(PRIVACY_CONTACT)+'</a>.':'contact whoever you bought Trakora from.')+'</p>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'+
+      '<button class="btn btn-ghost btn-sm" data-action="settings-go" data-tab="data">'+icon('settings')+' Connection settings</button>'+
+      '<button class="btn btn-ghost btn-sm" data-action="nav" data-route="dashboard">'+icon('dashboard')+' Back to the dashboard</button>'+
+    '</div></div>';
   return html;
 }
 
@@ -12884,7 +12971,13 @@ function loadTesseract(){
     var s=document.createElement('script');
     s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
     s.onload=function(){ window.Tesseract?resolve(window.Tesseract):reject(new Error('OCR library loaded but unavailable.')); };
-    s.onerror=function(){ tessPromise=null; reject(new Error('Could not download the OCR engine. Check your internet connection.')); };
+    /* onerror cannot tell a dead connection from a refused one, and it has been
+       blaming the connection for both. Measured in Chromium against this build: the
+       page's own Content-Security-Policy allows script from 'self' only, so the CDN
+       tag is refused before any request leaves the browser and this handler fires
+       every time, online or not. Naming both causes is the least a message can do
+       when it does not know which one it hit. */
+    s.onerror=function(){ tessPromise=null; reject(new Error('The OCR engine could not load. It comes from cdn.jsdelivr.net, so this fails if you are offline, and this build’s security policy blocks outside scripts as well.')); };
     document.head.appendChild(s);
   });
   return tessPromise;
