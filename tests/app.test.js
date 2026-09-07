@@ -657,9 +657,9 @@ async function main() {
 
     // ---------- design/a11y polish ----------
     window.state.tasks = []; window.render();
-    ok('onboarding de-cluttered: hero hidden while checklist shows', d.getElementById('main').innerHTML.indexOf('Welcome to your business command center') === -1);
+    ok('onboarding de-cluttered: hero hidden while checklist shows', d.getElementById('main').innerHTML.indexOf('Start with one entry') === -1);
     window.state.settings.startDismissed = true; window.render();
-    ok('hero returns once checklist dismissed (still empty)', d.getElementById('main').innerHTML.indexOf('Welcome to your business command center') > -1);
+    ok('hero returns once checklist dismissed (still empty)', d.getElementById('main').innerHTML.indexOf('Start with one entry') > -1);
     window.toast('hello world');
     const tEl = d.getElementById('toast-root').querySelector('.toast');
     ok('toast is announced to screen readers (role=alert)', tEl && tEl.getAttribute('role') === 'alert' && !!tEl.getAttribute('aria-live'));

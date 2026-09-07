@@ -3135,7 +3135,7 @@ function save(){
       var seq=++saveSeq;
       var p=encryptJSON(state).then(function(blob){
         if(seq!==saveSeq) return; // a newer save superseded this one
-        try{ localStorage.setItem(LS_KEY,blob); }catch(_){ toast('Could not save — browser storage may be full.','error'); }
+        try{ localStorage.setItem(LS_KEY,blob); }catch(_){ toast('Not saved. This browser is out of storage. Export a backup from Settings ▸ Data, then remove old receipt photos to free space.','error'); }
       }).catch(function(){ toast('Could not encrypt your data, so the change was not saved.','error'); });
       scheduleCloudPush();
       return p; // resolves once the encrypted snapshot is actually written
@@ -3144,7 +3144,7 @@ function save(){
     scheduleCloudPush();
     return Promise.resolve();
   }catch(e){
-    toast('Could not save — browser storage may be full.','error');
+    toast('Not saved. This browser is out of storage. Export a backup from Settings ▸ Data, then remove old receipt photos to free space.','error');
     return Promise.resolve();
   }
 }
@@ -3173,8 +3173,8 @@ function doUndo(){
     state=deepMerge(JSON.parse(JSON.stringify(DEFAULT_STATE)),JSON.parse(undoBuf));
     undoBuf=null;
     commit(); applyTheme();
-    toast('Restored — crisis averted.');
-  }catch(e){ toast('Undo failed: '+e.message,'error'); }
+    toast('Restored.');
+  }catch(e){ toast('Could not undo that. Your data is unchanged, so the last action still stands. ('+e.message+')','error'); }
 }
 /* show validation errors INSIDE the open modal so a rejected save is unmissable */
 function modalInlineError(msg){
@@ -3850,9 +3850,13 @@ function sectionColorOf(name){
   var o=(state.settings&&state.settings.sectionColors)||{};
   return safeColor(o[name]||SECTION_COLORS[name],'#4653e8');
 }
+/* "Module" used to mean both a menu grouping and a table the owner builds. The label
+   says "table" now, but the stored key stays 'My Modules' because a collapsed state and
+   a custom section colour are already saved under it on the owner's device. */
+var SECTION_RELABEL={'My Modules':'My Tables'};
 function sectionLabelOf(name){
   var o=(state.settings&&state.settings.sectionLabels)||{};
-  return o[name]||tr(name);
+  return o[name]||tr(SECTION_RELABEL[name]||name);
 }
 function routeSection(routeId){
   if(routeId&&routeId.indexOf('custom-')===0) return 'My Modules';
@@ -4148,7 +4152,7 @@ function renderSidebar(){
     (state.customModules||[]).forEach(function(m){
       html+='<button class="nav-item'+(route==='custom-'+m.id?' active':'')+'" data-action="nav" data-route="custom-'+m.id+'" title="'+esc(m.name)+'">'+icon(m.icon||'notes')+'<span>'+esc(m.name)+'</span></button>';
     });
-    html+='<button class="nav-item" data-action="custom-module-new" style="opacity:.75">'+icon('plus')+'<span>'+esc(tr('New module…'))+'</span></button>';
+    html+='<button class="nav-item" data-action="custom-module-new" style="opacity:.75">'+icon('plus')+'<span>'+esc(tr('New table…'))+'</span></button>';
   }
   html+='</nav><div class="sidebar-foot"><div class="biz-chip">'+
     (bl?'<img src="'+esc(bl)+'" alt="" style="width:30px;height:30px;border-radius:8px;object-fit:cover;flex-shrink:0">'
@@ -4247,7 +4251,7 @@ function getStartedHTML(){
   var steps=getStartedSteps();
   var done=steps.filter(function(x){return x.done;}).length, total=steps.length;
   if(done>=total){
-    return '<div class="card start-card"><div class="card-head"><h3>'+icon('check',16)+' You’re all set up!</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="start-dismiss">Dismiss</button></div>'+
+    return '<div class="card start-card"><div class="card-head"><h3>'+icon('check',16)+' Setup complete</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="start-dismiss">Dismiss</button></div>'+
       '<p style="font-size:.85rem;color:var(--text-2)">Every starter step is done. Your dashboard is ready. Keep your numbers current, drag the cards to suit you, and let Trakora do the math.</p></div>';
   }
   // collapsed by default on phones so the money KPIs sit near the top; open on desktop
@@ -4302,8 +4306,11 @@ function viewDashboard(){
   html+=backupSafetyBannerHTML();
 
   if(!hasData && state.goals.length===0 && state.tasks.length===0 && state.settings.startDismissed){
-    html+='<div class="hero"><h2>Welcome to your business command center</h2>'+
-      '<p>Track your money, sell without the chaos, and hit your goals, all in one private workspace that lives in this browser. See real profit and cash flow, never oversell, and know exactly what needs attention each day.</p>'+
+    /* They already own it, so this is not the place to sell it back to them. An empty
+       state says what to do next; the dashboard makes the case on its own once there
+       is a number in it. */
+    html+='<div class="hero"><h2>Start with one entry</h2>'+
+      '<p>Log an income or expense and this page fills itself in: profit, cash flow, and what needs attention today. Everything stays in this browser.</p>'+
       '<div class="hero-actions">'+
         '<button class="btn btn-primary" data-action="open-entry-modal">'+icon('plus')+' Add first entry</button>'+
         '<button class="btn btn-ghost" data-action="load-sample">'+icon('spark')+' Load sample data</button>'+
@@ -4411,7 +4418,7 @@ function viewDashboard(){
     .sort(function(a,b){ return (a.deadline||'').localeCompare(b.deadline||''); }).slice(0,5);
   var upcoming=upcomingMilestones().slice(0,3);
   var recv=receivablesSummary();
-  var recvBlk='<div class="card"><div class="card-head"><h3>Money owed to you</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="nav" data-route="invoices">Invoices</button></div>';
+  var recvBlk='<div class="card"><div class="card-head"><h3>Owed to you</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="nav" data-route="invoices">Invoices</button></div>';
   if(recv.count>0){
     recvBlk+='<div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:1.45rem;font-variant-numeric:tabular-nums">'+fmtMoney(recv.total)+'</b><span style="font-size:.8rem;color:var(--text-3)">across '+recv.count+' invoice'+(recv.count>1?'s':'')+'</span></div>'+
       // .stat-delta is display:inline; inside a stat tile it sits in a flex column, but here
@@ -4468,7 +4475,7 @@ function viewDashboard(){
 }
 var DASH_DEFAULT=['rev','exp','prof','margin','health','chart','month','goals','cats','insights','recv','tasks','miles'];
 var DASH_SPAN={rev:1,exp:1,prof:1,margin:1,health:2,chart:2,month:1,goals:1,cats:1,insights:2,recv:1,tasks:1,miles:1};
-var DASH_TITLES={rev:'Revenue',exp:'Expenses',prof:'Net profit',margin:'Profit margin',health:'Business health',chart:'Monthly performance',month:'This month vs last',goals:'Goal progress',cats:'Category leaders',insights:'Warnings & opportunities',recv:'Money owed to you',tasks:'Tasks due soon',miles:'Upcoming milestones'};
+var DASH_TITLES={rev:'Revenue',exp:'Expenses',prof:'Net profit',margin:'Profit margin',health:'Business health',chart:'Monthly performance',month:'This month vs last',goals:'Goal progress',cats:'Category leaders',insights:'Warnings & opportunities',recv:'Owed to you',tasks:'Tasks due soon',miles:'Upcoming milestones'};
 function dashOrder(){
   var saved=((state.settings&&state.settings.dashOrder)||[]).filter(function(x){ return DASH_DEFAULT.indexOf(x)>=0; });
   DASH_DEFAULT.forEach(function(x){ if(saved.indexOf(x)<0) saved.push(x); });
@@ -4614,7 +4621,7 @@ function advisorPaceHTML(){
   var ahead=Math.max(0,sum(billed,invPHP)-overdue);
   if(overdue>0||ahead>0){
     var pmax=Math.max(overdue,ahead)||1;
-    html+='<div class="card-head" style="margin-top:14px"><h3 style="font-size:.9rem">Waiting on payments</h3></div><div class="cat-bars">'+
+    html+='<div class="card-head" style="margin-top:14px"><h3 style="font-size:.9rem">Owed to you</h3></div><div class="cat-bars">'+
       (overdue>0?'<div class="cat-bar"><div class="cb-top"><span class="cb-name">Overdue, chase these</span><b class="num">'+fmtMoney(overdue)+'</b></div><div class="cb-track"><div class="cb-fill" style="--cbw:'+(overdue/pmax*100).toFixed(1)+'%;background:var(--expense)"></div></div></div>':'')+
       (ahead>0?'<div class="cat-bar"><div class="cb-top"><span class="cb-name">Billed, not yet due</span><b class="num">'+fmtMoney(ahead)+'</b></div><div class="cb-track"><div class="cb-fill" style="--cbw:'+(ahead/pmax*100).toFixed(1)+'%;background:var(--accent);animation-delay:.06s"></div></div></div>':'')+
     '</div>'+
@@ -5332,7 +5339,7 @@ function assistantRoute(text){
     if(asstApplyAnswer(draft.parsed,A.ctx.slot,text,today)){
       var next=asstQuestionFor(draft.parsed);
       if(next){ A.ctx={msgId:draft.id,slot:next.slot}; asstBot(next.q); }
-      else { A.ctx=null; asstBot(asstPick(['Perfect. Here’s the full draft. Tap Log it (or just say “yes”).','All set! Say “yes” to log it, or edit the draft first.'])); }
+      else { A.ctx=null; asstBot(asstPick(['Perfect. Here’s the full draft. Tap Log it (or just say “yes”).','Say “yes” to log it, or edit the draft first.'])); }
       return;
     }
     var q=nlQuery(text,today);
@@ -7151,7 +7158,7 @@ var rmHist={u:[],r:[]};
 function rmSnapshot(){ try{ var s=JSON.stringify(state); rmHist.u.push(s); if(rmHist.u.length>80) rmHist.u.shift(); rmHist.r.length=0; undoBuf=s; }catch(_){} }
 /* restore a state snapshot, softly (patch the board, no full-page render → no blink) when the map is up */
 function rmRestore(snap,msg){ try{ state=deepMerge(JSON.parse(JSON.stringify(DEFAULT_STATE)),JSON.parse(snap)); save();
-  if(byId('rm-board')) rmPatchBoard(); else render(); toast(msg,'info'); }catch(e){ toast('Undo failed: '+e.message,'error'); } }
+  if(byId('rm-board')) rmPatchBoard(); else render(); toast(msg,'info'); }catch(e){ toast('Could not undo that. Your data is unchanged, so the last action still stands. ('+e.message+')','error'); } }
 function rmUndoRoad(){ if(!rmHist.u.length){ toast('Nothing to undo.','warn'); return; } try{ rmHist.r.push(JSON.stringify(state)); }catch(_){} rmRestore(rmHist.u.pop(),'Undone.'); }
 function rmRedo(){ if(!rmHist.r.length){ toast('Nothing to redo.','warn'); return; } try{ rmHist.u.push(JSON.stringify(state)); }catch(_){} rmRestore(rmHist.r.pop(),'Redone.'); }
 /* ---- copy / paste selected nodes ---- */
@@ -7861,7 +7868,7 @@ function hrValeAddModal(empId){
 function hrValeRepayModal(advId){
   var a=(state.hrAdvances||[]).find(function(x){return x.id===advId;}); if(!a) return;
   var left=Math.max(0,num(a.amount)-num(a.repaid));
-  var body='<p class="sub" style="margin-bottom:10px">Outstanding: <b>'+fmtMoney(left)+'</b></p><div class="field"><label>Repay amount ('+esc(state.settings.currency)+')</label><input class="input" type="number" step="any" min="0" name="amt" value="'+left+'"></div>';
+  var body='<p class="sub" style="margin-bottom:10px">Still owed: <b>'+fmtMoney(left)+'</b></p><div class="field"><label>Repay amount ('+esc(state.settings.currency)+')</label><input class="input" type="number" step="any" min="0" name="amt" value="'+left+'"></div>';
   openModal('Repay vale',body,{onSubmit:function(form){ var amt=num(fv(form,'amt')); a.repaid=Math.min(num(a.amount),num(a.repaid)+Math.max(0,amt)); toast('Repayment recorded.'); return hrStay(a.employeeId); }});
 }
 function hrPayoutModal(empId){
@@ -8313,7 +8320,7 @@ function goalModal(goal){
     } else {
       data.id=uid(); data.done=false; data.current=0; data.createdAt=todayISO();
       state.goals.push(data);
-      toast('Goal created. Go get it!');
+      toast('Goal created.');
     }
     return true;
   }});
@@ -8477,7 +8484,7 @@ function phaseTaskModal(phaseId,task){
     var title=fv(form,'title');
     if(!title){ toast('Give it a title.','error'); return false; }
     var phase=allPhases().find(function(p){return p.id===fv(form,'phaseId');});
-    if(!phase){ toast('Phase not found.','error'); return false; }
+    if(!phase){ toast('That phase is no longer in this roadmap. It may have been deleted in another tab. Close this and reopen the roadmap.','error'); return false; }
     var id=fv(form,'id');
     var data={title:title,deadline:fv(form,'deadline'),status:fv(form,'status'),priority:fv(form,'priority')};
     if(id){
@@ -8520,7 +8527,7 @@ function exportData(){
     state.settings.lastBackup=todayISO();
     commit();
     toast('Backup exported. Keep it somewhere safe.');
-  }catch(e){ toast('Export failed: '+e.message,'error'); }
+  }catch(e){ toast('Could not build the backup file. Nothing was changed. Close other tabs to free up memory, then try again. ('+e.message+')','error'); }
 }
 function importData(file){
   var reader=new FileReader();
@@ -8534,7 +8541,7 @@ function importData(file){
       applyTheme();
       toast('Backup imported. '+state.finance.length+' finance entries restored.');
     }catch(e){
-      toast('Import failed: '+e.message,'error');
+      toast('Could not read that backup. Your current data is untouched. Choose the .json file Trakora exported, not a CSV or a zip. ('+e.message+')','error');
     }
   };
   reader.onerror=function(){ toast('Could not read the file.','error'); };
@@ -8549,7 +8556,7 @@ function resetData(){
     state=JSON.parse(JSON.stringify(DEFAULT_STATE));
     state.meta.createdAt=todayISO();
     state.settings.theme=theme;
-    toast('All data erased. Fresh start!','warn');
+    toast('All data erased.','warn');
     return true;
   }});
 }
@@ -9103,7 +9110,7 @@ document.addEventListener('click',function(e){
   }
   if(action==='toggle-task'){
     var t3=state.tasks.find(function(x){return x.id===id;});
-    if(t3){ setTaskStatus(t3,t3.done?taskLanes()[0]:doneLane()); commit(); if(t3.done) toast('Nice — task done.'); } return;
+    if(t3){ setTaskStatus(t3,t3.done?taskLanes()[0]:doneLane()); commit(); if(t3.done) toast('Task done.'); } return;
   }
   if(action==='task-filter-status'){ ui.taskFilter.status=el.getAttribute('data-val'); render(); return; }
   if(action==='task-filter-priority'){ ui.taskFilter.priority=el.getAttribute('data-val'); render(); return; }
@@ -9194,7 +9201,7 @@ document.addEventListener('click',function(e){
 
   /* data management */
   if(action==='export-data'){ exportData(); return; }
-  if(action==='enable-autobackup'){ state.settings.autoBackupDays=state.settings.autoBackupDays||7; state.settings.backupSnooze=null; exportData(); toast('Auto-backup on — I’ll back up every '+state.settings.autoBackupDays+' days when you open the app.'); return; }
+  if(action==='enable-autobackup'){ state.settings.autoBackupDays=state.settings.autoBackupDays||7; state.settings.backupSnooze=null; exportData(); toast('Auto-backup is on. A backup file downloads every '+state.settings.autoBackupDays+' days when you open Trakora.'); return; }
   if(action==='snooze-backup'){ state.settings.backupSnooze=todayISO(); save(); render(); toast('Reminder snoozed. Tip: turn on auto-backup so you never have to think about it.'); return; }
   if(action==='import-data'){ byId('import-file').click(); return; }
   if(action==='csv-import'){ byId('csv-file').click(); return; }
@@ -9656,12 +9663,12 @@ function viewInvoices(){
   var curM=thisMonthKey();
   var paidList=(state.invoices||[]).filter(function(iv){return iv.status==='Paid'&&monthKey(iv.paidDate||'')===curM;});
   var paidThisMonth=sum(paidList,invPHP);
-  var html=topbar('Invoices','Bill clients, track receivables, and never lose sight of who owes you.',
+  var html=topbar('Invoices','Bill clients, see who owes you, and never lose sight of it.',
     '<button class="btn btn-primary" data-action="invoice-new">'+icon('plus')+'<span class="btn-txt">New invoice</span></button>');
   // every peso headline below rolls up foreign invoices, so every one of them carries the
   // same sub-line saying what it counted at an unverified rate and what it had to leave out
   html+='<div class="grid grid-4">'+
-    statCard('Outstanding',fmtMoney(recv.total),'<span class="stat-delta flat">'+recv.count+' unpaid invoice'+(recv.count===1?'':'s')+'</span>'+recv.caveat,'','invoice')+
+    statCard('Owed to you',fmtMoney(recv.total),'<span class="stat-delta flat">'+recv.count+' unpaid invoice'+(recv.count===1?'':'s')+'</span>'+recv.caveat,'','invoice')+
     statCard('Overdue',fmtMoney(recv.overdueTotal),(recv.overdueCount?'<span class="stat-delta down">'+recv.overdueCount+' need follow-up</span>':'<span class="stat-delta up">nothing overdue</span>')+recv.overdueCaveat,'','alert')+
     statCard('Collected this month',fmtMoney(paidThisMonth),fxTotalsCaveatHTML(paidList),'','check')+
     statCard('All-time invoiced',fmtMoney(sum(state.invoices||[],invPHP)),fxTotalsCaveatHTML(state.invoices),'','cash')+
@@ -10189,12 +10196,12 @@ function customizationCardHTML(){
   // their built-in order. `sectionOrder` is still honoured by islandSections() so that
   // anyone who reordered their menu before this keeps the arrangement they chose.
   // modules
-  html+='<div class="field"><label>Visible modules</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">'+
+  html+='<div class="field"><label>Visible sections</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">'+
     hideable.map(function(r){
       var lbl=(s.moduleLabels||{})[r.id]||r.label;
       return '<label class="checkrow" style="font-size:.84rem"><input type="checkbox" data-action-change="toggle-module" data-id="'+r.id+'"'+(hidden.indexOf(r.id)<0?' checked':'')+'> '+esc(lbl)+
         ' <button type="button" class="btn-icon" style="width:20px;height:20px" data-action="rename-module" data-id="'+r.id+'" title="Rename">'+icon('edit')+'</button></label>';
-    }).join('')+'</div><p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Hide modules you don’t use. Nothing is deleted, they just leave the menu.</p></div>';
+    }).join('')+'</div><p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Hide sections you don’t use. Nothing is deleted, they just leave the menu.</p></div>';
   html+='<div class="field"><label class="checkrow"><input type="checkbox" data-action-change="advisor-bubble-toggle"'+(s.advisorBubbleOff?'':' checked')+'> Show the floating Advisor bubble</label>'+
     '<p style="font-size:.72rem;color:var(--text-3);margin-top:4px">A friendly prompt that nudges you to check your Advisor. It appears on every page except the Advisor itself.</p></div>';
   html+='</div>';
@@ -10267,10 +10274,10 @@ function doCloudPut(ep,silent){
       state.settings.sync.lastSync=new Date().toISOString();
       state.settings.sync.lastSyncStamp=state.meta.updatedAt;
       cloudConflictWarned=false;
-      try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(_){ toast("Could not save — browser storage may be full.","error"); }
+      try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(_){ toast("Not saved. This browser is out of storage. Export a backup from Settings ▸ Data, then remove old receipt photos to free space.","error"); }
       if(!silent){ toast('Pushed to cloud.'); render(); }
     })
-    .catch(function(e){ if(!silent) toast('Cloud push failed: '+e.message,'error'); })
+    .catch(function(e){ if(!silent) toast('Could not push to the cloud. Your changes are saved on this device and will go up on the next successful push. Check your connection and the database URL in Settings ▸ Cloud sync. ('+e.message+')','error'); })
     .finally(function(){ cloudBusy=false; });
 }
 function cloudPull(){
@@ -10290,11 +10297,11 @@ function cloudPull(){
       var sync=JSON.parse(JSON.stringify(state.settings.sync));
       state=deepMerge(JSON.parse(JSON.stringify(DEFAULT_STATE)),data);
       state.settings.sync=Object.assign(state.settings.sync||{},sync,{lastSync:new Date().toISOString(),lastSyncStamp:(data.meta&&data.meta.updatedAt)||Date.now()});
-      try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(_){ toast("Could not save — browser storage may be full.","error"); }
+      try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(_){ toast("Not saved. This browser is out of storage. Export a backup from Settings ▸ Data, then remove old receipt photos to free space.","error"); }
       applyTheme(); render();
       toast('Pulled from cloud. '+state.finance.length+' finance entries on this device now.');
     })
-    .catch(function(e){ toast('Cloud pull failed: '+e.message,'error'); });
+    .catch(function(e){ toast('Could not pull from the cloud. The data on this device is unchanged. Check your connection and the database URL in Settings ▸ Cloud sync, then try again. ('+e.message+')','error'); });
 }
 function cloudSyncCardHTML(){
   var s=state.settings.sync||{};
@@ -10754,7 +10761,7 @@ function viewOrders(){
   var monthProfit=sum(monthOrders,orderProfit);
   html+='<div class="grid grid-4">'+
     statCard('To fulfill',String(open.length),'','','truck')+
-    statCard('Awaiting payment',fmtMoney(sum(unpaid,orderTotal)),'<span class="stat-delta flat">'+unpaid.length+' order'+(unpaid.length===1?'':'s')+'</span>','','clock')+
+    statCard('Owed to you',fmtMoney(sum(unpaid,orderTotal)),'<span class="stat-delta flat">'+unpaid.length+' order'+(unpaid.length===1?'':'s')+'</span>','','clock')+
     statCard('Order value this month',fmtMoney(sum(monthOrders,orderTotal)),'<span class="stat-delta flat">'+monthOrders.length+' orders</span>','','cash')+
     statCard('Est. profit this month',fmtMoney(monthProfit),'<span class="stat-delta '+(monthProfit>=0?'up':'down')+'">after product costs</span>','','wallet')+
   '</div>';
@@ -10978,7 +10985,7 @@ function cmFooterHTML(m){
     '<button class="btn btn-ghost btn-sm" data-action="custom-module-edit" data-id="'+m.id+'">'+icon('edit')+' Rename / icon</button>'+
     '<button class="btn btn-ghost btn-sm" data-action="custom-module-fields" data-id="'+m.id+'">'+icon('settings')+' Manage fields</button>'+
     '<button class="btn btn-ghost btn-sm" data-action="export-csv" data-what="module" data-id="'+m.id+'">'+icon('download')+' Export CSV</button>'+
-    '<button class="btn btn-danger btn-sm" data-action="custom-module-delete" data-id="'+m.id+'">'+icon('trash')+' Delete module</button></div></div>';
+    '<button class="btn btn-danger btn-sm" data-action="custom-module-delete" data-id="'+m.id+'">'+icon('trash')+' Delete table</button></div></div>';
 }
 function fieldRowHTML(f){
   f=f||{};
@@ -11006,9 +11013,9 @@ function moduleBuilderModal(m){
     '</div>'+
     '<button type="button" class="btn btn-ghost btn-sm" data-action="mb-add-field">'+icon('plus')+' Add another field</button>'+
     '<p style="font-size:.72rem;color:var(--text-3);margin-top:6px">Money and number fields get automatic totals. Dropdowns need their options listed (e.g. "Pending, Approved"). Photo/file fields accept uploads.</p></div>';
-  openModal(isEdit?'Edit table: '+m.name:'Create your own table',body,{wide:true,submitLabel:isEdit?'Save module':'Create module',onSubmit:function(form){
+  openModal(isEdit?'Edit table: '+m.name:'Create your own table',body,{wide:true,submitLabel:isEdit?'Save table':'Create table',onSubmit:function(form){
     var name=fv(form,'name');
-    if(!name){ toast('Give the module a name.','error'); return false; }
+    if(!name){ toast('Give the table a name.','error'); return false; }
     var rows=form.querySelectorAll('#mb-rows .mb-row');
     var fields=[];
     var bad=false;
@@ -11222,7 +11229,7 @@ document.addEventListener('click',function(e){
   }
   if(action==='custom-module-delete'){
     var m3=findModule(id);
-    if(m3&&confirm('Delete module "'+m3.name+'" and its '+(m3.records||[]).length+' record(s)? This cannot be undone.')){
+    if(m3&&confirm('Delete table "'+m3.name+'" and its '+(m3.records||[]).length+' record(s)? This cannot be undone.')){
       snapshotForUndo();
       state.customModules=state.customModules.filter(function(x){return x.id!==id;});
       if(currentRoute()==='custom-'+id) nav('dashboard');
@@ -11342,7 +11349,7 @@ function downloadCSV(filename,rows){
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function(){ URL.revokeObjectURL(a.href); },2000);
     toast('CSV exported. Opens in Excel / Google Sheets.');
-  }catch(e){ toast('CSV export failed: '+e.message,'error'); }
+  }catch(e){ toast('Could not build the CSV. Nothing was changed. Try again, or export a full backup from Settings ▸ Data instead. ('+e.message+')','error'); }
 }
 function exportCSV(what,id){
   var today=todayISO();
@@ -11394,7 +11401,7 @@ function paletteIndex(){
     items.push({label:labels[r.id]||r.label,sub:'Go to section',icon:r.icon,route:r.id});
   });
   (state.customModules||[]).forEach(function(m){
-    items.push({label:m.name,sub:'Your custom module',icon:m.icon||'notes',route:'custom-'+m.id});
+    items.push({label:m.name,sub:'Your custom table',icon:m.icon||'notes',route:'custom-'+m.id});
   });
   (state.products||[]).forEach(function(p){
     if(p.active===false) return;
@@ -11483,7 +11490,7 @@ function processUploadFile(file,cb){
   if(!file){ cb(null,null,'No file selected.'); return; }
   var isImage=/^image\//.test(file.type)||/\.(heic|heif)$/i.test(file.name||'');
   if(!isImage){
-    if(file.size>300*1024){ cb(null,null,'Non-image files must be under 300 KB (browser storage is limited). For bigger files, keep a link in a text field instead.'); return; }
+    if(file.size>300*1024){ cb(null,null,'That file is over 300 KB, which is more than browser storage can hold. Use a JPG, PNG, WebP or GIF photo, or keep a link to the file in a text field instead.'); return; }
     var fr=new FileReader();
     fr.onload=function(){ cb(fr.result,file.name,null); };
     fr.onerror=function(){ cb(null,null,'Could not read the file.'); };
@@ -11504,9 +11511,9 @@ function processUploadFile(file,cb){
         var out=canvas.toDataURL('image/jpeg',0.72);
         if(out.length>900*1024){ out=canvas.toDataURL('image/jpeg',0.5); }
         cb(out,file.name,null);
-      }catch(err){ cb(null,null,'Could not process this image: '+err.message); }
+      }catch(err){ cb(null,null,'Could not process that image. Use a JPG, PNG, WebP or GIF under 4 MB. ('+err.message+')'); }
     };
-    img.onerror=function(){ cb(null,null,'This browser cannot decode that format. HEIC only works in Safari. Please convert to JPG or PNG (your phone’s share menu usually offers this).'); };
+    img.onerror=function(){ cb(null,null,'This browser cannot read that image format. Use JPG, PNG, WebP or GIF. HEIC only works in Safari; your phone’s share menu will usually convert it.'); };
     img.src=reader.result;
   };
   reader.onerror=function(){ cb(null,null,'Could not read the file.'); };
@@ -12187,7 +12194,7 @@ function viewAccounts(){
   html+='<div class="grid grid-4">'+
     statCard('Cash on hand (all accounts)',fmtMoney(totalCash),'<span class="stat-delta '+(totalCash>=0?'up':'down')+'">'+accts.length+' account'+(accts.length===1?'':'s')+'</span>','','bank')+
     statCard('Owed to you',fmtMoney(recv),'<span class="stat-delta flat">unpaid invoices + orders</span>','','invoice')+
-    statCard('True position',fmtMoney(totalCash+recv),'<span class="stat-delta flat">cash + receivables</span>','','shield')+
+    statCard('True position',fmtMoney(totalCash+recv),'<span class="stat-delta flat">cash + money owed to you</span>','','shield')+
     statCard('This month P&L',fmtMoney(cur.revenue-cur.expenses),'<span class="stat-delta '+(cur.revenue-cur.expenses>=0?'up':'down')+'">'+fmtMoney(cur.revenue)+' in · '+fmtMoney(cur.expenses)+' out</span>','','metrics')+
   '</div>';
   html+='<div class="grid acct-grid mt" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">';
@@ -12657,7 +12664,7 @@ document.addEventListener('change',function(e){
 var TL={
   /* sections */
   'Overview':'Overview','Money':'Pera','Execution':'Mga Gawain','Workspace':'Workspace','Shop':'Tindahan','System':'System',
-  'My Modules':'Aking Mga Module','New module…':'Bagong module…',
+  'My Tables':'Aking Mga Table','New table…':'Bagong table…',
   /* routes */
   'Dashboard':'Dashboard','Insights':'Mga Insight','Accounts & Cash':'Mga Account at Cash','Finance':'Pera (Finance)',
   'Invoices':'Mga Invoice','Monthly Report':'Buwanang Report','Calculators':'Mga Calculator','Metrics & KPIs':'Metrics at KPIs',
@@ -12679,13 +12686,13 @@ var TL={
   'Total revenue':'Kabuuang kita','Total expenses':'Kabuuang gastos','Net profit':'Netong tubo','Profit margin':'Profit margin',
   'Revenue':'Kita','Expenses':'Gastos','Expense ratio':'Expense ratio','Margin':'Margin',
   'Cash on hand (all accounts)':'Cash on hand (lahat ng account)','Owed to you':'Utang sa iyo','True position':'Totoong posisyon',
-  'This month P&L':'P&L ngayong buwan','To fulfill':'Ihahatid pa','Awaiting payment':'Hinihintay ang bayad',
+  'This month P&L':'P&L ngayong buwan','To fulfill':'Ihahatid pa',
   'Order value this month':'Halaga ng orders ngayong buwan','Est. profit this month':'Tantyang tubo ngayong buwan',
   'Products':'Mga Produkto','Low / out of stock':'Paubos / ubos na','Stock value (cost)':'Halaga ng stock (puhunan)',
   'Stock value (retail)':'Halaga ng stock (benta)','Active goals':'Aktibong goals','Completed':'Tapos na','Overdue':'Lampas na',
   'Avg progress':'Average na progreso','Open tasks':'Bukas na gawain','Completion rate':'Tapos na (%)',
   'Active clients':'Aktibong kliyente','Leads in pipeline':'Mga lead','Revenue / active client':'Kita kada kliyente','Churned':'Umalis',
-  'Outstanding':'Hindi pa bayad','Collected this month':'Nakolekta ngayong buwan','All-time invoiced':'Kabuuang na-invoice',
+  'Collected this month':'Nakolekta ngayong buwan','All-time invoiced':'Kabuuang na-invoice',
   'Materials':'Mga Materyales','Low / out':'Paubos / ubos','Material value':'Halaga ng materyales',
   'Orders this month':'Orders ngayong buwan','Best month':'Pinakamagandang buwan',
   /* misc visible */
@@ -12791,10 +12798,10 @@ function scanReceipt(btn){
       var sel=form.elements['category'];
       for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===parsed.category){ sel.value=parsed.category; filled.push('category'); break; } }
     }
-    if(filled.length) toast('Scanned — prefilled: '+filled.join(', ')+'. Double-check before saving!');
+    if(filled.length) toast('Scanned. Prefilled: '+filled.join(', ')+'. Check every amount against the receipt before you save.');
     else toast('Scanned the photo but could not confidently read values. Enter them manually.','warn');
   }).catch(function(err){
-    toast('OCR failed: '+err.message,'error');
+    toast('Could not read that receipt. Nothing was saved. Try a sharper, better-lit photo, or type the amount in yourself. ('+err.message+')','error');
   }).then(function(){
     btn.disabled=false;
     btn.innerHTML=origLabel;
@@ -13678,7 +13685,7 @@ document.addEventListener('drop',function(e){
   if(t){
     setTaskStatus(t,col.getAttribute('data-task-drop'));
     commit();
-    if(t.done) toast('Nice — task done.');
+    if(t.done) toast('Task done.');
   }
 });
 /* ---- global drag polish: no text-selection, no hover jiggle, no leftover highlights ---- */
@@ -13709,7 +13716,7 @@ document.addEventListener('click',function(e){
     if(t){
       var lanes=taskLanes();
       var i=lanes.indexOf(t.status||lanes[0]);
-      if(i<lanes.length-1){ setTaskStatus(t,lanes[i+1]); commit(); if(t.done) toast('Nice — task done.'); }
+      if(i<lanes.length-1){ setTaskStatus(t,lanes[i+1]); commit(); if(t.done) toast('Task done.'); }
     }
     return;
   }
@@ -13764,7 +13771,7 @@ document.addEventListener('change',function(e){
   var tact=el.getAttribute&&el.getAttribute('data-action-change');
   if(tact==='task-status'){
     var t=state.tasks.find(function(x){return x.id===el.getAttribute('data-id');});
-    if(t){ setTaskStatus(t,el.value); commit(); if(t.done) toast('Nice — task done.'); }
+    if(t){ setTaskStatus(t,el.value); commit(); if(t.done) toast('Task done.'); }
     return;
   }
   if(tact==='task-priority'){
@@ -13789,9 +13796,9 @@ document.addEventListener('change',function(e){
    ============================================================ */
 var ONBOARD_SLIDES=[
   {ico:'dashboard',title:'Welcome to Trakora',mock:'welcome',
-   desc:'Your whole business in one private workspace: money, sales, goals, clients and notes. It runs in your browser, works offline, and your numbers never leave this device.'},
+   desc:'Money, sales, goals, clients and notes, in one place. It runs in your browser, works offline, and your numbers never leave this device.'},
   {ico:'spark',title:'Your daily briefing',mock:'dashboard',
-   desc:'Open each morning to a clear read: profit, cash, what needs attention today, and a business-health score, so nothing profitable slips through the cracks.'},
+   desc:'Open it each morning for profit, cash, a business-health score, and the short list of what needs attention today.'},
   {ico:'wallet',title:'Know your real numbers',mock:'money',
    desc:'Log income and expenses, send invoices (even recurring retainers), and track every bank or e-wallet balance. Profit and cash flow update the instant you type.'},
   {ico:'box',title:'Sell without the chaos',mock:'selling',
@@ -14729,7 +14736,7 @@ function showGreeting(){
       '<div class="greet-card">'+
         '<div class="greet-ico">'+greetAvatar()+'</div>'+
         '<h2 class="greet-hello">Hi there! <span class="greet-wave">'+icon('hand2',26)+'</span></h2>'+
-        '<p class="greet-sub">How would you like me to call you?</p>'+
+        '<p class="greet-sub">What should we call you?</p>'+
         '<form id="greet-form" class="greet-form" autocomplete="off"><input id="greet-name" class="input" maxlength="40" placeholder="e.g. Ira" aria-label="Your name">'+
         '<button class="btn btn-primary" type="submit">'+icon('check')+' That’s me</button></form>'+
         '<button class="greet-skip" data-greet-skip type="button">Maybe later</button>'+
