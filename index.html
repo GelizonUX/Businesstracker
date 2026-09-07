@@ -79,7 +79,6 @@
   --text-1:var(--text); /* alias: several chart rules reference --text-1 */
   --text-2:#4e5058;
   --text-3:#5d5f6a;
-  --sheen-hi:rgba(255,255,255,.45); /* moving-light sweep strength (softer in dark) */
 
   --border:#ebebe6;
   --border-2:#d9d9d2;
@@ -89,7 +88,6 @@
   --accent-cta:#4653e8;
   --accent-cta-ink:#ffffff;
   --accent-soft:rgba(70,83,232,.08);
-  --accent-grad:linear-gradient(135deg,#4653e8,#3a43cf);
 
   --good:#0c7d5c;  --good-soft:rgba(12,125,92,.09);
   --warn:#a85900;  --warn-soft:rgba(168,89,0,.10);
@@ -256,7 +254,6 @@ html[data-theme="dark"]{
   --text:#ededf3;
   --text-2:#a8aab8;
   --text-3:#9b9dad;
-  --sheen-hi:rgba(255,255,255,.2);
 
   --border:#26272e;
   --border-2:#33343d;
@@ -289,7 +286,6 @@ html[data-theme="dark"]{
   --accent-cta:#5b63ee;
   --accent-cta-ink:#ffffff;
   --accent-soft:rgba(138,146,255,.12);
-  --accent-grad:linear-gradient(135deg,#5b63ee,#4a51d6);
 
   --good:#3fce9c; --good-soft:rgba(63,206,156,.11);
   --warn:#e8a93d; --warn-soft:rgba(232,169,61,.11);
@@ -309,9 +305,9 @@ html[data-theme="dark"]{
 .glass-val{float:right;font-size:.72rem;font-weight:700;color:var(--accent)}
 .glass-range{flex:1;-webkit-appearance:none;appearance:none;height:26px;background:transparent;cursor:pointer}
 .glass-range::-webkit-slider-runnable-track{height:26px;border-radius:999px;border:1px solid var(--lg-edge);
-  background:linear-gradient(90deg,var(--bg-sunken),color-mix(in srgb,var(--accent) 26%,transparent))}
+  background:color-mix(in srgb,var(--accent) 16%,var(--bg-sunken))}
 .glass-range::-moz-range-track{height:26px;border-radius:999px;border:1px solid var(--lg-edge);
-  background:linear-gradient(90deg,var(--bg-sunken),color-mix(in srgb,var(--accent) 26%,transparent))}
+  background:color-mix(in srgb,var(--accent) 16%,var(--bg-sunken))}
 .glass-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;margin-top:2px;border-radius:50%;
   background:var(--bg-card);border:1px solid var(--lg-edge);box-shadow:0 1px 3px rgba(0,0,0,.22),var(--lg-rim);
   transition:transform .12s var(--ease-snappy)}
@@ -1125,7 +1121,7 @@ html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--
 .asst-msg.bot{align-self:flex-start}
 .asst-avatar{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;background:var(--accent-soft);color:var(--accent);font-size:15px}
 .asst-bubble{padding:11px 14px;border-radius:16px;font-size:.9rem;line-height:1.5;box-shadow:var(--shadow-sm);word-break:break-word}
-.asst-msg.user .asst-bubble{background:var(--accent-grad);color:#fff;border-bottom-right-radius:5px}
+.asst-msg.user .asst-bubble{background:var(--accent-cta);color:#fff;border-bottom-right-radius:5px}
 .asst-msg.bot .asst-bubble{background:var(--bg-card);border:1px solid var(--border);border-bottom-left-radius:5px}
 .asst-examples{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
 .asst-chip{padding:7px 11px;border-radius:999px;border:1px solid var(--border);background:var(--bg-sunken);font-size:.8rem;cursor:pointer;color:var(--text-2);transition:border-color .15s,color .15s;text-align:left}
@@ -1227,8 +1223,8 @@ html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--
 /* registered so it interpolates: an unregistered custom property is a token soup the
    engine can only swap discretely, which left the clip-path frozen at its first value */
 @property --p{syntax:'<number>';inherits:false;initial-value:0}
-.progress .bar{height:100%;width:100%;border-radius:99px;background:var(--accent-grad);clip-path:inset(0 calc(100% - var(--p,0)*1%) 0 0 round 99px);transition:--p .35s var(--ease);position:relative;min-width:0}
-.progress .bar.good{background:linear-gradient(90deg,#10b981,#34d399)}
+.progress .bar{height:100%;width:100%;border-radius:99px;background:var(--accent-cta);clip-path:inset(0 calc(100% - var(--p,0)*1%) 0 0 round 99px);transition:--p .35s var(--ease);position:relative;min-width:0}
+.progress .bar.good{background:var(--good)}
 .progress .bar.warn{background:var(--warn)}
 .progress .bar.risk{background:var(--risk)}
 
@@ -1396,7 +1392,7 @@ tr:hover .row-actions{opacity:1}
   text-align:center;padding:44px 20px;color:var(--text-3);
   display:flex;flex-direction:column;align-items:center;gap:10px;
 }
-.empty .e-icon{width:58px;height:58px;border-radius:var(--r-xl);background:linear-gradient(135deg,var(--accent-soft),transparent);box-shadow:inset 0 0 0 1px var(--border);display:grid;place-items:center;color:var(--accent);margin-bottom:4px}
+.empty .e-icon{width:58px;height:58px;border-radius:var(--r-xl);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--border);display:grid;place-items:center;color:var(--accent);margin-bottom:4px}
 .empty .e-icon svg{width:26px;height:26px}
 .empty h4{color:var(--text);font-size:1rem;font-weight:700}
 .empty p{font-size:.86rem;max-width:340px;line-height:1.6}
@@ -1517,8 +1513,8 @@ tr:hover .row-actions{opacity:1}
 .pace-row{display:flex;justify-content:space-between;gap:10px;font-size:.84rem;color:var(--text-2);margin-top:6px}
 .pace-row b{color:var(--text-1)}
 .pace-track{position:relative;height:12px;border-radius:8px;background:var(--bg-sunken);margin-top:12px;overflow:visible}
-.pace-fill{height:100%;border-radius:8px;width:var(--pw);background:var(--accent);background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 70%,#fff));transform-origin:left}
-.pace-fill.hit{background:var(--income);background:linear-gradient(90deg,var(--income),color-mix(in srgb,var(--income) 70%,#fff))}
+.pace-fill{height:100%;border-radius:8px;width:var(--pw);background:var(--accent);transform-origin:left}
+.pace-fill.hit{background:var(--income)}
 .pace-mark{position:absolute;top:-4px;bottom:-4px;width:2.5px;border-radius:2px;background:var(--text);opacity:.65;transform:translateX(-50%)}
 @media (prefers-reduced-motion:reduce){.pace-fill,.pace-mark{animation:none}}
 
@@ -1536,15 +1532,10 @@ tr:hover .row-actions{opacity:1}
 @keyframes cFlow{to{stroke-dashoffset:-12.6}}
 @keyframes cFlowIn{to{opacity:.42}}
 
-@keyframes cSheen{0%{transform:translateX(-130%)}55%,100%{transform:translateX(360%)}}
-.pace-fill,.progress.live .bar,.cat-bar .cb-fill{position:relative;overflow:hidden}
-.pace-fill::after,.progress.live .bar::after,.cat-bar .cb-fill::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 24%,var(--sheen-hi) 50%,transparent 76%);transform:translateX(-130%);animation:cSheen 3.4s var(--ease) infinite;pointer-events:none}
-
 @media (prefers-reduced-motion:reduce){
   .c-svg .c-bar,.c-svg .c-area,.cat-bar .cb-fill,.c-donut .c-seg,.c-spark-area,.c-spark-dot{animation:none}
   .c-svg .c-line,.c-spark-line{animation:none;stroke-dashoffset:0}
   .c-svg .c-flow{display:none}
-  .pace-fill::after,.progress.live .bar::after,.cat-bar .cb-fill::after{display:none}
 }
 
 /* mobile finance timeline (day-grouped; rendered only on phones, hidden on desktop where the table wins) */
@@ -1593,7 +1584,7 @@ tr:hover .row-actions{opacity:1}
 .task-row.done .task-title{text-decoration:line-through;color:var(--text-3)}
 .task-check{width:19px;height:19px;border-radius:6px;border:2px solid var(--border-2);flex-shrink:0;margin-top:2px;display:grid;place-items:center;transition:all .18s;background:var(--bg-card)}
 .task-check:hover{border-color:var(--accent)}
-.task-check.checked{background:var(--accent-grad);border-color:transparent}
+.task-check.checked{background:var(--accent-cta);border-color:transparent}
 .task-check svg{width:11px;height:11px;color:#fff;opacity:0;transform:scale(.4);transition:all .18s}
 .task-check.checked svg{opacity:1;transform:scale(1)}
 .task-title{font-size:.92rem;font-weight:600}
@@ -1681,11 +1672,10 @@ details.calc .calc-body{margin-top:10px}
 
 /* onboarding hero */
 .hero{
-  background:linear-gradient(135deg,rgba(70,83,232,.10),rgba(70,83,232,.04) 45%,transparent 75%);
+  background:color-mix(in srgb,var(--accent) 7%,var(--bg-card));
   border:1px solid var(--border);border-radius:var(--r-xl);
   padding:36px 32px;position:relative;overflow:hidden;margin-bottom:12px;
 }
-.hero::after{content:'';position:absolute;top:-70px;right:-70px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(70,83,232,.12),transparent 65%)}
 /* solid ink on purpose: this carried a background-clip:text gradient that never showed,
    because -webkit-text-fill-color stayed opaque. One declaration from becoming real. */
 .hero h2{font-size:1.45rem;font-weight:800;letter-spacing:-.025em;color:var(--text)}
@@ -1941,20 +1931,20 @@ body.dragging-active .kb-col{transition:outline-color .12s var(--ease)}
    welcome tour: refined card + "why it matters" highlight
    ============================================================ */
 .tour-card{width:330px;padding:20px 20px 16px;overflow:hidden}
-.tour-card::before{content:'';position:absolute;inset:0 0 auto 0;height:3px;background:var(--accent-grad)}
+.tour-card::before{content:'';position:absolute;inset:0 0 auto 0;height:3px;background:var(--accent-cta)}
 .tour-card .tour-x{position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:var(--text-3);background:transparent;transition:background .15s,color .15s}
 .tour-card .tour-x:hover{background:var(--bg-hover);color:var(--accent)}
 .tour-card .tour-x svg{width:15px;height:15px}
 .tour-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;padding-right:24px}
 .tour-head .tour-ico{width:30px;height:30px;border-radius:9px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;flex-shrink:0}
 .tour-head .tour-ico svg{width:17px;height:17px}
-.tour-why{display:flex;gap:8px;align-items:flex-start;margin-top:12px;padding:8px 12px;border-radius:11px;background:linear-gradient(135deg,var(--good-soft),transparent);border:1px solid var(--good-soft)}
+.tour-why{display:flex;gap:8px;align-items:flex-start;margin-top:12px;padding:8px 12px;border-radius:11px;background:var(--good-soft);border:1px solid var(--good-soft)}
 .tour-why svg{width:15px;height:15px;color:var(--good);flex-shrink:0;margin-top:1px}
 .tour-why span{font-size:.78rem;line-height:1.5;color:var(--text-2)}
 .tour-why b{color:var(--text);font-weight:700}
 .tour-dots{display:flex;gap:4px;margin:12px 0 12px}
 .tour-dots i{width:7px;height:7px;border-radius:50%;background:var(--border-2);transition:width .25s var(--ease),background .25s}
-.tour-dots i.on{width:18px;border-radius:99px;background:var(--accent-grad)}
+.tour-dots i.on{width:18px;border-radius:99px;background:var(--accent-cta)}
 .tour-foot{display:flex;align-items:center;gap:8px}
 .tour-foot .spacer{margin-left:auto}
 .tour-skip{font-size:.78rem;font-weight:600;color:var(--text-3);background:transparent;padding:4px 4px;transition:color .15s}
@@ -2064,7 +2054,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 /* active item uses ONE consistent brand background regardless of section (no per-section tint) */
 .nav-item.active{background:var(--sidebar-active);color:var(--accent);font-weight:600}
 .nav-item.active svg{color:#fff}
-/* .nav-item.active::before is defined once near the top (accent-grad bar) */
+/* .nav-item.active::before is defined once near the top (accent bar) */
 .nav-section{transition:color .15s}
 .today-row{display:flex;align-items:flex-start;gap:9px;text-align:left;padding:8px 4px;width:100%;min-width:0;font-size:.85rem;background:transparent;border-bottom:1px solid var(--border);transition:background .12s}
 .today-row:last-child{border-bottom:none}
@@ -2072,7 +2062,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 
 /* page accents use the single brand accent (--accent). Consistent across every section */
 .page-title{position:relative;padding-left:16px}
-.page-title::before{content:'';position:absolute;left:0;top:.22rem;width:3px;height:1.05rem;border-radius:99px;background:var(--accent-grad)}
+.page-title::before{content:'';position:absolute;left:0;top:.22rem;width:3px;height:1.05rem;border-radius:99px;background:var(--accent-cta)}
 
 /* stat-card hover stroke comes from the unified .card rule (--accent) */
 
@@ -2332,7 +2322,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
   .tab-badge{position:absolute;top:5px;left:calc(50% + 5px);background:var(--risk);color:#fff;font-size:.54rem;font-weight:800;
     min-width:15px;height:15px;border-radius:99px;display:grid;place-items:center;padding:0 3px;line-height:1}
   .fab{display:grid;place-items:center;position:fixed;right:16px;bottom:calc(74px + env(safe-area-inset-bottom,0));
-    width:54px;height:54px;border-radius:50%;background:var(--accent-grad);color:#fff;box-shadow:var(--shadow-lg);z-index:57;
+    width:54px;height:54px;border-radius:50%;background:var(--accent-cta);color:#fff;box-shadow:var(--shadow-lg);z-index:57;
     border:none;cursor:pointer;transition:transform .15s var(--ease)}
   .fab:active{transform:scale(.9)}
   .fab svg{width:24px;height:24px}
@@ -2356,7 +2346,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
       border-top:1px solid var(--lg-edge);
       box-shadow:0 -8px 30px rgba(0,0,0,.5),var(--lg-rim)}
     /* FAB: translucent accent glass, clearly the action colour, with a lit top rim */
-    .fab{background:linear-gradient(140deg,color-mix(in srgb,var(--accent) 86%,transparent),color-mix(in srgb,var(--accent) 72%,transparent));
+    .fab{background:color-mix(in srgb,var(--accent) 80%,transparent);
       -webkit-backdrop-filter:blur(10px) saturate(1.5);backdrop-filter:blur(10px) saturate(1.5);
       box-shadow:var(--shadow-lg),inset 0 1px 0 rgba(255,255,255,.5),inset 0 0 0 1px rgba(255,255,255,.16)}
   }
@@ -2390,7 +2380,7 @@ body.dash-dragging .main{overflow:hidden!important;touch-action:none}
 body.dash-dragging .tabbar,body.dash-dragging .fab{opacity:.4;pointer-events:none}
 
 /* getting-started checklist */
-.start-card{background:linear-gradient(135deg,var(--accent-soft),transparent 70%),var(--bg-card);border-color:var(--accent-soft);margin-bottom:12px}
+.start-card{background:color-mix(in srgb,var(--accent) 5%,var(--bg-card));border-color:var(--accent-soft);margin-bottom:12px}
 .start-summary{display:flex;align-items:center;gap:10px;cursor:pointer;list-style:none}
 .start-summary::-webkit-details-marker{display:none}
 .start-chev{display:none;color:var(--text-3);transition:transform .2s var(--ease);flex-shrink:0}
@@ -2422,7 +2412,7 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 }
 
 /* ===== Advisor page ===== */
-.advisor-hero{background:linear-gradient(135deg,var(--accent-soft),transparent 70%),var(--bg-card)}
+.advisor-hero{background:color-mix(in srgb,var(--accent) 5%,var(--bg-card))}
 .adv-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
 .adv-avatar{width:40px;height:40px;border-radius:11px;background:var(--accent-cta);color:var(--accent-cta-ink);display:grid;place-items:center;flex-shrink:0;box-shadow:var(--shadow-sm)}
 .adv-avatar svg{width:21px;height:21px}
@@ -2450,7 +2440,7 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 body.greeting-on{overflow:hidden}
 .greet-overlay.greet-out{animation:greetOut .32s var(--ease) forwards}
 .greet-card{text-align:center;max-width:440px;width:100%;cursor:default;animation:greetUp .55s var(--ease) .08s both}
-.greet-ico{position:relative;width:96px;height:96px;margin:0 auto 24px;border-radius:50%;display:grid;place-items:center;color:#fff;background:var(--accent-grad);box-shadow:0 14px 44px var(--accent-soft);cursor:pointer;overflow:visible;transition:transform .3s var(--ease),box-shadow .3s var(--ease)}
+.greet-ico{position:relative;width:96px;height:96px;margin:0 auto 24px;border-radius:50%;display:grid;place-items:center;color:#fff;background:var(--accent-cta);box-shadow:0 14px 44px var(--accent-soft);cursor:pointer;overflow:visible;transition:transform .3s var(--ease),box-shadow .3s var(--ease)}
 .greet-ico:hover{transform:scale(1.06) rotate(-2deg);box-shadow:0 18px 56px var(--accent)}
 .greet-ico:active{transform:scale(.97)}
 .greet-logo{width:100%;height:100%;object-fit:cover;border-radius:50%;position:relative;z-index:2;animation:greetPop .55s var(--ease) .12s both}
@@ -2459,11 +2449,7 @@ body.greeting-on{overflow:hidden}
 /* small time-of-day badge that gently bobs */
 .greet-time{position:absolute;bottom:-3px;right:-3px;width:34px;height:34px;border-radius:50%;background:var(--bg-card);color:var(--accent);display:grid;place-items:center;box-shadow:var(--shadow);z-index:4;animation:greetFloat 3.2s ease-in-out infinite}
 .greet-time svg{width:18px;height:18px}
-/* sun rays / glow ring behind the tile */
-.greet-ico::before{content:'';position:absolute;inset:-14px;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 18deg,var(--accent-soft) 18deg 30deg,transparent 30deg 48deg,var(--accent-soft) 48deg 60deg,transparent 60deg);opacity:.0;animation:greetRays 9s linear infinite;z-index:0}
-.greet-morning .greet-ico::before,.greet-afternoon .greet-ico::before{opacity:.9}
-.greet-ico::after{content:'';position:absolute;inset:-22px;border-radius:50%;background:radial-gradient(circle,var(--accent-soft),transparent 68%);animation:greetPulse 3s ease-in-out infinite;z-index:0}
-.greet-evening .greet-ico{background:linear-gradient(135deg,var(--accent-2),var(--accent))}
+.greet-evening .greet-ico{background:var(--accent-2)}
 .greet-hello{font-size:2rem;font-weight:800;letter-spacing:-.03em;line-height:1.15;color:#fff;text-shadow:0 2px 24px rgba(0,0,0,.3)}
 .greet-wave .ic{display:block}
 .greet-name{color:#fff;text-shadow:0 2px 22px var(--accent)}
@@ -2481,8 +2467,6 @@ body.greeting-on{overflow:hidden}
 @keyframes greetOut{to{opacity:0}}
 @keyframes greetUp{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:none}}
 @keyframes greetFloat{50%{transform:translateY(-7px)}}
-@keyframes greetPulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:.9;transform:scale(1.08)}}
-@keyframes greetRays{to{transform:rotate(360deg)}}
 @keyframes greetPop{from{opacity:0;transform:scale(.4) rotate(-25deg)}to{opacity:1;transform:none}}
 @keyframes greetBlink{0%,100%{opacity:.45}50%{opacity:.9}}
 @keyframes greetWave{0%,60%,100%{transform:rotate(0)}10%,30%{transform:rotate(16deg)}20%{transform:rotate(-8deg)}}
@@ -2491,7 +2475,7 @@ body.greeting-on{overflow:hidden}
 .onb-card{position:relative;width:100%;max-width:440px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-xl);overflow:hidden;box-shadow:var(--shadow-lg);animation:popIn .32s var(--ease)}
 .onb-x{position:absolute;top:12px;right:12px;z-index:3;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:#fff;background:rgba(0,0,0,.28)}
 .onb-x svg{width:16px;height:16px}
-.onb-mock{padding:28px 28px 0;background:linear-gradient(160deg,var(--accent-soft),transparent)}
+.onb-mock{padding:28px 28px 0;background:color-mix(in srgb,var(--accent) 6%,var(--bg-card))}
 .onb-mock-svg{width:100%;height:auto;display:block;border-radius:12px;filter:drop-shadow(0 10px 24px rgba(20,24,50,.16))}
 .onb-body{padding:20px 28px 24px}
 .onb-eyebrow{display:inline-flex;align-items:center;gap:6px;font-size:.66rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
@@ -2506,7 +2490,7 @@ body.greeting-on{overflow:hidden}
 @media (prefers-reduced-motion:reduce){.onb-stage.onb-in-r,.onb-stage.onb-in-l{animation:none}}
 .onb-dots{display:flex;gap:8px;justify-content:center;margin:16px 0}
 .onb-dot{width:8px;height:8px;border-radius:99px;background:var(--border-2);padding:0;border:none;transition:width .25s var(--ease),background .25s;cursor:pointer}
-.onb-dot.on{width:22px;background:var(--accent-grad)}
+.onb-dot.on{width:22px;background:var(--accent-cta)}
 .onb-foot{display:flex;align-items:center;gap:8px}
 @media(max-width:480px){.onb-card{max-width:none}.onb-title{font-size:1.25rem}}
 
@@ -2520,7 +2504,7 @@ body.greeting-on{overflow:hidden}
    View Transitions cross-fade underneath) is the whole entrance now. The content
    itself is painted in its final state on the first frame, so a section switch
    reads as instant. Intentional INFINITE loops (cSparkPulse, cFlow/cFlowIn,
-   st-pack/st-tick, cSheen) are untouched: they're ambience, not entrance. */
+   st-pack/st-tick) are untouched: they're ambience, not entrance. */
 @keyframes viewEnter{from{opacity:0}to{opacity:1}}
 #main.view-enter{animation:viewEnter .16s var(--ease)}
 @media (prefers-reduced-motion:reduce){#main.view-enter{animation:none}}
@@ -2543,7 +2527,7 @@ body.greeting-on{overflow:hidden}
 #advisor-bubble{position:fixed;right:96px;bottom:20px;z-index:90;width:min(320px,calc(100vw - 120px))}
 .advisor-bubble{display:flex;width:100%;box-sizing:border-box;align-items:center;gap:10px;padding:12px 16px 12px 12px;border-radius:var(--r-xl) 18px 18px 6px;background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--shadow-lg);cursor:pointer;text-align:left;animation:abPop .4s var(--ease) both;transition:transform .15s var(--ease),box-shadow .2s}
 .advisor-bubble:hover{transform:translateY(-2px);box-shadow:0 16px 40px rgba(20,24,50,.22)}
-.ab-avatar{width:32px;height:32px;border-radius:10px;background:var(--accent-grad);color:#fff;display:grid;place-items:center;flex-shrink:0;box-shadow:0 4px 12px rgba(70,83,232,.45);animation:abFloat 3s ease-in-out infinite}
+.ab-avatar{width:32px;height:32px;border-radius:10px;background:var(--accent-cta);color:#fff;display:grid;place-items:center;flex-shrink:0;box-shadow:0 4px 12px rgba(70,83,232,.45);animation:abFloat 3s ease-in-out infinite}
 .ab-avatar svg{width:17px;height:17px}
 .ab-text{font-size:.84rem;font-weight:600;color:var(--text);line-height:1.35;min-width:0;flex:1;min-height:2.4em;display:flex;align-items:center}
 .ab-caret{font-weight:700;color:var(--accent);animation:abBlink 1s step-end infinite;margin-left:-6px}
@@ -4498,7 +4482,7 @@ function viewDashboard(){
     openGoals.forEach(function(gl){
       var gp=goalProgress(gl), st=goalStatus(gl);
       goalsBlk+='<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;gap:8px;font-size:.84rem"><b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(gl.title)+'</b><span class="badge '+st.cls+'">'+st.label+'</span></div>'+
-        '<div class="progress live" style="margin-top:6px"><div class="bar '+(st.cls==='good'?'good':(st.cls==='risk'?'risk':''))+'" style="--p:'+gp.pct+'"></div></div>'+
+        '<div class="progress" style="margin-top:6px"><div class="bar '+(st.cls==='good'?'good':(st.cls==='risk'?'risk':''))+'" style="--p:'+gp.pct+'"></div></div>'+
         '<div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--text-3);margin-top:4px"><span>'+fmtPct(gp.pct,0)+' complete</span><span>'+(daysUntil(gl.deadline)!=null?(daysUntil(gl.deadline)>=0?daysUntil(gl.deadline)+' days left':'overdue'):'no deadline')+'</span></div></div>';
     });
   } else {
@@ -9026,14 +9010,13 @@ function applyAccent(){
   var rootStyle=document.documentElement.style;
   if(!c){
     rootStyle.removeProperty('--accent');rootStyle.removeProperty('--accent-2');
-    rootStyle.removeProperty('--accent-soft');rootStyle.removeProperty('--accent-grad');
+    rootStyle.removeProperty('--accent-soft');
     rootStyle.removeProperty('--accent-cta');
     return;
   }
   rootStyle.setProperty('--accent',c);
   rootStyle.setProperty('--accent-2',c);
   rootStyle.setProperty('--accent-soft',c+'1f');
-  rootStyle.setProperty('--accent-grad','linear-gradient(135deg,'+c+','+c+'cc)');
   rootStyle.setProperty('--accent-cta',c);
 }
 function toggleTheme(){
@@ -10353,7 +10336,7 @@ function customizationCardHTML(){
   var html='<div class="card"><div class="card-head"><h3>'+icon('palette',16)+' Appearance &amp; menu</h3></div>';
   // accent
   html+='<div class="field"><label>Accent color</label><div class="swatches">'+
-    '<button class="swatch'+(!s.accent?' active':'')+'" style="background:linear-gradient(135deg,#4653e8,#7c5cd6)" data-action="set-accent" data-color="" title="Default"></button>'+
+    '<button class="swatch'+(!s.accent?' active':'')+'" style="background:#4653e8" data-action="set-accent" data-color="" title="Default"></button>'+
     ACCENTS.map(function(c){return '<button class="swatch'+(s.accent===c?' active':'')+'" style="background:'+c+'" data-action="set-accent" data-color="'+c+'"></button>';}).join('')+
     '</div></div>';
   // theme: same control as the topbar toggle, where users expect to find it
@@ -13881,7 +13864,7 @@ function setTaskStatus(t,status){
   if(t.done&&!wasDone) t.completedAt=todayISO();
   if(!t.done) t.completedAt=null;
 }
-function taskColorStyle(t){ return t.color?'background:linear-gradient('+hexA(t.color,.12)+','+hexA(t.color,.12)+'),var(--bg-card);':''; }
+function taskColorStyle(t){ return t.color?'background:color-mix(in srgb,'+t.color+' 12%,var(--bg-card));':''; }
 function taskViewSwitcherHTML(){
   var v=ui.taskView||'list';
   return '<div class="seg">'+[['list','List'],['board','Board'],['table','Table'],['calendar','Calendar']].map(function(x){

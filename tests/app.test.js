@@ -238,7 +238,24 @@ async function main() {
     ok('finance timeline groups by day with colour-coded dots + amounts', /function financeTimelineHTML/.test(html) && /\.fin-tl-row\[data-type="income"\] \.fin-tl-dot\{background:var\(--income\)/.test(html) && /class="fin-day"/.test(html) && /class="fin-tl-amt"/.test(html));
     // iOS "liquid glass": frosted tab bar + FAB, gated behind @supports (progressive enhancement, solid fallback)
     ok('floating chrome gets frosted glass only where backdrop-filter is supported', /@supports \(\(-webkit-backdrop-filter:blur\(12px\)\) or \(backdrop-filter:blur\(12px\)\)\)/.test(html));
-    ok('glass tab bar rides the shared Liquid Glass tokens in both themes, FAB is accent glass', /\.tabbar\{background:var\(--lg-bg\);[\s\S]{0,200}backdrop-filter:var\(--lg-blur\)/.test(html) && /html\[data-theme="dark"\] \.tabbar\{background:var\(--lg-bg\)/.test(html) && /\.fab\{background:linear-gradient\(140deg,color-mix\(in srgb,var\(--accent\)/.test(html));
+    ok('glass tab bar rides the shared Liquid Glass tokens in both themes, FAB is flat accent glass', /\.tabbar\{background:var\(--lg-bg\);[\s\S]{0,200}backdrop-filter:var\(--lg-blur\)/.test(html) && /html\[data-theme="dark"\] \.tabbar\{background:var\(--lg-bg\)/.test(html) && /\.fab\{background:color-mix\(in srgb,var\(--accent\) 80%,transparent\)/.test(html));
+    // No decorative colour ramps anywhere in the stylesheet. The only gradients
+    // allowed are the ones doing a drawing job (grid, hatch, ruled line, scroll
+    // mask) and the Liquid Glass specular rim, which is a 1px light model.
+    (function noDecorativeGradients() {
+      var css = (html.match(/<style[\s\S]*?<\/style>/g) || []).join('\n');
+      var lines = css.split('\n').map(function (l, i) { return [i, l]; })
+        .filter(function (p) { return /gradient\(/.test(p[1]); });
+      // the glass specular stack spans lines; its stops carry --glass-clarity, and
+      // the two bare opener lines belong to it too.
+      var allowed = /rm-grid-dots|rm-grid-lines|st-fordelivery|sign-pad|mask-image|glass-clarity|^linear-gradient\((?:180|0)deg,$/;
+      var stray = lines.filter(function (p) { return !allowed.test(p[1].trim()); })
+        .map(function (p) { return p[1].trim().slice(0, 70); });
+      ok('no decorative gradients survive in the stylesheet', stray.length === 0, stray);
+      ok('the --accent-grad ramp token is gone in both themes and at runtime', !/--accent-grad/.test(html));
+      ok('the default accent swatch is a solid colour, not the purple ramp', /style="background:#4653e8" data-action="set-accent"/.test(html) && !/linear-gradient\(135deg,#4653e8,#7c5cd6\)/.test(html));
+      ok('task colour tint is one flat mix, not a two-stop same-colour ramp', /function taskColorStyle\(t\)\{ return t\.color\?'background:color-mix/.test(html));
+    })();
     // macOS Control-Center liquid glass on the KPI stat tiles + wallet tiles, over an ambient mesh
     ok('Ledger design: canvas is a clean paper surface (no ambient mesh)', !/body\{background-image:\s*radial-gradient/.test(html) && /--bg:#f3f3ef/.test(html));
     ok('Ledger design: stat values use the embedded display face (tables keep tabular numerals)', /\.stat-card \.stat-value\{font-family:var\(--font-display\)/.test(html) && /font-family:'Schibsted Grotesk'/.test(html) && /font-family:'Instrument Sans'/.test(html) && /td\{[^}]*font-variant-numeric:tabular-nums\}/.test(html));
@@ -2264,8 +2281,8 @@ async function main() {
       var spark = window.svgSparkline([1, 3, 2, 5, 4], 90, 30, 'var(--income)');
       ok('sparkline is animated (draw + gradient area + endpoint)', /class="c-spark-line"/.test(spark) && /class="c-spark-area"/.test(spark) && /pathLength="100"/.test(spark));
       ok('line/area charts carry a single revenue flow overlay (not expenses/sparklines)', /class="c-flow c-rev"/.test(line) && /class="c-flow c-rev"/.test(area) && !/c-flow c-exp/.test(line) && !/c-spark-flow/.test(spark));
-      ok('flow + sheen loops exist and are reduced-motion-guarded', /@keyframes cFlow\{/.test(html) && /@keyframes cSheen\{/.test(html) && /\.c-svg \.c-flow\{display:none\}/.test(html));
-      ok('sheen is opt-in (.progress.live) so dense table bars stay calm', /\.progress\.live \.bar::after/.test(html) && !/\.progress \.bar::after/.test(html));
+      ok('flow loop exists and is reduced-motion-guarded', /@keyframes cFlow\{/.test(html) && /\.c-svg \.c-flow\{display:none\}/.test(html));
+      ok('the travelling sheen ramp is gone from every progress/pace/category bar', !/@keyframes cSheen/.test(html) && !/\.progress\.live \.bar::after/.test(html) && !/\.progress \.bar::after/.test(html));
       var sparkLbl = window.svgSparkline([1, 3, 2], 90, 30, 'var(--income)', 'Revenue trend');
       ok('labelled sparkline carries a Latest/High/Low tooltip', /data-ctip=/.test(sparkLbl) && /Latest/.test(sparkLbl));
       // health ring draws itself in (unique gradient id + --c0 keyframe start)
@@ -3083,8 +3100,7 @@ async function main() {
       ok('intentional infinite loops are untouched (spark pulse, chart flow, order status)',
         /\.c-spark-dot\{animation:cSparkPulse 2\.4s var\(--ease\) 1s infinite\}/.test(html) &&
         /animation:cFlowIn \.6s var\(--ease\) 1s forwards,cFlow 1\.5s linear 1s infinite/.test(html) &&
-        /\.st-pending svg\{animation:st-tick/.test(html) && /\.st-preparing svg\{animation:st-pack/.test(html) &&
-        /animation:cSheen 3\.4s var\(--ease\) infinite/.test(html));
+        /\.st-pending svg\{animation:st-tick/.test(html) && /\.st-preparing svg\{animation:st-pack/.test(html));
       // the KPI count-up is no longer wired to navigation (it churned every stat tile for 560ms)
       ok('the KPI count-up no longer fires on a section change', !/animateCounts\(main\)/.test(html));
       ok('animateCounts is still exported for deliberate use', typeof window.animateCounts === 'function');
