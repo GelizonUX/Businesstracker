@@ -1074,6 +1074,12 @@ html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--
 .card-head h3{font-size:1rem;font-weight:700;letter-spacing:var(--tr-md)}
 .card-head .sub{font-size:.8rem;color:var(--text-3)}
 .card-head .spacer{margin-left:auto}
+/* Explanatory prose gets a measure. Past roughly 70 characters the eye loses the line
+   on the return sweep, and these paragraphs ran to 230ch on a wide screen because
+   nothing capped them — the action cards already sit at 63-64ch and .hero p at 520px,
+   so this is the rest of the app catching up to what it already knew. Cards and field
+   hints only; table cells, badges and centred empty states are not prose. */
+.card>p,.card>form>p,.card>div>p,.field>p,.main>p,.adv-narrative{max-width:68ch}
 .grid{display:grid;gap:var(--grid-gap)}
 .grid-2{grid-template-columns:repeat(2,1fr)}
 .grid-3{grid-template-columns:repeat(3,1fr)}
@@ -1176,7 +1182,15 @@ html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--
 
 /* progress bars */
 .progress{height:8px;background:var(--bg-sunken);border-radius:99px;overflow:hidden;position:relative}
-.progress .bar{height:100%;border-radius:99px;background:var(--accent-grad);transition:width .8s var(--ease);position:relative;min-width:0}
+/* --p is the fill as a percentage. The bar is always full width and clipped down to it,
+   so growing the fill repaints one element instead of relaying out every bar on the
+   page on every frame. clip-path rather than scaleX because a scaled bar squashes its
+   own end cap into a corner and skews the gradient; the inset keeps both round. .8s was
+   long enough that a number and the bar under it disagreed while you read them. */
+/* registered so it interpolates: an unregistered custom property is a token soup the
+   engine can only swap discretely, which left the clip-path frozen at its first value */
+@property --p{syntax:'<number>';inherits:false;initial-value:0}
+.progress .bar{height:100%;width:100%;border-radius:99px;background:var(--accent-grad);clip-path:inset(0 calc(100% - var(--p,0)*1%) 0 0 round 99px);transition:--p .35s var(--ease);position:relative;min-width:0}
 .progress .bar.good{background:linear-gradient(90deg,#10b981,#34d399)}
 .progress .bar.warn{background:var(--warn)}
 .progress .bar.risk{background:var(--risk)}
@@ -1209,6 +1223,9 @@ select.input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xml
 .seg button.active{background:var(--bg-card);color:var(--text);box-shadow:var(--shadow-sm)}
 .seg button.active.income-seg{color:var(--good)}
 .seg button.active.expense-seg{color:var(--risk)}
+/* controls that steer the view below them: same row as a .card-head, no surface of
+   its own, so the cards it filters stay the top-level surface on the page */
+.view-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .checkrow{display:flex;align-items:center;gap:8px;font-size:.88rem;cursor:pointer;user-select:none}
 input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
 
@@ -1591,7 +1608,9 @@ details.calc .calc-body{margin-top:10px}
   padding:36px 32px;position:relative;overflow:hidden;margin-bottom:12px;
 }
 .hero::after{content:'';position:absolute;top:-70px;right:-70px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(70,83,232,.12),transparent 65%)}
-.hero h2{font-size:1.45rem;font-weight:800;letter-spacing:-.025em}
+/* solid ink on purpose: this carried a background-clip:text gradient that never showed,
+   because -webkit-text-fill-color stayed opaque. One declaration from becoming real. */
+.hero h2{font-size:1.45rem;font-weight:800;letter-spacing:-.025em;color:var(--text)}
 .hero p{color:var(--text-2);max-width:520px;margin-top:6px}
 .hero .hero-actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
 /* data-safety banner */
@@ -1602,7 +1621,16 @@ details.calc .calc-body{margin-top:10px}
 .backup-banner .bb-text{flex:1;min-width:0;font-size:.85rem;line-height:1.45;color:var(--text)}
 .backup-banner .bb-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
 .backup-banner .bb-x{width:30px;height:30px;color:var(--text-3)}
-@media (max-width:640px){ .backup-banner{flex-wrap:wrap} .backup-banner .bb-text{flex:1 1 100%;order:-1} .backup-banner .bb-actions{width:100%;justify-content:flex-end} }
+/* Only the buttons wrap. flex-basis:100% on .bb-text used to push the text off the
+   icon's row, and the order:-1 that pulled it back above the icon left the shield
+   stranded on a line by itself — the app's most consequential message rendering like
+   a bug. Basis auto keeps shield and sentence together, the way they read. */
+/* Only the buttons wrap. flex-basis:100% on .bb-text used to push the sentence off the
+   icon's row, and the order:-1 that pulled it back above the icon left the shield
+   stranded on a line of its own — the app's most consequential message rendering like
+   a bug on the device the owner uses daily. The base flex:1 already sizes the text to
+   the space beside the icon, so neither override was needed. */
+@media (max-width:640px){ .backup-banner{flex-wrap:wrap;align-items:flex-start} .backup-banner .bb-actions{width:100%;justify-content:flex-end} }
 
 /* swot */
 .swot-cell h4{font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;display:flex;align-items:center;gap:8px;margin-bottom:8px}
@@ -1881,10 +1909,12 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .hero{transition:box-shadow .4s var(--ease)}
 .hero:hover{border-color:var(--accent);box-shadow:var(--shadow)}/* stroke matches cards; no lift on a full-width banner */
 .hero::after{animation:floatGlow 7s ease-in-out infinite}
-.hero h2{background:linear-gradient(90deg,var(--text),var(--accent) 60%,var(--accent-2));-webkit-background-clip:text;background-clip:text}
 .brand-logo{transition:transform .35s var(--ease),box-shadow .35s var(--ease)}
 .brand:hover .brand-logo{transform:scale(1.05);box-shadow:var(--shadow)}
-.nav-item{transition:background .15s,color .15s,transform .12s var(--ease),padding .22s var(--ease)}
+/* no padding here: it only changes when the rail collapses, and transitioning it made
+   every nav item relayout on each frame of a gesture the sidebar's own width transition
+   already carries. The labels are fading out over the same 220ms; nobody sees the pad. */
+.nav-item{transition:background .15s,color .15s,transform .12s var(--ease)}
 .nav-item:hover{transform:translateX(3px)}
 .nav-item.active::before{animation:ringPulse 2s ease-out 1}
 .btn-primary{background-size:140% 140%;transition:all .2s var(--ease),background-position .5s var(--ease)}
@@ -4214,7 +4244,7 @@ function getStartedHTML(){
   // collapsed by default on phones so the money KPIs sit near the top; open on desktop
   var openAttr=(typeof window!=='undefined'&&window.innerWidth<=560)?'':' open';
   return '<details class="card start-card start-details"'+openAttr+'><summary class="start-summary"><h3 style="margin:0;display:flex;align-items:center;gap:8px">'+icon('spark',16)+' Get started · '+done+' of '+total+'</h3><span class="spacer"></span><button class="btn-icon" data-action="start-dismiss" title="Hide this checklist" aria-label="Hide">'+icon('x')+'</button><span class="start-chev">'+icon('down-chev',12)+'</span></summary>'+
-    '<div class="progress thick" style="margin:12px 0"><div class="bar good" style="width:'+(done/total*100)+'%"></div></div>'+
+    '<div class="progress thick" style="margin:12px 0"><div class="bar good" style="--p:'+(done/total*100)+'"></div></div>'+
     '<div class="start-list">'+steps.map(function(st){
       return '<div class="start-item'+(st.done?' done':'')+'">'+
         '<span class="start-check">'+(st.done?icon('check',14):'')+'</span>'+
@@ -4299,7 +4329,7 @@ function viewDashboard(){
       '<div style="flex:1;min-width:0"><span class="badge '+hl.cls+'">'+hl.label+'</span><div class="mt" style="margin-top:10px">'+
       hs.parts.map(function(p){
         return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;gap:10px;font-size:.76rem;color:var(--text-2)"><span>'+esc(p.k)+'</span><b style="flex-shrink:0">'+Math.round(p.pts)+'/'+p.max+'</b></div>'+
-          '<div class="progress" style="height:5px;margin-top:3px"><div class="bar '+(p.pts/p.max>=0.6?'good':(p.pts/p.max>=0.35?'warn':'risk'))+'" style="width:'+(p.pts/p.max*100)+'%"></div></div></div>';
+          '<div class="progress" style="height:5px;margin-top:3px"><div class="bar '+(p.pts/p.max>=0.6?'good':(p.pts/p.max>=0.35?'warn':'risk'))+'" style="--p:'+(p.pts/p.max*100)+'"></div></div></div>';
       }).join('')+'</div></div></div>';
   } else {
     healthBlk+=emptyState('shield','No health score yet','Add finance entries and the score is computed automatically from margin, growth, expense control and execution.');
@@ -4326,7 +4356,7 @@ function viewDashboard(){
     monthCompareRow('Profit',cur.revenue-cur.expenses,prev.revenue-prev.expenses,false)+
     (state.settings.monthlyTarget>0?
       '<div style="margin-top:16px"><div style="display:flex;justify-content:space-between;font-size:.8rem;color:var(--text-2)"><span>Monthly target</span><b>'+fmtMoney(cur.revenue)+' / '+fmtMoney(state.settings.monthlyTarget)+'</b></div>'+
-      '<div class="progress mt live" style="margin-top:6px"><div class="bar '+(cur.revenue>=state.settings.monthlyTarget?'good':'')+'" style="width:'+clamp(cur.revenue/state.settings.monthlyTarget*100,0,100)+'%"></div></div></div>'
+      '<div class="progress mt live" style="margin-top:6px"><div class="bar '+(cur.revenue>=state.settings.monthlyTarget?'good':'')+'" style="--p:'+clamp(cur.revenue/state.settings.monthlyTarget*100,0,100)+'"></div></div></div>'
       :'<p style="font-size:.78rem;color:var(--text-3);margin-top:12px">Tip: set a monthly revenue target in Settings to track it here.</p>')+
   '</div>';
   var openGoals=state.goals.filter(function(x){return !x.done;}).slice(0,3);
@@ -4335,7 +4365,7 @@ function viewDashboard(){
     openGoals.forEach(function(gl){
       var gp=goalProgress(gl), st=goalStatus(gl);
       goalsBlk+='<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;gap:8px;font-size:.84rem"><b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(gl.title)+'</b><span class="badge '+st.cls+'">'+st.label+'</span></div>'+
-        '<div class="progress live" style="margin-top:6px"><div class="bar '+(st.cls==='good'?'good':(st.cls==='risk'?'risk':''))+'" style="width:'+gp.pct+'%"></div></div>'+
+        '<div class="progress live" style="margin-top:6px"><div class="bar '+(st.cls==='good'?'good':(st.cls==='risk'?'risk':''))+'" style="--p:'+gp.pct+'"></div></div>'+
         '<div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--text-3);margin-top:4px"><span>'+fmtPct(gp.pct,0)+' complete</span><span>'+(daysUntil(gl.deadline)!=null?(daysUntil(gl.deadline)>=0?daysUntil(gl.deadline)+' days left':'overdue'):'no deadline')+'</span></div></div>';
     });
   } else {
@@ -5627,7 +5657,7 @@ function financeCategoriesHTML(){
     keys.forEach(function(k){
       var pct=total>0?map[k]/total*100:0;
       html+='<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:.84rem"><span>'+esc(k)+'</span><b class="num">'+fmtMoney(map[k])+' · '+fmtPct(pct,0)+'</b></div>'+
-        '<div class="progress" style="height:6px;margin-top:4px"><div class="bar '+(type==='income'?'good':'risk')+'" style="width:'+pct+'%"></div></div></div>';
+        '<div class="progress" style="height:6px;margin-top:4px"><div class="bar '+(type==='income'?'good':'risk')+'" style="--p:'+pct+'"></div></div></div>';
     });
     return html;
   }
@@ -5863,7 +5893,7 @@ function goalCardHTML(g){
     '<div style="min-width:0;flex:1"><h3 style="'+(g.done?'text-decoration:line-through;color:var(--text-3)':'')+'">'+esc(g.title)+'</h3><span class="sub">'+typeLbl+(g.startDate&&g.type!=='custom'?' from '+fmtDate(g.startDate):'')+'</span></div>'+
     '<span class="badge '+st.cls+'">'+st.label+'</span></div>';
   html+='<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px"><b style="font-size:1.25rem;font-variant-numeric:tabular-nums">'+goalAmountText(g,gp.current)+'</b><span style="color:var(--text-3);font-size:.85rem">of '+goalAmountText(g,g.target)+'</span></div>';
-  html+='<div class="progress thick"><div class="bar '+(st.cls==='good'?'good':(st.cls==='risk'?'risk':(st.cls==='warn'?'warn':'')))+'" style="width:'+gp.pct+'%"></div></div>';
+  html+='<div class="progress thick"><div class="bar '+(st.cls==='good'?'good':(st.cls==='risk'?'risk':(st.cls==='warn'?'warn':'')))+'" style="--p:'+gp.pct+'"></div></div>';
   html+='<div style="display:flex;justify-content:space-between;font-size:.76rem;color:var(--text-3);margin-top:4px"><span>'+fmtPct(gp.pct,0)+' complete</span><span>'+(d==null?'no deadline':(d>=0?d+' days left ('+fmtDate(g.deadline)+')':Math.abs(d)+' days overdue'))+'</span></div>';
   html+='<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap"><span class="badge '+prioCls+'">'+esc(g.priority||'Medium')+' priority</span>'+(steps.length?'<span class="badge neutral">'+steps.filter(function(s){return s.done;}).length+'/'+steps.length+' steps</span>':'')+'</div>';
   if(!g.done&&nextStep) html+='<div class="insight info" style="margin-top:12px;padding:8px 12px"><div class="i-icon" style="width:26px;height:26px">'+icon('flag')+'</div><div><b style="font-size:.8rem">Next action</b><p>'+esc(nextStep.text)+'</p></div></div>';
@@ -7254,7 +7284,7 @@ function viewRoadmap(){
       statCard('Blocked',String(rs.blocked),rs.blocked?'<span class="stat-delta down">unblock these first</span>':'','','alert')+
       statCard('Delayed',String(rs.late),rs.late?'<span class="stat-delta down">past deadline</span>':'','','clock')+
     '</div>';
-    if(rs.total>0) html+='<div class="card mt"><div class="progress thick"><div class="bar good" style="width:'+rs.pct+'%"></div></div><p style="font-size:.78rem;color:var(--text-3);margin-top:8px">'+fmtPct(rs.pct,0)+' of "'+esc(rm.name)+'" completed</p></div>';
+    if(rs.total>0) html+='<div class="card mt"><div class="progress thick"><div class="bar good" style="--p:'+rs.pct+'"></div></div><p style="font-size:.78rem;color:var(--text-3);margin-top:8px">'+fmtPct(rs.pct,0)+' of "'+esc(rm.name)+'" completed</p></div>';
   }
   if(mode==='map'){
     // always render the canvas (even empty) — the centre node's quick-add / double-click
@@ -7280,7 +7310,7 @@ function viewRoadmap(){
       '<button class="btn-icon" data-action="edit-phase" data-id="'+p.id+'">'+icon('edit')+'</button>'+
       '<button class="btn-icon danger" data-action="delete-phase" data-id="'+p.id+'">'+icon('trash')+'</button></div></div>';
     if(tasks.length){
-      html+='<div style="display:flex;align-items:center;gap:10px;margin-top:8px"><div class="progress" style="flex:1;height:6px"><div class="bar '+(pct===100?'good':'')+'" style="width:'+pct+'%"></div></div><span style="font-size:.74rem;color:var(--text-3);white-space:nowrap">'+doneN+'/'+tasks.length+'</span></div>';
+      html+='<div style="display:flex;align-items:center;gap:10px;margin-top:8px"><div class="progress" style="flex:1;height:6px"><div class="bar '+(pct===100?'good':'')+'" style="--p:'+pct+'"></div></div><span style="font-size:.74rem;color:var(--text-3);white-space:nowrap">'+doneN+'/'+tasks.length+'</span></div>';
       html+='<div style="margin-top:10px">';
       tasks.forEach(function(t){
         var d=daysUntil(t.deadline);
@@ -8052,7 +8082,7 @@ function viewReviews(){
   var items=wk.week===curWeek?(wk.items||{}):{};
   var doneCount=WL.filter(function(_,i){return items[i];}).length;
   html+='<div><div class="card"><div class="card-head"><h3>Weekly review checklist</h3><span class="sub">'+curWeek+'</span><span class="spacer"></span><span class="badge '+(doneCount===WL.length?'good':'neutral')+'">'+doneCount+'/'+WL.length+'</span></div>'+
-    '<div class="progress" style="margin-bottom:12px"><div class="bar '+(doneCount===WL.length?'good':'')+'" style="width:'+(doneCount/Math.max(1,WL.length)*100)+'%"></div></div>'+
+    '<div class="progress" style="margin-bottom:12px"><div class="bar '+(doneCount===WL.length?'good':'')+'" style="--p:'+(doneCount/Math.max(1,WL.length)*100)+'"></div></div>'+
     WL.map(function(item,i){
       return '<div class="wk-item"><button class="task-check'+(items[i]?' checked':'')+'" data-action="toggle-weekly" data-idx="'+i+'">'+icon('check')+'</button><span style="'+(items[i]?'text-decoration:line-through;color:var(--text-3)':'')+'">'+esc(item)+'</span></div>';
     }).join('')+'</div>';
@@ -9446,7 +9476,7 @@ function financeOffersHTML(){
       '<td class="num" style="text-align:right">'+s.count+'</td>'+
       '<td class="num" style="text-align:right;color:var(--income);font-weight:700">'+fmtMoney(s.revenue)+'</td>'+
       '<td class="num" style="text-align:right">'+(s.count?fmtMoney(s.revenue/s.count):'—')+'</td>'+
-      '<td style="min-width:130px"><div style="display:flex;align-items:center;gap:8px"><div class="progress" style="flex:1;height:6px"><div class="bar" style="width:'+share+'%"></div></div><span style="font-size:.74rem;color:var(--text-2)">'+fmtPct(share,0)+'</span></div></td>'+
+      '<td style="min-width:130px"><div style="display:flex;align-items:center;gap:8px"><div class="progress" style="flex:1;height:6px"><div class="bar" style="--p:'+share+'"></div></div><span style="font-size:.74rem;color:var(--text-2)">'+fmtPct(share,0)+'</span></div></td>'+
       '<td><div class="row-actions"><button class="btn-icon" data-action="offer-edit" data-id="'+o.id+'">'+icon('edit')+'</button><button class="btn-icon danger" data-action="offer-delete" data-id="'+o.id+'">'+icon('trash')+'</button></div></td></tr>';
   });
   html+='</tbody></table></div>'+
@@ -10008,7 +10038,10 @@ function viewReport(){
   if(period==='year') return viewYearReport();
   var html=topbar('Reports','P&L summaries — print any of them or save as PDF.',
     '<button class="btn btn-primary" data-action="print-report" data-month="'+selected+'">'+icon('print')+'<span class="btn-txt">Print / Save PDF</span></button>');
-  html+='<div class="card"><div class="card-head"><div class="seg">'+
+  /* a toolbar, not a card: wrapping it in .card put four .card.stat-card tiles inside
+     a surface with the identical background, radius, border and shadow — the one place
+     in the app where a card sits on a card instead of stepping down a rung */
+  html+='<div class="view-toolbar"><div class="seg">'+
     '<button class="active" data-action="report-period" data-val="month">Monthly</button>'+
     '<button data-action="report-period" data-val="year">Yearly</button></div>'+
     '<span class="spacer"></span>'+
@@ -10023,7 +10056,7 @@ function viewReport(){
     statCard('Expenses',fmtMoney(d.expenses),prev.expenses>0?'<span class="stat-delta '+((d.expenses<=prev.expenses)?'up':'down')+'">'+fmtPct((d.expenses-prev.expenses)/prev.expenses*100,0)+' vs prior</span>':'','','arrowdr')+
     statCard('Net profit',fmtMoney(profit),'<span class="stat-delta '+(profit>=0?'up':'down')+'">'+(profit>=0?'Profitable':'Loss')+'</span>','','wallet')+
     statCard('Margin',fmtPct(margin),'','','pie')+
-  '</div></div>';
+  '</div>';
   function catRows(type,total){
     var map=categoryMap(type,selected);
     var keys=Object.keys(map).sort(function(a,b){return map[b]-map[a];});
@@ -10047,7 +10080,7 @@ function viewReport(){
     clientKeys.forEach(function(k){
       var pct=d.revenue>0?byClient[k]/d.revenue*100:0;
       html+='<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:.84rem"><span>'+esc(k)+'</span><b class="num">'+fmtMoney(byClient[k])+' · '+fmtPct(pct,0)+'</b></div>'+
-        '<div class="progress" style="height:6px;margin-top:4px"><div class="bar good" style="width:'+pct+'%"></div></div></div>';
+        '<div class="progress" style="height:6px;margin-top:4px"><div class="bar good" style="--p:'+pct+'"></div></div></div>';
     });
   } else html+='<p style="font-size:.82rem;color:var(--text-3)">No client-tagged income this month.</p>';
   html+='</div>';
@@ -12429,7 +12462,7 @@ function storageCardHTML(){
   var pct=clamp(u.bytes/u.limit*100,0,100);
   var cls=pct>=85?'risk':(pct>=65?'warn':'good');
   return '<div class="card"><div class="card-head"><h3>Storage health</h3><span class="spacer"></span><span class="badge '+cls+'">'+fmtNum(pct,0)+'% used</span></div>'+
-    '<div class="progress thick"><div class="bar '+cls+'" style="width:'+pct+'%"></div></div>'+
+    '<div class="progress thick"><div class="bar '+cls+'" style="--p:'+pct+'"></div></div>'+
     '<p style="font-size:.8rem;color:var(--text-2);margin-top:10px">'+fmtNum(u.bytes/1024,0)+' KB of ~5,120 KB browser storage. Photos: <b>'+u.photoCount+'</b> using '+fmtNum(u.photoBytes/1024,0)+' KB.'+
     (pct>=65?' <b style="color:var(--'+(pct>=85?'risk':'warn')+')">Getting full</b> — export a backup, then remove old receipt photos (the entries stay; only the images go).':' Plenty of room.')+'</p>'+
     '<button class="btn btn-sm btn-ghost" data-action="trim-receipts" style="margin-top:10px">'+icon('trash')+' Trim receipt photos older than 6 months</button></div>';
@@ -12487,7 +12520,7 @@ function viewYearReport(){
   if(yearList.indexOf(selected)<0) selected=yearList[yearList.length-1];
   var html=topbar('Reports','P&L summaries — print any of them or save as PDF.',
     '<button class="btn btn-primary" data-action="print-year-report" data-year="'+selected+'">'+icon('print')+'<span class="btn-txt">Print / Save PDF</span></button>');
-  html+='<div class="card"><div class="card-head"><div class="seg">'+
+  html+='<div class="view-toolbar"><div class="seg">'+
     '<button data-action="report-period" data-val="month">Monthly</button>'+
     '<button class="active" data-action="report-period" data-val="year">Yearly</button></div>'+
     '<span class="spacer"></span>'+
@@ -12499,7 +12532,7 @@ function viewYearReport(){
     statCard('Expenses',fmtMoney(yd.expenses),'','','arrowdr')+
     statCard('Net profit',fmtMoney(yd.profit),'<span class="stat-delta '+(yd.profit>=0?'up':'down')+'">'+(yd.revenue>0?fmtPct(yd.profit/yd.revenue*100,0)+' margin':'—')+'</span>','','wallet')+
     statCard('Best month',yd.bestMonth?monthLabel(yd.bestMonth):'—',yd.bestMonth?'<span class="stat-delta up">'+fmtMoney(yd.bestAmount)+' revenue</span>':'','','spark')+
-  '</div></div>';
+  '</div>';
   html+='<div class="card mt"><div class="card-head"><h3>Month by month — '+selected+'</h3></div><div class="table-wrap"><table><thead><tr><th>Month</th><th style="text-align:right">Revenue</th><th style="text-align:right">Expenses</th><th style="text-align:right">Profit</th></tr></thead><tbody>'+
     yd.months.map(function(r){
       return '<tr><td style="font-weight:600">'+monthLabel(r.k)+'</td><td class="num" style="text-align:right;color:var(--income)">'+fmtMoney(r.rev)+'</td><td class="num" style="text-align:right;color:var(--expense)">'+fmtMoney(r.exp)+'</td><td class="num" style="text-align:right;font-weight:700;color:'+(r.rev-r.exp>=0?'var(--income)':'var(--expense)')+'">'+fmtMoney(r.rev-r.exp)+'</td></tr>';
@@ -12530,7 +12563,7 @@ function rankListHTML(list){
   var max=list[0].value||1;
   return list.map(function(x){
     return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:.84rem"><span>'+esc(x.label)+'</span><b class="num">'+fmtMoney(x.value)+'</b></div>'+
-      '<div class="progress" style="height:5px;margin-top:3px"><div class="bar" style="width:'+(x.value/max*100)+'%"></div></div></div>';
+      '<div class="progress" style="height:5px;margin-top:3px"><div class="bar" style="--p:'+(x.value/max*100)+'"></div></div></div>';
   }).join('');
 }
 function buildYearReportDoc(year){
