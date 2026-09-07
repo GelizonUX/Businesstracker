@@ -256,6 +256,24 @@ async function main() {
       ok('the default accent swatch is a solid colour, not the purple ramp', /style="background:#4653e8" data-action="set-accent"/.test(html) && !/linear-gradient\(135deg,#4653e8,#7c5cd6\)/.test(html));
       ok('task colour tint is one flat mix, not a two-stop same-colour ramp', /function taskColorStyle\(t\)\{ return t\.color\?'background:color-mix/.test(html));
     })();
+    // Pill-shaped buttons and containers are gone. The only 999px radii left are
+    // things that are genuinely circular (avatar, logos, slider track and thumb)
+    // and the one shape a user can deliberately pick and name.
+    (function noPillControls() {
+      var css = (html.match(/<style[\s\S]*?<\/style>/g) || []).join('\n');
+      var pilled = css.split('\n').filter(function (l) { return /border-radius:9{3,4}px/.test(l); })
+        .map(function (l) { return l.trim().slice(0, 60); });
+      var circular = /glass-range|brand-logo|isl-avatar|rm-fshape-capsule/;
+      var stray = pilled.filter(function (l) { return !circular.test(l); });
+      ok('no button or container is still a pill', stray.length === 0, stray);
+      ok('the island wears the radius scale, not 999px or an invented 24px',
+        /\.isl-item\{[^}]*border-radius:var\(--r\)/.test(html) &&
+        /\.isl-icon\{width:34px;height:34px;border-radius:var\(--r\)/.test(html) &&
+        /border-radius:var\(--r-lg\);padding:5px;box-shadow:var\(--lg-shadow\),var\(--lg-rim\);margin:0 auto/.test(html) &&
+        !/border-radius:24px/.test(html));
+      ok('the circular things stayed circular', /\.isl-avatar\{width:34px;height:34px;border-radius:999px/.test(html) && /\.isl-brand \.brand-logo\{width:28px;height:28px;border-radius:999px\}/.test(html));
+      ok('the rounded-full utility that only made pills is gone', !/\.rounded-full/.test(html));
+    })();
     // macOS Control-Center liquid glass on the KPI stat tiles + wallet tiles, over an ambient mesh
     ok('Ledger design: canvas is a clean paper surface (no ambient mesh)', !/body\{background-image:\s*radial-gradient/.test(html) && /--bg:#f3f3ef/.test(html));
     ok('Ledger design: stat values use the embedded display face (tables keep tabular numerals)', /\.stat-card \.stat-value\{font-family:var\(--font-display\)/.test(html) && /font-family:'Schibsted Grotesk'/.test(html) && /font-family:'Instrument Sans'/.test(html) && /td\{[^}]*font-variant-numeric:tabular-nums\}/.test(html));

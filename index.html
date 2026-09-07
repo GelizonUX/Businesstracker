@@ -529,13 +529,13 @@ a{color:var(--accent);text-decoration:none}
    refract. They keep the bevel, the sheen and the cast, which is what makes them
    read as a raised pane rather than a painted rectangle. */
 .isl-brand{display:flex;align-items:center;gap:9px;background:var(--lg-tint);border:1px solid var(--lg-edge);
-  border-radius:999px;padding:7px 16px 7px 8px;box-shadow:var(--lg-shadow),var(--lg-rim);cursor:pointer;flex-shrink:0}
+  border-radius:var(--r-lg);padding:7px 16px 7px 8px;box-shadow:var(--lg-shadow),var(--lg-rim);cursor:pointer;flex-shrink:0}
 .isl-brand .brand-logo{width:28px;height:28px;border-radius:999px}
 .isl-brand b{font-family:var(--font-display);font-size:.95rem;letter-spacing:-.015em;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .island{display:flex;align-items:center;justify-content:center;gap:2px;background:var(--lg-tint);border:1px solid var(--lg-edge);
-  border-radius:24px;padding:5px;box-shadow:var(--lg-shadow),var(--lg-rim);margin:0 auto;flex-wrap:wrap;min-width:0;max-width:calc(100vw - 400px)}
+  border-radius:var(--r-lg);padding:5px;box-shadow:var(--lg-shadow),var(--lg-rim);margin:0 auto;flex-wrap:wrap;min-width:0;max-width:calc(100vw - 400px)}
 .isl-group{position:relative}
-.isl-item{position:relative;display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:999px;font-size:.88rem;font-weight:600;
+.isl-item{position:relative;display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--r);font-size:.88rem;font-weight:600;
   color:var(--text-2);white-space:nowrap;transition:background .18s var(--ease),color .18s var(--ease),transform .12s var(--ease-snappy);cursor:pointer}
 .isl-item:active{transform:scale(.96)}
 .isl-item:hover{background:var(--bg-sunken);color:var(--text)}
@@ -561,8 +561,8 @@ a{color:var(--accent);text-decoration:none}
 .isl-drop button svg{width:15px;height:15px;opacity:.8;flex-shrink:0}
 .isl-drop .isl-badge{margin-left:auto;background:var(--risk);color:#fff;font-size:.62rem;font-weight:700;padding:1px 7px;border-radius:99px}
 .isl-right{display:flex;align-items:center;gap:6px;background:var(--lg-tint);border:1px solid var(--lg-edge);
-  border-radius:999px;padding:5px;box-shadow:var(--lg-shadow),var(--lg-rim);flex-shrink:0}
-.isl-icon{width:34px;height:34px;border-radius:999px;display:grid;place-items:center;color:var(--text-2);transition:background .15s,color .15s}
+  border-radius:var(--r-lg);padding:5px;box-shadow:var(--lg-shadow),var(--lg-rim);flex-shrink:0}
+.isl-icon{width:34px;height:34px;border-radius:var(--r);display:grid;place-items:center;color:var(--text-2);transition:background .15s,color .15s}
 .isl-icon:hover{background:var(--bg-sunken);color:var(--text)}
 .isl-icon svg{width:16px;height:16px}
 .isl-avatar{width:34px;height:34px;border-radius:999px;background:var(--accent-cta);color:var(--accent-cta-ink);
@@ -628,7 +628,7 @@ body.rm-full-on{overflow:hidden}
 .rm-canvas-card.rm-has-sel .rm-edges path{opacity:.16}
 .rm-canvas-card.rm-has-sel .rm-edges path.rm-edge-on{opacity:1;stroke-width:3.2}
 .rm-node{position:absolute;transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:8px;
-  padding:9px 16px;border-radius:999px;background:var(--bg-card);border:1.5px solid var(--nc,var(--border-2));
+  padding:9px 16px;border-radius:var(--r);background:var(--bg-card);border:1.5px solid var(--nc,var(--border-2));
   box-shadow:var(--shadow-sm);font-size:.88rem;font-weight:600;color:var(--text);cursor:move;user-select:none;
   touch-action:none;white-space:nowrap;max-width:260px;transition:box-shadow .15s var(--ease)}
 .rm-node span:first-child{overflow:hidden;text-overflow:ellipsis}
@@ -655,10 +655,10 @@ body.rm-full-on{overflow:hidden}
 .rm-tool svg{width:12px;height:12px}
 /* floating glass camera bar (Figma-style) */
 .rm-cam-bar{position:absolute;right:14px;left:auto;transform:none;bottom:16px;z-index:11;display:flex;align-items:center;gap:2px;
-  padding:5px;border-radius:999px;border:1px solid var(--mat-border);box-shadow:var(--shadow-lg),var(--mat-hi);
+  padding:5px;border-radius:var(--r-lg);border:1px solid var(--mat-border);box-shadow:var(--shadow-lg),var(--mat-hi);
   background:var(--bg-card);background:var(--mat-float-bg);
   -webkit-backdrop-filter:var(--mat-float-blur);backdrop-filter:var(--mat-float-blur)}
-.rm-cam-btn{height:32px;min-width:32px;padding:0 6px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;
+.rm-cam-btn{height:32px;min-width:32px;padding:0 6px;border-radius:var(--r-sm);display:inline-flex;align-items:center;justify-content:center;
   color:var(--text-2);font-size:.78rem;font-weight:700;font-variant-numeric:tabular-nums;cursor:pointer;transition:background .12s,color .12s}
 .rm-cam-btn:hover{background:var(--bg-sunken);color:var(--text)}
 .rm-cam-btn.on{background:var(--accent-soft);color:var(--accent)}
@@ -754,7 +754,7 @@ body.rm-resizing{cursor:ns-resize!important;user-select:none}
 /* ghost node while placing (predictive, faint) */
 .rm-ghost{position:absolute;transform:translate(-50%,-50%);z-index:6;pointer-events:none;opacity:.24;
   display:inline-flex;align-items:center;gap:8px;padding:9px 18px;background:var(--accent);color:#fff;
-  border:2px dashed color-mix(in srgb,#fff 60%,var(--accent));border-radius:999px;font-size:.86rem;font-weight:700;white-space:nowrap}
+  border:2px dashed color-mix(in srgb,#fff 60%,var(--accent));border-radius:var(--r);font-size:.86rem;font-weight:700;white-space:nowrap}
 body.rm-placing .rm-canvas{cursor:copy}
 /* predictive quick-add ghosts around a node (opacity ~20%, brighten on hover) */
 .rm-qadd{position:absolute;z-index:7;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;
@@ -1112,7 +1112,7 @@ html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--
 .grid-4{grid-template-columns:repeat(4,1fr)}
 .grid-hero{grid-template-columns:1fr 1.7fr}
 /* ----- Assistant (beta) chat ----- */
-.asst-beta{font-size:.62rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:var(--accent-soft);color:var(--accent);padding:3px 9px;border-radius:999px;align-self:center}
+.asst-beta{font-size:.62rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:var(--accent-soft);color:var(--accent);padding:5px 10px;border-radius:var(--r-sm);align-self:center}
 .asst-wrap{display:flex;flex-direction:column;height:calc(100vh - 190px);min-height:430px}
 .asst-log{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px;padding:6px 2px 10px}
 .asst-log.asst-empty{justify-content:center}
@@ -1124,7 +1124,7 @@ html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--
 .asst-msg.user .asst-bubble{background:var(--accent-cta);color:#fff;border-bottom-right-radius:5px}
 .asst-msg.bot .asst-bubble{background:var(--bg-card);border:1px solid var(--border);border-bottom-left-radius:5px}
 .asst-examples{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
-.asst-chip{padding:7px 11px;border-radius:999px;border:1px solid var(--border);background:var(--bg-sunken);font-size:.8rem;cursor:pointer;color:var(--text-2);transition:border-color .15s,color .15s;text-align:left}
+.asst-chip{padding:7px 11px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--bg-sunken);font-size:.8rem;cursor:pointer;color:var(--text-2);transition:border-color .15s,color .15s;text-align:left}
 .asst-chip:hover{border-color:var(--accent);color:var(--accent)}
 .asst-hint{font-size:.72rem;color:var(--text-3);margin-top:10px}
 .asst-preview{margin-top:10px;border:1px solid var(--border-2);border-radius:12px;padding:12px;background:var(--bg-sunken)}
@@ -1180,7 +1180,7 @@ html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--
 .text-left{text-align:left}.text-center{text-align:center}.text-right{text-align:right}
 .text-muted{color:var(--text-2)}.text-faint{color:var(--text-3)}
 .truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.whitespace-nowrap{white-space:nowrap}
-.rounded{border-radius:var(--r)}.rounded-sm{border-radius:var(--r-sm)}.rounded-lg{border-radius:var(--r-lg)}.rounded-full{border-radius:9999px}
+.rounded{border-radius:var(--r)}.rounded-sm{border-radius:var(--r-sm)}.rounded-lg{border-radius:var(--r-lg)}
 .relative{position:relative}.absolute{position:absolute}.cursor-pointer{cursor:pointer}.select-none{user-select:none}
 .tabular-nums{font-variant-numeric:tabular-nums}
 
