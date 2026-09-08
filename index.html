@@ -4924,7 +4924,7 @@ function viewInsights(){
   html+='</div>';
   // 4) priorities + going well
   html+='<div class="grid grid-2 mt">';
-  html+='<div class="card"><div class="card-head"><h3>'+icon('alert',16)+' Do this now</h3><span class="spacer"></span>'+
+  html+='<div class="sec"><div class="card-head"><h3>'+icon('alert',16)+' Do this now</h3><span class="spacer"></span>'+
     '<span class="badge '+(actions.length?'warn':'good')+'">'+(actions.length?actions.length+' to act on':'All clear')+'</span></div>';
   if(actions.length){
     html+='<ol class="adv-actions">'+actions.slice(0,6).map(function(i,n){
@@ -4932,12 +4932,12 @@ function viewInsights(){
     }).join('')+'</ol>';
   } else html+='<p style="color:var(--text-2);font-size:.88rem">Nothing urgent right now. Your numbers look steady. Keep logging and check back tomorrow.</p>';
   html+='</div>';
-  html+='<div class="card"><div class="card-head"><h3>'+icon('check',16)+' Going well</h3></div>';
+  html+='<div class="sec"><div class="card-head"><h3>'+icon('check',16)+' Going well</h3></div>';
   if(wins.length) html+='<ul class="adv-wins">'+wins.slice(0,6).map(function(i){return '<li><span class="adv-dot"></span><div><b>'+esc(i.title)+'</b><p>'+esc(i.text)+'</p></div></li>';}).join('')+'</ul>';
   else html+='<p style="color:var(--text-3);font-size:.86rem">Strengths will appear here as your numbers grow.</p>';
   html+='</div></div>';
   // 5) good-to-know
-  if(notes.length) html+='<div class="card mt"><div class="card-head"><h3>Good to know</h3><span class="sub">context, timing &amp; opportunities</span></div><div class="grid grid-2">'+notes.map(insightHTML).join('')+'</div></div>';
+  if(notes.length) html+='<div class="sec"><div class="card-head"><h3>Good to know</h3><span class="sub">context, timing &amp; opportunities</span></div><div class="grid grid-2">'+notes.map(insightHTML).join('')+'</div></div>';
   return html;
 }
 
@@ -7633,7 +7633,7 @@ function viewTasks(){
     statCard('Completion rate',fmtPct(donePct,0),'','','metrics')+
   '</div>';
   // quick add
-  html+='<div class="card mt-lg"><form data-form="quick-task" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">'+
+  html+='<div class="sec"><form data-form="quick-task" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">'+
     '<input class="input" name="title" placeholder="Quick add: what needs to get done?" style="flex:2;min-width:200px" required>'+
     '<input class="input" type="date" name="deadline" style="width:auto">'+
     '<select class="input" name="priority" style="width:auto"><option>Medium</option><option>High</option><option>Low</option></select>'+
@@ -10279,7 +10279,7 @@ function fxInvoiceNoticeHTML(){
        put, and a refresh nobody asked for is seen rather than merely felt. */
     if(!fxJustRefreshed) return '';
     var upd=fxSettings().updated;
-    return '<div class="card mt-lg" data-fx-live style="border-color:var(--good)">'+
+    return '<div class="card notice mt-lg" data-fx-live style="border-color:var(--good)">'+
       '<div class="card-head"><h3>'+icon('check',16)+' Exchange rates are up to date</h3></div>'+
       '<p style="font-size:.82rem;color:var(--text-2);margin:0">Live rates refreshed '+
         esc(upd?fxAgeText({at:upd,ageMs:Date.now()-new Date(upd).getTime()}):'just now')+
@@ -10295,7 +10295,7 @@ function fxInvoiceNoticeHTML(){
   if(unvOpen.length) lines.push('<b>'+unvOpen.length+' unpaid invoice'+(unvOpen.length>1?'s carry':' carries')+' an unverified rate</b> (a built-in estimate, or a rate saved before rate sources were recorded). '+(unvOpen.length>1?'They':'It')+' cannot be marked paid and the peso figure is not printed. Open '+(unvOpen.length>1?'each one':'it')+' and type today’s rate in.');
   if(unvPaid.length) lines.push('<b>'+unvPaid.length+' invoice'+(unvPaid.length>1?'s were':' was')+' already marked paid at an unverified rate</b>, so the peso income recorded in Finance came from an estimate. Those figures are left exactly as they are. Editing '+(unvPaid.length>1?'those invoices':'that invoice')+' will not re-convert them. Note that the printed invoice omits the peso line, so your books and the client’s copy state different things until you open '+(unvPaid.length>1?'each one':'it')+' and type the rate you were actually paid at.');
   if(needs.length) lines.push('No verified rate today for <b>'+esc(needs.join(', '))+'</b>. Set '+(needs.length>1?'them':'it')+' in Settings ▸ Currency, or refresh live rates.');
-  return '<div class="card mt-lg" data-fx-live style="border-color:var(--warn);background:var(--warn-soft,transparent)">'+
+  return '<div class="card notice mt-lg" data-fx-live style="border-color:var(--warn);background:var(--warn-soft,transparent)">'+
     '<div class="card-head"><h3>'+icon('alert',16)+' Exchange rates need your attention</h3></div>'+
     '<ul style="font-size:.82rem;color:var(--text-2);margin:0 0 10px 18px;display:flex;flex-direction:column;gap:6px">'+
       lines.map(function(l){ return '<li>'+l+'</li>'; }).join('')+'</ul>'+
@@ -12695,7 +12695,7 @@ function viewAccounts(){
   // unassigned entries notice
   var unassigned=state.finance.filter(function(e){ return !e.account; }).length;
   if(unassigned>0){
-    html+='<div class="card mt" style="background:var(--info-soft);border-color:transparent"><p style="font-size:.84rem;color:var(--text-2)"><b>'+unassigned+'</b> finance entr'+(unassigned===1?'y has':'ies have')+' no account assigned. They count toward revenue and profit, but not toward any account balance. Edit an entry in Finance to assign it. New order payments are auto-assigned by payment method.</p></div>';
+    html+='<div class="card notice mt" style="background:var(--info-soft);border-color:transparent"><p style="font-size:.84rem;color:var(--text-2)"><b>'+unassigned+'</b> finance entr'+(unassigned===1?'y has':'ies have')+' no account assigned. They count toward revenue and profit, but not toward any account balance. Edit an entry in Finance to assign it. New order payments are auto-assigned by payment method.</p></div>';
   }
   // transfers history
   var tr=(state.transfers||[]).slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
