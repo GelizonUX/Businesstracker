@@ -170,8 +170,11 @@ async function main() {
 
     // ---------- copy: say what it does, not what it is ----------
     (function positioning() {
+      // the shipped description names the job and NOT the product: the owner's
+      // business name replaces it live (applyBrand) once one is set
       ok('the meta description and title name the job, not a "command center"',
-        !/command cent/i.test(html) && /<meta name="description" content="Trakora keeps a small business/.test(html));
+        !/command cent/i.test(html) && /<meta name="description" content="Keeps a small business/.test(html) &&
+        !/<title>Trakora/.test(html));
       ok('the About blurb describes the same product in the same nouns',
         /Trakora is one HTML file\. It records income and expenses, invoices, orders, stock, staff pay and unpaid balances/.test(html));
       // the register the owner objects to: tricolons, possessive couplets, cheering

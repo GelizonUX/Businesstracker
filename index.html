@@ -35,8 +35,8 @@
 })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="description" content="Trakora keeps a small business’s books in one browser tab: income and expenses, invoices, orders, stock, staff pay and what customers still owe. The data stays in the browser you type it into.">
-<title>Trakora · Small-business books in one browser tab</title>
+<meta name="description" content="Keeps a small business’s books in one browser tab: income and expenses, invoices, orders, stock, staff pay and what customers still owe. The data stays in the browser you type it into.">
+<title>Books &amp; stock in one browser tab</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%234653e8'/%3E%3Cstop offset='1' stop-color='%233a43cf'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpath d='M8 22l5-6 4 3 7-9' stroke='%23fff' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>
 /* ============================================================
@@ -2702,6 +2702,38 @@ body.greeting-on{overflow:hidden}
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function todayISO(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+/* ---------- whose name goes on the app ----------
+   The buyer runs their own business on their own copy, so every surface a
+   customer could ever see carries THEIR name: the tab title, the brand in the
+   island and sidebar, printed invoices, quotes, orders, the pay-me QR, export
+   filenames. The product name survives only where the software itself is the
+   subject and swapping in a business name would be a lie: the licence gate, the
+   About block, the privacy page, backup-format errors and console diagnostics.
+
+   Before a name is set there is nothing truthful to print, so the fallback is
+   the neutral placeholder the settings field already ships with rather than a
+   brand the buyer never chose. Onboarding asks for the real one immediately. */
+var APP_PLACEHOLDER_NAME='My Business';
+var APP_TAGLINE='Books & stock in one browser tab';
+function hasBizName(){
+  var s=(typeof state!=='undefined'&&state&&state.settings)?state.settings:null;
+  var n=s?String(s.businessName==null?'':s.businessName).trim():'';
+  return !!(n&&n!==APP_PLACEHOLDER_NAME);
+}
+function appName(){
+  var s=(typeof state!=='undefined'&&state&&state.settings)?state.settings:null;
+  var n=s?String(s.businessName==null?'':s.businessName).trim():'';
+  return n||APP_PLACEHOLDER_NAME;
+}
+/* html-escaped, because nearly every caller is building markup */
+function appNameEsc(){ return esc(appName()); }
+/* filename-safe: 'Studio Hiraya' -> 'studio-hiraya'. Falls back to a generic
+   stem so an unnamed copy still exports a sensibly named file. */
+function appSlug(){
+  var s=appName().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+  return s||'business';
+}
 function monthKey(dateStr){ return (dateStr||'').slice(0,7); }
 function thisMonthKey(){ return todayISO().slice(0,7); }
 function monthLabel(key){
@@ -4252,7 +4284,7 @@ function renderSidebar(){
   var html='<div class="brand">'+
     (bl?'<img src="'+esc(bl)+'" alt="" style="width:36px;height:36px;border-radius:10px;object-fit:cover;flex-shrink:0;box-shadow:0 4px 14px rgba(0,0,0,.35)">'
        :'<div class="brand-logo">'+icon('logo')+'</div>')+
-    '<div><div class="brand-name" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(state.settings.businessName||'Trakora')+'</div><div class="brand-sub">Books &amp; stock</div></div></div>'+
+    '<div><div class="brand-name" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+appNameEsc()+'">'+appNameEsc()+'</div><div class="brand-sub">Books &amp; stock</div></div></div>'+
     '<button class="sidebar-cta" data-action="go-import" title="Import a spreadsheet, opens Data \& Sync">'+icon('upload')+'<span>Smart CSV import</span><span class="cta-beta">Beta</span></button>'+
     (editing
       ? '<div class="nav-edit-bar"><div class="nav-edit-size"><span class="nav-edit-lbl">Menu size</span>'+
@@ -4318,8 +4350,8 @@ function renderSidebar(){
   }
   html+='</nav><div class="sidebar-foot"><div class="biz-chip">'+
     (bl?'<img src="'+esc(bl)+'" alt="" style="width:30px;height:30px;border-radius:8px;object-fit:cover;flex-shrink:0">'
-       :'<div class="avatar">'+esc((state.settings.businessName||'B').charAt(0).toUpperCase())+'</div>')+
-    '<div><b>'+esc(state.settings.businessName||'My Business')+'</b><span>Local · private</span></div></div></div>';
+       :'<div class="avatar">'+esc(appName().charAt(0).toUpperCase())+'</div>')+
+    '<div><b>'+appNameEsc()+'</b><span>Local · private</span></div></div></div>';
   var sb=byId('sidebar');
   var navEl=sb.querySelector('.nav');
   var keepScroll=navEl?navEl.scrollTop:0;
@@ -4349,9 +4381,9 @@ function renderIsland(){
   var route=currentRoute();
   var openTasks=state.tasks.filter(function(t){ var d=daysUntil(t.deadline); return !t.done&&d!=null&&d<0; }).length;
   var bl=state.settings.bizLogo;
-  var html='<div class="isl-brand" data-action="nav" data-route="dashboard" role="button" tabindex="0" title="'+esc(state.settings.businessName||'Trakora')+'">'+
+  var html='<div class="isl-brand" data-action="nav" data-route="dashboard" role="button" tabindex="0" title="'+appNameEsc()+'">'+
     (bl?'<img src="'+esc(bl)+'" alt="" style="width:28px;height:28px;border-radius:999px;object-fit:cover">':'<div class="brand-logo">'+icon('logo')+'</div>')+
-    '<b>'+esc(state.settings.businessName||'Trakora')+'</b></div>';
+    '<b>'+appNameEsc()+'</b></div>';
   html+='<nav class="island" aria-label="Primary">';
   html+='<button class="isl-item'+(route==='dashboard'?' active':'')+'" data-action="nav" data-route="dashboard">'+esc(tr((state.settings.moduleLabels||{}).dashboard||'Dashboard'))+'</button>';
   islandSections().forEach(function(sec){
@@ -4366,12 +4398,12 @@ function renderIsland(){
       }).join('')+'</div></div>';
   });
   html+='</nav>';
-  var initial=esc((state.settings.businessName||'T').trim().charAt(0).toUpperCase());
+  var initial=esc(appName().charAt(0).toUpperCase());
   html+='<div class="isl-right">'+
     '<button class="isl-icon" data-action="open-palette" aria-label="Search everything (Ctrl+K)" title="Search (Ctrl+K)">'+icon('search')+'</button>'+
     '<button class="isl-icon" data-action="toggle-theme" aria-label="Toggle theme">'+icon(document.documentElement.getAttribute('data-theme')==='dark'?'sun':'moon')+'</button>'+
     '<button class="isl-icon" data-action="nav" data-route="settings" aria-label="Settings">'+icon('settings')+'</button>'+
-    '<span class="isl-avatar" data-action="nav" data-route="settings" role="button" tabindex="0" title="'+esc(state.settings.businessName||'Trakora')+'">'+initial+'</span>'+
+    '<span class="isl-avatar" data-action="nav" data-route="settings" role="button" tabindex="0" title="'+appNameEsc()+'">'+initial+'</span>'+
     '</div>';
   bar.innerHTML=html;
 }
@@ -4414,7 +4446,7 @@ function getStartedHTML(){
   var done=steps.filter(function(x){return x.done;}).length, total=steps.length;
   if(done>=total){
     return '<div class="card start-card"><div class="card-head"><h3>'+icon('check',16)+' Setup complete</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="start-dismiss">Dismiss</button></div>'+
-      '<p style="font-size:.85rem;color:var(--text-2)">Every starter step is done. Your dashboard is ready. Keep your numbers current, drag the cards to suit you, and let Trakora do the math.</p></div>';
+      '<p style="font-size:.85rem;color:var(--text-2)">Every starter step is done. Keep your numbers current and drag the cards into the order you want.</p></div>';
   }
   // collapsed by default on phones so the money KPIs sit near the top; open on desktop
   var openAttr=(typeof window!=='undefined'&&window.innerWidth<=560)?'':' open';
@@ -4462,7 +4494,7 @@ function backupSafetyBannerHTML(){
 function viewDashboard(){
   var t=financeTotals();
   var hasData=state.finance.length>0;
-  var html=topbar('Dashboard','Where '+(state.settings.businessName||'your business')+' stands today.',
+  var html=topbar('Dashboard','Where '+(hasBizName()?appName():'your business')+' stands today.',
     '<button class="btn btn-ghost" data-action="dash-customize" title="Show, hide & reorder cards">'+icon('palette')+'<span class="btn-txt">Customize</span></button>'+
     '<button class="btn btn-primary" data-action="open-entry-modal">'+icon('plus')+'<span class="btn-txt">Add entry</span></button>');
   html+=backupSafetyBannerHTML();
@@ -4708,7 +4740,7 @@ function upcomingMilestones(){
 function advisorNarrative(){
   var mm=monthlyMap(), ck=thisMonthKey(), cur=mm[ck]||{revenue:0,expenses:0};
   var t=financeTotals(), g=revenueGrowth(), prof=cur.revenue-cur.expenses;
-  var biz=(state.settings.businessName&&state.settings.businessName!=='My Business')?esc(state.settings.businessName):'your business';
+  var biz=hasBizName()?appNameEsc():'your business';
   var p=[];
   p.push('This month '+biz+' brought in <b>'+fmtMoney(cur.revenue)+'</b> and spent <b>'+fmtMoney(cur.expenses)+'</b>, leaving '+
     (prof>=0?'a profit of <b>'+fmtMoney(prof)+'</b>':'a <b class="t-risk">loss of '+fmtMoney(-prof)+'</b>')+
@@ -7875,7 +7907,7 @@ function hrDocView(empId,docId){
 }
 function contractTemplate(emp){
   return '<h2>Employment Contract</h2>'+
-    '<p>This Employment Contract is made between <b>'+esc(state.settings.businessName||'the Employer')+'</b> ("Employer") and <b>'+esc(emp.name||'')+'</b> ("Employee").</p>'+
+    '<p>This Employment Contract is made between <b>'+(hasBizName()?appNameEsc():'the Employer')+'</b> ("Employer") and <b>'+esc(emp.name||'')+'</b> ("Employee").</p>'+
     '<p><b>Position:</b> '+esc(emp.role||'__________')+'<br><b>Employment type:</b> '+esc(emp.employmentType||'__________')+'<br><b>Compensation:</b> '+(emp.payRate?esc(fmtMoney(num(emp.payRate))+' per '+String(emp.payBasis||'').toLowerCase()):'__________')+'<br><b>Start date:</b> '+esc(emp.dateHired||'__________')+'</p>'+
     '<p>The Employee agrees to perform their duties diligently and in accordance with the lawful policies of the Employer. This agreement may be amended only in writing by mutual consent of both parties.</p>'+
     '<p style="margin-top:24px">Signed on ____________________.</p>';
@@ -8357,7 +8389,7 @@ function viewSettings(){
       '<input type="file" accept="image/*" class="input img-input" style="flex:1;min-width:140px;padding:6px">'+
       '<input type="hidden" name="bizLogo" value="'+esc(s.bizLogo||'')+'">'+
       (s.bizLogo?'<button type="button" class="btn btn-sm btn-danger" data-action="img-clear">'+icon('x')+' Remove</button>':'')+
-    '</div><p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Square images look best. Your logo replaces the Trakora mark everywhere, including on printed invoices.</p></div>'+
+    '</div><p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Square images look best. Your logo replaces the default mark everywhere, including on printed invoices.</p></div>'+
     '<div class="field"><label>Payment QR (GCash / Maya, shows on invoices, delivery slips & catalog)</label><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
       '<img class="img-thumb-lg img-prev" src="'+esc(s.payQR||'')+'" style="'+(s.payQR?'':'display:none')+'" alt="">'+
       '<input type="file" accept="image/*" class="input img-input" style="flex:1;min-width:140px;padding:6px">'+
@@ -8406,7 +8438,7 @@ function settingsDataHTML(){
     '<button class="btn btn-primary" data-action="export-data">'+icon('download')+' Export JSON backup</button>'+
     '<button class="btn btn-ghost" data-action="import-data">'+icon('upload')+' Import backup</button></div></div>';
   html+='<div class="card"><div class="card-head"><h3>'+icon('upload',16)+' Smart CSV import</h3><span class="badge accent">Beta</span></div>'+
-    '<p style="font-size:.84rem;color:var(--text-2);margin-bottom:16px">Have a spreadsheet of sales, expenses, products, customers or materials? Upload the CSV. Trakora detects what it is, maps the columns, and shows you a preview to confirm <b>before</b> anything is saved. Nothing is imported until you approve it.</p>'+
+    '<p style="font-size:.84rem;color:var(--text-2);margin-bottom:16px">Have a spreadsheet of sales, expenses, products, customers or materials? Upload the CSV. The importer detects what it is, maps the columns, and shows you a preview to confirm <b>before</b> anything is saved. Nothing is imported until you approve it.</p>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
     '<button class="btn btn-primary" data-action="csv-import">'+icon('upload')+' Import a CSV file</button>'+
     '<button class="btn btn-ghost" data-action="csv-sample">'+icon('download')+' Download sample CSV</button></div></div>';
@@ -8789,7 +8821,7 @@ function exportData(){
     var blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
     var a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
-    a.download='trakora-backup-'+todayISO()+'.json';
+    a.download=appSlug()+'-backup-'+todayISO()+'.json';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function(){ URL.revokeObjectURL(a.href); },2000);
     state.settings.lastBackup=todayISO();
@@ -8807,6 +8839,7 @@ function importData(file){
       state.settings.onboarded=true;
       commit();
       applyTheme();
+      applyBrand();   // a restored backup can carry a different business name
       toast('Backup imported. '+state.finance.length+' finance entries restored.');
     }catch(e){
       toast('Could not read that backup. Your current data is untouched. Choose the .json file Trakora exported, not a CSV or a zip. ('+e.message+')','error');
@@ -9038,6 +9071,7 @@ function loadSampleData(){
   state.settings.monthlyTarget=state.settings.monthlyTarget||100000;
   state.settings.onboarded=true;
   commit();
+  applyBrand();   // the sample names the business, so the tab title follows at once
   toast('Sample data loaded. Explore every section, then reset when ready.');
 }
 
@@ -9046,7 +9080,12 @@ function loadSampleData(){
    ============================================================ */
 function applyBrand(){
   var s=state.settings;
-  document.title=(s.businessName&&s.businessName!=='My Business'?s.businessName+' · ':'')+'Trakora';
+  /* the tab is the first place the owner sees their own name, and it has to
+     change the moment they save it in Settings, not on the next reload */
+  document.title=(hasBizName()?appName()+' · ':'')+APP_TAGLINE;
+  var desc=document.querySelector('meta[name="description"]');
+  if(desc) desc.setAttribute('content',(hasBizName()?appName()+' keeps its':'Keeps a small business’s')+
+    ' books in one browser tab: income and expenses, invoices, orders, stock, staff pay and what customers still owe. The data stays in the browser you type it into.');
   if(s.bizLogo){
     var link=document.querySelector('link[rel="icon"]');
     if(!link){ link=document.createElement('link'); link.rel='icon'; document.head.appendChild(link); }
@@ -9468,7 +9507,7 @@ document.addEventListener('click',function(e){
 
   /* data management */
   if(action==='export-data'){ exportData(); return; }
-  if(action==='enable-autobackup'){ state.settings.autoBackupDays=state.settings.autoBackupDays||7; state.settings.backupSnooze=null; exportData(); toast('Auto-backup is on. A backup file downloads every '+state.settings.autoBackupDays+' days when you open Trakora.'); return; }
+  if(action==='enable-autobackup'){ state.settings.autoBackupDays=state.settings.autoBackupDays||7; state.settings.backupSnooze=null; exportData(); toast('Auto-backup is on. A backup file downloads every '+state.settings.autoBackupDays+' days when you open the app.'); return; }
   if(action==='snooze-backup'){ state.settings.backupSnooze=todayISO(); save(); render(); toast('Reminder snoozed. Tip: turn on auto-backup so you never have to think about it.'); return; }
   if(action==='import-data'){ byId('import-file').click(); return; }
   if(action==='csv-import'){ byId('csv-file').click(); return; }
@@ -9565,7 +9604,7 @@ document.addEventListener('submit',function(e){
     return;
   }
   if(kind==='settings'){
-    state.settings.businessName=fv(form,'businessName')||'My Business';
+    state.settings.businessName=fv(form,'businessName')||APP_PLACEHOLDER_NAME;
     state.settings.displayName=(fv(form,'displayName')||'').slice(0,40);
     if(form.elements['country']) state.settings.country=fv(form,'country');
     state.settings.currency=fv(form,'currency')||'₱';
@@ -9680,7 +9719,7 @@ function financeRecurringHTML(){
   var html='<div class="card"><div class="card-head"><h3>Recurring entries</h3><span class="sub">retainers, subscriptions, rent, posted automatically each month</span><span class="spacer"></span>'+
     '<button class="btn btn-sm btn-primary" data-action="recurring-new">'+icon('plus')+' New rule</button></div>';
   if(!(state.recurring||[]).length){
-    html+=emptyState('refresh','No recurring rules yet','Set up income or expenses that repeat monthly (e.g. a retainer or a software subscription). Trakora posts them for you on the right day, even for months you missed.','<button class="btn btn-sm btn-primary" data-action="recurring-new">'+icon('plus')+' Create first rule</button>')+'</div>';
+    html+=emptyState('refresh','No recurring rules yet','Set up income or expenses that repeat monthly (e.g. a retainer or a software subscription). They post on the right day for you, even for months you missed.','<button class="btn btn-sm btn-primary" data-action="recurring-new">'+icon('plus')+' Create first rule</button>')+'</div>';
     return html;
   }
   var monthlyIn=sum(state.recurring.filter(function(r){return r.active&&r.type==='income';}),function(r){return r.amount;});
@@ -9877,7 +9916,7 @@ function processRecurringInvoices(){
 function recurringInvoicesCardHTML(){
   var list=state.recurringInvoices||[];
   var html='<div class="card mt"><div class="card-head"><h3>'+icon('refresh',16)+' Recurring invoices</h3><span class="sub">retainers &amp; subscriptions, auto-created each month</span><span class="spacer"></span><button class="btn btn-sm btn-primary" data-action="rinv-new">'+icon('plus')+' New recurring</button></div>';
-  if(!list.length){ html+='<p style="font-size:.82rem;color:var(--text-3)">Set up a monthly retainer once and Trakora drafts the invoice every month for you, even for months you missed.</p></div>'; return html; }
+  if(!list.length){ html+='<p style="font-size:.82rem;color:var(--text-3)">Set up a monthly retainer once and the invoice drafts itself every month, even for months you missed.</p></div>'; return html; }
   html+='<div class="table-wrap"><table><thead><tr><th>Client</th><th>Description</th><th class="num" style="text-align:right">Amount</th><th>Issued</th><th>Status</th><th></th></tr></thead><tbody>';
   list.forEach(function(r){
     html+='<tr><td><b>'+esc(r.client)+'</b></td><td>'+esc(r.desc||'—')+'</td><td class="num" style="text-align:right">'+fmtInvAmt(r)+'</td>'+
@@ -9917,7 +9956,7 @@ function recurringInvoiceModal(r){
 function invoiceReminderModal(iv){
   if(!iv) return;
   var msg='Hi '+(iv.client||'there')+',\n\nJust a friendly reminder that invoice '+iv.number+' for '+fmtInvAmt(iv)+' was due on '+fmtDate(iv.dueDate)+'. '+
-    'When you have a moment, kindly settle it at your convenience.\n\nThank you!\n'+(state.settings.businessName||'');
+    'When you have a moment, kindly settle it at your convenience.\n\nThank you!\n'+appName();
   var body='<p style="font-size:.84rem;color:var(--text-2);margin-bottom:12px">A polite payment reminder for <b>'+esc(iv.client)+'</b>, invoice '+esc(iv.number)+' ('+esc(fmtInvAmt(iv))+').</p>'+
     '<textarea class="input" id="rem-msg" rows="7" style="font-family:inherit">'+esc(msg)+'</textarea>';
   openModal('Send a payment reminder',body,{submitLabel:'Copy message',extraFooterHTML:'<button type="button" class="btn btn-ghost" data-action="invoice-remind-email" data-id="'+esc(iv.id)+'">'+icon('invoice')+' Open email</button>',onSubmit:function(){
@@ -10163,7 +10202,7 @@ function fxTotalsCaveat(list){
 function fxTotalsCaveatHTML(list){
   var t=fxTotalsCaveat(list);
   if(!t) return '';
-  return '<span class="stat-delta flat" title="Foreign invoices inside this figure. An unverified rate is a built-in estimate, or a rate saved before Trakora tracked where rates came from; an invoice with no rate at all cannot be converted, so it is excluded from the total.">incl. '+esc(t)+'</span>';
+  return '<span class="stat-delta flat" title="Foreign invoices inside this figure. An unverified rate is a built-in estimate, or a rate saved before rate sources were recorded; an invoice with no rate at all cannot be converted, so it is excluded from the total.">incl. '+esc(t)+'</span>';
 }
 /* Honest banner on the Invoices screen. Historical records are NEVER rewritten: this
    only tells the owner which ones the peso totals can't include, and which ones were
@@ -10196,7 +10235,7 @@ function fxInvoiceNoticeHTML(){
   // they need the opposite warning, not the same one.
   var unvPaid=unverified.filter(function(iv){ return iv.status==='Paid'; });
   var unvOpen=unverified.filter(function(iv){ return iv.status!=='Paid'; });
-  if(unvOpen.length) lines.push('<b>'+unvOpen.length+' unpaid invoice'+(unvOpen.length>1?'s carry':' carries')+' an unverified rate</b> (a built-in estimate, or a rate saved before Trakora tracked where rates came from). '+(unvOpen.length>1?'They':'It')+' cannot be marked paid and the peso figure is not printed. Open '+(unvOpen.length>1?'each one':'it')+' and type today’s rate in.');
+  if(unvOpen.length) lines.push('<b>'+unvOpen.length+' unpaid invoice'+(unvOpen.length>1?'s carry':' carries')+' an unverified rate</b> (a built-in estimate, or a rate saved before rate sources were recorded). '+(unvOpen.length>1?'They':'It')+' cannot be marked paid and the peso figure is not printed. Open '+(unvOpen.length>1?'each one':'it')+' and type today’s rate in.');
   if(unvPaid.length) lines.push('<b>'+unvPaid.length+' invoice'+(unvPaid.length>1?'s were':' was')+' already marked paid at an unverified rate</b>, so the peso income recorded in Finance came from an estimate. Those figures are left exactly as they are. Editing '+(unvPaid.length>1?'those invoices':'that invoice')+' will not re-convert them. Note that the printed invoice omits the peso line, so your books and the client’s copy state different things until you open '+(unvPaid.length>1?'each one':'it')+' and type the rate you were actually paid at.');
   if(needs.length) lines.push('No verified rate today for <b>'+esc(needs.join(', '))+'</b>. Set '+(needs.length>1?'them':'it')+' in Settings ▸ Currency, or refresh live rates.');
   return '<div class="card mt-lg" data-fx-live style="border-color:var(--warn);background:var(--warn-soft,transparent)">'+
@@ -10295,7 +10334,7 @@ function printInvoice(iv){
   var qr=iv.payQR!=null&&iv.payQR!==''?iv.payQR:(state.settings.payQR||'');
   var pos=iv.payQRPos||'br';
   var html='<div class="pr-doc qr-'+pos+'">'+
-    '<h1>'+esc(state.settings.businessName)+'</h1>'+
+    '<h1>'+appNameEsc()+'</h1>'+
     '<div class="pr-meta">Invoice '+esc(iv.number)+' · Issued '+fmtDate(iv.issueDate)+' · Due '+fmtDate(iv.dueDate)+'</div>'+
     '<h2>Billed to</h2><p>'+esc(iv.client)+'</p>'+
     '<h2>Details</h2>'+
@@ -10318,7 +10357,7 @@ function printInvoice(iv){
     '<p style="margin-top:16px">Status: <b>'+esc(iv.status)+(iv.status==='Paid'&&iv.paidDate?' on '+fmtDate(iv.paidDate):'')+'</b></p>'+
     (iv.payDetails?'<h2>Payment details</h2><p>'+esc(iv.payDetails).replace(/\n/g,'<br>')+'</p>':'')+
     (qr?'<img class="pr-qr pr-qr-'+pos+'" src="'+esc(qr)+'" alt="Payment QR">':'')+
-    '<div class="pr-foot">'+esc(state.settings.businessName)+' · Thank you for your business! · '+fmtDate(todayISO())+licTag()+'</div>'+
+    '<div class="pr-foot">'+appNameEsc()+' · Thank you for your business! · '+fmtDate(todayISO())+licTag()+'</div>'+
     '</div>';
   printDoc(html);
 }
@@ -10402,7 +10441,7 @@ function buildReportDoc(selected){
   });
   var clientKeys=Object.keys(byClient).sort(function(a,b){return byClient[b]-byClient[a];}).slice(0,8);
   return '<div class="pr-doc">'+
-    '<h1>'+esc(state.settings.businessName)+'</h1>'+
+    '<h1>'+appNameEsc()+'</h1>'+
     '<div class="pr-meta">Monthly business report for '+monthLabel(selected)+' · generated '+fmtDate(todayISO())+'</div>'+
     '<h2>Summary</h2>'+
     '<table><tbody>'+
@@ -10414,7 +10453,7 @@ function buildReportDoc(selected){
     '<h2>Expenses by category</h2>'+catTable('expense',d.expenses)+
     (clientKeys.length?'<h2>Top clients</h2><table><thead><tr><th>Client</th><th class="num">Revenue</th></tr></thead><tbody>'+
       clientKeys.map(function(k){return '<tr><td>'+esc(k)+'</td><td class="num">'+fmtMoney(byClient[k])+'</td></tr>';}).join('')+'</tbody></table>':'')+
-    '<div class="pr-foot">'+esc(state.settings.businessName)+' · prepared from the owner\'s records'+licTag()+'</div>'+
+    '<div class="pr-foot">'+appNameEsc()+' · prepared from the owner\'s records'+licTag()+'</div>'+
     '</div>';
 }
 
@@ -10556,7 +10595,7 @@ function cloudPull(){
       return r.json();
     })
     .then(function(data){
-      if(!data||typeof data!=='object'||!data.settings){ toast('No Trakora data found in the cloud yet. Push first.','warn'); return; }
+      if(!data||typeof data!=='object'||!data.settings){ toast('No backup found in the cloud yet. Push first.','warn'); return; }
       if(!confirm('Replace the data on THIS device with the cloud copy? Local changes not yet pushed will be lost.')) return;
       if(state.meta&&state.meta.updatedAt&&data.meta&&data.meta.updatedAt&&state.meta.updatedAt>data.meta.updatedAt){
         if(!confirm('Heads up: THIS device has newer changes than the cloud copy. Pulling will lose them. Continue?')) return;
@@ -11001,7 +11040,7 @@ function productModal(p){
     ((state.materials||[]).length?'<div class="field"><label>Recipe: raw materials used per unit (optional)</label><div id="bom-rows">'+
       ((p.bom&&p.bom.length)?p.bom.map(bomRowHTML).join(''):'')+
       '</div><button type="button" class="btn btn-ghost btn-sm" data-action="bom-add">'+icon('plus')+' Add material</button>'+
-      '<p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Materials deplete when you restock (make) this product, and Trakora tells you how many more you can make.</p></div>'
+      '<p style="font-size:.72rem;color:var(--text-3);margin-top:4px">Materials deplete when you restock (make) this product, and the stock page shows how many more you can make.</p></div>'
       :'<p style="font-size:.72rem;color:var(--text-3);margin-bottom:12px">Tip: add raw materials in Products → Materials tab to attach a recipe and track ingredient usage.</p>')+
     '<div class="field"><label>Product photo</label><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
       '<img class="img-thumb-lg img-prev" src="'+esc(p.photo||'')+'" style="'+(p.photo?'':'display:none')+'" alt="">'+
@@ -11157,7 +11196,7 @@ function viewOrders(){
   list=list.slice(0,oLimit);
   html+='<div class="card mt">';
   if(!list.length){
-    html+=emptyState('truck',orders.length?'No orders here':'No orders yet','Create an order: pick products, enter the delivery address, and Trakora handles stock, totals and income for you.','<button class="btn btn-sm btn-primary" data-action="order-new">'+icon('plus')+' First order</button>');
+    html+=emptyState('truck',orders.length?'No orders here':'No orders yet','Create an order: pick products and enter the delivery address. Stock, totals and income are handled for you.','<button class="btn btn-sm btn-primary" data-action="order-new">'+icon('plus')+' First order</button>');
   } else {
     list.forEach(function(o){
       var d=daysUntil(o.deliveryDate);
@@ -11265,7 +11304,7 @@ function orderModal(o){
 }
 function printOrderSlip(o){
   var html='<div class="pr-doc">'+
-    '<h1>'+esc(state.settings.businessName)+'</h1>'+
+    '<h1>'+appNameEsc()+'</h1>'+
     '<div class="pr-meta">'+(state.settings.bizAddress?esc(state.settings.bizAddress)+' · ':'')+(state.settings.bizPhone?esc(state.settings.bizPhone)+' · ':'')+'Order '+esc(o.number)+' · '+fmtDate(o.orderDate)+'</div>'+
     '<h2>Deliver to</h2><p><b>'+esc(o.clientName)+'</b>'+(o.contact?' · '+esc(o.contact):'')+'<br>'+esc(o.address||'(pickup)').replace(/\n/g,'<br>')+'</p>'+
     (o.deliveryDate?'<p>Deliver by: <b>'+fmtDate(o.deliveryDate)+'</b></p>':'')+
@@ -11277,7 +11316,7 @@ function printOrderSlip(o){
     '</tbody></table>'+
     (o.note?'<h2>Note</h2><p>'+esc(o.note)+'</p>':'')+
     (o.payStatus!=='Paid'?payQRDocHTML():'')+
-    '<div class="pr-foot">Thank you for your order! · '+esc(state.settings.businessName)+licTag()+'</div></div>';
+    '<div class="pr-foot">Thank you for your order! · '+appNameEsc()+licTag()+'</div></div>';
   printDoc(html);
 }
 
@@ -11726,24 +11765,24 @@ function exportCSV(what,id){
     state.finance.slice().sort(function(a,b){return (a.date||'').localeCompare(b.date||'');}).forEach(function(e){
       rows.push([e.date,e.type,e.category||'',e.amount,e.note||'',e.client||'']);
     });
-    downloadCSV('finance-'+today+'.csv',rows);
+    downloadCSV(appSlug()+'-finance-'+today+'.csv',rows);
   } else if(what==='products'){
     var attrs=productAttrs();
     var rows2=[['Name','SKU','Category'].concat(attrs).concat(['Price','Cost','Stock','Low-stock at','Notes'])];
     (state.products||[]).forEach(function(p){
       rows2.push([p.name,p.sku||'',p.category||''].concat(attrs.map(function(a){return (p.attrs||{})[a]||'';})).concat([p.price,p.cost||0,p.stock,p.lowStock!=null?p.lowStock:'',p.desc||'']));
     });
-    downloadCSV('products-'+today+'.csv',rows2);
+    downloadCSV(appSlug()+'-products-'+today+'.csv',rows2);
   } else if(what==='orders'){
     var rows3=[['Order #','Date','Customer','Contact','Address','Items','Total','Status','Payment','Deliver by','Note']];
     (state.orders||[]).forEach(function(o){
       rows3.push([o.number,o.orderDate,o.clientName,o.contact||'',o.address||'',(o.items||[]).map(function(it){return it.name+' x'+it.qty;}).join('; '),orderTotal(o),o.status,o.payStatus,o.deliveryDate||'',o.note||'']);
     });
-    downloadCSV('orders-'+today+'.csv',rows3);
+    downloadCSV(appSlug()+'-orders-'+today+'.csv',rows3);
   } else if(what==='clients'){
     var rows4=[['Name','Status','Contact','Est. value/mo','Notes']];
     state.clients.forEach(function(c){ rows4.push([c.name,c.status,c.contact||'',c.value||0,c.note||'']); });
-    downloadCSV('clients-'+today+'.csv',rows4);
+    downloadCSV(appSlug()+'-clients-'+today+'.csv',rows4);
   } else if(what==='module'){
     var m=findModule(id);
     if(!m) return;
@@ -11756,7 +11795,7 @@ function exportCSV(what,id){
         return v==null?'':v;
       }));
     });
-    downloadCSV(m.name.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-'+today+'.csv',rows5);
+    downloadCSV(appSlug()+'-'+m.name.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-'+today+'.csv',rows5);
   }
 }
 
@@ -12039,7 +12078,7 @@ function viewMaterials(){
   '</div>';
   html+='<div class="card mt">';
   if(!mats.length){
-    html+=emptyState('box','No materials yet','Add your wax, wicks, jars, oils and packaging. Then attach a recipe to each product (edit product → Recipe) and Trakora tracks ingredient usage automatically.','<button class="btn btn-sm btn-primary" data-action="material-new">'+icon('plus')+' Add first material</button>');
+    html+=emptyState('box','No materials yet','Add your wax, wicks, jars, oils and packaging. Then attach a recipe to each product (edit product → Recipe) and ingredient usage is tracked automatically.','<button class="btn btn-sm btn-primary" data-action="material-new">'+icon('plus')+' Add first material</button>');
   } else {
     html+='<div class="table-wrap"><table><thead><tr><th>Material</th><th style="text-align:right">Cost / unit</th><th>Stock</th><th style="text-align:right">Value</th><th>Used in</th><th></th></tr></thead><tbody>';
     mats.forEach(function(m){
@@ -12277,7 +12316,7 @@ function bulkBarHTML(){
 }
 function orderSlipDocHTML(o){
   return '<div class="pr-doc">'+
-    '<h1>'+esc(state.settings.businessName)+'</h1>'+
+    '<h1>'+appNameEsc()+'</h1>'+
     '<div class="pr-meta">Order '+esc(o.number)+' · '+fmtDate(o.orderDate)+'</div>'+
     '<h2>Deliver to</h2><p><b>'+esc(o.clientName)+'</b>'+(o.contact?' · '+esc(o.contact):'')+'<br>'+esc(o.address||'(pickup)').replace(/\n/g,'<br>')+'</p>'+
     '<h2>Items</h2><table><tbody>'+
@@ -12290,7 +12329,7 @@ function orderSlipDocHTML(o){
 function catalogDocHTML(){
   var prods=(state.products||[]).filter(function(p){return p.active!==false;});
   return '<div class="pr-doc">'+
-    '<h1>'+esc(state.settings.businessName)+'</h1>'+
+    '<h1>'+appNameEsc()+'</h1>'+
     '<div class="pr-meta">Product catalog · '+fmtDate(todayISO())+(state.settings.bizPhone?' · '+esc(state.settings.bizPhone):'')+'</div>'+
     '<div class="cat-grid">'+prods.map(function(p){
       var attrs=Object.keys(p.attrs||{}).map(function(k){return p.attrs[k];}).filter(Boolean).join(' · ');
@@ -12302,11 +12341,11 @@ function catalogDocHTML(){
         '<div style="font-size:1.05rem;font-weight:bold;margin-top:4px">'+fmtMoney(p.price)+'</div></div>';
     }).join('')+'</div>'+
     payQRDocHTML()+
-    '<div class="pr-foot">Message us to order! · '+esc(state.settings.businessName)+licTag()+'</div></div>';
+    '<div class="pr-foot">Message us to order! · '+appNameEsc()+licTag()+'</div></div>';
 }
 function copyCatalogText(){
   var prods=(state.products||[]).filter(function(p){return p.active!==false&&p.stock>0;});
-  var lines=['🛍 '+state.settings.businessName+' current menu','']; 
+  var lines=['🛍 '+appName()+' current menu','']; 
   var byCat={};
   prods.forEach(function(p){ var c=p.category||'Other'; (byCat[c]=byCat[c]||[]).push(p); });
   Object.keys(byCat).forEach(function(c){
@@ -12383,7 +12422,9 @@ function openSetupWizard(){
         Object.keys(BIZ_PRESETS).map(function(k){return '<option value="'+k+'">'+BIZ_PRESETS[k].label+'</option>';}).join('')+'</select>'+
       '<p style="font-size:.72rem;color:var(--text-3);margin-top:4px">This pre-builds your product categories and attributes (you can edit them anytime).</p></div>'+
       wizardSectionPickerHTML();
-    openModal('Welcome to Trakora',body,{wide:true,submitLabel:'Set up my business',onSubmit:function(form){
+    /* nothing is named yet at this point, so the wizard says what it is for
+       rather than greeting the owner with a product name they did not buy into */
+    openModal('Set up your business',body,{wide:true,submitLabel:'Set up my business',onSubmit:function(form){
       var nm=fv(form,'bizname');
       if(nm) state.settings.businessName=nm;
       var ctry=fv(form,'country'); if(ctry) applyCountry(ctry);
@@ -12690,7 +12731,7 @@ function transferModal(){
 function reconcileModal(a){
   var bal=accountBalance(a);
   var body='<input type="hidden" name="id" value="'+a.id+'">'+
-    '<p style="font-size:.86rem;color:var(--text-2);margin-bottom:12px">Trakora thinks <b>'+esc(a.name)+'</b> holds <b>'+fmtMoney(bal)+'</b>. Check the real balance in your bank app / wallet and enter it below. The difference is recorded as an adjustment so the numbers match reality.</p>'+
+    '<p style="font-size:.86rem;color:var(--text-2);margin-bottom:12px">Your books say <b>'+esc(a.name)+'</b> holds <b>'+fmtMoney(bal)+'</b>. Check the real balance in your bank app / wallet and enter it below. The difference is recorded as an adjustment so the numbers match reality.</p>'+
     '<div class="field"><label>Actual balance right now ('+esc(state.settings.currency)+')</label><input class="input" type="number" step="any" name="actual" value="'+bal+'" required></div>';
   openModal('Reconcile '+a.name,body,{submitLabel:'Reconcile',onSubmit:function(form){
     var acct=findAccount(fv(form,'id'));
@@ -12968,7 +13009,7 @@ function rankListHTML(list){
 }
 function buildYearReportDoc(year){
   var yd=yearData(year);
-  return '<div class="pr-doc"><h1>'+esc(state.settings.businessName)+'</h1>'+
+  return '<div class="pr-doc"><h1>'+appNameEsc()+'</h1>'+
     '<div class="pr-meta">Annual business report for '+year+' · generated '+fmtDate(todayISO())+'</div>'+
     '<h2>Summary</h2><table><tbody>'+
     '<tr><td>Revenue</td><td class="num">'+fmtMoney(yd.revenue)+'</td></tr>'+
@@ -12979,7 +13020,7 @@ function buildYearReportDoc(year){
     '</tbody></table>'+
     (yd.topIncomeCats.length?'<h2>Top income sources</h2><table><tbody>'+yd.topIncomeCats.map(function(x){return '<tr><td>'+esc(x.label)+'</td><td class="num">'+fmtMoney(x.value)+'</td></tr>';}).join('')+'</tbody></table>':'')+
     (yd.topClients.length?'<h2>Top clients</h2><table><tbody>'+yd.topClients.map(function(x){return '<tr><td>'+esc(x.label)+'</td><td class="num">'+fmtMoney(x.value)+'</td></tr>';}).join('')+'</tbody></table>':'')+
-    '<div class="pr-foot">'+esc(state.settings.businessName)+licTag()+'</div></div>';
+    '<div class="pr-foot">'+appNameEsc()+licTag()+'</div></div>';
 }
 
 /* ---------- v11 wiring ---------- */
@@ -13363,7 +13404,9 @@ function payQRDocHTML(){
   if(!s.payQR) return '';
   return '<h2>Scan to pay</h2><div style="display:flex;gap:16px;align-items:center">'+
     '<img src="'+esc(s.payQR)+'" style="width:150px;height:150px;object-fit:contain;border:1px solid #ccc;border-radius:8px">'+
-    (s.payQRLabel?'<div style="font-size:.95rem"><b>'+esc(s.payQRLabel)+'</b><br><span style="font-size:.8rem;color:#555">Send a screenshot after paying. Thank you! 💛</span></div>':'')+
+    /* the customer is scanning this to send money somewhere: if the owner never
+       typed an account label, at least name who is being paid */
+    '<div style="font-size:.95rem"><b>'+esc(s.payQRLabel||appName())+'</b><br><span style="font-size:.8rem;color:#555">Send a screenshot after paying. Thank you! 💛</span></div>'+
     '</div>';
 }
 
@@ -13832,7 +13875,7 @@ document.addEventListener('submit',function(e){
     reopened=true;
   }
   commit();
-  toast(reopened?'Automatic rates are back on, which means Trakora can reach open.er-api.com again. Settings ▸ Data has the switch for that.'
+  toast(reopened?'Automatic rates are back on, which means the app can reach open.er-api.com again. Settings ▸ Data has the switch for that.'
     :(changed?('Saved '+changed+' manual rate'+(changed>1?'s':'')+'. These are now used to record money.'):'Currency settings saved.'));
 });
 
@@ -14190,7 +14233,7 @@ document.addEventListener('change',function(e){
    onboarding carousel + floating Advisor bubble (v25)
    ============================================================ */
 var ONBOARD_SLIDES=[
-  {ico:'dashboard',title:'Welcome to Trakora',mock:'welcome',
+  {ico:'dashboard',title:'Welcome',mock:'welcome',
    desc:'Money, sales, goals, clients and notes, in one place. It runs in your browser, works offline, and your numbers never leave this device.'},
   {ico:'spark',title:'Your daily briefing',mock:'dashboard',
    desc:'Open it each morning for profit, cash, a business-health score, and the short list of what needs attention today.'},
@@ -14199,7 +14242,7 @@ var ONBOARD_SLIDES=[
   {ico:'box',title:'Sell without the chaos',mock:'selling',
    desc:'Products with your own fields, orders that auto-update stock, and a pay-later credit list. Never oversell, never lose track of who owes you.'},
   {ico:'spark',title:'Meet your Advisor',mock:'advisor',
-   desc:'Trakora reads your numbers and explains, in plain words, what is working, what needs attention, and what to focus on next. No more guessing from a spreadsheet.'},
+   desc:'The Advisor reads your numbers and says, in plain words, what is working and what needs attention. No more guessing from a spreadsheet.'},
   {ico:'palette',title:'Make it yours',mock:'customize',
    desc:'Your logo and colors, import a spreadsheet in seconds, and lock everything behind a PIN with encryption. Tip: press Ctrl+K to search anything, anywhere.'}
 ];
@@ -14234,9 +14277,12 @@ function onbMockup(kind){
 var onboardIdx=0;
 function onbStageHTML(){
   var s=ONBOARD_SLIDES[onboardIdx], last=onboardIdx===ONBOARD_SLIDES.length-1;
+  /* the opening slide greets the owner by their own business once they have set
+     one; before that it stays a plain "Welcome" rather than inventing a name */
+  var ttl=(s.mock==='welcome'&&hasBizName())?'Welcome to '+appName():s.title;
   return '<div class="onb-mock">'+onbMockup(s.mock)+'</div>'+
     '<div class="onb-body"><div class="onb-eyebrow">'+icon(s.ico,14)+'<span>'+(onboardIdx+1)+' of '+ONBOARD_SLIDES.length+'</span></div>'+
-      '<h2 class="onb-title">'+esc(s.title)+'</h2><p class="onb-desc">'+esc(s.desc)+'</p>'+
+      '<h2 class="onb-title">'+esc(ttl)+'</h2><p class="onb-desc">'+esc(s.desc)+'</p>'+
       '<div class="onb-dots">'+ONBOARD_SLIDES.map(function(_,i){return '<button class="onb-dot'+(i===onboardIdx?' on':'')+'" data-action="onb-go" data-i="'+i+'" aria-label="Go to slide '+(i+1)+'"></button>';}).join('')+'</div>'+
       '<div class="onb-foot">'+
         (onboardIdx>0?'<button class="btn btn-ghost" data-action="onb-go" data-i="'+(onboardIdx-1)+'">← Back</button>':'<button class="btn btn-ghost" data-action="onb-skip">Skip</button>')+
@@ -14252,7 +14298,7 @@ function showOnboard(idx){
   var root=byId('lightbox-root'), stage=root.querySelector('.onb-stage');
   if(!stage){
     // first open: build the stable shell once (overlay + card animate in only this time)
-    root.innerHTML='<div class="onb-overlay" data-action="onb-skip-bg"><div class="onb-card" role="dialog" aria-modal="true" aria-label="Welcome to Trakora">'+
+    root.innerHTML='<div class="onb-overlay" data-action="onb-skip-bg"><div class="onb-card" role="dialog" aria-modal="true" aria-label="Welcome tour">'+
       '<button class="onb-x" data-action="onb-skip" aria-label="Skip intro">'+icon('x')+'</button>'+
       '<div class="onb-stage">'+onbStageHTML()+'</div></div></div>';
     if(typeof updateAdvisorBubble==='function') updateAdvisorBubble(currentRoute());
@@ -14660,7 +14706,7 @@ function downloadSampleCsv(){
   var csv=rows.map(function(r){ return r.map(function(c){ var s=String(c); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }).join(','); }).join('\r\n');
   var blob=new Blob([csv],{type:'text/csv'});
   var a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download='trakora-sample-import.csv';
+  a.href=URL.createObjectURL(blob); a.download=appSlug()+'-sample-import.csv';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(function(){ URL.revokeObjectURL(a.href); },2000);
   toast('Sample CSV downloaded. Open it, then use “Import a CSV file” to try it.');
@@ -15002,7 +15048,7 @@ function autoLockMins(){ return Math.max(0,parseInt((state.settings&&state.setti
 function lockNow(){ if(hasLock()){ sessionUnlocked=false; cryptoKey=null; /* drop the key from memory while locked */ if(byId('modal-root')) byId('modal-root').innerHTML=''; renderLockScreen(); } }
 function renderLockScreen(){
   var root=byId('lock-root'); if(!root) return;
-  var biz=esc((state.settings&&state.settings.businessName&&state.settings.businessName!=='My Business')?state.settings.businessName:'Trakora');
+  var biz=appNameEsc();
   root.innerHTML='<div class="gate"><div class="gate-card">'+
     '<div style="text-align:center;margin-bottom:6px">'+icon('shield',30)+'</div>'+
     '<h1>'+biz+' is locked</h1>'+
@@ -15050,7 +15096,7 @@ document.addEventListener('visibilitychange',function(){
 });
 function pinModal(mode){
   var body, title, label;
-  if(mode==='set'){ title='Set a privacy PIN'; body='<p style="font-size:.82rem;color:var(--text-2);margin-bottom:12px">Choose a 4–8 digit PIN. You’ll enter it each time you open Trakora on this device. <b>There is no recovery.</b> If you forget it you can still re-activate, but keep it safe.</p>'+
+  if(mode==='set'){ title='Set a privacy PIN'; body='<p style="font-size:.82rem;color:var(--text-2);margin-bottom:12px">Choose a 4–8 digit PIN. You’ll enter it each time you open the app on this device. <b>There is no recovery.</b> If you forget it you can still re-activate, but keep it safe.</p>'+
     '<div class="field"><label>New PIN</label><input class="input" name="newpin" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password"></div>'+
     '<div class="field"><label>Confirm PIN</label><input class="input" name="confirmpin" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password"></div>'+
     (cryptoOK()?'<label class="checkrow" style="margin-top:2px"><input type="checkbox" name="encrypt" checked> Also <b>encrypt my data</b> on this device (AES‑256)</label>'+
@@ -15227,7 +15273,9 @@ function greetingTime(){
   return {label:'Good evening',ico:'moon',part:'evening'};
 }
 function greetSubline(part){
-  var m={morning:'A fresh day for your business. Let’s make it count.',afternoon:'Hope the day’s going well. Here’s your business.',evening:'Winding down? Let’s see how today went.'};
+  /* the owner named the business, so the greeting says it back to them */
+  var who=hasBizName()?appName():'your business';
+  var m={morning:'A fresh day for '+who+'. Let’s make it count.',afternoon:'Hope the day’s going well. Here’s '+who+'.',evening:'Winding down? Let’s see how today went.'};
   return m[part]||'Welcome back.';
 }
 function showGreeting(){
