@@ -242,10 +242,19 @@ async function main() {
     await window.verifyActivation(K, 'attacker@evil.com').then(() => ok('hashed-email rejects wrong email', false)).catch((e) => ok('hashed-email rejects wrong email', e.code === 'email', e));
 
     // ---------- OFFLINE signed license: verifies with ZERO network (no Firebase) ----------
-    const PRIV = { kty:'EC', crv:'P-256', x:'ehXZYwQBYbP8HhHKZ6_hvK1Yp3e2fgQyzqJTXCqdXBc', y:'tyv_vdWFYP84K8O3gYfpLR5RIYQx_s0rm6jmySyysFg', d:'6mksRId8vn1ZRhc4O34WgWVroFsWm9JFPhKaTq9apjg' };
+    // This block used to hard-code the PRODUCTION signing key so it could mint tokens the
+    // shipped LICENSE_PUBKEY would accept. That put the live private key in the working
+    // tree of a repo whose host publishes the folder, and an audit used it to forge an
+    // unlimited, non-expiring licence that verifyActivation() accepted. The mechanism is
+    // what needs testing, not that one keypair: generate a throwaway pair per run and
+    // point the app at its public half.
+    const TESTPAIR = await webcrypto.subtle.generateKey({ name:'ECDSA', namedCurve:'P-256' }, true, ['sign','verify']);
+    window.LICENSE_PUBKEY = await webcrypto.subtle.exportKey('jwk', TESTPAIR.publicKey);
+    delete window.LICENSE_PUBKEY.key_ops; delete window.LICENSE_PUBKEY.ext;
+    window._licPubKey = null;   // drop the cached CryptoKey so the new public half is imported
     const b64u = (a) => Buffer.from(a).toString('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
     async function makeToken(email, limit) {
-      const pk = await webcrypto.subtle.importKey('jwk', PRIV, { name:'ECDSA', namedCurve:'P-256' }, false, ['sign']);
+      const pk = TESTPAIR.privateKey;
       const ehBuf = await webcrypto.subtle.digest('SHA-256', new TextEncoder().encode(email.toLowerCase()));
       const eh = [...new Uint8Array(ehBuf)].map((b) => ('0'+b.toString(16)).slice(-2)).join('');
       const pb = new TextEncoder().encode(JSON.stringify({ eh, d: limit, i: '2026-06-19' }));
