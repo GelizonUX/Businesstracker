@@ -1120,6 +1120,52 @@ html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--
    so this is the rest of the app catching up to what it already knew. Cards and field
    hints only; table cells, badges and centred empty states are not prose. */
 .card>p,.card>form>p,.card>div>p,.field>p,.main>p,.adv-narrative{max-width:68ch}
+
+/* ---------- a section is not a card ----------
+   A heading with a table or a list under it does not need a border: the rows
+   already carry rules and .table-wrap draws its own frame, so the card around
+   it was a second box around the first. .sec keeps the heading and the spacing
+   and drops the box. Its heading sits closer to its content than a card's does,
+   because nothing else is competing for the gap. */
+.sec{margin-top:26px}
+.sec>.card-head{margin-bottom:10px}
+.sec>.card-head h3{font-size:.95rem}
+.sec+.sec{margin-top:30px}
+/* rows of data with no table markup: hairline above the first row only */
+.rows{border-top:1px solid var(--border)}
+.rows>.list-row:last-child{border-bottom:none}
+
+/* ---------- one card per role, not one card ----------
+   The count was never the problem on its own: 148 boxes wearing ONE treatment
+   was. A summary tile, a real bank account, an alert and a panel of prose are
+   four different objects and now read as four. Each picks its own rung on the
+   concentric radius scale (10/13/17/22/28) and its own weight. */
+
+/* summary tile: one number, the lightest object on the page. No shadow, a
+   sunken ground instead of a raised one, one rung down from a panel. */
+.card.stat-card,.card.metric-card{
+  background:var(--bg-sunken);border-color:transparent;border-radius:var(--r-lg);
+  padding:14px 16px;box-shadow:none;
+}
+.card.stat-card:hover,.card.metric-card:hover{border-color:var(--border-2);box-shadow:none}
+html[data-theme="dark"] .card.stat-card,html[data-theme="dark"] .card.metric-card{box-shadow:none}
+
+/* an account holds real money: the heaviest rung, a firmer edge, more room */
+.card.acct-card{border-radius:var(--r-2xl);border-color:var(--border-2);padding:20px 22px}
+
+/* an alert interrupts, so it is tinted and marked down its leading edge, and
+   sits one rung below a panel so the two never look like the same object */
+.card.lead-card,.card.notice{border-radius:var(--r-lg);padding:15px 18px 15px 20px;box-shadow:none}
+.card.lead-card{position:relative}
+.card.lead-card::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:0 3px 3px 0;background:var(--warn)}
+.card.lead-card.lead-info::before{background:var(--info)}
+
+/* a note is a slip of paper, not a panel: flatter, squarer, no lift */
+.card.note-card{border-radius:var(--r-lg);padding:15px 16px;box-shadow:none}
+
+/* an empty state is an absence. It gets a dashed outline on the page ground
+   rather than a solid card pretending there is something inside. */
+.empty-slot{border:1px dashed var(--border-2);border-radius:var(--r-xl);margin-top:16px}
 .grid{display:grid;gap:var(--grid-gap)}
 .grid-2{grid-template-columns:repeat(2,1fr)}
 .grid-3{grid-template-columns:repeat(3,1fr)}
@@ -4828,7 +4874,7 @@ function advisorPaceHTML(){
 function viewInsights(){
   var html=topbar('Advisor','Reads the entries you have logged and says what to do about them.');
   if(!state.finance.length){
-    html+='<div class="card">'+emptyState('spark','Nothing to read yet','Log an income or expense and this page will summarise where the money went and what needs attention.','<button class="btn btn-sm btn-primary" data-action="open-entry-modal">'+icon('plus')+' Add first entry</button>')+'</div>';
+    html+='<div class="empty-slot">'+emptyState('spark','Nothing to read yet','Log an income or expense and this page will summarise where the money went and what needs attention.','<button class="btn btn-sm btn-primary" data-action="open-entry-modal">'+icon('plus')+' Add first entry</button>')+'</div>';
     return html;
   }
   var ins=buildInsights();
@@ -5843,13 +5889,13 @@ function financeTimelineHTML(rows,totalCount,ft){
 
 function financeMonthlyHTML(){
   var mm=monthlyMap(), months=sortedMonths();
-  if(!months.length) return '<div class="card">'+emptyState('metrics','No monthly data yet','Add dated entries to see the month-by-month breakdown.')+'</div>';
+  if(!months.length) return '<div class="empty-slot">'+emptyState('metrics','No monthly data yet','Add dated entries to see the month-by-month breakdown.')+'</div>';
   var shown=months.slice(-12);
   var fmStyle=chartStyleGet('monthly','bars');
   var fmTabs=chartToolbar('monthly',[{v:'bars',i:'cbars',t:'Grouped bars'},{v:'line',i:'cline',t:'Line'},{v:'area',i:'carea',t:'Area'}],fmStyle);
   var html='<div class="card"><div class="card-head"><h3>Revenue vs expenses by month</h3><span class="spacer"></span>'+fmTabs+'</div><div class="chart-box">'+svgSeries(shown.length>=6?shown.slice(-6):lastNMonths(6),mm,fmStyle)+'</div>'+
     '<div class="legend"><span><span class="dot" style="background:var(--income)"></span>Revenue</span><span><span class="dot" style="background:var(--expense)"></span>Expenses</span></div></div>';
-  html+='<div class="card mt"><div class="table-wrap"><table><thead><tr><th>Month</th><th style="text-align:right">Revenue</th><th style="text-align:right">Expenses</th><th style="text-align:right">Profit</th><th style="text-align:right">Margin</th><th>Trend</th></tr></thead><tbody>';
+  html+='<div class="sec"><div class="table-wrap"><table><thead><tr><th>Month</th><th style="text-align:right">Revenue</th><th style="text-align:right">Expenses</th><th style="text-align:right">Profit</th><th style="text-align:right">Margin</th><th>Trend</th></tr></thead><tbody>';
   shown.slice().reverse().forEach(function(k,idx,arr){
     var d=mm[k], profit=d.revenue-d.expenses;
     var prevKey=arr[idx+1];
@@ -5892,7 +5938,7 @@ function financeCategoriesHTML(){
 
 function financeCashflowHTML(){
   var mm=monthlyMap(), months=sortedMonths();
-  if(!months.length) return '<div class="card">'+emptyState('cash','No cash flow yet','Cash flow shows your running balance month by month.')+'</div>';
+  if(!months.length) return '<div class="empty-slot">'+emptyState('cash','No cash flow yet','Cash flow shows your running balance month by month.')+'</div>';
   var running=0;
   var rows=months.map(function(k){
     var d=mm[k], net=d.revenue-d.expenses; running+=net;
@@ -5907,7 +5953,7 @@ function financeCashflowHTML(){
     statCard('Avg monthly net (3m)',fmtMoney(avg3-avgExp3),'<span class="stat-delta '+(avg3-avgExp3>=0?'up':'down')+'">'+(avg3-avgExp3>=0?'cash positive':'cash negative')+'</span>','','metrics')+
     statCard('Runway signal',burn>0&&t.profit>0?fmtNum(t.profit/burn,1)+' mo':'—','<span class="stat-delta flat">'+(burn>0?'at current burn':'no burn, profitable')+'</span>','','clock')+
   '</div>';
-  html+='<div class="card mt"><div class="card-head"><h3>Running balance</h3><span class="sub">cumulative profit over time</span></div><div class="table-wrap"><table><thead><tr><th>Month</th><th style="text-align:right">Net cash flow</th><th style="text-align:right">Running balance</th><th>Status</th></tr></thead><tbody>';
+  html+='<div class="sec"><div class="card-head"><h3>Running balance</h3><span class="sub">cumulative profit over time</span></div><div class="table-wrap"><table><thead><tr><th>Month</th><th style="text-align:right">Net cash flow</th><th style="text-align:right">Running balance</th><th>Status</th></tr></thead><tbody>';
   rows.slice().reverse().forEach(function(r){
     html+='<tr><td style="font-weight:600">'+monthLabel(r.k)+'</td>'+
       '<td class="num" style="text-align:right;color:'+(r.net>=0?'var(--income)':'var(--expense)')+'">'+(r.net>=0?'+':'')+fmtMoney(r.net)+'</td>'+
@@ -6096,7 +6142,7 @@ function viewGoals(){/* goal cards align to their own height (no stretched hollo
     }).join('')+'</div>';
   var list=ui.goalFilter==='open'?open:(ui.goalFilter==='done'?done:state.goals);
   if(!list.length){
-    html+='<div class="card mt">'+emptyState('goals','No goals here','Goals give every week a direction. Revenue and profit goals track themselves from your finance data.','<button class="btn btn-sm btn-primary" data-action="open-goal-modal">'+icon('plus')+' Create a goal</button>')+'</div>';
+    html+='<div class="empty-slot">'+emptyState('goals','No goals here','Goals give every week a direction. Revenue and profit goals track themselves from your finance data.','<button class="btn btn-sm btn-primary" data-action="open-goal-modal">'+icon('plus')+' Create a goal</button>')+'</div>';
     return html;
   }
   html+='<div class="grid grid-2 mt" style="align-items:start">';
@@ -7489,7 +7535,7 @@ function viewRoadmap(){
     '</div>';
   }
   if(!rm){
-    html+='<div class="card">'+emptyState('roadmap','No roadmaps yet','Create a roadmap for each big push ("Launch 1", "Q3 expansion", "Christmas collection"), then break it into phases with milestone tasks.','<button class="btn btn-sm btn-primary" data-action="roadmap-new">'+icon('plus')+' Create first roadmap</button>')+'</div>';
+    html+='<div class="empty-slot">'+emptyState('roadmap','No roadmaps yet','Create a roadmap for each big push ("Launch 1", "Q3 expansion", "Christmas collection"), then break it into phases with milestone tasks.','<button class="btn btn-sm btn-primary" data-action="roadmap-new">'+icon('plus')+' Create first roadmap</button>')+'</div>';
     return html;
   }
   var rs=roadmapStats(rm);
@@ -7518,7 +7564,7 @@ function viewRoadmap(){
   }
   var phases=(rm.phases||[]);
   if(!phases.length){
-    html+='<div class="card mt">'+emptyState('roadmap','"'+rm.name+'" has no phases yet','Break it into stages (e.g. "Prepare", "Launch", "Scale") and add milestone tasks under each.','<button class="btn btn-sm btn-primary" data-action="open-phase-modal">'+icon('plus')+' First phase</button>')+'</div>';
+    html+='<div class="empty-slot">'+emptyState('roadmap','"'+rm.name+'" has no phases yet','Break it into stages (e.g. "Prepare", "Launch", "Scale") and add milestone tasks under each.','<button class="btn btn-sm btn-primary" data-action="open-phase-modal">'+icon('plus')+' First phase</button>')+'</div>';
     return html;
   }
   html+='<div class="card mt" style="padding:24px 24px 6px">';
@@ -7611,7 +7657,8 @@ function viewTasks(){
     var pr={High:0,Medium:1,Low:2};
     return (a.deadline||'9999').localeCompare(b.deadline||'9999')||(pr[a.priority]||1)-(pr[b.priority]||1);
   });
-  html+='<div class="card mt">';
+  /* a list of task rows is a list, not a card: the rows already carry rules */
+  html+='<div class="'+(list.length?'sec rows':'empty-slot')+'">';
   if(!list.length) html+=emptyState('tasks','No tasks here','Adjust the filters or add a task with the quick-add bar above.');
   else html+=list.map(taskRowHTML).join('');
   html+='</div>';
@@ -7620,7 +7667,7 @@ function viewTasks(){
     var doneList=state.tasks.filter(function(t){return t.done;})
       .sort(function(a,b){ return (b.completedAt||'').localeCompare(a.completedAt||''); }).slice(0,8);
     if(doneList.length){
-      html+='<div class="card mt"><div class="card-head"><h3>'+icon('check',16)+' Completed recently</h3><span class="sub">still editable, untick to reopen</span><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="task-filter-status" data-val="done">All completed</button></div>'+
+      html+='<div class="sec rows"><div class="card-head"><h3>'+icon('check',16)+' Completed recently</h3><span class="sub">still editable, untick to reopen</span><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="task-filter-status" data-val="done">All completed</button></div>'+
         doneList.map(taskRowHTML).join('')+'</div>';
     }
   }
@@ -7664,7 +7711,7 @@ function viewNotes(){
     return true;
   }).sort(function(a,b){ return (b.pinned?1:0)-(a.pinned?1:0)||(b.updatedAt||'').localeCompare(a.updatedAt||''); });
   if(!list.length){
-    html+='<div class="card">'+emptyState('notes',state.notes.length?'No matching notes':'No notes yet','Capture business ideas, meeting outcomes and strategy thoughts before they evaporate.','<button class="btn btn-sm btn-primary" data-action="open-note-modal">'+icon('plus')+' Write a note</button>')+'</div>';
+    html+='<div class="empty-slot">'+emptyState('notes',state.notes.length?'No matching notes':'No notes yet','Capture business ideas, meeting outcomes and strategy thoughts before they evaporate.','<button class="btn btn-sm btn-primary" data-action="open-note-modal">'+icon('plus')+' Write a note</button>')+'</div>';
     return html;
   }
   html+='<div class="grid grid-3">';
@@ -7746,7 +7793,7 @@ function viewManpower(){
   (state.settings.hrCustomCards||[]).forEach(function(c){ cards.push(statCard(c.label||'Custom',hrCustomValue(c),'<span class="stat-delta flat">custom</span>','','metrics')); });
   if(cards.length) html+='<div class="grid grid-4">'+cards.join('')+'</div>';
   if(!emps.length){
-    html+='<div class="card mt">'+emptyState('idcard','No employees yet','Add your team to track salaries, days worked, cash advances (vale), bonuses and 13th-month pay, and add your own custom fields and cards.','<button class="btn btn-sm btn-primary" data-action="hr-add">'+icon('plus')+' Add first employee</button>')+'</div>';
+    html+='<div class="empty-slot">'+emptyState('idcard','No employees yet','Add your team to track salaries, days worked, cash advances (vale), bonuses and 13th-month pay, and add your own custom fields and cards.','<button class="btn btn-sm btn-primary" data-action="hr-add">'+icon('plus')+' Add first employee</button>')+'</div>';
     return html;
   }
   html+='<div class="hr-grid mt">';
@@ -8125,7 +8172,7 @@ function viewClients(){
     CLIENT_STATUSES.map(function(s){return '<button class="chip '+(ui.clientFilter===s?'active':'')+'" data-action="client-filter" data-val="'+s+'">'+s+' ('+(byStatus[s]||0)+')</button>';}).join('')+'</div>';
   var list=state.clients.filter(function(c){ return ui.clientFilter==='all'||c.status===ui.clientFilter; })
     .sort(function(a,b){ return (revByClient[(b.name||'').toLowerCase()]||b.value||0)-(revByClient[(a.name||'').toLowerCase()]||a.value||0); });
-  html+='<div class="card mt">';
+  html+='<div class="'+(list.length?'sec':'empty-slot')+'">';
   if(!list.length){
     html+=emptyState('clients',state.clients.length?'No clients with this status':'No clients yet','Track leads and clients here. Income entries tagged with a client name automatically show as tracked revenue.','<button class="btn btn-sm btn-primary" data-action="open-client-modal">'+icon('plus')+' Add first client</button>');
   } else {
@@ -9915,7 +9962,7 @@ function processRecurringInvoices(){
 }
 function recurringInvoicesCardHTML(){
   var list=state.recurringInvoices||[];
-  var html='<div class="card mt"><div class="card-head"><h3>'+icon('refresh',16)+' Recurring invoices</h3><span class="sub">retainers &amp; subscriptions, auto-created each month</span><span class="spacer"></span><button class="btn btn-sm btn-primary" data-action="rinv-new">'+icon('plus')+' New recurring</button></div>';
+  var html='<div class="sec rows"><div class="card-head"><h3>'+icon('refresh',16)+' Recurring invoices</h3><span class="sub">retainers &amp; subscriptions, auto-created each month</span><span class="spacer"></span><button class="btn btn-sm btn-primary" data-action="rinv-new">'+icon('plus')+' New recurring</button></div>';
   if(!list.length){ html+='<p style="font-size:.82rem;color:var(--text-3)">Set up a monthly retainer once and the invoice drafts itself every month, even for months you missed.</p></div>'; return html; }
   html+='<div class="table-wrap"><table><thead><tr><th>Client</th><th>Description</th><th class="num" style="text-align:right">Amount</th><th>Issued</th><th>Status</th><th></th></tr></thead><tbody>';
   list.forEach(function(r){
@@ -9980,7 +10027,7 @@ function viewInvoices(){
     statCard('All-time invoiced',fmtMoney(sum(state.invoices||[],invPHP)),fxTotalsCaveatHTML(state.invoices),'','cash')+
   '</div>';
   html+=fxInvoiceNoticeHTML();
-  html+='<div class="card mt-lg">';
+  html+='<div class="'+((state.invoices||[]).length?'sec':'empty-slot')+'">';
   if(!(state.invoices||[]).length){
     html+=emptyState('invoice','No invoices yet','Create an invoice for a client. Marking it Paid automatically records the income in Finance.','<button class="btn btn-sm btn-primary" data-action="invoice-new">'+icon('plus')+' Create first invoice</button>')+'</div>';
     html+=recurringInvoicesCardHTML();
@@ -10411,7 +10458,7 @@ function viewReport(){
     if(e.type==='income'&&e.client&&monthKey(e.date)===selected) byClient[e.client]=(byClient[e.client]||0)+e.amount;
   });
   var clientKeys=Object.keys(byClient).sort(function(a,b){return byClient[b]-byClient[a];}).slice(0,6);
-  html+='<div class="card mt"><div class="card-head"><h3>Top clients in '+monthLabel(selected)+'</h3></div>';
+  html+='<div class="sec rows"><div class="card-head"><h3>Top clients in '+monthLabel(selected)+'</h3></div>';
   if(clientKeys.length){
     clientKeys.forEach(function(k){
       var pct=d.revenue>0?byClient[k]/d.revenue*100:0;
@@ -10968,7 +11015,7 @@ function viewProducts(){
   html+='<div class="chips mt-lg"><button class="chip '+(sel==='all'?'active':'')+'" data-action="product-cat-filter" data-val="all">All</button>'+
     cats.map(function(c){return '<button class="chip '+(sel===c?'active':'')+'" data-action="product-cat-filter" data-val="'+esc(c)+'">'+esc(c)+'</button>';}).join('')+'</div>';
   var list=prods.filter(function(p){ return sel==='all'||p.category===sel; });
-  html+='<div class="card mt">';
+  html+='<div class="'+(list.length?'sec':'empty-slot')+'">';
   if(!list.length){
     html+=emptyState('box',prods.length?'No products in this category':'No products yet','Add your products with price, cost and stock. Custom attributes like Scent and Color are set below in “Customize catalog”.','<button class="btn btn-sm btn-primary" data-action="product-new">'+icon('plus')+' Add first product</button>');
   } else {
@@ -11013,7 +11060,7 @@ function viewProducts(){
       '<input class="input" name="fopts" placeholder="dropdown options, comma separated (e.g. Small, Medium, Large)" style="grid-column:1/-1;display:none" data-fopts>'+
     '</form></div></div></div></div>';
   if(archived.length){
-    html+='<div class="card mt"><div class="card-head"><h3>Archived products</h3></div>'+archived.map(function(p){
+    html+='<div class="sec rows"><div class="card-head"><h3>Archived products</h3></div>'+archived.map(function(p){
       return '<div class="list-row"><span style="flex:1;color:var(--text-3)">'+esc(p.name)+'</span><button class="btn btn-sm btn-ghost" data-action="product-unarchive" data-id="'+p.id+'">'+icon('refresh')+' Restore</button></div>';
     }).join('')+'</div>';
   }
@@ -11194,7 +11241,7 @@ function viewOrders(){
   var oLimit=ui.ordersLimit||30;
   var oTotal=list.length;
   list=list.slice(0,oLimit);
-  html+='<div class="card mt">';
+  html+='<div class="'+(list.length?'sec rows':'empty-slot')+'">';
   if(!list.length){
     html+=emptyState('truck',orders.length?'No orders here':'No orders yet','Create an order: pick products and enter the delivery address. Stock, totals and income are handled for you.','<button class="btn btn-sm btn-primary" data-action="order-new">'+icon('plus')+' First order</button>');
   } else {
@@ -11348,7 +11395,7 @@ function viewCustomModule(id){
     '<button class="btn btn-ghost" data-action="custom-module-fields" data-id="'+m.id+'">'+icon('settings')+'<span class="btn-txt">Fields</span></button>'+
     '<button class="btn btn-primary" data-action="cm-record-new" data-id="'+m.id+'">'+icon('plus')+'<span class="btn-txt">Add record</span></button>');
   if(!(m.fields||[]).length){
-    html+='<div class="card">'+emptyState('settings','Define your fields first','Add the columns this table should have: text, numbers, money, dates, dropdowns or checkboxes.','<button class="btn btn-sm btn-primary" data-action="custom-module-fields" data-id="'+m.id+'">'+icon('plus')+' Add fields</button>')+'</div>';
+    html+='<div class="empty-slot">'+emptyState('settings','Define your fields first','Add the columns this table should have: text, numbers, money, dates, dropdowns or checkboxes.','<button class="btn btn-sm btn-primary" data-action="custom-module-fields" data-id="'+m.id+'">'+icon('plus')+' Add fields</button>')+'</div>';
     html+=cmFooterHTML(m);
     return html;
   }
@@ -12076,7 +12123,7 @@ function viewMaterials(){
     statCard('Low / out',String(lowCount),lowCount?'<span class="stat-delta down">reorder soon</span>':'<span class="stat-delta up">all stocked</span>','','alert')+
     statCard('Material value',fmtMoney(invValue),'<span class="stat-delta flat">cash sitting in supplies</span>','','cash')+
   '</div>';
-  html+='<div class="card mt">';
+  html+='<div class="'+(mats.length?'sec':'empty-slot')+'">';
   if(!mats.length){
     html+=emptyState('box','No materials yet','Add your wax, wicks, jars, oils and packaging. Then attach a recipe to each product (edit product → Recipe) and ingredient usage is tracked automatically.','<button class="btn btn-sm btn-primary" data-action="material-new">'+icon('plus')+' Add first material</button>');
   } else {
@@ -12632,7 +12679,7 @@ function viewAccounts(){
     '<span style="font-size:.72rem;color:var(--text-3)">bank · e-wallet · cash</span></div>';
   html+='</div>';
   if(!accts.length){
-    html+='<div class="card mt">'+emptyState('bank','No accounts yet','Add your bank account, GCash/Maya wallet and cash box with their current balances. New income and expenses can then be assigned to an account, so each balance stays accurate.','<button class="btn btn-sm btn-primary" data-action="account-new">'+icon('plus')+' Add first account</button>')+'</div>';
+    html+='<div class="empty-slot">'+emptyState('bank','No accounts yet','Add your bank account, GCash/Maya wallet and cash box with their current balances. New income and expenses can then be assigned to an account, so each balance stays accurate.','<button class="btn btn-sm btn-primary" data-action="account-new">'+icon('plus')+' Add first account</button>')+'</div>';
     return html;
   }
   // unassigned entries notice
@@ -12642,7 +12689,7 @@ function viewAccounts(){
   }
   // transfers history
   var tr=(state.transfers||[]).slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
-  html+='<div class="card mt"><div class="card-head"><h3>Transfers between accounts</h3><span class="sub">moving money around is not income or expense, so it is tracked separately and your P&amp;L stays honest</span><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="transfer-new">'+icon('plus')+' Transfer</button></div>';
+  html+='<div class="sec rows"><div class="card-head"><h3>Transfers between accounts</h3><span class="sub">moving money around is not income or expense, so it is tracked separately and your P&amp;L stays honest</span><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="transfer-new">'+icon('plus')+' Transfer</button></div>';
   if(!tr.length){
     html+='<p style="font-size:.82rem;color:var(--text-3)">No transfers yet: e.g. sweeping GCash collections into the bank.</p>';
   } else {
@@ -12974,7 +13021,7 @@ function viewYearReport(){
     statCard('Net profit',fmtMoney(yd.profit),'<span class="stat-delta '+(yd.profit>=0?'up':'down')+'">'+(yd.revenue>0?fmtPct(yd.profit/yd.revenue*100,0)+' margin':'—')+'</span>','','wallet')+
     statCard('Best month',yd.bestMonth?monthLabel(yd.bestMonth):'—',yd.bestMonth?'<span class="stat-delta up">'+fmtMoney(yd.bestAmount)+' revenue</span>':'','','spark')+
   '</div>';
-  html+='<div class="card mt"><div class="card-head"><h3>Month by month in '+selected+'</h3></div><div class="table-wrap"><table><thead><tr><th>Month</th><th style="text-align:right">Revenue</th><th style="text-align:right">Expenses</th><th style="text-align:right">Profit</th></tr></thead><tbody>'+
+  html+='<div class="sec"><div class="card-head"><h3>Month by month in '+selected+'</h3></div><div class="table-wrap"><table><thead><tr><th>Month</th><th style="text-align:right">Revenue</th><th style="text-align:right">Expenses</th><th style="text-align:right">Profit</th></tr></thead><tbody>'+
     yd.months.map(function(r){
       return '<tr><td style="font-weight:600">'+monthLabel(r.k)+'</td><td class="num" style="text-align:right;color:var(--income)">'+fmtMoney(r.rev)+'</td><td class="num" style="text-align:right;color:var(--expense)">'+fmtMoney(r.exp)+'</td><td class="num" style="text-align:right;font-weight:700;color:'+(r.rev-r.exp>=0?'var(--income)':'var(--expense)')+'">'+fmtMoney(r.rev-r.exp)+'</td></tr>';
     }).join('')+
@@ -13275,7 +13322,7 @@ function viewUtang(){
     if(ba!==bb) return ba?-1:1;
     return (a.date||'').localeCompare(b.date||'');
   });
-  html+='<div class="card mt-lg">';
+  html+='<div class="'+(list.length?'sec':'empty-slot')+'">';
   if(!list.length){
     html+=emptyState('ledger','No customer credit yet','When a regular customer says "I\'ll pay later," record it here. Track partial payments, and income is only counted when cash actually arrives: honest cash-basis bookkeeping.','<button class="btn btn-sm btn-primary" data-action="utang-new">'+icon('plus')+' '+esc(tr('Add credit'))+'</button>');
   } else {
@@ -14041,8 +14088,8 @@ function taskTableHTML(){
     if(a.done!==b.done) return a.done?1:-1;
     return (a.deadline||'9999').localeCompare(b.deadline||'9999');
   });
-  if(!list.length) return '<div class="card mt">'+emptyState('tasks','No tasks yet','Add tasks with the quick-add bar above.')+'</div>';
-  var html='<div class="card mt"><div class="table-wrap"><table><thead><tr><th></th><th>Task</th><th>Status</th><th>Priority</th><th>Cadence</th><th>Due</th><th></th></tr></thead><tbody>';
+  if(!list.length) return '<div class="empty-slot">'+emptyState('tasks','No tasks yet','Add tasks with the quick-add bar above.')+'</div>';
+  var html='<div class="sec"><div class="table-wrap"><table><thead><tr><th></th><th>Task</th><th>Status</th><th>Priority</th><th>Cadence</th><th>Due</th><th></th></tr></thead><tbody>';
   list.forEach(function(t){
     var d=daysUntil(t.deadline);
     var late=!t.done&&d!=null&&d<0;
