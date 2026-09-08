@@ -1170,6 +1170,11 @@ html[data-theme="dark"] .card.metric-card{box-shadow:none}
 .card.lead-card::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:0 3px 3px 0;background:var(--warn)}
 .card.lead-card.lead-info::before{background:var(--info)}
 
+/* a calculator is a tool you type into. A sunken ground lets its input fields
+   read as the raised part, which is the opposite of a reporting panel. */
+.card.calc-card{background:var(--bg-sunken);border-color:transparent;border-radius:var(--r-lg);padding:16px 18px;box-shadow:none}
+.card.calc-card:hover{border-color:var(--border-2);box-shadow:none}
+
 /* a note is a slip of paper, not a panel: flatter, squarer, no lift */
 .card.note-card{border-radius:var(--r-lg);padding:15px 16px;box-shadow:none}
 
@@ -1177,6 +1182,9 @@ html[data-theme="dark"] .card.metric-card{box-shadow:none}
    rather than a solid card pretending there is something inside. */
 .empty-slot{border:1px dashed var(--border-2);border-radius:var(--r-xl);margin-top:16px}
 .grid{display:grid;gap:var(--grid-gap)}
+/* a row of figures has no boxes to hold it apart any more, so it needs more air
+   between columns than a row of panels does. Rows still use the normal gutter. */
+.grid:has(>.stat-card){gap:var(--grid-gap) 30px}
 .grid-2{grid-template-columns:repeat(2,1fr)}
 .grid-3{grid-template-columns:repeat(3,1fr)}
 .grid-4{grid-template-columns:repeat(4,1fr)}
@@ -1225,7 +1233,9 @@ html[data-theme="dark"] .card.metric-card{box-shadow:none}
 /* (the per-card entrance stagger that used to live here is gone with the card
    entrance itself: see the "section change" block: staggered children were the
    blink.) */
-.mt{margin-top:12px}.mt-lg{margin-top:20px}
+/* rhythm, not a ruler. .mt keeps a block with the one above it; .mt-lg starts a
+   new thought, so it opens wider than it used to (20px read as the same beat). */
+.mt{margin-top:12px}.mt-lg{margin-top:28px}
 
 /* ============================================================================
    Tailwind-compatible atomic utility layer: authored IN-FILE (no CDN, no build).
