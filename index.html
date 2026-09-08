@@ -1141,14 +1141,24 @@ html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--
    four different objects and now read as four. Each picks its own rung on the
    concentric radius scale (10/13/17/22/28) and its own weight. */
 
-/* summary tile: one number, the lightest object on the page. No shadow, a
-   sunken ground instead of a raised one, one rung down from a panel. */
-.card.stat-card,.card.metric-card{
-  background:var(--bg-sunken);border-color:transparent;border-radius:var(--r-lg);
-  padding:14px 16px;box-shadow:none;
+/* summary tile: one number. It is not a container, it is a figure, so it loses
+   the box entirely and keeps only the rule that ties a row of figures together.
+   The rule is the hover target too, which is why the border shorthand is reset
+   first and only the top edge drawn. */
+.card.stat-card{
+  background:transparent;border:0;border-top:2px solid var(--border-2);border-radius:0;
+  padding:13px 12px 12px 2px;box-shadow:none;
 }
-.card.stat-card:hover,.card.metric-card:hover{border-color:var(--border-2);box-shadow:none}
-html[data-theme="dark"] .card.stat-card,html[data-theme="dark"] .card.metric-card{box-shadow:none}
+.card.stat-card:hover{border-top-color:var(--accent);box-shadow:none}
+html[data-theme="dark"] .card.stat-card{box-shadow:none}
+/* a tracked metric carries an explanation as well as a number, so it keeps a
+   surface, but a quiet sunken one a rung below a panel */
+.card.metric-card{
+  background:var(--bg-sunken);border-color:transparent;border-radius:var(--r-lg);
+  padding:15px 16px;box-shadow:none;
+}
+.card.metric-card:hover{border-color:var(--border-2);box-shadow:none}
+html[data-theme="dark"] .card.metric-card{box-shadow:none}
 
 /* an account holds real money: the heaviest rung, a firmer edge, more room */
 .card.acct-card{border-radius:var(--r-2xl);border-color:var(--border-2);padding:20px 22px}
