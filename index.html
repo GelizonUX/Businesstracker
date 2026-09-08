@@ -5827,7 +5827,7 @@ function financeEntriesHTML(){
     return true;
   }).sort(function(a,b){ return (b.date||'').localeCompare(a.date||'')||(b.id>a.id?1:-1); });
 
-  var html='<div class="card"><div class="card-head">'+
+  var html='<div class="sec"><div class="card-head">'+
     '<div class="searchbar">'+icon('search')+'<input class="input" placeholder="Search note, category, client…" value="'+esc(f.q)+'" data-action-input="finance-search"></div>'+
     '<button class="btn btn-ghost btn-sm" data-action="export-csv" data-what="finance" title="Export all entries to CSV">'+icon('download')+' CSV</button>'+
     '<select class="input" style="width:auto" data-action-change="finance-filter-type"><option value="all"'+(f.type==='all'?' selected':'')+'>All types</option><option value="income"'+(f.type==='income'?' selected':'')+'>Income</option><option value="expense"'+(f.type==='expense'?' selected':'')+'>Expenses</option></select>'+
@@ -8532,7 +8532,7 @@ function viewPrivacy(){
       '<span class="spacer"></span><span class="badge neutral">Updated '+esc(fmtDate(PRIVACY_UPDATED))+'</span></div>'+
     '<p style="font-size:.9rem;color:var(--text-2)">Your books live in this browser, on this device. There is no Trakora account and no Trakora server holding them, which means nobody here can read your numbers, and nobody here can get them back for you either. Four things reach the internet, all of them listed below, none of them carrying your business data unless you switch cloud sync on yourself.</p></div>';
 
-  html+='<div class="card mt"><div class="card-head"><h3>Where your data lives</h3></div>'+
+  html+='<div class="sec"><div class="card-head"><h3>Where your data lives</h3></div>'+
     '<p style="font-size:.86rem;color:var(--text-2)">Your browser stores it under three names on this device: <span class="mono">bizpilot.v1</span> for everything you have typed in, <span class="mono">bizpilot.device</span> for a random id that counts this device against your license, and <span class="mono">bizpilot.activation</span> for the license itself. Receipt photos are saved inside that same record as image data, not as files.</p>'+
     '<p style="font-size:.86rem;color:var(--text-2)">That is the whole storage story, and it cuts both ways. Clearing site data, a browser reset, a private window, a new laptop: any of those and it is gone, because there is no copy anywhere else. Export a backup and keep it somewhere that is not this browser.</p>'+
     (enc?'<p style="font-size:.86rem;color:var(--good)">'+icon('shield',13)+' Your saved data is encrypted with AES-256 on this device and cannot be read without your PIN.</p>'
@@ -8542,7 +8542,7 @@ function viewPrivacy(){
       '<button class="btn btn-ghost btn-sm" data-action="settings-go" data-tab="data">'+icon('settings')+' Backup, sync &amp; lock settings</button>'+
     '</div></div>';
 
-  html+='<div class="card mt"><div class="card-head"><h3>What leaves this device</h3><span class="sub">four connections, and no others</span></div>'+
+  html+='<div class="sec"><div class="card-head"><h3>What leaves this device</h3><span class="sub">four connections, and no others</span></div>'+
     '<p style="font-size:.86rem;color:var(--text-2)">Adding an entry, printing an invoice, running a report and every calculator work entirely offline. Nothing below is sent while you do any of that.</p>'+
 
     privacyConnectionHTML('Exchange rates','open.er-api.com · automatic, on money screens',
@@ -8563,14 +8563,14 @@ function viewPrivacy(){
       'Set it up, or turn it off, in Settings &#9656; Data &#9656; Cloud sync. The rules to lock that database down are on the same screen.')+
     '</div>';
 
-  html+='<div class="card mt"><div class="card-head"><h3>What Trakora does not do</h3></div>'+
+  html+='<div class="sec"><div class="card-head"><h3>What Trakora does not do</h3></div>'+
     '<p style="font-size:.86rem;color:var(--text-2)">No cookies. Not "essential cookies only": the app never touches <span class="mono">document.cookie</span>, and the storage it does use is listed above. No analytics of any kind, no advertising, no third-party trackers or pixels, no crash or usage reporting, no A/B testing, no email list. The fonts are built into the file rather than pulled from a font CDN, which is why the app still looks right with the internet off.</p>'+
     '<p style="font-size:.86rem;color:var(--text-2)">There is no account to create, so there is nothing to profile. The seller learns that a license was activated and on how many devices. Not what you sell, not who your customers are, not a peso of it.</p></div>';
 
-  html+='<div class="card mt"><div class="card-head"><h3>The people in your records</h3></div>'+
+  html+='<div class="sec"><div class="card-head"><h3>The people in your records</h3></div>'+
     '<p style="font-size:.86rem;color:var(--text-2)">Client names, contact details, credit ledgers, order addresses: you put those in, and under your own country\'s data protection law they are your responsibility, not Trakora\'s. Practically, that means the backup file you export is a full copy of your customer list, so treat it like one. The PIN lock encrypts what is stored on this device, and deleting a client here deletes them everywhere Trakora keeps them.</p></div>';
 
-  html+='<div class="card mt"><div class="card-head"><h3>Changes, and asking about any of this</h3></div>'+
+  html+='<div class="sec"><div class="card-head"><h3>Changes, and asking about any of this</h3></div>'+
     '<p style="font-size:.86rem;color:var(--text-2)">This page is dated at the top and ships inside the app, so a new version arrives with a new build and you can compare. If a connection is ever added or removed, that date moves.</p>'+
     '<p style="font-size:.86rem;color:var(--text-2)">Questions, or a request to have something explained in writing: '+
       (PRIVACY_CONTACT?'<a href="mailto:'+esc(PRIVACY_CONTACT)+'">'+esc(PRIVACY_CONTACT)+'</a>.':'contact whoever you bought Trakora from.')+'</p>'+
@@ -11410,7 +11410,7 @@ function viewCustomModule(id){
     return html;
   }
   var q=(ui.cmQ&&ui.cmQ[m.id])||'';
-  html+='<div class="card"><div class="card-head">'+
+  html+='<div class="sec"><div class="card-head">'+
     '<div class="searchbar">'+icon('search')+'<input class="input" placeholder="Search records…" value="'+esc(q)+'" data-action-input="cm-search" data-id="'+m.id+'"></div>'+
     '<span class="sub">'+(m.records||[]).length+' record'+((m.records||[]).length===1?'':'s')+'</span></div>';
   var records=(m.records||[]).filter(function(r){
