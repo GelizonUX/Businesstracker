@@ -6332,15 +6332,23 @@ function rmNodeInnerHTML(d){
   return head+count+fold+rmQaddSlots(d.nid)+tools;
 }
 function rmNodeHTML(d){ return '<div class="'+rmDescCls(d)+'" data-nid="'+d.nid+'" data-kind="'+d.kind+'"'+(d.kind!=='center'?' data-id="'+d.nid.slice(2)+'"':'')+' style="left:'+d.left+'px;top:'+d.top+'px;--nc:'+d.nc+'">'+rmNodeInnerHTML(d)+'</div>'; }
-function rmEdgeHTML(e){ return '<path data-edge="'+e.key+'"'+(e.from?' data-from="'+e.from+'"':'')+(e.link?' class="rm-link"':'')+' d="'+e.d+'" stroke="'+e.stroke+'" marker-end="url(#rm-arrow)" />'; }
+/* Roadmap objects are the one place state reaches an ATTRIBUTE rather than a text node,
+   and importData()/cloudPull() deepMerge whatever JSON they are handed. A colour of
+   `red" onmouseover="…` therefore closed the attribute and installed a live handler, in
+   the same origin as the owner's books and their stored licence key, on a backup someone
+   sent them. Geometry was injectable the same way. Colours go through safeColor(), the
+   numbers through rmNum(), ids and path data through esc(). */
+function rmNum(v,fb){ v=parseFloat(v); return isFinite(v)?v:(fb||0); }
+function rmEdgeHTML(e){ return '<path data-edge="'+esc(e.key)+'"'+(e.from?' data-from="'+esc(e.from)+'"':'')+(e.link?' class="rm-link"':'')+' d="'+esc(e.d)+'" stroke="'+esc(safeColor(e.stroke,'currentColor'))+'" marker-end="url(#rm-arrow)" />'; }
 function rmBuildBoard(rm,pos){ var col=rmCollect(rm,pos);
   return {edges:col.edges.map(rmEdgeHTML).join(''), nodes:col.order.map(function(nid){return rmNodeHTML(col.nodes[nid]);}).join('')}; }
 /* freeform FigJam objects: sections (frames, behind) and stamps (emoji, on top) */
-function rmFrameHTML(f){ return '<div class="rm-frame" data-frame="'+f.id+'" style="left:'+f.x+'px;top:'+f.y+'px;width:'+f.w+'px;height:'+f.h+'px;--fc:'+(f.color||'#7c5cd6')+'">'+
-  '<span class="rm-frame-label" data-frame-label="'+f.id+'">'+esc(f.name||'Section')+'</span>'+
-  '<button class="rm-frame-del" data-action="rm-frame-del" data-frame="'+f.id+'" tabindex="-1" title="Delete section">&#215;</button>'+
-  '<span class="rm-frame-rz" data-frame-rz="'+f.id+'" title="Resize"></span></div>'; }
-function rmStampHTML(s){ return '<div class="rm-stamp" data-stamp="'+s.id+'" style="left:'+s.x+'px;top:'+s.y+'px" title="Drag to move · double-click to remove">'+esc(s.emoji||'⭐')+'</div>'; }
+function rmFrameHTML(f){ var id=esc(f.id);
+  return '<div class="rm-frame" data-frame="'+id+'" style="left:'+rmNum(f.x)+'px;top:'+rmNum(f.y)+'px;width:'+rmNum(f.w,120)+'px;height:'+rmNum(f.h,80)+'px;--fc:'+esc(safeColor(f.color,'#7c5cd6'))+'">'+
+  '<span class="rm-frame-label" data-frame-label="'+id+'">'+esc(f.name||'Section')+'</span>'+
+  '<button class="rm-frame-del" data-action="rm-frame-del" data-frame="'+id+'" tabindex="-1" title="Delete section">&#215;</button>'+
+  '<span class="rm-frame-rz" data-frame-rz="'+id+'" title="Resize"></span></div>'; }
+function rmStampHTML(s){ return '<div class="rm-stamp" data-stamp="'+esc(s.id)+'" style="left:'+rmNum(s.x)+'px;top:'+rmNum(s.y)+'px" title="Drag to move · double-click to remove">'+esc(s.emoji||'⭐')+'</div>'; }
 function rmFramesHTML(rm){ return (rm.frames||[]).map(rmFrameHTML).join(''); }
 function rmStampsHTML(rm){ return (rm.stamps||[]).map(rmStampHTML).join(''); }
 function rmCommentHTML(c){ return '<div class="rm-comment'+((c.text||'').trim()?' has-text':'')+'" data-comment="'+c.id+'" data-action="rm-comment-open" style="left:'+c.x+'px;top:'+c.y+'px" title="'+esc((c.text||'').slice(0,60)||'Comment')+'">'+icon('chat',14)+'</div>'; }
