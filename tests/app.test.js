@@ -2281,7 +2281,8 @@ async function main() {
       const adv = d.getElementById('main').innerHTML;
       ok('advisor shows the cash in vs out chart with a style switcher',
         /Cash in vs out/.test(adv) && /data-chart="advisor"/.test(adv) && /class="c-svg"/.test(adv));
-      ok('advisor cash chart defaults to the area style', /class="c-area"/.test(adv));
+      ok('advisor cash chart opens on the trend view (the Advisor argues about direction)',
+        /data-cint="trend"/.test(adv) && /class="c-line c-rev"/.test(adv) && !/c-area/.test(adv));
       ok('advisor shows the diverging profit-by-month chart', /Profit by month/.test(adv) && /c-zero/.test(adv));
       ok('advisor shows the spending mix with donut/bars options (private style key)', /Where the money goes/.test(adv) && /data-chart="advisorCats"/.test(adv));
       ok('advisor shows the month pace meter', /This month(’|')s pace/.test(adv) && /On pace for/.test(adv));
@@ -2418,13 +2419,51 @@ async function main() {
       var mm = { '2026-01': { revenue: 1000, expenses: 400 }, '2026-02': { revenue: 1500, expenses: 600 }, '2026-03': { revenue: 900, expenses: 700 } };
       var months = ['2026-01', '2026-02', '2026-03'];
       // three graph styles are all available and structurally distinct
-      var bars = window.svgSeries(months, mm, 'bars');
-      var line = window.svgSeries(months, mm, 'line');
-      var area = window.svgSeries(months, mm, 'area');
-      ok('svgSeries bars renders animated bars', /class="c-bar c-rev"/.test(bars) && /animation-delay/.test(bars));
-      ok('svgSeries line renders a draw-animated polyline (pathLength)', /class="c-line c-rev"/.test(line) && /pathLength="100"/.test(line) && !/c-bar/.test(line));
-      ok('svgSeries area renders a gradient fill under the line', /class="c-area"/.test(area) && /linearGradient/.test(area));
-      ok('every series style carries per-column hover tooltips', (bars.match(/data-ctip=/g) || []).length === 3 && /class="c-pt"/.test(line));
+      var bars = window.svgSeries(months, mm, 'compare');
+      var line = window.svgSeries(months, mm, 'trend');
+      var net = window.svgSeries(months, mm, 'net');
+      ok('compare renders animated grouped bars against a period-average reference line',
+        /class="c-bar c-rev"/.test(bars) && /animation-delay/.test(bars) && /class="c-ref"/.test(bars) && /avg revenue/.test(bars));
+      ok('trend renders two polylines and no bars', /class="c-line c-rev"/.test(line) && /pathLength="100"/.test(line) && !/c-bar/.test(line));
+      // THE defect the owner reported: 'line' and 'area' used to be the same drawing.
+      ok('the three views are structurally different drawings, not one repainted',
+        bars !== line && line !== net && bars !== net &&
+        /c-bar c-rev/.test(bars) && !/c-bar/.test(line) && /c-line c-net/.test(net) &&
+        !/c-line c-net/.test(bars) && !/c-line c-net/.test(line) && !/c-ref/.test(net));
+      ok('the removed area view is gone, aliases land on real views',
+        /data-cint="trend"/.test(window.svgSeries(months, mm, 'area')) &&
+        /data-cint="compare"/.test(window.svgSeries(months, mm, 'bars')) &&
+        !/c-area/.test(bars + line + net));
+      // net answers what neither of the others can: where the whole period leaves you
+      var runFix = window.svgSeries(['2026-01', '2026-02', '2026-03'],
+        { '2026-01': { revenue: 100, expenses: 900 }, '2026-02': { revenue: 100, expenses: 200 }, '2026-03': { revenue: 3000, expenses: 100 } }, 'net');
+      ok('net accumulates and marks the month the running total turns positive',
+        /class="c-zero"/.test(runFix) && /c-bar c-neg/.test(runFix) && /c-bar c-pos/.test(runFix) &&
+        /class="c-cross"/.test(runFix) && /back in the black/.test(runFix));
+      ok('net tooltips read the running total, not a repeat of the monthly profit',
+        /Running total/.test(net) && !/Running total/.test(bars));
+      ok('no chart view emits a gradient (owner ban)',
+        !/linearGradient|radialGradient/.test(bars + line + net + runFix));
+      ok('money out is hatched, money in is solid, so the pair survives deuteranopia',
+        /<pattern id="cg\d+h"/.test(bars) && /fill:url\(#cg\d+h\)/.test(bars) && /c-bar c-exp c-hatch/.test(bars));
+      ok('trend marks every point with a shape, circle in vs square out',
+        (line.match(/class="c-mk c-rev"/g) || []).length === 3 && (line.match(/class="c-mk c-exp"/g) || []).length === 3);
+      ok('every series view carries per-column hover tooltips', (bars.match(/data-ctip=/g) || []).length === 3 && /class="c-pt"/.test(line));
+      // an empty range says so instead of drawing an axis around nothing
+      var blank = window.svgSeries(months, { '2026-01': { revenue: 0, expenses: 0 } }, 'compare');
+      ok('an all-zero range renders an honest empty state, not an empty axis',
+        /class="c-empty"/.test(blank) && /Nothing recorded/.test(blank) && !/c-grid/.test(blank) && !/<svg viewBox="0 0 620/.test(blank));
+      ok('no-months renders the empty state too', /class="c-empty"/.test(window.svgSeries([], {}, 'trend')));
+      // keyboard + screen-reader equivalent
+      ok('the chart is a focusable group with arrow-key instructions in its label',
+        /class="c-int"/.test(bars) && /tabindex="0"/.test(bars) && /role="group"/.test(bars) && /Arrow keys move between months/.test(bars));
+      ok('every view ships a table equivalent of the series', /class="c-table"/.test(bars) && /class="c-table"/.test(line) && /class="c-table"/.test(net) &&
+        /<caption>/.test(bars) && /scope="row"/.test(bars));
+      ok('the net table reports the running total column, the others report profit',
+        /Running total<\/th>/.test(net) && /Profit<\/th>/.test(bars) && !/Running total<\/th>/.test(bars));
+      ok('a live readout ships with the chart and starts on the latest month',
+        /class="c-readout" aria-live="polite"/.test(bars) && /Mar 2026/.test(bars.split('c-readout')[1]) &&
+        (bars.match(/data-cro=/g) || []).length === 3);
       // tooltip payload is structured JSON — never HTML — so it parses clean after attribute decode
       var tipHost = d.createElement('div'); tipHost.innerHTML = '<svg>' + bars + '</svg>';
       var pt = tipHost.querySelector('[data-ctip]');
@@ -2448,7 +2487,8 @@ async function main() {
       // upgraded sparkline draws itself in with a gradient area
       var spark = window.svgSparkline([1, 3, 2, 5, 4], 90, 30, 'var(--income)');
       ok('sparkline is animated (draw + gradient area + endpoint)', /class="c-spark-line"/.test(spark) && /class="c-spark-area"/.test(spark) && /pathLength="100"/.test(spark));
-      ok('line/area charts carry a single revenue flow overlay (not expenses/sparklines)', /class="c-flow c-rev"/.test(line) && /class="c-flow c-rev"/.test(area) && !/c-flow c-exp/.test(line) && !/c-spark-flow/.test(spark));
+      ok('only the trend view carries the single revenue flow overlay (not expenses/sparklines/bars)',
+        /class="c-flow c-rev"/.test(line) && !/c-flow c-exp/.test(line) && !/c-flow/.test(bars) && !/c-flow/.test(net) && !/c-spark-flow/.test(spark));
       ok('flow loop exists and is reduced-motion-guarded', /@keyframes cFlow\{/.test(html) && /\.c-svg \.c-flow\{display:none\}/.test(html));
       ok('the travelling sheen ramp is gone from every progress/pace/category bar', !/@keyframes cSheen/.test(html) && !/\.progress\.live \.bar::after/.test(html) && !/\.progress \.bar::after/.test(html));
       var sparkLbl = window.svgSparkline([1, 3, 2], 90, 30, 'var(--income)', 'Revenue trend');
@@ -2471,13 +2511,24 @@ async function main() {
       // moving off the chart hides it
       d.body.dispatchEvent(new window.MouseEvent('pointermove', { bubbles: true, clientX: 5, clientY: 5 }));
       ok('leaving the chart hides the tooltip', !d.getElementById('chart-tip').classList.contains('show'));
-      // clicking the "line" style tab re-renders as a line chart and remembers the choice
-      var lineTab = d.querySelector('[data-action="chart-style"][data-chart="monthly"][data-style="line"]');
-      ok('a graph-style switcher is present on the chart card', !!lineTab);
-      if (lineTab) { click(lineTab); }
-      ok('picking Line switches the graph + persists the preference',
-        window.state.settings.chartStyles && window.state.settings.chartStyles.monthly === 'line' &&
-        /class="c-line/.test(d.querySelector('.chart-box').innerHTML));
+      // the switcher is labelled by the QUESTION each view answers, not by its shape
+      var trendTab = d.querySelector('[data-action="chart-style"][data-chart="monthly"][data-style="trend"]');
+      ok('a view switcher is present on the chart card', !!trendTab);
+      ok('the tabs are labelled by what they answer, not by their shape',
+        !!trendTab && /Trend: where revenue and expenses are heading/.test(trendTab.getAttribute('title')) &&
+        !/Grouped bars|^Line$|^Area$/.test(trendTab.getAttribute('title')) &&
+        d.querySelectorAll('[data-chart="monthly"] .ct-lab').length === 3);
+      if (trendTab) { click(trendTab); }
+      ok('picking Trend switches the graph + persists the preference',
+        window.state.settings.chartStyles && window.state.settings.chartStyles.monthly === 'trend' &&
+        /class="c-line/.test(d.querySelector('.chart-box').innerHTML) &&
+        !/c-bar/.test(d.querySelector('.chart-box').innerHTML));
+      var netTab = d.querySelector('[data-action="chart-style"][data-chart="monthly"][data-style="net"]');
+      if (netTab) { click(netTab); }
+      ok('picking Running total draws a third, different chart',
+        window.state.settings.chartStyles.monthly === 'net' &&
+        /c-line c-net/.test(d.querySelector('.chart-box').innerHTML) &&
+        /class="c-zero"/.test(d.querySelector('.chart-box').innerHTML));
       // reset so later/again renders are stable
       window.state.settings.chartStyles = {}; window.render();
     })();

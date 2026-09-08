@@ -1540,7 +1540,10 @@ tr:hover .row-actions{opacity:1}
 
 /* ---- interactive chart engine ---- */
 .chart-tabs{display:inline-flex;gap:2px;padding:3px;border-radius:11px;background:var(--bg-sunken,#f0f0ec);border:1px solid var(--border)}
-.chart-tab{display:inline-grid;place-items:center;width:30px;height:26px;border:0;border-radius:8px;background:transparent;color:var(--text-3);cursor:pointer;transition:background .16s var(--ease),color .16s var(--ease),transform .12s var(--ease-snappy)}
+.chart-tab{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:30px;height:26px;padding:0 9px;border:0;border-radius:8px;background:transparent;color:var(--text-3);cursor:pointer;font:inherit;font-size:.73rem;font-weight:600;letter-spacing:.005em;transition:background .16s var(--ease),color .16s var(--ease),transform .12s var(--ease-snappy)}
+.chart-tab .ct-lab{white-space:nowrap}
+/* below this the labels stop fitting next to a card title; the title/aria text still says what each does */
+@media (max-width:640px){.chart-tab{padding:0;width:30px}.chart-tab .ct-lab{display:none}}
 .chart-tab:hover{color:var(--text-1);background:color-mix(in srgb,var(--text-1) 7%,transparent)}
 .chart-tab:active{transform:scale(.92)}
 .chart-tab.on{background:var(--bg-card);color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.12)}
@@ -1578,12 +1581,40 @@ tr:hover .row-actions{opacity:1}
 .c-svg .c-pt:hover .c-bar{filter:brightness(1.09) saturate(1.05)}
 .c-svg .c-line{fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
 .c-svg .c-line.c-rev{stroke:var(--income)}
-.c-svg .c-line.c-exp{stroke:var(--expense);animation-delay:.1s}
-.c-svg .c-area{}
+/* dashed, not just red: the two trend lines stay apart without colour vision */
+.c-svg .c-line.c-exp{stroke:var(--expense);stroke-dasharray:7 5;animation-delay:.1s}
+.c-svg .c-line.c-net{stroke:var(--text-2);stroke-width:1.7}
+/* persistent point markers: circle = money in, square = money out */
+.c-svg .c-mk{stroke:var(--bg-card);stroke-width:1.5;transition:stroke-width .13s var(--ease)}
+.c-svg .c-mk.c-rev{fill:var(--income)}
+.c-svg .c-mk.c-exp{fill:var(--expense)}
+.c-svg .c-ref{stroke:var(--text-3);stroke-width:1.2;stroke-dasharray:5 5;opacity:.75}
+.c-svg .c-cross{stroke:var(--accent);stroke-width:1.4;stroke-dasharray:2 4;opacity:.8}
+.c-svg .c-reflab{fill:var(--text-3);font-size:10.5px;font-family:var(--font);letter-spacing:.02em}
+.c-svg .c-xlab.c-now{fill:var(--text-1);font-weight:700}
 .c-svg .c-dot{stroke:var(--bg-card);stroke-width:1.6;opacity:0;transition:opacity .14s var(--ease)}
 .c-svg .c-dot.c-rev{fill:var(--income)}
 .c-svg .c-dot.c-exp{fill:var(--expense)}
 .c-svg .c-pt:hover .c-dot{opacity:1}
+/* .on is set by the scrub/keyboard driver, so pointer and keyboard land on the same highlight */
+.c-svg .c-pt.on .c-col{opacity:.09}
+.c-svg .c-pt.on .c-guide{opacity:.6}
+.c-svg .c-pt.on .c-dot{opacity:1}
+.c-svg .c-pt.on .c-bar{filter:brightness(1.09) saturate(1.05)}
+.c-svg .c-pt.on .c-mk{stroke-width:3}
+
+/* interactive wrapper: focusable group + a readout that tracks the scrub +
+   a visually hidden table, so the series is readable without seeing the drawing */
+.c-int{position:relative;border-radius:12px;outline:none}
+.c-int:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+.c-int .c-svg{touch-action:pan-y}
+.c-readout{margin:9px 0 0;padding:7px 11px;border:1px solid var(--border);border-radius:10px;background:var(--bg-sunken);
+  font-size:.76rem;line-height:1.4;color:var(--text-2);font-variant-numeric:tabular-nums;min-height:1.06rem}
+.c-table{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;white-space:nowrap;border:0;clip-path:inset(50%)}
+.c-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-align:center;
+  padding:24px 16px;border:1px dashed var(--border);border-radius:12px;color:var(--text-3)}
+.c-empty b{color:var(--text-2);font-size:.9rem;font-weight:700}
+.c-empty span{font-size:.78rem;line-height:1.5;max-width:40ch}
 @keyframes cBarIn{from{transform:scaleY(0)}to{transform:scaleY(1)}}
 @keyframes cDraw{to{stroke-dashoffset:0}}
 @keyframes cFade{from{opacity:0}to{opacity:1}}
@@ -1629,7 +1660,8 @@ tr:hover .row-actions{opacity:1}
 @keyframes cFlowIn{to{opacity:.42}}
 
 @media (prefers-reduced-motion:reduce){
-  .c-svg .c-bar,.c-svg .c-area,.cat-bar .cb-fill,.c-donut .c-seg,.c-spark-area,.c-spark-dot{animation:none}
+  .c-svg .c-bar,.c-svg .c-area,.c-svg .c-mk,.cat-bar .cb-fill,.c-donut .c-seg,.c-spark-area,.c-spark-dot{animation:none}
+  .c-svg .c-mk,.c-svg .c-col,.c-svg .c-guide,.c-int:focus-visible{transition:none}
   .c-svg .c-line,.c-spark-line{animation:none;stroke-dashoffset:0}
   .c-svg .c-flow{display:none}
 }
@@ -2911,7 +2943,8 @@ var ICONS = {
   /* --- charts ------------------------------------------------------- */
   cbars:'<path d="M4 3.8v16.4h16.2"/><rect class="d" x="7.4" y="11.4" width="3.6" height="8.8" rx="1.5"/><rect class="d" x="12.6" y="6.8" width="3.6" height="13.4" rx="1.5"/><rect class="d" x="17.8" y="14.2" width="3.6" height="6" rx="1.5"/>',
   cline:'<path d="M4 3.8v16.4h16.2"/><path d="M7.5 16.1l3.8-4.4 3 2.2 5.3-6.5"/><circle class="s" cx="19.6" cy="7.4" r="1.7"/>',
-  carea:'<path d="M4 3.8v16.4h16.2"/><path class="f" d="M7.5 15.7 11.3 11.3 14.3 13.5 19.6 7.1 19.6 20.2 7.5 20.2Z"/><path d="M7.5 15.7l3.8-4.4 3 2.2 5.3-6.4"/>',
+  /* running total: signed columns either side of a zero line */
+  ccum:'<path d="M4 3.8v16.4h16.2"/><path d="M4.6 13.4h15.8"/><rect class="d" x="7" y="9.6" width="3.3" height="3.8" rx="1.2"/><rect class="d" x="12" y="6.4" width="3.3" height="7" rx="1.2"/><rect class="s" x="17" y="13.4" width="3.3" height="4.4" rx="1.2"/>',
   cdonut:'<path class="f" fill-rule="evenodd" d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2zm0 5a3.6 3.6 0 1 1 0 7.2 3.6 3.6 0 0 1 0-7.2z"/><path class="s" d="M12 3.4A8.6 8.6 0 0 1 20.47 10.51L15.55 11.38A3.6 3.6 0 0 0 12 8.4Z"/><circle cx="12" cy="12" r="8.6"/><circle cx="12" cy="12" r="3.6"/>',
   pie:'<circle class="d" cx="12" cy="12" r="9.1"/><path class="f" d="M12 2.9a9.1 9.1 0 0 1 9.1 9.1H12z"/><path d="M12 2.9V12h9.1"/>',
   clist:'<path d="M8.6 6.4h11.8M8.6 12h11.8M8.6 17.6h8.4"/><circle class="s" cx="4.2" cy="6.4" r="1.5"/><circle class="s" cx="4.2" cy="12" r="1.5"/><circle class="s" cx="4.2" cy="17.6" r="1.5"/>',
@@ -3841,12 +3874,23 @@ var _chartUID=0;
 /* per-chart style choice, persisted so the user's preferred graph sticks */
 function chartStyleGet(key,def){ var s=(state.settings&&state.settings.chartStyles)||{}; return s[key]||def; }
 function chartStyleSet(key,v){ if(!state.settings||typeof state.settings!=='object') state.settings={}; state.settings.chartStyles=(state.settings.chartStyles&&typeof state.settings.chartStyles==='object')?state.settings.chartStyles:{}; state.settings.chartStyles[key]=v; if(typeof save==='function') save(); }
-/* segmented control letting the user pick which graph style to see */
+/* segmented control letting the user pick WHICH QUESTION the chart answers.
+   o.l is the short visible label; o.t is the full one (title + aria). Labelling
+   these "Grouped bars / Line / Area" described the drawing, not the answer. */
 function chartToolbar(key,opts,cur){
-  return '<div class="chart-tabs" role="group" aria-label="Chart style">'+opts.map(function(o){
+  return '<div class="chart-tabs" role="group" aria-label="Chart view">'+opts.map(function(o){
     var on=o.v===cur;
-    return '<button type="button" class="chart-tab'+(on?' on':'')+'" data-action="chart-style" data-chart="'+key+'" data-style="'+o.v+'" title="'+esc(o.t)+'" aria-label="'+esc(o.t)+'" aria-pressed="'+on+'">'+icon(o.i,15)+'</button>';
+    return '<button type="button" class="chart-tab'+(on?' on':'')+'" data-action="chart-style" data-chart="'+key+'" data-style="'+o.v+'" title="'+esc(o.t)+'" aria-label="'+esc(o.t)+'" aria-pressed="'+on+'">'+icon(o.i,15)+
+      (o.l?'<span class="ct-lab">'+esc(o.l)+'</span>':'')+'</button>';
   }).join('')+'</div>';
+}
+/* the three monthly views, defined once so dashboard / finance / advisor cannot drift apart */
+function seriesTabOpts(){
+  return [
+    {v:'compare',i:'cbars',l:'Compare',t:'Compare: each month against the months around it'},
+    {v:'trend',i:'cline',l:'Trend',t:'Trend: where revenue and expenses are heading'},
+    {v:'net',i:'ccum',l:'Running total',t:'Running total: profit accumulated month by month'}
+  ];
 }
 function niceMax(v){ if(!(v>0)) return 1; var p=Math.pow(10,Math.floor(Math.log10(v))); var f=v/p; var nf=f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10; return nf*p; }
 function moneyShort(n){
@@ -3903,61 +3947,184 @@ function installChartHover(){
   },{passive:true});
 }
 
-/* Monthly series: style: 'bars' (grouped) | 'line' | 'area' */
+/* ------------------------------------------------------------------
+   Monthly series: THREE views that answer three different questions.
+
+   What was here before: style 'bars' | 'line' | 'area' with a single
+   `if(style!=='bars')` branch, so 'line' and 'area' ran the identical code
+   and 'area' only tinted a gradient under the same polyline. Two of the
+   three buttons drew the same chart. The gradient is gone too (banned).
+
+     compare: how does each month stack up against the months around it?
+               Grouped bars plus the period average as a reference line, so
+               "is this month good" has something to be measured against.
+     trend:   where is this heading? Two lines, no fill, markers on every
+               point, the peak called out. The shape IS the answer.
+     net:     after everything, am I ahead or behind? Profit accumulated
+               month over month as ONE signed running total. compare and
+               trend both read each month in isolation; neither can say
+               where the whole period has left you. (It is also not
+               svgProfitBars, which resets to zero every month.)
+
+   Revenue vs expenses is never carried by colour alone: revenue is solid
+   with round markers, expenses are hatched with square markers.
+   ------------------------------------------------------------------ */
+/* buttons used to be named after their shape; map the persisted old values */
+var SERIES_ALIAS={bars:'compare',line:'trend',area:'trend'};
+function seriesStyle(v){
+  v=SERIES_ALIAS[v]||v;
+  return (v==='compare'||v==='trend'||v==='net')?v:'compare';
+}
+/* an honest empty state: no axis drawn around numbers that do not exist */
+function seriesEmpty(months,h){
+  var span=(months&&months.length)?esc(monthLabel(months[0])+' to '+monthLabel(months[months.length-1])):'this period';
+  return '<div class="c-empty" style="min-height:'+Math.round((h||248)*0.6)+'px">'+icon('metrics',22)+
+    '<b>Nothing recorded, '+span+'</b>'+
+    '<span>Log an income or expense and these months fill in. There is no chart to draw yet, so none is drawn.</span></div>';
+}
+/* screen-reader equivalent of the drawing: the same numbers as a real table */
+function seriesTable(id,months,rev,exp,run,style){
+  var head=(style==='net')
+    ? '<th scope="col">Month</th><th scope="col">Net that month</th><th scope="col">Running total</th>'
+    : '<th scope="col">Month</th><th scope="col">Revenue</th><th scope="col">Expenses</th><th scope="col">Profit</th>';
+  var cap=(style==='net')?'Running cash position by month'
+    :(style==='trend'?'Revenue and expenses trend by month':'Revenue and expenses compared by month');
+  var body=months.map(function(k,i){
+    var net=rev[i]-exp[i];
+    return '<tr><th scope="row">'+esc(monthLabel(k))+'</th>'+((style==='net')
+      ? '<td>'+esc(fmtMoney(net))+'</td><td>'+esc(fmtMoney(run[i]))+'</td>'
+      : '<td>'+esc(fmtMoney(rev[i]))+'</td><td>'+esc(fmtMoney(exp[i]))+'</td><td>'+esc(fmtMoney(net))+'</td>')+'</tr>';
+  }).join('');
+  return '<table id="'+id+'" class="c-table"><caption>'+cap+'</caption><thead><tr>'+head+'</tr></thead><tbody>'+body+'</tbody></table>';
+}
 function svgSeries(months,mm,style,w,h){
-  style=style||'bars'; w=w||620; h=h||248;
+  style=seriesStyle(style); w=w||620; h=h||248;
+  months=months||[];
+  var n=months.length;
+  var live=months.some(function(k){ var d=mm[k]||{}; return (d.revenue||0)!==0||(d.expenses||0)!==0; });
+  if(!n||!live) return seriesEmpty(months,h);
+  var uid='cg'+(++_chartUID);
   var pad={l:46,r:12,t:16,b:26}, iw=w-pad.l-pad.r, ih=h-pad.t-pad.b;
-  var raw=1; months.forEach(function(k){ var d=mm[k]||{}; raw=Math.max(raw,d.revenue||0,d.expenses||0); });
-  var max=niceMax(raw), n=months.length, slot=n?iw/n:iw, uid='cg'+(++_chartUID);
-  var X=function(i){ return pad.l+slot*i+slot/2; };
-  var Y=function(v){ return pad.t+ih-(v/max)*ih; };
-  var grid='',ax='',xlab='';
-  for(var g=0;g<=4;g++){
-    var gy=pad.t+ih-(ih*g/4);
-    grid+='<line class="c-grid" x1="'+pad.l+'" y1="'+gy.toFixed(1)+'" x2="'+(w-pad.r)+'" y2="'+gy.toFixed(1)+'"/>';
-    ax+='<text class="c-axis" x="'+(pad.l-8)+'" y="'+(gy+3.5).toFixed(1)+'" text-anchor="end">'+moneyShort(max*g/4)+'</text>';
-  }
-  months.forEach(function(k,i){ xlab+='<text class="c-xlab" x="'+X(i).toFixed(1)+'" y="'+(h-6)+'" text-anchor="middle">'+esc(monthLabel(k).split(' ')[0])+'</text>'; });
-  var defs='',layer='',cols='';
-  if(style!=='bars'){
-    var baseY=(pad.t+ih).toFixed(1);
-    var pr=months.map(function(k,i){ return X(i).toFixed(1)+','+Y((mm[k]||{}).revenue||0).toFixed(1); });
-    var pe=months.map(function(k,i){ return X(i).toFixed(1)+','+Y((mm[k]||{}).expenses||0).toFixed(1); });
-    if(style==='area'){
-      defs+='<linearGradient id="'+uid+'r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--income)" stop-opacity="0.3"/><stop offset="1" stop-color="var(--income)" stop-opacity="0"/></linearGradient>'+
-            '<linearGradient id="'+uid+'e" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--expense)" stop-opacity="0.22"/><stop offset="1" stop-color="var(--expense)" stop-opacity="0"/></linearGradient>';
-      var ar='M'+X(0).toFixed(1)+','+baseY+' '+pr.map(function(p){return 'L'+p;}).join(' ')+' L'+X(n-1).toFixed(1)+','+baseY+' Z';
-      var ae='M'+X(0).toFixed(1)+','+baseY+' '+pe.map(function(p){return 'L'+p;}).join(' ')+' L'+X(n-1).toFixed(1)+','+baseY+' Z';
-      layer+='<path class="c-area" d="'+ae+'" fill="url(#'+uid+'e)"/><path class="c-area" d="'+ar+'" fill="url(#'+uid+'r)"/>';
+  var slot=iw/n, X=function(i){ return pad.l+slot*i+slot/2; };
+  var rev=months.map(function(k){ return (mm[k]||{}).revenue||0; });
+  var exp=months.map(function(k){ return (mm[k]||{}).expenses||0; });
+  var run=[],acc=0; months.forEach(function(k,i){ acc+=rev[i]-exp[i]; run.push(acc); });
+  var grid='',ax='',xlab='',defs='',ref='',layer='',cols='',Y,zeroY=0;
+
+  if(style==='net'){
+    /* symmetric ± scale only when the running total actually goes negative;
+       an always-positive run gets the full height instead of a wasted band */
+    var lo=Math.min.apply(null,run.concat([0])), hi=Math.max.apply(null,run.concat([0]));
+    var mag=niceMax(Math.max(Math.abs(lo),hi)), neg=lo<0;
+    var posH=neg?ih*0.62:ih-14, negH=ih-posH;
+    zeroY=pad.t+posH;
+    Y=function(v){ return v>=0?(zeroY-(v/mag)*posH):(zeroY+(Math.abs(v)/mag)*negH); };
+    (neg?[1,0.5,0,-0.5,-1]:[1,0.75,0.5,0.25,0]).forEach(function(f){
+      var gy=Y(f*mag);
+      grid+='<line class="'+(f===0?'c-zero':'c-grid')+'" x1="'+pad.l+'" y1="'+gy.toFixed(1)+'" x2="'+(w-pad.r)+'" y2="'+gy.toFixed(1)+'"/>';
+      ax+='<text class="c-axis" x="'+(pad.l-8)+'" y="'+(gy+3.5).toFixed(1)+'" text-anchor="end">'+moneyShort(f*mag)+'</text>';
+    });
+  } else {
+    var max=niceMax(Math.max.apply(null,[1].concat(rev,exp)));
+    Y=function(v){ return pad.t+ih-(v/max)*ih; };
+    for(var g=0;g<=4;g++){
+      var gy2=pad.t+ih-(ih*g/4);
+      grid+='<line class="c-grid" x1="'+pad.l+'" y1="'+gy2.toFixed(1)+'" x2="'+(w-pad.r)+'" y2="'+gy2.toFixed(1)+'"/>';
+      ax+='<text class="c-axis" x="'+(pad.l-8)+'" y="'+(gy2+3.5).toFixed(1)+'" text-anchor="end">'+moneyShort(max*g/4)+'</text>';
     }
-    layer+='<polyline class="c-line c-exp" points="'+pe.join(' ')+'" pathLength="100"/>'+
-           '<polyline class="c-line c-rev" points="'+pr.join(' ')+'" pathLength="100"/>'+
-           '<polyline class="c-flow c-rev" points="'+pr.join(' ')+'" pathLength="100"/>'; // one subtle "current" on the hero (revenue) line keeps the chart alive
   }
   months.forEach(function(k,i){
-    var d=mm[k]||{revenue:0,expenses:0}, rev=d.revenue||0, exp=d.expenses||0, net=rev-exp;
-    var tip=ctipData(monthLabel(k),[
-      {c:'var(--income)',s:'Revenue',b:fmtMoney(rev)},
-      {c:'var(--expense)',s:'Expenses',b:fmtMoney(exp)},
-      {c:'var(--accent)',s:'Profit',b:fmtMoney(net),net:1}]);
-    var gx=(pad.l+slot*i).toFixed(1);
-    cols+='<g class="c-pt" data-ctip="'+tip+'">'+
-      '<rect class="c-col" x="'+gx+'" y="'+pad.t+'" width="'+slot.toFixed(1)+'" height="'+ih+'" rx="6"/>'+
-      '<line class="c-guide" x1="'+X(i).toFixed(1)+'" y1="'+pad.t+'" x2="'+X(i).toFixed(1)+'" y2="'+(pad.t+ih).toFixed(1)+'"/>';
-    if(style==='bars'){
-      var bw=Math.min(17,slot*0.30), cx=X(i);
-      cols+='<rect class="c-bar c-rev" x="'+(cx-bw-2).toFixed(1)+'" y="'+Y(rev).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max((rev/max)*ih,1.5).toFixed(1)+'" rx="4" style="animation-delay:'+(i*0.045).toFixed(3)+'s"/>'+
-        '<rect class="c-bar c-exp" x="'+(cx+2).toFixed(1)+'" y="'+Y(exp).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max((exp/max)*ih,1.5).toFixed(1)+'" rx="4" style="animation-delay:'+(i*0.045+0.03).toFixed(3)+'s"/>';
+    xlab+='<text class="c-xlab'+(i===n-1?' c-now':'')+'" x="'+X(i).toFixed(1)+'" y="'+(h-6)+'" text-anchor="middle">'+esc(monthLabel(k).split(' ')[0])+'</text>';
+  });
+  /* hatch, not a second colour: money OUT is textured everywhere it appears,
+     so the two series stay apart for an owner who cannot separate red/green.
+     A <pattern> of solid bars is not a gradient. */
+  var needHatch=(style==='compare')||(style==='net');
+  if(needHatch) defs+='<pattern id="'+uid+'h" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'+
+    '<rect width="7" height="7" fill="var(--expense)"/><rect width="2.6" height="7" fill="var(--bg-card)" opacity="0.5"/></pattern>';
+
+  if(style==='compare'){
+    /* the reference line is the whole point of this view: a bar means nothing
+       until you can see what "normal" was for the period */
+    var avg=rev.reduce(function(a,b){return a+b;},0)/n, ay=Y(avg);
+    var lay=Math.max(pad.t+10,ay-5);
+    ref+='<line class="c-ref" x1="'+pad.l+'" y1="'+ay.toFixed(1)+'" x2="'+(w-pad.r)+'" y2="'+ay.toFixed(1)+'"/>'+
+      '<text class="c-reflab" x="'+(w-pad.r)+'" y="'+lay.toFixed(1)+'" text-anchor="end">avg revenue '+esc(moneyShort(avg))+'</text>';
+  }
+  if(style==='trend'){
+    var pr=months.map(function(k,i){ return X(i).toFixed(1)+','+Y(rev[i]).toFixed(1); });
+    var pe=months.map(function(k,i){ return X(i).toFixed(1)+','+Y(exp[i]).toFixed(1); });
+    layer+='<polyline class="c-line c-exp" points="'+pe.join(' ')+'" pathLength="100"/>'+
+      '<polyline class="c-line c-rev" points="'+pr.join(' ')+'" pathLength="100"/>'+
+      '<polyline class="c-flow c-rev" points="'+pr.join(' ')+'" pathLength="100"/>'; // one subtle "current" on the hero (revenue) line keeps the chart alive
+    var pk=rev.indexOf(Math.max.apply(null,rev));
+    if(rev[pk]>0){
+      var px=X(pk), py=Y(rev[pk]);
+      ref+='<text class="c-reflab c-peak" x="'+px.toFixed(1)+'" y="'+Math.max(pad.t+9,py-11).toFixed(1)+'" text-anchor="'+(pk===0?'start':(pk===n-1?'end':'middle'))+'">peak '+esc(moneyShort(rev[pk]))+'</text>';
+    }
+  }
+  if(style==='net'){
+    var pn=months.map(function(k,i){ return X(i).toFixed(1)+','+Y(run[i]).toFixed(1); });
+    layer+='<polyline class="c-line c-net" points="'+pn.join(' ')+'" pathLength="100"/>';
+    /* the month the running total changes sign is the single most useful
+       moment in this view, so it gets marked rather than left to be spotted */
+    for(var ci=1;ci<n;ci++){
+      if((run[ci-1]<0)!==(run[ci]<0)){
+        var cx0=(pad.l+slot*ci);
+        ref+='<line class="c-cross" x1="'+cx0.toFixed(1)+'" y1="'+pad.t+'" x2="'+cx0.toFixed(1)+'" y2="'+(pad.t+ih).toFixed(1)+'"/>'+
+          '<text class="c-reflab" x="'+(cx0+4).toFixed(1)+'" y="'+(pad.t+10)+'" text-anchor="start">'+(run[ci]>=0?'back in the black':'goes negative')+'</text>';
+        break;
+      }
+    }
+  }
+  var readouts=[];
+  months.forEach(function(k,i){
+    var r=rev[i], e=exp[i], net=r-e, cx=X(i), gx=(pad.l+slot*i).toFixed(1), ro, tip;
+    if(style==='net'){
+      tip=ctipData(monthLabel(k),[
+        {c:'var(--income)',s:'Revenue',b:fmtMoney(r)},
+        {c:'var(--expense)',s:'Expenses',b:fmtMoney(e)},
+        {c:run[i]>=0?'var(--income)':'var(--expense)',s:'Running total',b:fmtMoney(run[i]),net:1}]);
+      ro=monthLabel(k)+' · '+(net>=0?'kept ':'lost ')+fmtMoney(Math.abs(net))+' that month · running total '+fmtMoney(run[i])+(run[i]<0?' (behind)':'');
     } else {
-      cols+='<circle class="c-dot c-exp" cx="'+X(i).toFixed(1)+'" cy="'+Y(exp).toFixed(1)+'" r="3.6"/>'+
-        '<circle class="c-dot c-rev" cx="'+X(i).toFixed(1)+'" cy="'+Y(rev).toFixed(1)+'" r="3.6"/>';
+      tip=ctipData(monthLabel(k),[
+        {c:'var(--income)',s:'Revenue',b:fmtMoney(r)},
+        {c:'var(--expense)',s:'Expenses',b:fmtMoney(e)},
+        {c:'var(--accent)',s:'Profit',b:fmtMoney(net),net:1}]);
+      ro=monthLabel(k)+' · revenue '+fmtMoney(r)+' · expenses '+fmtMoney(e)+' · '+(net>=0?'profit ':'loss ')+fmtMoney(Math.abs(net));
+    }
+    readouts.push(ro);
+    cols+='<g class="c-pt" data-ctip="'+tip+'" data-cro="'+esc(ro)+'">'+
+      '<rect class="c-col" x="'+gx+'" y="'+pad.t+'" width="'+slot.toFixed(1)+'" height="'+ih+'" rx="6"/>'+
+      '<line class="c-guide" x1="'+cx.toFixed(1)+'" y1="'+pad.t+'" x2="'+cx.toFixed(1)+'" y2="'+(pad.t+ih).toFixed(1)+'"/>';
+    if(style==='compare'){
+      var bw=Math.min(17,slot*0.30);
+      cols+='<rect class="c-bar c-rev" x="'+(cx-bw-2).toFixed(1)+'" y="'+Y(r).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max((r/max)*ih,1.5).toFixed(1)+'" rx="4" style="animation-delay:'+(i*0.045).toFixed(3)+'s"/>'+
+        '<rect class="c-bar c-exp c-hatch" x="'+(cx+2).toFixed(1)+'" y="'+Y(e).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max((e/max)*ih,1.5).toFixed(1)+'" rx="4" style="fill:url(#'+uid+'h);animation-delay:'+(i*0.045+0.03).toFixed(3)+'s"/>';
+    } else if(style==='trend'){
+      // markers on every point, not only on hover: circle = money in, square = money out
+      cols+='<rect class="c-mk c-exp" x="'+(cx-3.2).toFixed(1)+'" y="'+(Y(e)-3.2).toFixed(1)+'" width="6.4" height="6.4"/>'+
+        '<circle class="c-mk c-rev" cx="'+cx.toFixed(1)+'" cy="'+Y(r).toFixed(1)+'" r="3.6"/>';
+    } else {
+      var v=run[i], y1=Y(v), bw2=Math.min(24,slot*0.44), top=Math.min(zeroY,y1);
+      cols+='<rect class="c-bar '+(v>=0?'c-pos':'c-neg c-hatch')+'" x="'+(cx-bw2/2).toFixed(1)+'" y="'+top.toFixed(1)+'" width="'+bw2.toFixed(1)+'" height="'+Math.max(Math.abs(y1-zeroY),v===0?0:1.5).toFixed(1)+'" rx="3" style="'+(v<0?'fill:url(#'+uid+'h);':'')+'animation-delay:'+(i*0.045).toFixed(3)+'s"/>'+
+        (v>=0?'<circle class="c-mk c-rev" cx="'+cx.toFixed(1)+'" cy="'+y1.toFixed(1)+'" r="3.4"/>'
+             :'<rect class="c-mk c-exp" x="'+(cx-3).toFixed(1)+'" y="'+(y1-3).toFixed(1)+'" width="6" height="6"/>');
     }
     cols+='</g>';
   });
-  return '<svg viewBox="0 0 '+w+' '+h+'" class="c-svg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Monthly revenue vs expenses, '+style+' view"><defs>'+defs+'</defs>'+grid+ax+layer+cols+xlab+'</svg>';
+  var aria=(style==='compare')?'Revenue and expenses compared month by month'
+    :(style==='trend'?'Revenue and expenses over time':'Running cash position, profit accumulated month by month');
+  return '<div class="c-int" data-cint="'+style+'" tabindex="0" role="group" aria-roledescription="interactive chart" '+
+      'aria-label="'+esc(aria)+'. Arrow keys move between months, Home and End jump to the first and last.">'+
+    '<svg viewBox="0 0 '+w+' '+h+'" class="c-svg" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false"><defs>'+defs+'</defs>'+
+      grid+ax+ref+layer+cols+xlab+'</svg>'+
+    '<p class="c-readout" aria-live="polite">'+esc(readouts[n-1])+'</p>'+
+    seriesTable(uid+'t',months,rev,exp,run,style)+
+  '</div>';
 }
 /* backward-compatible alias */
-function svgBarChart(months,mm,w,h){ return svgSeries(months,mm,chartStyleGet('monthly','bars'),w,h); }
+function svgBarChart(months,mm,w,h){ return svgSeries(months,mm,chartStyleGet('monthly','compare'),w,h); }
 
 function svgDonut(entries,size){
   size=size||150;
@@ -4627,8 +4794,8 @@ function viewDashboard(){
     healthBlk+=emptyState('shield','No health score yet','Add finance entries and the score is computed automatically from margin, growth, expense control and execution.');
   }
   healthBlk+='</div>';
-  var mStyle=chartStyleGet('monthly','bars');
-  var mTabs=chartToolbar('monthly',[{v:'bars',i:'cbars',t:'Grouped bars'},{v:'line',i:'cline',t:'Line'},{v:'area',i:'carea',t:'Area'}],mStyle);
+  var mStyle=seriesStyle(chartStyleGet('monthly','compare'));
+  var mTabs=chartToolbar('monthly',seriesTabOpts(),mStyle);
   var chartBlk='<div class="card"><div class="card-head"><h3>Monthly performance</h3><span class="spacer"></span>'+(hasData?mTabs:'')+'</div>';
   if(hasData){
     chartBlk+='<div class="chart-box">'+svgSeries(months6,mm,mStyle)+'</div>'+
@@ -4668,7 +4835,7 @@ function viewDashboard(){
   var expCats0=categoryMap('expense');
   var catEntries0=Object.keys(expCats0).map(function(k){return {label:k,value:expCats0[k]};}).sort(function(a,b){return b.value-a.value;}).slice(0,6);
   var catStyle=chartStyleGet('cats','donut');
-  var catTabs=catEntries0.length?chartToolbar('cats',[{v:'donut',i:'cdonut',t:'Donut'},{v:'bars',i:'clist',t:'Bars'}],catStyle):'';
+  var catTabs=catEntries0.length?chartToolbar('cats',[{v:'donut',i:'cdonut',l:'Share',t:'Share: how the spend splits across categories'},{v:'bars',i:'clist',l:'Ranked',t:'Ranked: biggest categories in order'}],catStyle):'';
   var catBlk='<div class="card"><div class="card-head"><h3>Category leaders</h3><span class="spacer"></span>'+catTabs+'</div>';
   if(bestInc||bigExp){
     if(bestInc) catBlk+='<div class="list-row"><span class="badge good">'+icon('arrowur')+' Best earner</span><div style="flex:1;min-width:0"><b style="font-size:.88rem">'+esc(bestInc.name)+'</b></div><span class="num" style="font-weight:700">'+fmtMoney(bestInc.amount)+'</span></div>';
@@ -4925,10 +5092,10 @@ function viewInsights(){
     '<p class="adv-narrative">'+advisorNarrative()+'</p></div>';
   // 2) the numbers behind the read: interactive, animated charts
   var months6=lastNMonths(6), mmv=monthlyMap();
-  var aStyle=chartStyleGet('advisor','area');
+  var aStyle=seriesStyle(chartStyleGet('advisor','trend')); // the Advisor argues about direction, so it opens on the trend
   html+='<div class="grid grid-2 mt">';
   html+='<div class="card"><div class="card-head"><h3>Cash in vs out</h3><span class="spacer"></span>'+
-    chartToolbar('advisor',[{v:'area',i:'carea',t:'Area'},{v:'line',i:'cline',t:'Line'},{v:'bars',i:'cbars',t:'Grouped bars'}],aStyle)+'</div>'+
+    chartToolbar('advisor',seriesTabOpts(),aStyle)+'</div>'+
     '<div class="chart-box">'+svgSeries(months6,mmv,aStyle)+'</div>'+
     '<div class="legend"><span><span class="dot" style="background:var(--income)"></span>Revenue</span><span><span class="dot" style="background:var(--expense)"></span>Expenses</span></div></div>';
   html+='<div class="card"><div class="card-head"><h3>Profit by month</h3><span class="sub">above the line = profit</span></div>'+
@@ -4940,7 +5107,7 @@ function viewInsights(){
   var mixStyle=chartStyleGet('advisorCats','donut'); // private key: switching here shouldn't restyle the dashboard
   html+='<div class="grid grid-2 mt">';
   html+='<div class="card"><div class="card-head"><h3>Where the money goes</h3><span class="spacer"></span>'+
-    (mixEntries.length?chartToolbar('advisorCats',[{v:'donut',i:'cdonut',t:'Donut'},{v:'bars',i:'clist',t:'Bars'}],mixStyle):'')+'</div>'+
+    (mixEntries.length?chartToolbar('advisorCats',[{v:'donut',i:'cdonut',l:'Share',t:'Share: how the spend splits across categories'},{v:'bars',i:'clist',l:'Ranked',t:'Ranked: biggest categories in order'}],mixStyle):'')+'</div>'+
     (mixEntries.length?
       (mixStyle==='bars'?'<div class="chart-box">'+catBarsHTML(mixEntries)+'</div>':
         '<div class="chart-box" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">'+svgDonut(mixEntries,120)+'<div class="legend" style="flex-direction:column;gap:4px;margin-top:0">'+donutLegend(mixEntries)+'</div></div>')
@@ -5927,8 +6094,8 @@ function financeMonthlyHTML(){
   var mm=monthlyMap(), months=sortedMonths();
   if(!months.length) return '<div class="empty-slot">'+emptyState('metrics','No monthly data yet','Add dated entries to see the month-by-month breakdown.')+'</div>';
   var shown=months.slice(-12);
-  var fmStyle=chartStyleGet('monthly','bars');
-  var fmTabs=chartToolbar('monthly',[{v:'bars',i:'cbars',t:'Grouped bars'},{v:'line',i:'cline',t:'Line'},{v:'area',i:'carea',t:'Area'}],fmStyle);
+  var fmStyle=seriesStyle(chartStyleGet('monthly','compare'));
+  var fmTabs=chartToolbar('monthly',seriesTabOpts(),fmStyle);
   var html='<div class="card"><div class="card-head"><h3>Revenue vs expenses by month</h3><span class="spacer"></span>'+fmTabs+'</div><div class="chart-box">'+svgSeries(shown.length>=6?shown.slice(-6):lastNMonths(6),mm,fmStyle)+'</div>'+
     '<div class="legend"><span><span class="dot" style="background:var(--income)"></span>Revenue</span><span><span class="dot" style="background:var(--expense)"></span>Expenses</span></div></div>';
   html+='<div class="sec"><div class="table-wrap"><table><thead><tr><th>Month</th><th style="text-align:right">Revenue</th><th style="text-align:right">Expenses</th><th style="text-align:right">Profit</th><th style="text-align:right">Margin</th><th>Trend</th></tr></thead><tbody>';
@@ -5955,7 +6122,7 @@ function financeCategoriesHTML(){
     if(!keys.length) return emptyState('pie','No '+type+' categories','Categorized entries appear here with their share.');
     var entries=keys.map(function(k){return {label:k,value:map[k]};});
     var top=entries.slice(0,8), cStyle=chartStyleGet('cats','donut');
-    var cTabs='<div style="display:flex;justify-content:flex-end;margin-bottom:8px">'+chartToolbar('cats',[{v:'donut',i:'cdonut',t:'Donut'},{v:'bars',i:'clist',t:'Bars'}],cStyle)+'</div>';
+    var cTabs='<div style="display:flex;justify-content:flex-end;margin-bottom:8px">'+chartToolbar('cats',[{v:'donut',i:'cdonut',l:'Share',t:'Share: how the spend splits across categories'},{v:'bars',i:'clist',l:'Ranked',t:'Ranked: biggest categories in order'}],cStyle)+'</div>';
     var chartInner=(cStyle==='bars')?
       '<div class="chart-box">'+catBarsHTML(top)+'</div>':
       '<div class="chart-box" style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">'+svgDonut(top,130)+'<div class="legend" style="flex-direction:column;gap:4px;margin-top:0">'+donutLegend(top)+'</div></div>';
