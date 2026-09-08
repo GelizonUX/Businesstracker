@@ -1119,7 +1119,8 @@ html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--
    nothing capped them: the action cards already sit at 63-64ch and .hero p at 520px,
    so this is the rest of the app catching up to what it already knew. Cards and field
    hints only; table cells, badges and centred empty states are not prose. */
-.card>p,.card>form>p,.card>div>p,.field>p,.main>p,.adv-narrative{max-width:68ch}
+.card>p,.card>form>p,.card>div>p,.field>p,.main>p,.adv-narrative,
+.sec>p,.sec>div>p,.sec>form>p{max-width:68ch}
 
 /* ---------- a section is not a card ----------
    A heading with a table or a list under it does not need a border: the rows
@@ -1151,14 +1152,29 @@ html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--
 }
 .card.stat-card:hover{border-top-color:var(--accent);box-shadow:none}
 html[data-theme="dark"] .card.stat-card{box-shadow:none}
-/* a tracked metric carries an explanation as well as a number, so it keeps a
-   surface, but a quiet sunken one a rung below a panel */
+/* a tracked metric is one line in a list, not a tile in a grid: name and status
+   on the left, the number on the right, the healthy range under both where
+   there is room to read it. */
 .card.metric-card{
-  background:var(--bg-sunken);border-color:transparent;border-radius:var(--r-lg);
-  padding:15px 16px;box-shadow:none;
+  background:transparent;border:0;border-bottom:1px solid var(--border);border-radius:0;
+  padding:15px 2px 14px;box-shadow:none;
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;column-gap:20px;
 }
 .card.metric-card:hover{border-color:var(--border-2);box-shadow:none}
 html[data-theme="dark"] .card.metric-card{box-shadow:none}
+.rows>.metric-card:last-child{border-bottom:none}
+.metric-card>.m-top{grid-column:1;grid-row:1}
+.metric-card>.m-val{grid-column:2;grid-row:1;margin:0;text-align:right;white-space:nowrap}
+.metric-card>div:not(.m-top):not(.m-val):not(.m-explain),
+.metric-card>.m-explain,.metric-card>details,.metric-card>button{grid-column:1/-1}
+/* the row already has a rule under it; the tile's dashed divider would be a
+   second line saying the same thing */
+.metric-card>.m-explain{border-top:0;padding-top:0;margin-top:6px}
+.metric-card>button{justify-self:start;margin-top:8px}
+@media (max-width:560px){
+  .card.metric-card{grid-template-columns:1fr}
+  .metric-card>.m-val{grid-column:1;grid-row:2;text-align:left}
+}
 
 /* an account holds real money: the heaviest rung, a firmer edge, more room */
 .card.acct-card{border-radius:var(--r-2xl);border-color:var(--border-2);padding:20px 22px}
@@ -8325,7 +8341,10 @@ function viewMetrics(){
   var html=topbar('Metrics & KPIs',sub);
 
   if(tracked.length){
-    html+='<div class="grid grid-3">';
+    /* eleven tiles in a grid was eleven boxes repeating one shape. A tracked
+       metric is a line in a list: name and status left, number right, the
+       healthy range underneath where there is room to read it. */
+    html+='<div class="sec rows">';
     tracked.forEach(function(t){
       var d=t.def, mv=t.mv, st=d.evaluate(mv.value);
       html+='<div class="card metric-card"><div class="m-top"><div class="i-icon" style="width:34px;height:34px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center">'+icon(d.icon,16)+'</div>'+
@@ -12694,7 +12713,7 @@ function viewAccounts(){
         '<button class="btn-icon" data-action="account-edit" data-id="'+a.id+'">'+icon('edit')+'</button>'+
         '<button class="btn-icon danger" data-action="account-delete" data-id="'+a.id+'">'+icon('trash')+'</button></div></div>';
   });
-  html+='<div class="card" style="display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;border-style:dashed;cursor:pointer;text-align:center;min-height:140px" data-action="account-new">'+
+  html+='<div class="card acct-card" style="display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;border-style:dashed;cursor:pointer;text-align:center;min-height:140px" data-action="account-new">'+
     '<span class="stat-icon">'+icon('plus')+'</span><b style="font-size:.85rem">Add account</b>'+
     '<span style="font-size:.72rem;color:var(--text-3)">bank · e-wallet · cash</span></div>';
   html+='</div>';
