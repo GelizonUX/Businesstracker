@@ -3948,6 +3948,92 @@ function installChartHover(){
 }
 
 /* ------------------------------------------------------------------
+   Scrub + keyboard driver for the monthly series charts.
+
+   installChartHover() owns the floating tooltip for every chart on the page.
+   This owns the ACTIVE month of a .c-int chart: which column is lit, what the
+   live readout says, and how the keyboard walks the series. Before this, the
+   chart was role="img" with a static aria-label, so a keyboard or screen
+   reader user got a one-line summary and nothing else.
+
+   Column geometry is read from the rendered .c-col rects rather than from the
+   viewBox padding, so scrubbing lands on the right month at any width without
+   the drawing code and the input code having to agree on numbers.
+   ------------------------------------------------------------------ */
+function chartPts(host){ return host.querySelectorAll('.c-svg .c-pt'); }
+function chartIndexFromX(host,clientX){
+  var pts=chartPts(host), best=-1, bd=Infinity;
+  for(var i=0;i<pts.length;i++){
+    var c=pts[i].querySelector('.c-col'); if(!c||!c.getBoundingClientRect) continue;
+    var r=c.getBoundingClientRect(); if(!r.width) continue;
+    var d=Math.abs(clientX-(r.left+r.width/2));
+    if(d<bd){ bd=d; best=i; }
+  }
+  return best;
+}
+function chartSetActive(host,i){
+  var pts=chartPts(host), n=pts.length; if(!n||i<0) return;
+  i=clamp(i,0,n-1);
+  if(host.getAttribute('data-active')===String(i)) return; // same month: never re-announce it
+  host.setAttribute('data-active',String(i));
+  for(var j=0;j<n;j++) pts[j].classList.toggle('on',j===i);
+  var ro=host.querySelector('.c-readout');
+  if(ro) ro.textContent=pts[i].getAttribute('data-cro')||'';
+}
+/* resting state: no column lit, readout back on the latest month */
+function chartClearActive(host){
+  var pts=chartPts(host);
+  for(var j=0;j<pts.length;j++) pts[j].classList.remove('on');
+  host.removeAttribute('data-active');
+  var ro=host.querySelector('.c-readout'), last=pts[pts.length-1];
+  if(ro&&last) ro.textContent=last.getAttribute('data-cro')||'';
+}
+/* keyboard users get the same rich card the pointer gets, parked over the column */
+function chartTipAt(host,i){
+  var pts=chartPts(host), g=pts[i]; if(!g) return;
+  var c=g.querySelector('.c-col'), r=c&&c.getBoundingClientRect&&c.getBoundingClientRect();
+  if(!r||!r.width) return;
+  chartTipShow(g.getAttribute('data-ctip'), r.left+r.width/2, r.top+r.height*0.35);
+}
+var _chartScrubWired=false;
+function installChartScrub(){
+  if(_chartScrubWired) return; _chartScrubWired=true;
+  function scrub(e){
+    var t=e.target, host=t&&t.closest&&t.closest('.c-int');
+    if(host){ chartSetActive(host,chartIndexFromX(host,e.clientX)); return; }
+    // pointer left every chart: drop the highlight unless the keyboard is holding it
+    var open=document.querySelectorAll('.c-int[data-active]');
+    for(var i=0;i<open.length;i++) if(open[i]!==document.activeElement) chartClearActive(open[i]);
+  }
+  document.addEventListener('pointermove',scrub,{passive:true});
+  document.addEventListener('pointerdown',scrub,{passive:true}); // a finger tap scrubs too
+  document.addEventListener('keydown',function(e){
+    var t=e.target, host=t&&t.closest&&t.closest('.c-int'); if(!host) return;
+    var n=chartPts(host).length; if(!n) return;
+    var cur=parseInt(host.getAttribute('data-active'),10); if(!(cur>=0)) cur=n-1;
+    var to;
+    if(e.key==='ArrowRight'||e.key==='ArrowUp') to=cur+1;
+    else if(e.key==='ArrowLeft'||e.key==='ArrowDown') to=cur-1;
+    else if(e.key==='Home') to=0;
+    else if(e.key==='End') to=n-1;
+    else return;
+    e.preventDefault(); // arrows would otherwise scroll the page out from under the chart
+    to=clamp(to,0,n-1);
+    chartSetActive(host,to); chartTipAt(host,to);
+  });
+  document.addEventListener('focusin',function(e){
+    var t=e.target, host=t&&t.closest&&t.closest('.c-int'); if(!host) return;
+    var n=chartPts(host).length; if(!n) return;
+    var cur=parseInt(host.getAttribute('data-active'),10);
+    chartSetActive(host,cur>=0?cur:n-1);
+  });
+  document.addEventListener('focusout',function(e){
+    var t=e.target, host=t&&t.closest&&t.closest('.c-int'); if(!host) return;
+    chartClearActive(host); chartTipHide();
+  });
+}
+
+/* ------------------------------------------------------------------
    Monthly series: THREE views that answer three different questions.
 
    What was here before: style 'bars' | 'line' | 'area' with a single
@@ -15636,6 +15722,7 @@ function bootApp(){
   try{ console.info('Trakora build', APP_BUILD); }catch(_){}
   var _m=byId('main'); if(_m) _m.addEventListener('scroll', islandScrollSync, {passive:true});
   installChartHover();
+  installChartScrub();
   if(hasLock() && !sessionUnlocked){ applyTheme(); renderLockScreen(); return; }
   processRecurring();
   processRecurringInvoices();

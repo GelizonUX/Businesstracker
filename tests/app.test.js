@@ -2529,6 +2529,48 @@ async function main() {
         window.state.settings.chartStyles.monthly === 'net' &&
         /c-line c-net/.test(d.querySelector('.chart-box').innerHTML) &&
         /class="c-zero"/.test(d.querySelector('.chart-box').innerHTML));
+      // ---- keyboard: the chart was role="img" with a static label, so a keyboard
+      // user got a summary and nothing else. Drive real key events. ----
+      window.state.settings.chartStyles = { monthly: 'compare' }; window.render();
+      var cint = d.querySelector('.chart-box .c-int');
+      ok('the chart is a real focus stop with a described keyboard contract',
+        !!cint && cint.getAttribute('tabindex') === '0' && cint.getAttribute('role') === 'group' &&
+        /Arrow keys move between months/.test(cint.getAttribute('aria-label')));
+      var nPts = cint.querySelectorAll('.c-pt').length;
+      function key(k) {
+        var ev = new window.KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true });
+        cint.dispatchEvent(ev); return ev;
+      }
+      cint.dispatchEvent(new window.FocusEvent('focusin', { bubbles: true }));
+      ok('focusing the chart lights the latest month', cint.getAttribute('data-active') === String(nPts - 1) &&
+        cint.querySelectorAll('.c-pt.on').length === 1);
+      var ro = cint.querySelector('.c-readout');
+      var atEnd = ro.textContent;
+      key('ArrowLeft');
+      ok('ArrowLeft steps back a month and the readout follows',
+        cint.getAttribute('data-active') === String(nPts - 2) && ro.textContent !== atEnd && ro.textContent.length > 0);
+      key('ArrowRight');
+      ok('ArrowRight steps forward again', cint.getAttribute('data-active') === String(nPts - 1) && ro.textContent === atEnd);
+      key('Home');
+      ok('Home jumps to the first month', cint.getAttribute('data-active') === '0');
+      key('End');
+      ok('End jumps to the last month', cint.getAttribute('data-active') === String(nPts - 1));
+      for (var kk = 0; kk < nPts + 3; kk++) key('ArrowRight');
+      ok('arrowing past the end clamps instead of wrapping or throwing', cint.getAttribute('data-active') === String(nPts - 1));
+      for (var k2 = 0; k2 < nPts + 3; k2++) key('ArrowLeft');
+      ok('arrowing past the start clamps too', cint.getAttribute('data-active') === '0');
+      ok('the arrow keys are consumed, so the page does not scroll out from under the chart', key('ArrowLeft').defaultPrevented);
+      ok('an unrelated key is left alone for the rest of the app', !key('a').defaultPrevented);
+      ok('the readout is a polite live region, so the step is announced',
+        ro.getAttribute('aria-live') === 'polite' && ro.textContent.indexOf('revenue') !== -1);
+      cint.dispatchEvent(new window.FocusEvent('focusout', { bubbles: true }));
+      ok('blurring drops the highlight and rests the readout on the latest month',
+        !cint.hasAttribute('data-active') && cint.querySelectorAll('.c-pt.on').length === 0 && ro.textContent === atEnd);
+      // reduced motion covers the new marks and the new transitions too
+      ok('the new chart marks are reduced-motion-guarded',
+        /\.c-svg \.c-mk,\.cat-bar \.cb-fill/.test(html) && /\.c-svg \.c-mk,\.c-svg \.c-col,\.c-svg \.c-guide,\.c-int:focus-visible\{transition:none\}/.test(html));
+      ok('the focus indicator is a real visible outline, not a colour swap',
+        /\.c-int:focus-visible\{outline:2px solid var\(--accent\);outline-offset:4px\}/.test(html));
       // reset so later/again renders are stable
       window.state.settings.chartStyles = {}; window.render();
     })();
