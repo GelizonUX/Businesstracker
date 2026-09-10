@@ -1441,7 +1441,13 @@ async function main() {
       ok('headings and values consume the tracking tokens', /h1,h2,h3\{font-family:var\(--font-display\);letter-spacing:var\(--tr-xl\)\}/.test(html) && /\.stat-value\{[^}]*letter-spacing:var\(--tr-2xl\)/.test(html));
     })();
     ok('island squeezes on medium desktops (two tiers, fits down to 861px)', /@media \(min-width:861px\) and \(max-width:1180px\)/.test(html) && /@media \(min-width:861px\) and \(max-width:1040px\)/.test(html) && /\.isl-brand b\{display:none\}/.test(html));
-    ok('health ring follows the user accent (no hardcoded gradient stops)', /stop-color:var\(--accent-cta,#4653e8\)/.test(html) && !/<stop offset="0" stop-color="#4653e8"/.test(html));
+    // The ring used to prove this with a gradient stop. The gradient is gone (they are
+    // banned), so the same intent is checked on the solid stroke: the accent still comes
+    // from the token the owner sets, never a hex baked into the drawing.
+    ok('health ring follows the user accent (no hardcoded colour in the drawing)', (function(){
+      var r = window.svgRing(72, 120, null, '72', '/ 100');
+      return /stroke="var\(--accent-cta,#4653e8\)"/.test(r) && !/stroke="#4653e8"/.test(r) && !/linearGradient/.test(r);
+    })());
 
     // build beacon: instantly answers "did the deploy update?"
     ok('build stamp exists and is surfaced in Settings', typeof window.APP_BUILD === 'string' && window.APP_BUILD.length >= 8 && (function(){ window.location.hash='#/settings'; window.render(); return d.querySelector('.page-title p').textContent.indexOf(window.APP_BUILD) > -1; })());
@@ -2495,7 +2501,11 @@ async function main() {
       ok('labelled sparkline carries a Latest/High/Low tooltip', /data-ctip=/.test(sparkLbl) && /Latest/.test(sparkLbl));
       // health ring draws itself in (unique gradient id + --c0 keyframe start)
       var ring = window.svgRing(72, 120, null, '72', '/ 100');
-      ok('health ring has draw-in start + per-ring gradient id', /--c0:/.test(ring) && !/id="ringGrad"/.test(ring) && /id="rg\d/.test(ring));
+      ok('health ring keeps its draw-in start and is now a solid stroke (gradients are banned)',
+        /--c0:/.test(ring) && !/linearGradient/.test(ring) && /stroke="var\(--accent-cta/.test(ring));
+      ok('the sparkline area is a flat tint, not a gradient', !/linearGradient/.test(spark) && /class="c-spark-area" d="[^"]+" fill="var\(--income\)" opacity="0\.15"/.test(spark));
+      ok('no chart anywhere still mints an SVG gradient at runtime',
+        !/linearGradient|radialGradient/.test(ring + spark + donut + catBars + window.svgProfitBars(months, mm)));
       // the floating tooltip surface is theme-independent dark (light-mode contrast bug regression)
       ok('tooltip surface is always-dark (never white-on-white in light mode)', /\.chart-tip\{[^}]*background:rgba\(21,22,26/.test(html));
 

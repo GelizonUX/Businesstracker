@@ -2,14 +2,17 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<!-- connect-src stays at https: on purpose. The two fixed endpoints (open.er-api.com,
-     the activation database) could be named, but cloud sync points at whatever Firebase
-     database the owner types into Settings, and that address is not knowable when this
-     line is written. Naming the two we know while leaving a wildcard for the third
-     would buy nothing and would break sync the first time someone used it.
+<!-- connect-src is narrowed to the places this app actually talks to. The sync address
+     is typed in by the owner and so cannot be named here, but a Firebase Realtime
+     Database is always a subdomain of firebaseio.com or firebasedatabase.app (regional
+     instances), and the product supports no other backend, so the wildcard can be those
+     suffixes instead of the whole web. That is the difference that matters if script
+     ever does run in this origin: a wide-open `https:` lets it post the owner's books
+     and licence key to any host an attacker owns, while this confines it to Firebase and
+     the rate API. It is a narrowing, not a cure, and it is cheap.
      upgrade-insecure-requests rewrites any http:// asset request to https:// before it
      leaves the browser, which is the half of "force HTTPS" that a redirect cannot do. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https:; media-src 'self' data: blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://open.er-api.com https://*.firebaseio.com https://*.firebasedatabase.app; media-src 'self' data: blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests">
 <meta name="referrer" content="no-referrer">
 <script>
 /* Belt and braces for HTTPS, and the first thing in the file that runs.
@@ -37,7 +40,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Keeps a small business’s books in one browser tab: income and expenses, invoices, orders, stock, staff pay and what customers still owe. The data stays in the browser you type it into.">
 <title>Books &amp; stock in one browser tab</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%234653e8'/%3E%3Cstop offset='1' stop-color='%233a43cf'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpath d='M8 22l5-6 4 3 7-9' stroke='%23fff' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<!-- flat fill, not a gradient: at 16px in a browser tab the two stops were within a
+     shade of each other anyway, so the ramp cost bytes and bought nothing -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234653e8'/%3E%3Cpath d='M8 22l5-6 4 3 7-9' stroke='%23fff' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>
 /* ============================================================
    Trakora design system v2: "Ledger"
@@ -4250,7 +4255,7 @@ function svgSparkline(values,w,h,color,label){
   w=w||90;h=h||30;
   if(!values||values.length<2) return '';
   var max=Math.max.apply(null,values), min=Math.min.apply(null,values); if(max===min){max=min+1;}
-  var uid='sp'+(++_chartUID), col=color||'var(--accent)';
+  var col=color||'var(--accent)';
   var pts=values.map(function(v,i){ var x=(i/(values.length-1))*(w-4)+2; var y=h-3-((v-min)/(max-min))*(h-6); return [x,y]; });
   var line=pts.map(function(p){return p[0].toFixed(1)+','+p[1].toFixed(1);}).join(' ');
   var last=pts[pts.length-1];
@@ -4260,8 +4265,9 @@ function svgSparkline(values,w,h,color,label){
     {c:col,s:'Latest',b:fmtMoney(values[values.length-1])},
     {c:col,s:'High',b:fmtMoney(vmax)},
     {c:col,s:'Low',b:fmtMoney(vmin)}])+'"':'';
-  return '<svg viewBox="0 0 '+w+' '+h+'" class="c-spark" style="width:'+w+'px;height:'+h+'px"'+tipAttr+'><defs><linearGradient id="'+uid+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+col+'" stop-opacity="0.22"/><stop offset="1" stop-color="'+col+'" stop-opacity="0"/></linearGradient></defs>'+
-    '<path class="c-spark-area" d="'+area+'" fill="url(#'+uid+')"/>'+
+  /* flat tint, not a gradient: at 30px tall a vertical fade reads as noise anyway */
+  return '<svg viewBox="0 0 '+w+' '+h+'" class="c-spark" style="width:'+w+'px;height:'+h+'px"'+tipAttr+'>'+
+    '<path class="c-spark-area" d="'+area+'" fill="'+col+'" opacity="0.15"/>'+
     '<polyline class="c-spark-line" points="'+line+'" fill="none" stroke="'+col+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" pathLength="100"/>'+
     '<circle class="c-spark-dot" cx="'+last[0].toFixed(1)+'" cy="'+last[1].toFixed(1)+'" r="2.4" fill="'+col+'"/></svg>';
 }
@@ -4269,12 +4275,10 @@ function svgRing(pct,size,color,labelTop,labelBottom){
   size=size||120;
   var stroke=10, r=(size-stroke)/2, c=size/2, circ=2*Math.PI*r;
   var p=clamp(pct||0,0,100);
-  var uid='rg'+(++_chartUID); // unique per ring: a shared id breaks when two rings render at once
   return '<div class="ring" style="width:'+size+'px;height:'+size+'px">'+
     '<svg viewBox="0 0 '+size+' '+size+'" style="width:'+size+'px;height:'+size+'px">'+
       '<circle class="track" cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke-width="'+stroke+'"/>'+
-      '<circle class="val" cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+(color||'url(#'+uid+')')+'" stroke-width="'+stroke+'" stroke-linecap="round" stroke-dasharray="'+circ+'" stroke-dashoffset="'+(circ*(1-p/100))+'" transform="rotate(-90 '+c+' '+c+')" style="--c0:'+circ.toFixed(1)+'"/>'+
-      '<defs><linearGradient id="'+uid+'" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--accent-cta,#4653e8)"/><stop offset="1" style="stop-color:color-mix(in srgb,var(--accent-cta,#4653e8) 82%,#000)"/></linearGradient></defs>'+
+      '<circle class="val" cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+(color||'var(--accent-cta,#4653e8)')+'" stroke-width="'+stroke+'" stroke-linecap="round" stroke-dasharray="'+circ+'" stroke-dashoffset="'+(circ*(1-p/100))+'" transform="rotate(-90 '+c+' '+c+')" style="--c0:'+circ.toFixed(1)+'"/>'+
     '</svg>'+
     '<div class="ring-label"><b>'+esc(labelTop)+'</b><span>'+esc(labelBottom||'')+'</span></div></div>';
 }
