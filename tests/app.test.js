@@ -102,10 +102,16 @@ async function main() {
       function ratio(a, b) { const x = lum(a) + 0.05, y = lum(b) + 0.05; return x > y ? x / y : y / x; }
 
       // house rule: no pure white surface
-      ok('no surface token is pure #ffffff', !/--bg-card:#ffffff/.test(html) && !/--bg-input:#ffffff/.test(html) && /--bg-card:#fafbff/.test(html) && /--bg-input:#fafbff/.test(html));
+      ok('no surface token is pure #ffffff', !/--bg-card:#ffffff/.test(html) && !/--bg-input:#ffffff/.test(html) && /--bg-card:#fefcf9/.test(html) && /--bg-input:#fefcf9/.test(html));
+      // the neutrals are ONE hue now, and it is warm paper, not two opposing tints
+      ok('the canvas and the cards share a hue (warm paper), and the accent is not Mercury indigo',
+        /--bg:#f8f4ee/.test(lightBlock) && /--bg-card:#fefcf9/.test(lightBlock) &&
+        /--accent:#0260a6/.test(lightBlock) && !/#4653e8/.test(html) && !/#8a92ff/.test(html));
+      ok('--info is deleted: nothing paints with a fifth semantic colour',
+        /--info:var\(--accent\)/.test(lightBlock) && /--info:var\(--accent\)/.test(darkBlock));
 
       const grounds = { card: rgb(tok('--bg-card', lightBlock)), sunken: rgb(tok('--bg-sunken', lightBlock)), page: rgb(tok('--bg', lightBlock)) };
-      const pairs = [['--good', '--good-soft'], ['--warn', '--warn-soft'], ['--risk', '--risk-soft'], ['--info', '--info-soft'], ['--accent-ink', '--accent-soft']];
+      const pairs = [['--good', '--good-soft'], ['--warn', '--warn-soft'], ['--risk', '--risk-soft'], ['--accent-ink', '--accent-soft']];
       const short = [];
       pairs.forEach(([ink, soft]) => {
         const i = rgb(tok(ink, lightBlock)), sf = rgb(tok(soft, lightBlock));
@@ -145,23 +151,24 @@ async function main() {
 
       // ink on a filled semantic colour flips with the theme (dark fills are LIGHT)
       ok('--on-tint flips with the theme so #fff never sits on a light fill',
-        /--on-tint:#ffffff/.test(lightBlock) && /--on-tint:#0e0f13/.test(darkBlock) &&
+        /--on-tint:#ffffff/.test(lightBlock) && /--on-tint:#14110e/.test(darkBlock) &&
         !/background:var\(--risk\);color:#fff/.test(html) && !/background:var\(--good\);color:#fff/.test(html) &&
         !/background:var\(--accent\);color:#fff\}/.test(html));
       const onTintFails = [];
-      [['risk', darkBlock], ['good', darkBlock], ['warn', darkBlock], ['info', darkBlock], ['accent', darkBlock]].forEach(([n, b]) => {
+      [['risk', darkBlock], ['good', darkBlock], ['warn', darkBlock], ['accent', darkBlock]].forEach(([n, b]) => {
         const r = ratio(rgb(tok('--on-tint', b)), rgb(tok('--' + n, b)));
         if (r < 4.5) onTintFails.push('dark --on-tint on --' + n + ' = ' + r.toFixed(2));
       });
-      [['risk', lightBlock], ['good', lightBlock], ['warn', lightBlock], ['info', lightBlock]].forEach(([n, b]) => {
+      [['risk', lightBlock], ['good', lightBlock], ['warn', lightBlock]].forEach(([n, b]) => {
         const r = ratio(rgb(tok('--on-tint', b)), rgb(tok('--' + n, b)));
         if (r < 4.5) onTintFails.push('light --on-tint on --' + n + ' = ' + r.toFixed(2));
       });
       ok('--on-tint clears 4.5:1 on every semantic fill in both themes', onTintFails.length === 0, onTintFails);
 
-      // the label the earlier audit flagged: still .8rem, and its colour now measured
-      ok('.stat-label keeps its .8rem size and --text-3 clears 4.5:1 on a card in both themes',
-        /\.stat-card \.stat-label\{font-size:\.8rem/.test(html) &&
+      // the label the earlier audit flagged: now the scale's own micro-label step,
+      // and its colour still measured against every ground it sits on
+      ok('.stat-label is the scale\'s micro-label step and --text-3 clears 4.5:1 on a card in both themes',
+        /\.stat-card \.stat-label\{font-size:var\(--f1\)/.test(html) &&
         ratio(rgb(tok('--text-3', lightBlock)), grounds.card) >= 4.5 &&
         ratio(rgb(tok('--text-3', darkBlock)), rgb(tok('--bg-card', darkBlock))) >= 4.5,
         'light ' + ratio(rgb(tok('--text-3', lightBlock)), grounds.card).toFixed(2) +
@@ -204,13 +211,13 @@ async function main() {
     ok('no unescaped image src in source', html.match(/src="'\+(?!esc\()/g) === null);
     ok('CSP meta present', !!d.querySelector('meta[http-equiv="Content-Security-Policy"]'));
     ok('CSP blocks objects + framing', /object-src 'none'/.test(html) && /frame-ancestors 'none'/.test(html));
-    ok('safeColor rejects injection', window.safeColor('red"><img>') === '#4653e8' && window.safeColor('#10b981') === '#10b981');
+    ok('safeColor rejects injection', window.safeColor('red"><img>') === '#0260a6' && window.safeColor('#10b981') === '#10b981');
     window.state.settings.bizLogo = 'x" onerror="alert(1)';
     window.renderSidebar();
     ok('malicious bizLogo is escaped (no raw onerror)', d.getElementById('sidebar').innerHTML.indexOf('onerror="alert(1)"') === -1);
     window.state.settings.bizLogo = '';
     // user-chosen colors are sanitized before going into style="" attributes (no CSS/attr injection)
-    ok('account color tamed + sanitized at source', /var col=tameColor\(a\.color/.test(html) && /c=safeColor\(c,fb\|\|'#4653e8'\)/.test(html));
+    ok('account color tamed + sanitized at source', /var col=tameColor\(a\.color/.test(html) && /c=safeColor\(c,fb\|\|'#0260a6'\)/.test(html));
     ok('task table color tamed (sanitizes via safeColor inside)', html.indexOf("'box-shadow:inset 3px 0 0 '+tameColor(t.color)") > -1);
     ok('calendar task color tamed', /tcol=\s*t\.color\?tameColor\(t\.color\)/.test(html));
     // file-attachment href is scheme-allowlisted (no javascript: / attribute breakout)
@@ -420,7 +427,7 @@ async function main() {
         .map(function (p) { return p[1].trim().slice(0, 70); });
       ok('no decorative gradients survive in the stylesheet', stray.length === 0, stray);
       ok('the --accent-grad ramp token is gone in both themes and at runtime', !/--accent-grad/.test(html));
-      ok('the default accent swatch is a solid colour, not the purple ramp', /style="background:#4653e8" data-action="set-accent"/.test(html) && !/linear-gradient\(135deg,#4653e8,#7c5cd6\)/.test(html));
+      ok('the default accent swatch is a solid colour, not the purple ramp', /style="background:#0260a6" data-action="set-accent"/.test(html) && !/linear-gradient\(135deg,#0260a6,#7c5cd6\)/.test(html));
       ok('task colour tint is one flat mix, not a two-stop same-colour ramp', /function taskColorStyle\(t\)\{ return t\.color\?'background:color-mix/.test(html));
     })();
     // Pill-shaped buttons and containers are gone. The only 999px radii left are
@@ -442,7 +449,7 @@ async function main() {
       ok('the rounded-full utility that only made pills is gone', !/\.rounded-full/.test(html));
     })();
     // macOS Control-Center liquid glass on the KPI stat tiles + wallet tiles, over an ambient mesh
-    ok('Ledger design: canvas is a clean paper surface (no ambient mesh)', !/body\{background-image:\s*radial-gradient/.test(html) && /--bg:#f3f3ef/.test(html));
+    ok('Ledger design: canvas is a clean paper surface (no ambient mesh)', !/body\{background-image:\s*radial-gradient/.test(html) && /--bg:#f8f4ee/.test(html));
     ok('Ledger design: stat values use the embedded display face (tables keep tabular numerals)', /\.stat-card \.stat-value\{font-family:var\(--font-display\)/.test(html) && /font-family:'Schibsted Grotesk'/.test(html) && /font-family:'Instrument Sans'/.test(html) && /td\{[^}]*font-variant-numeric:tabular-nums\}/.test(html));
     ok('wallet tiles are flat premium cards (identity lives in the tamed icon chip, no stripe)', /\.acct-card\{position:relative;overflow:hidden;background:var\(--bg-card\)\}/.test(html) && /function tameColor/.test(html));
     // standard-mobile shell: bottom tab bar + FAB + header overflow menu + tables→cards
@@ -729,7 +736,7 @@ async function main() {
     ok('dismissing hides the bubble + persists', window.state.settings.advisorBubbleOff === true && d.getElementById('advisor-bubble').innerHTML === '');
 
     // ---------- sidebar default white text + white icons ----------
-    ok('sidebar nav text uses the themed rail token (light rail in light mode)', /\.nav-item\{[\s\S]{0,220}color:var\(--sidebar-text\)/.test(html) && /--bg-sidebar:#fbfbf9/.test(html) && /html\[data-theme="dark"\]\{[\s\S]{0,400}--bg-sidebar:#121317/.test(html));
+    ok('sidebar nav text uses the themed rail token (light rail in light mode)', /\.nav-item\{[\s\S]{0,220}color:var\(--sidebar-text\)/.test(html) && /--bg-sidebar:#f5f1ea/.test(html) && /html\[data-theme="dark"\]\{[\s\S]{0,900}--bg-sidebar:#0f0d0c/.test(html));
     ok('sidebar nav icons follow the themed text colour', /\.nav-item svg\{color:currentColor\}/.test(html));
 
     // ---------- the glyph set: one system, no emoji doing UI work ----------
@@ -868,7 +875,7 @@ async function main() {
     window.toast('hello world');
     const tEl = d.getElementById('toast-root').querySelector('.toast');
     ok('toast is announced to screen readers (role=alert)', tEl && tEl.getAttribute('role') === 'alert' && !!tEl.getAttribute('aria-live'));
-    ok('AA contrast: --text-3 verified 4.5:1+ (light #5d5f6a / dark #9b9dad)', html.indexOf('--text-3:#5d5f6a') > -1 && html.indexOf('--text-3:#9b9dad') > -1);
+    ok('AA contrast: --text-3 verified 4.5:1+ (light #6e6860 / dark #97918a)', html.indexOf('--text-3:#6e6860') > -1 && html.indexOf('--text-3:#97918a') > -1);
     ok('focus-visible covers custom controls', /\.chip:focus-visible,\.seg button:focus-visible/.test(html));
     ok('snappy easing token added', html.indexOf('--ease-snappy:') > -1);
     ok('modal focus trap + return-focus wired', html.indexOf('modalReturnFocus') > -1 && /e\.key!=='Tab'/.test(html));
@@ -1154,7 +1161,7 @@ async function main() {
       !/\.main\{--main-pad-x:30px;margin-left:0;padding:76px/.test(html));
     ok('.main becomes the flex scrollport so the sticky title still pins to the content',
       /@media \(min-width:861px\)\{[\s\S]{0,800}height:auto;flex:1 1 auto;min-height:0\}/.test(html));
-    ok('paper canvas kept, radii moved to the iOS 27 concentric scale', /--bg:#f3f3ef/.test(html) && /--r-sm:10px; --r:13px; --r-lg:17px; --r-xl:22px; --r-2xl:28px;/.test(html));
+    ok('paper canvas kept, radii moved to the iOS 27 concentric scale', /--bg:#f8f4ee/.test(html) && /--r-sm:10px; --r:13px; --r-lg:17px; --r-xl:22px; --r-2xl:28px;/.test(html));
     // island polish: the production dropdown-clip bug + adaptive active pill + glass
     ok('island can never clip its dropdowns (no overflow/contain on the pill bar)', !/\.island\{[^}]*(overflow|contain)/.test(html));
     ok('island wraps gracefully when user labels/custom modules overflow the row', /\.island\{[^}]*flex-wrap:wrap/.test(html) && /\.island\{[^}]*max-width:calc\(100vw - 400px\)/.test(html));
@@ -1460,8 +1467,8 @@ async function main() {
       window.closeModal();
 
       // SF-style optical tracking
-      ok('SF tracking tokens exist across the type scale', /--tr-2xl:-\.032em; --tr-xl:-\.024em/.test(html) && /--tr-xs:\.012em/.test(html));
-      ok('headings and values consume the tracking tokens', /h1,h2,h3\{font-family:var\(--font-display\);letter-spacing:var\(--tr-xl\)\}/.test(html) && /\.stat-value\{[^}]*letter-spacing:var\(--tr-2xl\)/.test(html));
+      ok('SF tracking tokens exist across the type scale', /--tr-2xl:-\.032em; --tr-xl:-\.022em/.test(html) && /--tr-xs:\.02em/.test(html));
+      ok('headings and values consume the tracking tokens', /h1,h2,h3\{font-family:var\(--font-display\);letter-spacing:var\(--tr-lg\)/.test(html) && /\.stat-value\{[^}]*letter-spacing:var\(--tr-xl\)/.test(html));
     })();
     ok('island squeezes on medium desktops (two tiers, fits down to 861px)', /@media \(min-width:861px\) and \(max-width:1180px\)/.test(html) && /@media \(min-width:861px\) and \(max-width:1040px\)/.test(html) && /\.isl-brand b\{display:none\}/.test(html));
     // The ring used to prove this with a gradient stop. The gradient is gone (they are
@@ -1469,7 +1476,7 @@ async function main() {
     // from the token the owner sets, never a hex baked into the drawing.
     ok('health ring follows the user accent (no hardcoded colour in the drawing)', (function(){
       var r = window.svgRing(72, 120, null, '72', '/ 100');
-      return /stroke="var\(--accent-cta,#4653e8\)"/.test(r) && !/stroke="#4653e8"/.test(r) && !/linearGradient/.test(r);
+      return /stroke="var\(--accent-cta,#0260a6\)"/.test(r) && !/stroke="#0260a6"/.test(r) && !/linearGradient/.test(r);
     })());
 
     // build beacon: instantly answers "did the deploy update?"
