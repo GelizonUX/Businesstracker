@@ -122,6 +122,19 @@
   --tr-2xl:-.032em; --tr-xl:-.024em; --tr-lg:-.016em; --tr-md:-.008em; --tr-sm:0em; --tr-xs:.012em;
   /* type scale: one set of steps for value/heading/body roles (snap new CSS to these) */
   --fs-xs:.72rem; --fs-sm:.82rem; --fs-md:.92rem; --fs-base:1rem; --fs-lg:1.12rem; --fs-xl:1.3rem; --fs-2xl:1.72rem; --fs-3xl:2.1rem;
+  /* LEDGER type scale: eight steps with real gaps at the top. The --fs-* scale
+     above spans 2.9x across 8 steps, so adjacent steps differ ~14%, below the
+     threshold at which a reader perceives a level change, which is why hierarchy
+     had to be carried by boxes. These ratios climb from 1.08 at the small end to
+     1.53 at the top, which is where perceived hierarchy is actually created. */
+  --f1:.75rem;    /* 12  micro label, table header, unit       */
+  --f2:.8125rem;  /* 13  supporting: dates, captions, sub-rows */
+  --f3:.9375rem;  /* 15  body and row text  <- the workhorse   */
+  --f4:1.0625rem; /* 17  section heading                       */
+  --f5:1.375rem;  /* 22  page title                            */
+  --f6:1.75rem;   /* 28  section figure (L2)                   */
+  --f7:2.5rem;    /* 40  standing figure (L1), phone           */
+  --f8:3.25rem;   /* 52  standing figure (L1), desktop         */
   --grid-gap:14px; /* one consistent gutter for the card grids */
   --shadow-sm:0 1px 2px rgba(22,23,29,.03),0 4px 14px rgba(22,23,29,.045);
   --shadow:0 2px 4px rgba(22,23,29,.04),0 10px 28px rgba(22,23,29,.07);
@@ -2213,9 +2226,102 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .nav-item.active svg{color:#fff}
 /* .nav-item.active::before is defined once near the top (accent bar) */
 .nav-section{transition:color .15s}
-.today-row{display:flex;align-items:flex-start;gap:9px;text-align:left;padding:8px 4px;width:100%;min-width:0;font-size:.85rem;background:transparent;border-bottom:1px solid var(--border);transition:background .12s}
-.today-row:last-child{border-bottom:none}
-.today-row:hover{background:var(--bg-hover)}
+/* ============================================================
+   LEDGER: the dashboard is a ruled notebook, not a grid of widgets.
+   Space groups, rules separate, boxes contain. Nothing here floats,
+   so nothing here is a card. See §2 and §7 of the design spec.
+   ============================================================ */
+
+/* ---- the four number levels (§5) ----------------------------------------
+   L1/L2 are PROPORTIONAL: a tabular comma is given a full digit's advance,
+   which at 40px opens a visible gap ("167 , 200"), and nothing needs to line
+   up with a standing figure. L3/L4 stack in columns and must align, so they
+   stay tabular. This is why the blanket tabular-nums on body is overridden
+   per level rather than globally. */
+.n1{font-family:var(--font-display);font-weight:620;font-size:var(--f7);line-height:1.02;
+  letter-spacing:-.032em;color:var(--text);display:block;font-variant-numeric:proportional-nums}
+.n2{font-family:var(--font-display);font-weight:600;font-size:var(--f6);line-height:1.1;
+  letter-spacing:-.022em;color:var(--text);font-variant-numeric:proportional-nums}
+.n3{font-family:var(--font);font-weight:550;font-size:var(--f3);color:var(--text);
+  letter-spacing:-.006em;white-space:nowrap;font-variant-numeric:tabular-nums}
+.n4{font-family:var(--font);font-weight:500;font-size:var(--f2);color:var(--text-2);
+  white-space:nowrap;font-variant-numeric:tabular-nums}
+/* the currency sign is a unit, not a digit: smaller and lighter at every level */
+.cur{font-size:.62em;font-weight:500;color:var(--text-2);letter-spacing:0}
+.n3 .cur,.n4 .cur{font-size:.85em;color:inherit;opacity:.72}
+.n2.neg,.n3.neg,.n4.neg,.neg{color:var(--risk)}
+/* the standing figure is 40px on a phone and 52px on a desktop: the same figure,
+   sized to the reading distance rather than to a breakpoint's spare width */
+@media (min-width:561px){ .n1{font-size:var(--f8);letter-spacing:-.036em} }
+/* the one uppercase micro-label in the system: it sits over a standing figure */
+.mlabel{font-size:var(--f1);font-weight:550;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--text-3);display:block;margin-bottom:8px}
+
+/* ---- section: space above + one hairline + a heading. Never a box. ---- */
+.led-sec{padding-top:24px;margin-top:24px;border-top:1px solid var(--border)}
+.led-sec:first-child{border-top:0;margin-top:0;padding-top:0}
+.led-h{display:flex;align-items:baseline;gap:12px;margin-bottom:12px}
+.led-h h2{font-family:var(--font-display);font-size:var(--f4);font-weight:600;margin:0;
+  letter-spacing:-.012em;color:var(--text)}
+.led-h .count{font-size:var(--f2);color:var(--text-3);font-weight:500}
+.led-h .more{margin-left:auto;font-size:var(--f2);font-weight:550;color:var(--accent);
+  background:none;border:0;padding:0;cursor:pointer;white-space:nowrap}
+.led-h .more:hover{text-decoration:underline}
+
+/* ---- the standing block: cash, then exactly one alarm ---- */
+.led-standing .split{font-size:var(--f2);color:var(--text-2);margin:10px 0 0}
+.led-standing .split b{font-weight:550;color:var(--text)}
+.led-alarm{display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  margin-top:16px;padding:14px 0 0;border-top:1px solid var(--border);
+  background:none;border-left:0;border-right:0;border-bottom:0;cursor:pointer;font:inherit;color:inherit}
+.led-alarm .bar{width:3px;align-self:stretch;background:var(--risk);border-radius:2px;flex:0 0 3px;margin:2px 0}
+.led-alarm .t{flex:1;min-width:0}
+.led-alarm .n2{color:var(--risk)}
+.led-alarm .sub{display:block;font-size:var(--f2);color:var(--text-2);margin-top:2px}
+.led-chev{color:var(--text-3);flex:0 0 auto;display:inline-flex}
+
+/* ---- one row treatment for every ledger list ---- */
+.led-rows{display:flex;flex-direction:column}
+.led-row{display:flex;align-items:flex-start;gap:12px;width:100%;text-align:left;
+  padding:12px 0;border-top:1px solid var(--border);background:none;border-left:0;
+  border-right:0;border-bottom:0;font:inherit;color:inherit;cursor:pointer}
+.led-row:first-child{border-top:0}
+.led-row:hover{background:var(--accent-soft)}
+.led-row .t{flex:1;min-width:0}
+.led-row .title{display:block;font-size:var(--f3);font-weight:550;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis}
+.led-row .sub{display:block;font-size:var(--f2);color:var(--text-2);margin-top:1px}
+.led-row .amt{text-align:right;flex:0 0 auto;padding-left:8px}
+.led-row .amt .n4{display:block;margin-top:1px}
+/* the consequence marker: a 3px stub, not a coloured icon and not a chip on every row */
+.led-stub{width:3px;flex:0 0 3px;align-self:stretch;border-radius:2px;background:transparent;margin:3px 0}
+.led-stub.late{background:var(--risk)}
+.led-stub.soon{background:var(--warn)}
+.led-stub.ok{background:var(--border-2)}
+/* the double rule under a total: the notation the owner already uses */
+.led-total{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+  margin-top:2px;padding-top:10px;border-top:2px solid var(--border-2)}
+.led-total .lab{font-size:var(--f2);color:var(--text-2);font-weight:500}
+.led-note{font-size:var(--f2);color:var(--text-3);margin:10px 0 0}
+.led-note b{font-weight:550;color:var(--text)}
+/* the month block: figure and target rule side by side where there is room */
+.led-month-top{display:flex;align-items:flex-end;gap:24px;flex-wrap:wrap}
+.led-io{font-size:var(--f2);color:var(--text-2);margin-top:2px}
+.led-io b{font-weight:550;color:var(--text)}
+.led-verdict{font-size:var(--f3);color:var(--text);margin:12px 0 0;font-weight:500}
+.led-target{flex:1;min-width:240px}
+.led-target .cap{display:flex;justify-content:space-between;gap:12px;font-size:var(--f2);
+  color:var(--text-2);margin-top:6px}
+/* recent money, grouped by day: the date leaves the row entirely */
+.led-day{display:flex;justify-content:space-between;gap:12px;align-items:baseline;
+  padding:14px 0 4px;font-size:var(--f1);font-weight:550;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--text-3)}
+.led-rows>.led-day:first-child{padding-top:0}
+@media (max-width:560px){
+  .led-sec{padding-top:20px;margin-top:20px}
+  .led-row{padding:14px 0}
+  .led-month-top{gap:14px}
+}
 
 /* page accents use the single brand accent (--accent). Consistent across every section */
 .page-title{position:relative;padding-left:16px}
@@ -2884,6 +2990,23 @@ function fmtDate(dateStr){
   if(isNaN(d)) return dateStr;
   return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
 }
+/* Lateness in words, not "230d". One helper, used everywhere a deadline is
+   printed, because "230d" is a unit the owner has to decode and "7 months late"
+   is one they already think in. Positive days = still ahead, negative = late. */
+function lateWords(days){
+  if(days==null) return '';
+  function plural(n,w){ return n+' '+w+(n===1?'':'s'); }
+  function span(n){
+    if(n>=365){ var y=Math.round(n/365); return y<=1?'over a year':plural(y,'year'); }
+    if(n>=60){ return plural(Math.round(n/30),'month'); }
+    return plural(n,'day');
+  }
+  if(days===0) return 'today';
+  if(days===1) return 'tomorrow';
+  if(days===-1) return '1 day late';
+  if(days>0) return 'in '+span(days);
+  return span(-days)+' late';
+}
 function fmtNum(n,dec){
   if(n==null||isNaN(n)) return '—';
   return Number(n).toLocaleString(undefined,{minimumFractionDigits:dec||0,maximumFractionDigits:dec==null?2:dec});
@@ -2896,6 +3019,27 @@ function fmtMoney(n,dec){
   var loc=(state.settings&&state.settings.locale)||undefined, s;
   try{ s=v.toLocaleString(loc,fd); }catch(_){ s=v.toLocaleString(undefined,fd); }
   return (neg?'−':'')+sym+s;
+}
+/* A money figure at one of the four levels of §5, with the currency sign split
+   out so it can be set smaller and lighter than its digits: the ₱ is a unit, not
+   a digit. Decimals follow the level: never at L1/L2, only under ₱1,000 at
+   L3/L4, so a six-figure sum never reads "₱287,942.66" to a candle maker.
+   Expense/negative gets a true minus (U+2212) and --risk; income is the default
+   and stays --text, because colouring every income row green paints most of a
+   ledger green and spends the whole colour budget on the non-event. */
+function nMoney(n,level,extraCls){
+  level=level||3;
+  var cls='n'+level+(extraCls?' '+extraCls:'');
+  if(n==null||isNaN(n)) return '<span class="'+cls+'">—</span>';
+  var neg=n<0, v=Math.abs(n);
+  var dec=(level<=2)?0:(v<1000?2:0);
+  if(dec===0) v=Math.round(v);
+  var sym=(state.settings&&state.settings.currency)||'₱';
+  var loc=(state.settings&&state.settings.locale)||undefined, s;
+  var fd={minimumFractionDigits:(dec&&v%1)?2:0,maximumFractionDigits:dec};
+  try{ s=v.toLocaleString(loc,fd); }catch(_){ s=v.toLocaleString(undefined,fd); }
+  return '<span class="'+cls+(neg?' neg':'')+'">'+(neg?'−':'')+
+    '<span class="cur">'+esc(sym)+'</span>'+s+'</span>';
 }
 function fmtPct(n,dec){ if(n==null||isNaN(n)||!isFinite(n)) return '—'; return fmtNum(n,dec==null?1:dec)+'%'; }
 function clamp(n,min,max){ return Math.max(min,Math.min(max,n)); }

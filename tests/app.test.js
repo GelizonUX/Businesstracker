@@ -188,10 +188,15 @@ async function main() {
       ].filter((p) => html.indexOf(p) !== -1);
       ok('no tricolons, possessive couplets or cheering left in the surveyed copy', banned.length === 0, banned);
       ok('the greeting subtitle stopped exclaiming at the owner', html.indexOf('Hello! Here is how ') === -1);
-      // and the em-dash budget is unchanged apart from the two placeholder values
-      // the Metrics rewrite deleted along with the cards that showed them
-      const ems = (html.match(/—/g) || []).length;
-      ok('no em dash was reintroduced (60 placeholder glyphs remain)', ems === 60, String(ems));
+      // This counted em dashes and demanded exactly 60, which broke the moment a new
+      // no-value placeholder was added legitimately. The rule was never "sixty dashes":
+      // it is "no dash used as PROSE". A placeholder is written >—< or '—' with no
+      // spaces around it; prose is written word — word. So test the rule. The single
+      // permitted prose dash is 'estimate — unverified', which two other assertions
+      // match on, so changing it has to be a deliberate act in the same commit.
+      const proseDashes = html.match(/\S[  ]—[  ]\S/g) || [];
+      ok('no em dash is used as prose (placeholder glyphs are fine)',
+        proseDashes.length === 1 && /e — u/.test(proseDashes[0]), proseDashes.slice(0, 5));
       ok('the mobile-table placeholder regex still has its glyph', /\/\^\[—–-\]\+\$\//.test(html));
     })();
 
