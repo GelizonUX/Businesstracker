@@ -1301,7 +1301,15 @@ html[data-theme="dark"] .card.metric-card{box-shadow:none}
 .stat-delta.up{color:var(--good);background:var(--good-soft)}
 .stat-delta.down{color:var(--risk);background:var(--risk-soft)}
 .stat-delta.flat{color:var(--text-3);background:var(--bg-sunken)}
-.stat-card .spark{position:absolute;right:12px;bottom:10px;opacity:.85}
+/* The sparkline belongs to the number above it, so it sits in flow directly under the
+   delta. It used to be position:absolute;bottom:10px, which was fine while the tile was
+   a compact bordered box: bottom was a few pixels below the figure. Once the tiles lost
+   their borders and started sharing a grid row with the tall chart panel, every tile
+   stretched to the panel's height and the sparkline pinned itself to the bottom of a box
+   three times taller than its content, marooning it in whitespace with nothing tying it
+   to the figure it describes. */
+.stat-card{display:flex;flex-direction:column;align-items:flex-start}
+.stat-card .spark{margin-top:10px;opacity:.85;line-height:0}
 .stat-accent{display:none}
 
 /* badges & pills */
