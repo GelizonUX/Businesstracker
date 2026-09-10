@@ -12941,8 +12941,14 @@ function accountMonthFlow(a,mk){
   });
   return {inn:inn,out:out};
 }
+/* invPHP, not iv.amount. This summed the raw FOREIGN figure into a peso total, so a
+   $450 invoice added 450 to the pesos owed and the Accounts screen and the Today strip
+   both printed a "true position" that mixed two currencies as though they were one unit.
+   receivablesSummary() next door already did this correctly; this one was missed.
+   invPHP returns null for an invoice with no usable rate, which sums as 0, so the figure
+   under-counts rather than inventing money. */
 function receivablesTotal(){
-  var inv=sum((state.invoices||[]).filter(function(iv){return iv.status!=='Paid';}),function(iv){return iv.amount;});
+  var inv=sum((state.invoices||[]).filter(function(iv){return iv.status!=='Paid';}),invPHP);
   var ord=sum((state.orders||[]).filter(function(o){return o.payStatus!=='Paid'&&o.status!=='Cancelled';}),orderTotal);
   return inv+ord;
 }
