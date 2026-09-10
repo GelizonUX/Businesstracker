@@ -2260,9 +2260,9 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 /* ---- section: space above + one hairline + a heading. Never a box. ---- */
 .led-sec{padding-top:24px;margin-top:24px;border-top:1px solid var(--border)}
 .led-sec:first-child{border-top:0;margin-top:0;padding-top:0}
-.led-h{display:flex;align-items:baseline;gap:12px;margin-bottom:12px}
+.led-h{display:flex;align-items:baseline;gap:12px;margin-bottom:12px;flex-wrap:wrap}
 .led-h h2{font-family:var(--font-display);font-size:var(--f4);font-weight:600;margin:0;
-  letter-spacing:-.012em;color:var(--text)}
+  letter-spacing:-.012em;color:var(--text);white-space:nowrap}
 .led-h .count{font-size:var(--f2);color:var(--text-3);font-weight:500}
 .led-h .more{margin-left:auto;font-size:var(--f2);font-weight:550;color:var(--accent);
   background:none;border:0;padding:0;cursor:pointer;white-space:nowrap}
@@ -2308,7 +2308,10 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .led-month-top{display:flex;align-items:flex-end;gap:24px;flex-wrap:wrap}
 .led-io{font-size:var(--f2);color:var(--text-2);margin-top:2px}
 .led-io b{font-weight:550;color:var(--text)}
-.led-verdict{font-size:var(--f3);color:var(--text);margin:12px 0 0;font-weight:500}
+/* the month's direction stated as a sentence, in the one place colour is owed:
+   money that did not arrive. Ahead of last month is --good, behind it is --risk. */
+.led-verdict{font-size:var(--f3);color:var(--risk);margin:12px 0 0;font-weight:550}
+.led-verdict.ok{color:var(--good)}
 .led-target{flex:1;min-width:240px}
 .led-target .cap{display:flex;justify-content:space-between;gap:12px;font-size:var(--f2);
   color:var(--text-2);margin-top:6px}
@@ -2317,6 +2320,42 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
   padding:14px 0 4px;font-size:var(--f1);font-weight:550;letter-spacing:.09em;
   text-transform:uppercase;color:var(--text-3)}
 .led-rows>.led-day:first-child{padding-top:0}
+/* the one status chip shape: rectangular at 4px. A pill would read as a button,
+   and .chip is already spoken for by the filter pills. */
+.led-chip{display:inline-block;font-size:var(--f1);font-weight:600;letter-spacing:.01em;
+  padding:1px 6px;border-radius:4px;background:var(--bg-sunken);color:var(--text-2);
+  white-space:nowrap;font-variant-numeric:normal;vertical-align:baseline}
+.led-chip.late{background:var(--risk-soft,rgba(171,13,21,.08));color:var(--risk)}
+/* the monthly target is a rule that fills, not a rounded progress pill */
+.led-track{height:6px;background:var(--bg-sunken);border:1px solid var(--border);
+  border-radius:2px;overflow:hidden}
+.led-fill{height:100%;background:var(--accent);border-radius:1px}
+/* a text link inside ledger prose: the app's <button> reset does not reach it */
+.led-link{background:none;border:0;padding:0;font:inherit;font-size:var(--f2);
+  font-weight:550;color:var(--accent);cursor:pointer}
+.led-link:hover{text-decoration:underline}
+/* ---- the ledger column ------------------------------------------------
+   The dashboard was a full-bleed auto-fill card grid, which is what left
+   "Upcoming milestones" alone on a final row with three quarters of it empty.
+   A single column held to a reading width cannot be ragged. The per-widget
+   drag handles stay: the customize feature survives, only its top-right
+   affordance moves (§2.3). */
+/* The money column is held to a measure instead of running to whatever width the
+   monitor happens to be: at 1440 the ledger reads as a column of a page, and the
+   352px the spec's rail would occupy is left as air rather than filled with the
+   widgets this rebuild just removed. */
+.ledger{max-width:760px}
+.ledger>.led-sec:first-child{border-top:0;margin-top:0;padding-top:8px}
+.dash-grid.led-grid{display:block;margin-top:0}
+.led-grid .dash-widget{display:block;border-radius:0}
+.led-grid .dash-widget.dragging>.led-sec{background:var(--accent-soft);
+  border:2px dashed var(--accent);border-radius:var(--r-lg)}
+.led-grid .dash-widget.dragging>.led-sec>*{visibility:hidden}
+.led-grid .dash-widget.dash-lift>.led-sec{box-shadow:var(--shadow-lg)}
+.led-grid .dash-handle{top:14px}
+/* "Recent money" is a desktop-only section: on a phone the same rows live one
+   tap away under Money, and the fold is worth more than a duplicate. */
+@media (max-width:700px){ .led-deskonly{display:none} }
 @media (max-width:560px){
   .led-sec{padding-top:20px;margin-top:20px}
   .led-row{padding:14px 0}
@@ -2437,13 +2476,11 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 @media (max-width:560px){
   :root{--grid-gap:12px}
   .main{--main-pad-x:13px;padding:14px var(--main-pad-x) 64px}
-  /* dashboard: the four KPIs sit 2-up; richer widgets stay full-width and readable */
-  .dash-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  /* The dashboard used to pair four KPI tiles 2-up here. Those tiles are gone: the
+     ledger is one column at every width, so the phone and the desktop read in the
+     same order and there is no second track for a section to be orphaned in. */
+  .dash-grid{grid-template-columns:minmax(0,1fr);gap:12px}
   .dash-grid .dash-widget{grid-column:1 / -1}
-  .dash-grid .dash-widget[data-widget="rev"],
-  .dash-grid .dash-widget[data-widget="exp"],
-  .dash-grid .dash-widget[data-widget="prof"],
-  .dash-grid .dash-widget[data-widget="margin"]{grid-column:auto}
   /* sleek mobile cards: softer radius + roomy padding (matches the reference's spacious feel) */
   .card{padding:16px 17px;border-radius:var(--r-xl)}
   html[data-theme="dark"] .card{border-color:rgba(255,255,255,.07);box-shadow:0 6px 18px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.04)}
@@ -3135,6 +3172,7 @@ var ICONS = {
   alert:'<path class="d" d="M10.24 3.9 2.3 17.6a2 2 0 0 0 1.74 3h15.92a2 2 0 0 0 1.74-3L13.76 3.9a2 2 0 0 0-3.52 0z"/><path d="M12 9.2v4.3"/><circle class="s" cx="12" cy="17" r="1.2"/>',
   check:'<path d="M4.9 12.5 9.6 17.2 19.1 6.9"/>',
   x:'<path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/>',
+  chevR:'<path d="M9.5 5.5 16 12l-6.5 6.5"/>',
   plus:'<path d="M12 4.9v14.2M4.9 12h14.2"/>',
   minus:'<path d="M4.9 12h14.2"/>',
   'down-chev':'<path d="M6.4 9.5 12 15.1l5.6-5.6"/>',
@@ -3868,12 +3906,8 @@ function healthScore(){
   var total=Math.round(sum(parts,function(p){return p.pts;}));
   return {score:clamp(total,0,100),parts:parts};
 }
-function healthLabel(s){
-  if(s>=80) return {label:'Excellent',cls:'good'};
-  if(s>=60) return {label:'Healthy',cls:'good'};
-  if(s>=40) return {label:'Needs attention',cls:'warn'};
-  return {label:'At risk',cls:'risk'};
-}
+/* healthLabel() went with the Business health card: it existed only to badge that
+   ring's invented composite score, and nothing else ever asked for it. */
 
 /* ---------- insights engine ---------- */
 function buildInsights(){
@@ -4982,11 +5016,105 @@ function backupSafetyBannerHTML(){
       '<button class="btn-icon bb-x" data-action="snooze-backup" aria-label="Dismiss for now" title="Dismiss for now">'+icon('x')+'</button>'+
     '</div></div>';
 }
-function viewDashboard(){
+/* ============================================================
+   The dashboard, rebuilt as a ledger page. Design spec §2.
+
+   What was here: four all-time stat tiles led by ₱1.8M of lifetime revenue, a
+   128px "business health" ring scoring an invented composite, and a nine-row
+   notification strip in which "Cash on hand ₱167,200" was row nine of nine.
+   The one line that answered "am I okay" (that ₱224,153 was overdue) was a
+   four-second toast in the corner, in the smallest type on the page. The
+   hierarchy was exactly inverted, so this inverts it: cash, then exactly one
+   alarm, then the things to do today with the money attached to each.
+
+   Eleven regions become five. Nothing below is a card, because nothing below
+   floats: a section is space, one hairline and a heading.
+   ============================================================ */
+
+/* The standing figure. Real account balances when the owner keeps accounts;
+   otherwise what the ledger itself says is left, labelled as exactly that
+   rather than dressed up as a balance nobody reconciled. */
+function cashOnHand(){
+  var accts=(state.accounts||[]).slice();
+  if(accts.length) return {value:sum(accts,accountBalance),tracked:true,accounts:accts};
   var t=financeTotals();
+  return {value:t.revenue-t.expenses,tracked:false,accounts:[]};
+}
+/* Invoices past their due date. status==='Sent' is deliberate: a draft has not
+   been claimed from anybody, so it cannot be late. */
+function overdueInvoices(){
+  return (state.invoices||[]).filter(function(iv){
+    var d=daysUntil(iv.dueDate);
+    return iv.status==='Sent'&&d!=null&&d<0;
+  });
+}
+/* "Do today": one list, ranked by consequence, never grouped by which table a
+   row came out of. Sort key is money at risk descending, then days late, then
+   due-today, then the rest (§2.4). Each row carries its amount when it has one,
+   because "Chase Verde Hotel" is a chore and "Chase Verde Hotel ₱34,500" is a
+   decision. A seasonal tip and a cash balance are not actions, so neither is
+   here: cash is the hero figure above. */
+function doTodayItems(){
+  var out=[];
+  /* ONE chase row, the costliest, not one per overdue invoice. Nine "Chase X" rows
+     is the notification dump moved down a level, and it is grouping by source table
+     in all but name: the aggregate is already the alarm above, and the invoice list
+     is one tap away. */
+  var worst=overdueInvoices().sort(function(a,b){ return (invPHP(b)||0)-(invPHP(a)||0); })[0];
+  if(worst){
+    var wd=daysUntil(worst.dueDate), wphp=invPHP(worst);
+    out.push({risk:wphp||0,late:-wd,rank:0,sev:'late',route:'invoices',
+      title:'Chase '+(worst.client||'this customer')+' on '+worst.number,
+      sub:lateWords(wd),amount:wphp});
+  }
+  (state.orders||[]).forEach(function(o){
+    if(o.status==='Delivered'||o.status==='Cancelled') return;
+    var d=daysUntil(o.deliveryDate);
+    if(d==null||d>0) return;
+    var unpaid=o.payStatus!=='Paid', amt=unpaid?orderTotal(o):null;
+    out.push({risk:amt||0,late:-d,rank:d<0?0:1,sev:d<0?'late':'soon',route:'orders',
+      title:'Deliver to '+(o.clientName||'a customer'),
+      sub:lateWords(d)+(unpaid?' · not yet paid':''),amount:amt});
+  });
+  unpaidFollowUps().forEach(function(f){
+    var d=daysUntil(f.o.deliveryDate);
+    if(d!=null&&d<=0) return;                 // already listed above as a late delivery
+    out.push({risk:orderTotal(f.o),late:f.days,rank:2,sev:'soon',route:'orders',
+      title:'Follow up '+(f.o.clientName||'an order')+' on '+(f.o.number||'an order'),
+      sub:'unpaid '+lateWords(-f.days).replace(' late',''),amount:orderTotal(f.o)});
+  });
+  state.tasks.forEach(function(t){
+    var d=daysUntil(t.deadline);
+    if(t.done||d==null||d>1) return;
+    out.push({risk:0,late:-d,rank:d<0?0:1,sev:d<0?'late':'soon',route:'tasks',
+      title:t.title,
+      sub:d<0?lateWords(d)+' by your own deadline':lateWords(d)});
+  });
+  out.sort(function(a,b){ return (b.risk-a.risk)||(b.late-a.late)||(a.rank-b.rank); });
+  return out;
+}
+/* TODAY / YESTERDAY / TUE 8 SEP. Grouping by day is what lets the date column
+   leave the row entirely. */
+function ledDayLabel(iso){
+  var t=todayISO();
+  if(iso===t) return tr('Today');
+  if(iso===addDaysISO(t,-1)) return tr('Yesterday');
+  var dt=new Date(iso+'T00:00:00');
+  if(isNaN(dt.getTime())) return iso;
+  return dt.toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'});
+}
+function ledRow(o){
+  return '<button class="led-row" data-action="nav" data-route="'+o.route+'">'+
+    '<span class="led-stub '+(o.sev||'')+'" aria-hidden="true"></span>'+
+    '<span class="t"><span class="title">'+o.title+'</span>'+
+    (o.sub?'<span class="sub">'+o.sub+'</span>':'')+'</span>'+
+    (o.amountHTML?'<span class="amt">'+o.amountHTML+'</span>':'')+
+    (o.chev?'<span class="led-chev" aria-hidden="true">'+icon('chevR',16)+'</span>':'')+
+    '</button>';
+}
+function viewDashboard(){
   var hasData=state.finance.length>0;
   var html=topbar('Dashboard','Where '+(hasBizName()?appName():'your business')+' stands today.',
-    '<button class="btn btn-ghost" data-action="dash-customize" title="Show, hide & reorder cards">'+icon('palette')+'<span class="btn-txt">Customize</span></button>'+
     '<button class="btn btn-primary" data-action="open-entry-modal">'+icon('plus')+'<span class="btn-txt">Add entry</span></button>');
   html+=backupSafetyBannerHTML();
 
@@ -5002,165 +5130,180 @@ function viewDashboard(){
         '<button class="btn btn-ghost" data-action="show-tour">'+icon('spark')+' Take the 1-min tour</button>'+
       '</div></div>';
   }
-
   html+=getStartedHTML();
-  html+=todayPanelHTML();
-  /* ---- reorderable dashboard widgets ---- */
-  var mm=monthlyMap();
-  var months6=lastNMonths(6);
-  var revSeries=months6.map(function(k){ return mm[k]?mm[k].revenue:0; });
-  var expSeries=months6.map(function(k){ return mm[k]?mm[k].expenses:0; });
-  var profSeries=months6.map(function(k,i){ return revSeries[i]-expSeries[i]; });
-  var g=revenueGrowth();
-  var deltaHTML=g==null?'<span class="stat-delta flat">no prior month to compare</span>':
-    (g>=0?'<span class="stat-delta up">'+icon('up')+' '+fmtPct(g)+' MoM</span>':'<span class="stat-delta down">'+icon('down')+' '+fmtPct(Math.abs(g))+' MoM</span>');
+  html+='<div class="ledger">';
+
+  /* ---- 1. the standing figure, and exactly one alarm ------------------- */
+  var cash=cashOnHand();
+  var stand='<section class="led-sec led-standing">'+
+    '<span class="mlabel">'+esc(tr('Cash on hand'))+'</span>'+
+    nMoney(cash.value,1);
+  if(cash.tracked){
+    stand+='<p class="split">'+cash.accounts.slice(0,4).map(function(a){
+      return esc(a.name)+' <b>'+fmtMoney(accountBalance(a),0)+'</b>';
+    }).join(' · ')+(cash.accounts.length>4?' · +'+(cash.accounts.length-4)+' more':'')+'</p>';
+  } else {
+    stand+='<p class="split">Everything logged in, minus everything logged out. '+
+      '<button class="led-link" data-action="nav" data-route="accounts">Add your accounts</button> for a real balance.</p>';
+  }
+  /* One alarm, ever. Nine rows of equal weight taught the owner to read none of
+     them; one line in --risk at 28px cannot be skimmed past. */
+  var late=overdueInvoices();
+  if(late.length){
+    var lateTotal=sum(late,function(iv){ return invPHP(iv)||0; });
+    var oldest=0, who={};
+    late.forEach(function(iv){
+      var d=daysUntil(iv.dueDate); if(d!=null&&-d>oldest) oldest=-d;
+      who[String(iv.client||'?').toLowerCase()]=1;
+    });
+    var nWho=Object.keys(who).length;
+    stand+='<button class="led-alarm" data-action="nav" data-route="invoices">'+
+      '<span class="bar" aria-hidden="true"></span>'+
+      '<span class="t">'+nMoney(lateTotal,2)+'<span class="n2"> is late</span>'+
+      '<span class="sub">'+nWho+' customer'+(nWho===1?'':'s')+' past the due date. The oldest is '+esc(lateWords(-oldest))+'.</span>'+
+      '</span><span class="led-chev" aria-hidden="true">'+icon('chevR',18)+'</span></button>';
+  }
+  stand+='</section>';
+  html+=stand;
+
   var W={};
 
-  W.rev=statCard('Total revenue',fmtMoney(t.revenue),deltaHTML,svgSparkline(revSeries,90,30,'var(--income)','Revenue, last 6 months'),'arrowur');
-  W.exp=statCard('Total expenses',fmtMoney(t.expenses),'<span class="stat-delta '+(t.expenseRatio!=null&&isFinite(t.expenseRatio)&&t.expenseRatio>70?'down':'flat')+'">'+(t.expenseRatio!=null&&isFinite(t.expenseRatio)?fmtPct(t.expenseRatio,0)+' of revenue':'—')+'</span>',svgSparkline(expSeries,90,30,'var(--expense)','Expenses, last 6 months'),'arrowdr');
-  W.prof=statCard('Net profit',fmtMoney(t.profit),'<span class="stat-delta '+(t.profit>=0?'up':'down')+'">'+(t.profit>=0?'Profitable':'Loss')+'</span>',svgSparkline(profSeries,90,30,'var(--accent)','Profit, last 6 months'),'wallet');
-  W.margin=statCard('Profit margin',fmtPct(t.margin),'<span class="stat-delta '+(t.margin==null?'flat':(t.margin>=30?'up':(t.margin>=10?'flat':'down')))+'">'+(t.margin==null?'No revenue yet':(t.margin>=30?'Healthy':(t.margin>=10?'Thin':'Critical')))+'</span>','','pie');
+  /* ---- 2. do today ----------------------------------------------------- */
+  var todo=doTodayItems();
+  var todoBlk='<section class="led-sec"><div class="led-h"><h2>'+esc(tr('Do today'))+'</h2>'+
+    (todo.length>5?'<button class="more" data-action="nav" data-route="tasks">All '+todo.length+'</button>':'')+
+    '</div><div class="led-rows">'+
+    todo.slice(0,5).map(function(o){
+      return ledRow({route:o.route,sev:o.sev,title:esc(o.title),sub:esc(o.sub),
+        amountHTML:o.amount!=null?nMoney(o.amount,3):''});
+    }).join('')+'</div></section>';
+  W.today=todoBlk;
 
-  /* health + monthly chart */
-  var hs=healthScore();
-  var healthBlk='<div class="card"><div class="card-head"><h3>Business health</h3></div>';
-  if(hs){
-    var hl=healthLabel(hs.score);
-    healthBlk+='<div class="ring-wrap">'+svgRing(hs.score,128,null,String(hs.score),'/ 100')+
-      '<div style="flex:1;min-width:0"><span class="badge '+hl.cls+'">'+hl.label+'</span><div class="mt" style="margin-top:10px">'+
-      hs.parts.map(function(p){
-        return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;gap:10px;font-size:.76rem;color:var(--text-2)"><span>'+esc(p.k)+'</span><b style="flex-shrink:0">'+Math.round(p.pts)+'/'+p.max+'</b></div>'+
-          '<div class="progress" style="height:5px;margin-top:3px"><div class="bar '+(p.pts/p.max>=0.6?'good':(p.pts/p.max>=0.35?'warn':'risk'))+'" style="--p:'+(p.pts/p.max*100)+'"></div></div></div>';
-      }).join('')+'</div></div></div>';
-  } else {
-    healthBlk+=emptyState('shield','No health score yet','Add finance entries and the score is computed automatically from margin, growth, expense control and execution.');
-  }
-  healthBlk+='</div>';
-  var mStyle=seriesStyle(chartStyleGet('monthly','compare'));
-  var mTabs=chartToolbar('monthly',seriesTabOpts(),mStyle);
-  var chartBlk='<div class="card"><div class="card-head"><h3>Monthly performance</h3><span class="spacer"></span>'+(hasData?mTabs:'')+'</div>';
-  if(hasData){
-    chartBlk+='<div class="chart-box">'+svgSeries(months6,mm,mStyle)+'</div>'+
-      '<div class="legend"><span><span class="dot" style="background:var(--income)"></span>Revenue</span><span><span class="dot" style="background:var(--expense)"></span>Expenses</span></div>';
-  } else {
-    chartBlk+=emptyState('metrics','No data to chart','Your monthly revenue vs expenses chart appears here once you log entries.');
-  }
-  chartBlk+='</div>';
-  W.health=healthBlk; W.chart=chartBlk;
-
-  /* this month + goals + category leaders */
+  /* ---- 3. this month --------------------------------------------------- */
+  var mm=monthlyMap();
+  var months6=lastNMonths(6);
   var curK=thisMonthKey(), prevK=shiftMonth(curK,-1);
   var cur=mm[curK]||{revenue:0,expenses:0}, prev=mm[prevK]||{revenue:0,expenses:0};
-  var monthBlk='<div class="card"><div class="card-head"><h3>This month vs last</h3></div>'+
-    monthCompareRow('Revenue',cur.revenue,prev.revenue,false)+
-    monthCompareRow('Expenses',cur.expenses,prev.expenses,true)+
-    monthCompareRow('Profit',cur.revenue-cur.expenses,prev.revenue-prev.expenses,false)+
-    (state.settings.monthlyTarget>0?
-      '<div style="margin-top:16px"><div style="display:flex;justify-content:space-between;font-size:.8rem;color:var(--text-2)"><span>Monthly target</span><b>'+fmtMoney(cur.revenue)+' / '+fmtMoney(state.settings.monthlyTarget)+'</b></div>'+
-      '<div class="progress mt live" style="margin-top:6px"><div class="bar '+(cur.revenue>=state.settings.monthlyTarget?'good':'')+'" style="--p:'+clamp(cur.revenue/state.settings.monthlyTarget*100,0,100)+'"></div></div></div>'
-      :'<p style="font-size:.78rem;color:var(--text-3);margin-top:12px">Tip: set a monthly revenue target in Settings to track it here.</p>')+
-  '</div>';
-  var openGoals=state.goals.filter(function(x){return !x.done;}).slice(0,3);
-  var goalsBlk='<div class="card"><div class="card-head"><h3>Goal progress</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="nav" data-route="goals">View all</button></div>';
-  if(openGoals.length){
-    openGoals.forEach(function(gl){
-      var gp=goalProgress(gl), st=goalStatus(gl);
-      goalsBlk+='<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;gap:8px;font-size:.84rem"><b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(gl.title)+'</b><span class="badge '+st.cls+'">'+st.label+'</span></div>'+
-        '<div class="progress" style="margin-top:6px"><div class="bar '+(st.cls==='good'?'good':(st.cls==='risk'?'risk':''))+'" style="--p:'+gp.pct+'"></div></div>'+
-        '<div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--text-3);margin-top:4px"><span>'+fmtPct(gp.pct,0)+' complete</span><span>'+(daysUntil(gl.deadline)!=null?(daysUntil(gl.deadline)>=0?daysUntil(gl.deadline)+' days left':'overdue'):'no deadline')+'</span></div></div>';
-    });
-  } else {
-    goalsBlk+=emptyState('goals','No active goals','Set a revenue, profit or custom goal to give your work a direction.','<button class="btn btn-sm btn-primary" data-action="open-goal-modal">'+icon('plus')+' New goal</button>');
+  var now=new Date();
+  var monthName=now.toLocaleDateString(undefined,{month:'long'});
+  var prevName=new Date(prevK+'-01T00:00:00').toLocaleDateString(undefined,{month:'long'});
+  var mStyle=seriesStyle(chartStyleGet('monthly','compare'));
+  var monthBlk='<section class="led-sec"><div class="led-h">'+
+    '<h2>'+esc(monthName)+' so far</h2><span class="count">'+now.getDate()+' day'+(now.getDate()===1?'':'s')+' in</span>'+
+    (hasData?chartToolbar('monthly',seriesTabOpts(),mStyle):'')+
+    '<button class="more" data-action="nav" data-route="finance">Finance</button></div>';
+  monthBlk+='<div class="led-month-top"><div>'+nMoney(cur.revenue-cur.expenses,2)+
+    '<div class="led-io"><b>'+fmtMoney(cur.revenue,0)+'</b> in · <b>'+fmtMoney(cur.expenses,0)+'</b> out</div></div>';
+  /* the revenue goal lives here as a rule under the figure it belongs to, not in
+     a 200px card of its own that contradicted this one (spec §2.3) */
+  var target=state.settings.monthlyTarget||0;
+  if(target>0){
+    var left=daysInMonthKey(curK)-now.getDate();
+    monthBlk+='<div class="led-target"><div class="led-track"><div class="led-fill" style="width:'+
+      clamp(cur.revenue/target*100,0,100).toFixed(1)+'%"></div></div>'+
+      '<div class="cap"><span>'+fmtMoney(cur.revenue,0)+' of '+fmtMoney(target,0)+' target</span>'+
+      '<span>'+left+' day'+(left===1?'':'s')+' left</span></div></div>';
   }
-  goalsBlk+='</div>';
-  var bestInc=topCategory('income'), bigExp=topCategory('expense');
-  var expCats0=categoryMap('expense');
-  var catEntries0=Object.keys(expCats0).map(function(k){return {label:k,value:expCats0[k]};}).sort(function(a,b){return b.value-a.value;}).slice(0,6);
-  var catStyle=chartStyleGet('cats','donut');
-  var catTabs=catEntries0.length?chartToolbar('cats',[{v:'donut',i:'cdonut',l:'Share',t:'Share: how the spend splits across categories'},{v:'bars',i:'clist',l:'Ranked',t:'Ranked: biggest categories in order'}],catStyle):'';
-  var catBlk='<div class="card"><div class="card-head"><h3>Category leaders</h3><span class="spacer"></span>'+catTabs+'</div>';
-  if(bestInc||bigExp){
-    if(bestInc) catBlk+='<div class="list-row"><span class="badge good">'+icon('arrowur')+' Best earner</span><div style="flex:1;min-width:0"><b style="font-size:.88rem">'+esc(bestInc.name)+'</b></div><span class="num" style="font-weight:700">'+fmtMoney(bestInc.amount)+'</span></div>';
-    if(bigExp) catBlk+='<div class="list-row"><span class="badge risk">'+icon('arrowdr')+' Biggest cost</span><div style="flex:1;min-width:0"><b style="font-size:.88rem">'+esc(bigExp.name)+'</b></div><span class="num" style="font-weight:700">'+fmtMoney(bigExp.amount)+'</span></div>';
-    var entries=catEntries0;
-    if(entries.length){
-      if(catStyle==='bars') catBlk+='<div class="chart-box" style="margin-top:14px">'+catBarsHTML(entries)+'</div>';
-      else catBlk+='<div class="chart-box" style="display:flex;gap:16px;align-items:center;margin-top:12px;flex-wrap:wrap">'+svgDonut(entries,110)+'<div class="legend" style="flex-direction:column;gap:4px;margin-top:0">'+donutLegend(entries)+'</div></div>';
-    }
-  } else {
-    catBlk+=emptyState('pie','No categories yet','Best income source and biggest expense show up here automatically.');
+  monthBlk+='</div>';
+  /* the drop written as a sentence, beside the number it actually describes.
+     It used to print under ALL-TIME revenue, which is not that number. */
+  var g=revenueGrowth();
+  if(g!=null&&prev.revenue>0){
+    monthBlk+='<p class="led-verdict'+(g>=0?' ok':'')+'">Running '+fmtPct(Math.abs(g),0)+
+      (g>=0?' ahead of ':' below ')+esc(prevName)+'.</p>';
   }
-  catBlk+='</div>';
-  W.month=monthBlk; W.goals=goalsBlk; W.cats=catBlk;
+  if(hasData) monthBlk+='<div class="chart-box">'+svgSeries(months6,mm,mStyle)+'</div>';
+  /* one sentence instead of a donut of six near-identical slices */
+  var expNow=categoryMap('expense',curK);
+  var expTop=Object.keys(expNow).map(function(k){ return {k:k,v:expNow[k]}; })
+    .sort(function(a,b){ return b.v-a.v; }).slice(0,2);
+  if(expTop.length){
+    monthBlk+='<p class="led-note">Biggest cost this month: <b>'+esc(expTop[0].k)+' '+fmtMoney(expTop[0].v,0)+'</b>'+
+      (expTop[1]?', then '+esc(expTop[1].k)+' '+fmtMoney(expTop[1].v,0):'')+'.</p>';
+  }
+  monthBlk+='</section>';
+  W.month=monthBlk;
 
-  /* warnings & opportunities */
-  var ins=buildInsights().filter(function(i){return i.sev!=='info'||i.title.indexOf('Suggested focus')===0;}).slice(0,4);
-  W.insights='<div class="card"><div class="card-head"><h3>Warnings & opportunities</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="nav" data-route="insights">All insights</button></div>'+
-    '<div class="grid grid-2">'+ins.map(insightHTML).join('')+'</div></div>';
+  /* ---- 4. owed to you -------------------------------------------------- */
+  var unpaid=(state.invoices||[]).filter(function(iv){ return iv.status!=='Paid'; });
+  var recvTotal=sum(unpaid,function(iv){ return invPHP(iv)||0; });
+  var recvBlk='<section class="led-sec"><div class="led-h"><h2>'+esc(tr('Owed to you'))+'</h2>'+
+    '<button class="more" data-action="nav" data-route="invoices">All '+unpaid.length+'</button></div><div class="led-rows">';
+  unpaid.slice().sort(function(a,b){ return (invPHP(b)||0)-(invPHP(a)||0); }).slice(0,4).forEach(function(iv){
+    var d=daysUntil(iv.dueDate);
+    var isLate=iv.status==='Sent'&&d!=null&&d<0;
+    var when=isLate?'<span class="led-chip late">'+esc(lateWords(d))+'</span>'
+      :(iv.status==='Draft'?'<span class="led-chip">draft</span>':esc(lateWords(d)));
+    /* peso leads, foreign supports: the owner's rent is in pesos. The old row put
+       $1,180 large and ≈₱68,935 small and grey, which is backwards. */
+    var php=invPHP(iv);
+    var amt=php==null
+      ? '<span class="n3 neg">'+esc(tr('rate not set'))+'</span>'
+      : nMoney(php,3)+(iv.currency&&iv.currency!=='PHP'
+          ? '<span class="n4">'+esc(fmtInvAmt(iv))+' at '+fmtMoney(ivRateInfo(iv).rate,2)+'</span>':'');
+    recvBlk+=ledRow({route:'invoices',sev:isLate?'late':'ok',title:esc(iv.client||'(no client)'),
+      sub:esc(iv.number)+' · '+when,amountHTML:amt});
+  });
+  recvBlk+='</div><div class="led-total"><span class="lab">'+unpaid.length+' unpaid invoice'+(unpaid.length===1?'':'s')+'</span>'+
+    nMoney(recvTotal,3)+'</div>';
+  var caveat=fxTotalsCaveat(unpaid);
+  if(caveat) recvBlk+='<p class="led-note">incl. '+esc(caveat)+'. <button class="led-link" data-action="nav" data-route="invoices">Set today\'s rate</button></p>';
+  recvBlk+='</section>';
+  W.recv=recvBlk;
 
-  /* what needs attention: receivables + tasks + milestones */
-  var dueSoon=state.tasks.filter(function(x){ var d=daysUntil(x.deadline); return !x.done&&d!=null&&d<=7; })
-    .sort(function(a,b){ return (a.deadline||'').localeCompare(b.deadline||''); }).slice(0,5);
-  var upcoming=upcomingMilestones().slice(0,3);
-  var recv=receivablesSummary();
-  var recvBlk='<div class="card"><div class="card-head"><h3>Owed to you</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="nav" data-route="invoices">Invoices</button></div>';
-  if(recv.count>0){
-    recvBlk+='<div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:1.45rem;font-variant-numeric:tabular-nums">'+fmtMoney(recv.total)+'</b><span style="font-size:.8rem;color:var(--text-3)">across '+recv.count+' invoice'+(recv.count>1?'s':'')+'</span></div>'+
-      // .stat-delta is display:inline; inside a stat tile it sits in a flex column, but here
-      // it would share a line with the overdue badge below it.
-      (recv.caveat?'<div style="margin-top:2px">'+recv.caveat+'</div>':'');
-    if(recv.overdueTotal>0) recvBlk+='<span class="badge risk" style="margin-top:6px">'+icon('alert')+' '+fmtMoney(recv.overdueTotal)+' overdue ('+recv.overdueCount+')</span>';
-    else recvBlk+='<span class="badge good" style="margin-top:6px">Nothing overdue</span>';
-    recv.top.forEach(function(iv){
-      recvBlk+='<div class="list-row" style="padding:8px 0"><div style="flex:1;min-width:0"><b style="font-size:.85rem">'+esc(iv.client)+'</b><div style="font-size:.72rem;color:var(--text-3)">'+esc(iv.number)+' · due '+fmtDate(iv.dueDate)+'</div></div>'+
-        // fmtInvAmt(), not fmtMoney(iv.amount): that stamped a ₱ on the FOREIGN figure, so a
-        // $450 invoice read "₱450" here: off by the whole exchange rate, in the one place
-        // the owner glances at what they are owed.
-        '<div style="text-align:right"><span class="num" style="font-weight:700">'+fmtInvAmt(iv)+'</span>'+
-        (iv.currency&&iv.currency!=='PHP'?'<div style="font-size:.68rem;color:var(--text-3)">'+invPHPText(iv)+'</div>':'')+
-        '</div></div>';
-    });
-  } else {
-    recvBlk+=emptyState('invoice','No unpaid invoices','Invoices you mark as Sent appear here until they are paid.');
-  }
-  recvBlk+='</div>';
-  var tasksBlk='<div class="card"><div class="card-head"><h3>Tasks due soon</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="nav" data-route="tasks">Tasks</button></div>'+
-    (dueSoon.length?dueSoon.map(taskRowHTML).join(''):emptyState('tasks','Nothing due this week','Tasks with deadlines in the next 7 days appear here.'))+'</div>';
-  var mileBlk='<div class="card"><div class="card-head"><h3>Upcoming milestones</h3><span class="spacer"></span><button class="btn btn-sm btn-ghost" data-action="nav" data-route="roadmap">Roadmap</button></div>';
-  if(upcoming.length){
-    upcoming.forEach(function(m){
-      var d=daysUntil(m.deadline);
-      mileBlk+='<div class="list-row">'+icon('flag',15)+'<div style="flex:1;min-width:0"><b style="font-size:.88rem">'+esc(m.title)+'</b><div style="font-size:.74rem;color:var(--text-3)">'+esc(m.phase)+'</div></div><span class="badge '+(d<0?'risk':(d<=7?'warn':'neutral'))+'">'+(d<0?'overdue':fmtDate(m.deadline))+'</span></div>';
-    });
-  } else {
-    mileBlk+=emptyState('roadmap','No upcoming milestones','Add roadmap tasks with deadlines to see what is coming next.');
-  }
-  mileBlk+='</div>';
-  W.recv=recvBlk; W.tasks=tasksBlk; W.miles=mileBlk;
+  /* ---- 5. recent money, grouped by day (desktop) ----------------------- */
+  var recent=state.finance.slice().sort(function(a,b){ return String(b.date||'').localeCompare(String(a.date||'')); }).slice(0,8);
+  var recentBlk='<section class="led-sec led-deskonly"><div class="led-h"><h2>Recent money</h2>'+
+    '<button class="more" data-action="nav" data-route="finance">All entries</button></div><div class="led-rows">';
+  var lastDay=null;
+  recent.forEach(function(e){
+    if(e.date!==lastDay){ lastDay=e.date; recentBlk+='<div class="led-day"><span>'+esc(ledDayLabel(e.date))+'</span></div>'; }
+    /* sign carries the direction, so the Income/Expense badge column disappears */
+    recentBlk+=ledRow({route:'finance',sev:'',title:esc(e.note||e.category||'Entry'),
+      sub:esc(e.category||'')+(e.client?' · '+esc(e.client):''),
+      amountHTML:nMoney(e.type==='expense'?-num(e.amount):num(e.amount),3)});
+  });
+  recentBlk+='</div></section>';
+  W.recent=recentBlk;
 
-  /* keep the grid clean: only show cards that actually have content, so a new
-     (or sparse) dashboard isn't a wall of "no data yet" placeholders. The KPI
-     tiles (rev/exp/prof/margin) always show: they read cleanly at zero. */
+  /* ---- 6. also worth a look: links, no figures ------------------------- */
+  var links=[];
+  var low=(state.products||[]).filter(function(p){ return p.active!==false&&p.stock<=(p.lowStock!=null?p.lowStock:5); });
+  if(low.length) links.push({route:'products',title:esc(low[0].name)+' is low'+(low.length>1?', and '+(low.length-1)+' more':''),
+    sub:low[0].stock+' left, you reorder at '+(low[0].lowStock!=null?low[0].lowStock:5)});
+  var od=utangOverdue();
+  if(od.count) links.push({route:'utang',title:od.count+' credit entr'+(od.count>1?'ies':'y')+' 30+ days old',
+    sub:fmtMoney(od.total,0)+' · a gentle reminder usually does it'});
+  var nextMile=upcomingMilestones()[0];
+  if(nextMile) links.push({route:'roadmap',title:esc(nextMile.title),
+    sub:esc(nextMile.phase)+' · '+esc(lateWords(daysUntil(nextMile.deadline)))});
+  W.links='<section class="led-sec"><div class="led-h"><h2>Also worth a look</h2></div><div class="led-rows">'+
+    links.map(function(l){ return ledRow({route:l.route,sev:'',title:l.title,sub:l.sub,chev:true}); }).join('')+
+    '</div></section>';
+
+  /* A section with nothing in it is not a calm section, it is a placeholder. */
   var emptyIds=[];
-  if(!hs) emptyIds.push('health');
-  if(!hasData) emptyIds.push('chart','month','cats');
-  else if(!(bestInc||bigExp)) emptyIds.push('cats');
-  if(!ins.length) emptyIds.push('insights');
-  if(recv.count===0) emptyIds.push('recv');
-  if(!openGoals.length) emptyIds.push('goals');
-  if(!dueSoon.length) emptyIds.push('tasks');
-  if(!upcoming.length) emptyIds.push('miles');
+  if(!todo.length) emptyIds.push('today');
+  if(!hasData) emptyIds.push('month','recent');
+  if(!unpaid.length) emptyIds.push('recv');
+  if(!recent.length) emptyIds.push('recent');
+  if(!links.length) emptyIds.push('links');
   var shown=dashVisibleOrder().filter(function(id){ return W[id] && emptyIds.indexOf(id)<0; });
-  html+='<div class="dash-grid mt">'+shown.map(function(id){
-    return '<section class="dash-widget" data-widget="'+id+'" data-span="'+(DASH_SPAN[id]||1)+'">'+
+  html+='<div class="dash-grid led-grid">'+shown.map(function(id){
+    return '<section class="dash-widget" data-widget="'+id+'" data-span="1">'+
       '<div class="dash-handle" draggable="true" data-dh="'+id+'" title="Drag to reorder">'+icon('grip',12)+'<span>drag</span></div>'+
       W[id]+'</section>';
   }).join('')+'</div>';
+  /* Customize lives at the foot of the page, not in the top-right. An affordance
+     up there teaches the owner that the order above it is arbitrary; under this
+     spec it is not, so the escape hatch goes where an escape hatch belongs. */
+  html+='<p class="led-note"><button class="led-link" data-action="dash-customize">'+esc(tr('Choose what shows here'))+'</button></p>';
+  html+='</div>';
   return html;
 }
-var DASH_DEFAULT=['rev','exp','prof','margin','health','chart','month','goals','cats','insights','recv','tasks','miles'];
-var DASH_SPAN={rev:1,exp:1,prof:1,margin:1,health:2,chart:2,month:1,goals:1,cats:1,insights:2,recv:1,tasks:1,miles:1};
-var DASH_TITLES={rev:'Revenue',exp:'Expenses',prof:'Net profit',margin:'Profit margin',health:'Business health',chart:'Monthly performance',month:'This month vs last',goals:'Goal progress',cats:'Category leaders',insights:'Warnings & opportunities',recv:'Owed to you',tasks:'Tasks due soon',miles:'Upcoming milestones'};
+var DASH_DEFAULT=['today','month','recv','recent','links'];
+var DASH_SPAN={today:1,month:1,recv:1,recent:1,links:1};
+var DASH_TITLES={today:'Do today',month:'This month',recv:'Owed to you',recent:'Recent money',links:'Also worth a look'};
 function dashOrder(){
   var saved=((state.settings&&state.settings.dashOrder)||[]).filter(function(x){ return DASH_DEFAULT.indexOf(x)>=0; });
   DASH_DEFAULT.forEach(function(x){ if(saved.indexOf(x)<0) saved.push(x); });
@@ -5203,13 +5346,9 @@ function statCard(label,value,deltaHTML,sparkHTML,iconName){
     '<div class="stat-value">'+value+'</div>'+(deltaHTML||'')+
     (sparkHTML?'<div class="spark">'+sparkHTML+'</div>':'')+'</div>';
 }
-function monthCompareRow(label,cur,prev,inverse){
-  var diff=prev!==0?(cur-prev)/Math.abs(prev)*100:null;
-  var good=diff==null?null:(inverse?diff<=0:diff>=0);
-  return '<div class="list-row"><span style="font-size:.85rem;color:var(--text-2);flex:1">'+esc(label)+'</span>'+
-    '<b class="num">'+fmtMoney(cur)+'</b>'+
-    (diff==null?'<span class="badge neutral">new</span>':'<span class="badge '+(good?'good':'risk')+'">'+(diff>=0?'+':'')+fmtPct(diff,0)+'</span>')+'</div>';
-}
+/* monthCompareRow() printed a figure, a prior figure and the percentage between
+   them at one weight, three times over. The month section now states the change as
+   one sentence next to the number it describes, so nothing calls this. */
 function insightHTML(i){
   var ic={good:'check',warn:'alert',risk:'alert',info:'insights'}[i.sev];
   return '<div class="insight '+i.sev+'"><div class="i-icon">'+icon(ic)+'</div><div><b>'+esc(i.title)+'</b><p>'+esc(i.text)+'</p></div></div>';

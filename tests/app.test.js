@@ -302,15 +302,27 @@ async function main() {
     ok('correct PIN unlocks', window.sessionUnlocked === true && d.getElementById('lock-root').innerHTML === '');
     window.removeLock();
 
-    // ---------- dashboard: 13 per-card widgets + reorder ----------
+    // ---------- dashboard: the ledger sections + reorder ----------
+    // Was: 13 KPI/chart cards. The dashboard is now cash + one alarm + five ledger
+    // sections (spec §2), so the widget set is the section set and none of them is a card.
     window.state.finance = [{ id: 'f', type: 'income', amount: 1000, date: '2026-06-01', category: 'Sales' }];
+    window.state.invoices = [{ id: 'iv1', number: 'INV-0001', client: 'Bloom Cafe', amount: 15000,
+      currency: 'PHP', status: 'Sent', issueDate: '2026-06-01', dueDate: '2026-06-10' }];
+    window.state.tasks = [{ id: 't1', title: 'Reorder soy wax', deadline: '2026-06-05', done: false }];
     window.state.settings.dashOrder = null; window.state.settings.dashHidden = [];
     window.location.hash = '#/dashboard'; window.render(); await wait(20);
     const widgets = Array.from(d.querySelectorAll('.dash-widget')).map((w) => w.getAttribute('data-widget'));
-    ok('dashboard renders 13 individual cards', widgets.length === 13, widgets);
-    ok('each widget wraps exactly one card', Array.from(d.querySelectorAll('.dash-widget')).every((w) => w.querySelectorAll(':scope > .card').length === 1));
-    window.reorderDash('miles', 'rev'); await wait(20);
-    ok('single-card reorder persists', d.querySelectorAll('.dash-widget')[0].getAttribute('data-widget') === 'miles');
+    ok('dashboard renders the ledger sections, not a card grid', widgets.length >= 3 &&
+      widgets.every((id) => ['today', 'month', 'recv', 'recent', 'links'].indexOf(id) >= 0), widgets);
+    ok('no widget on the dashboard is a card', Array.from(d.querySelectorAll('.dash-widget')).every((w) => w.querySelectorAll('.card').length === 0));
+    ok('each widget wraps exactly one ruled section', Array.from(d.querySelectorAll('.dash-widget')).every((w) => w.querySelectorAll(':scope > .led-sec').length === 1));
+    // the standing figure is the only L1 on the page, and it is cash, not lifetime revenue
+    ok('cash on hand is the one standing figure', d.querySelectorAll('#main .n1').length === 1 &&
+      /Cash on hand/i.test(d.querySelector('#main .mlabel').textContent));
+    ok('lifetime revenue and the invented health score are gone from the dashboard',
+      !/Total revenue|Business health|Profit margin/.test(d.getElementById('main').textContent));
+    window.reorderDash('links', 'today'); await wait(20);
+    ok('single-section reorder persists', d.querySelectorAll('.dash-widget')[0].getAttribute('data-widget') === 'links');
 
     // ---------- dashboard: live drag-to-reorder (placeholder gap + persist) ----------
     window.state.settings.dashOrder = null; window.location.hash = '#/dashboard'; window.render(); await wait(20);
@@ -381,7 +393,7 @@ async function main() {
     ok('mobile: table/order rows have 16px inner padding (not tight to border)', /\.table-wrap tr\{[^}]*padding:11px 16px\}/.test(html) && /\.order-row\{[^}]*padding:14px 16px!important\}/.test(html));
     ok('FX compare + narrow-phone metric grid never overflow (min(100%) tracks / 1-col)', /minmax\(min\(100%,150px\),1fr\)/.test(html) && /@media \(max-width:360px\)\{\s*\.grid-3\{grid-template-columns:minmax\(0,1fr\)\}/.test(html));
     ok('roadmap task rows stack on mobile (title not crushed by the status select)', /class="list-row rm-task-row"/.test(html) && /\.rm-task-row \.rm-task-main\{flex:1 1 100%!important;order:-1/.test(html));
-    ok('mobile dashboard KPIs sit 2-up while rich widgets go full-width', /\.dash-grid \.dash-widget\{grid-column:1 \/ -1\}/.test(html) && /data-widget="rev"\][\s\S]{0,160}grid-column:auto/.test(html));
+    ok('the dashboard ledger is one column at every width (no second track to orphan a section in)', /\.dash-grid \.dash-widget\{grid-column:1 \/ -1\}/.test(html) && /\.dash-grid\.led-grid\{display:block/.test(html) && !/data-widget="rev"/.test(html));
     ok('mobile compacts cards + hides floating sparkline at 2-up', /\.stat-card \.spark\{display:none\}/.test(html));
     // sleek mobile redesign: account cards become a 2-up colourful wallet grid
     ok('mobile account cards sit 2-up (the wallet grid) and override the desktop inline track', /\.acct-grid\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/.test(html) && /class="grid acct-grid mt"/.test(html));
@@ -648,7 +660,10 @@ async function main() {
 
     // ---------- delight: KPI count-up is non-destructive (settles to the EXACT figure) ----------
     window.state.finance = [{ id: 'f2', type: 'income', amount: 123456, date: '2026-06-02', category: 'Sales' }];
-    window.location.hash = '#/dashboard'; window.render(); await wait(900); // let the entrance count-up finish
+    // Finance, not the dashboard: the dashboard's standing figure is built from spans
+    // (the peso sign is set apart from its digits) and animateCounts rewrites textContent,
+    // so it deliberately does not reach it.
+    window.location.hash = '#/finance'; window.render(); await wait(900); // let the entrance count-up finish
     ok('animateCounts helper exists', typeof window.animateCounts === 'function');
     const svEl = d.querySelector('.stat-value');
     const finalStat = svEl ? svEl.textContent : '';
@@ -1044,11 +1059,14 @@ async function main() {
     // ---- dashboard: a fresh/sparse dashboard shows only populated cards ----
     window.state.finance = []; window.state.goals = []; window.state.tasks = []; window.state.invoices = [];
     window.state.clients = []; window.state.products = []; window.state.orders = []; window.state.notes = [];
-    window.state.roadmaps = []; window.state.phases = [];
+    window.state.roadmaps = []; window.state.phases = []; window.state.utang = [];
     window.state.settings.dashHidden = []; window.state.settings.dashOrder = null;
     window.location.hash = '#/dashboard'; window.render();
     (function(){ const wids = [].map.call(d.querySelectorAll('.dash-widget'), w => w.getAttribute('data-widget'));
-      ok('fresh dashboard shows only KPI tiles, no empty placeholders', wids.length > 0 && wids.every(id => ['rev','exp','prof','margin'].indexOf(id) >= 0), wids); })();
+      // Nothing to do, nothing owed, nothing logged: the standing figure carries the page
+      // on its own rather than five headings over five "no data yet" placeholders.
+      ok('fresh dashboard shows no empty sections, only the standing figure', wids.length === 0 &&
+        d.querySelectorAll('#main .n1').length === 1, wids); })();
 
     // ---- receipt scan: parser + draft + attach button + end-to-end (stubbed OCR) ----
     (function(){ const items = window.parseReceiptItems('SUPER MART\nMILK 2 @ 55  110.00\nBREAD  45.00\nEGGS x12  84.00\nSUBTOTAL 239.00\nTOTAL  239.00\nCASH 300.00');
