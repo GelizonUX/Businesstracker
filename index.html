@@ -2395,10 +2395,15 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
    drag handles stay: the customize feature survives, only its top-right
    affordance moves (§2.3). */
 /* The money column is held to a measure instead of running to whatever width the
-   monitor happens to be: at 1440 the ledger reads as a column of a page, and the
-   352px the spec's rail would occupy is left as air rather than filled with the
-   widgets this rebuild just removed. */
-.ledger{max-width:760px}
+   monitor happens to be, so at 1440 the ledger reads as a column of a page rather
+   than a line of text stretched across a monitor.
+   It is CENTRED, not left-aligned. Left-aligned, the column sat against the edge
+   with six hundred pixels of nothing beside it while the backup banner above ran
+   the full width, and that mismatch reads as a layout that failed to load rather
+   than as deliberate restraint. Centred, the empty space falls either side as a
+   margin, which is what a page looks like. The everything-else rows (banner,
+   page title) keep the full width on purpose: they are chrome, not ledger. */
+.ledger{max-width:760px;margin-inline:auto}
 .ledger>.led-sec:first-child{border-top:0;margin-top:0;padding-top:8px}
 .dash-grid.led-grid{display:block;margin-top:0}
 .led-grid .dash-widget{display:block;border-radius:0}
