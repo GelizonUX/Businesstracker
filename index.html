@@ -1164,22 +1164,21 @@ html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--
    the box entirely and keeps only the rule that ties a row of figures together.
    The rule is the hover target too, which is why the border shorthand is reset
    first and only the top edge drawn. */
-.card.stat-card{
+.stat-card{
   background:transparent;border:0;border-top:2px solid var(--border-2);border-radius:0;
   padding:13px 12px 12px 2px;box-shadow:none;
 }
-.card.stat-card:hover{border-top-color:var(--accent);box-shadow:none}
-html[data-theme="dark"] .card.stat-card{box-shadow:none}
+.stat-card:hover{border-top-color:var(--accent);box-shadow:none}
 /* a tracked metric is one line in a list, not a tile in a grid: name and status
    on the left, the number on the right, the healthy range under both where
    there is room to read it. */
-.card.metric-card{
+.metric-card{
   background:transparent;border:0;border-bottom:1px solid var(--border);border-radius:0;
   padding:15px 2px 14px;box-shadow:none;
   display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;column-gap:20px;
 }
-.card.metric-card:hover{border-color:var(--border-2);box-shadow:none}
-html[data-theme="dark"] .card.metric-card{box-shadow:none}
+.metric-card:hover{border-color:var(--border-2);box-shadow:none}
+html[data-theme="dark"] .metric-card{box-shadow:none}
 .rows>.metric-card:last-child{border-bottom:none}
 .metric-card>.m-top{grid-column:1;grid-row:1}
 .metric-card>.m-val{grid-column:2;grid-row:1;margin:0;text-align:right;white-space:nowrap}
@@ -1190,7 +1189,7 @@ html[data-theme="dark"] .card.metric-card{box-shadow:none}
 .metric-card>.m-explain{border-top:0;padding-top:0;margin-top:6px}
 .metric-card>button{justify-self:start;margin-top:8px}
 @media (max-width:560px){
-  .card.metric-card{grid-template-columns:1fr}
+  .metric-card{grid-template-columns:1fr}
   .metric-card>.m-val{grid-column:1;grid-row:2;text-align:left}
 }
 
@@ -1199,10 +1198,19 @@ html[data-theme="dark"] .card.metric-card{box-shadow:none}
 
 /* an alert interrupts, so it is tinted and marked down its leading edge, and
    sits one rung below a panel so the two never look like the same object */
-.card.lead-card,.card.notice{border-radius:var(--r-lg);padding:15px 18px 15px 20px;box-shadow:none}
-.card.lead-card{position:relative}
-.card.lead-card::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:0 3px 3px 0;background:var(--warn)}
-.card.lead-card.lead-info::before{background:var(--info)}
+.lead-card{background:transparent;border:0;border-radius:0;padding:15px 0 15px 20px;box-shadow:none}
+/* An inline notice: one line on a shifted ground behind a single leading rule.
+   No full border, no shadow, no radius on the rule side, so it reads as a rule
+   rather than as a card. This replaced ~330px of prose that was permanently
+   parked at the top of Invoices; on a 390px phone that meant the first
+   screenful of an invoice list contained no invoices. */
+.noteline{font-size:var(--f2,.8125rem);color:var(--text-2);margin:16px 0 0;padding:10px 13px;
+  background:var(--bg-sunken);border-left:2px solid var(--warn);border-radius:0 6px 6px 0;line-height:1.5}
+.noteline.ok{border-left-color:var(--good)}
+.noteline .led-link{font-size:inherit}
+.lead-card{position:relative}
+.lead-card::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:0 3px 3px 0;background:var(--warn)}
+.lead-card.lead-info::before{background:var(--info)}
 
 /* a calculator is a tool you type into. A sunken ground lets its input fields
    read as the raised part, which is the opposite of a reporting panel. */
@@ -1303,12 +1311,11 @@ html[data-theme="dark"] .card.metric-card{box-shadow:none}
 /* .8rem, not .7rem: at 14px root the old label was 9.8px, and uppercase at .1em tracking
    is already hard work at that size. It also sat inside a band of eight steps between
    8.7 and 12.3px whose ratios were 1.01-1.07: close enough that nothing read as a rung. */
-.stat-card .stat-label{font-size:.8rem;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:8px}
+.stat-card .stat-label{font-size:.8rem;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;display:block}
 /* the quiet tile: the label leads and the figure recedes, so a row of tiles reads as
    "here is the number that matters, and here are three that are simply empty" */
 .stat-card.quiet .stat-label{color:var(--text-2)}
 .stat-card.quiet .stat-value{font-size:var(--fs-md);font-weight:600;color:var(--text-3);letter-spacing:normal;margin-top:4px}
-.stat-card .stat-label svg{width:14px;height:14px}
 .stat-card .stat-value{font-family:var(--font-display);font-size:var(--fs-2xl);font-weight:700;letter-spacing:var(--tr-2xl);margin-top:6px}
 .stat-card .stat-delta{font-size:.78rem;font-weight:600;margin-top:5px;display:inline-flex;align-items:center;gap:4px;padding:0;border-radius:0;background:transparent!important}
 .stat-delta.up{color:var(--good);background:var(--good-soft)}
@@ -1323,7 +1330,6 @@ html[data-theme="dark"] .card.metric-card{box-shadow:none}
    to the figure it describes. */
 .stat-card{display:flex;flex-direction:column;align-items:flex-start}
 .stat-card .spark{margin-top:10px;opacity:.85;line-height:0}
-.stat-accent{display:none}
 
 /* badges & pills */
 .badge{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:99px;font-size:.74rem;font-weight:600;letter-spacing:0;white-space:nowrap;font-variant-numeric:normal}
@@ -2137,7 +2143,6 @@ body.dragging-active .kb-col{transition:outline-color .12s var(--ease)}
 .hr-avatar{transition:transform .18s var(--ease-snappy)}
 tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .stat-icon{transition:transform .25s var(--ease)}
-.stat-card:hover .stat-icon{transform:scale(1.06) rotate(-3deg)}
 .empty .e-icon{animation:floatGlow 6s ease-in-out infinite}
 /* (rows used to stagger in on every section change, a 38-row Finance table meant
    38 simultaneous animations. Rows now paint in place; see the section-change block.) */
@@ -2158,7 +2163,6 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .btn-primary{background-size:140% 140%;transition:all .2s var(--ease),background-position .5s var(--ease)}
 .btn-primary:hover{background-position:100% 50%}
 .stat-card{transition:box-shadow .25s var(--ease),transform .25s var(--ease),border-color .25s}
-/* stat-card inherits the unified .card hover */
 .badge{transition:transform .15s var(--ease)}
 .badge:hover{transform:translateY(-1px)}
 .theme-toggle:active{transform:rotate(180deg) scale(.92)}
@@ -2366,7 +2370,6 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .page-title{position:relative;padding-left:16px}
 .page-title::before{content:'';position:absolute;left:0;top:.22rem;width:3px;height:1.05rem;border-radius:99px;background:var(--accent-cta)}
 
-/* stat-card hover stroke comes from the unified .card rule (--accent) */
 
 /* roadmap color swatches + chip dots */
 .swatch-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -2505,8 +2508,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
   .stat-card .stat-value{font-size:1.28rem;margin-top:3px}
   /* .74rem: .66rem was 9.24px, smaller than the desktop label it was shrinking from
      and below what uppercase tracked type stays legible at on a phone */
-  .stat-card .stat-label{font-size:.74rem;letter-spacing:.05em;gap:6px}
-  .stat-card .stat-label svg{width:12px;height:12px}
+  .stat-card .stat-label{font-size:.74rem;letter-spacing:.05em}
   .stat-card .stat-delta{font-size:.68rem;margin-top:5px;padding:1px 7px}
   .stat-card .spark{display:none}              /* the floating sparkline has no room at 2-up */
   .stat-icon{width:26px;height:26px;border-radius:8px}
@@ -2712,7 +2714,9 @@ tr.inv-overdue td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 }
 
 /* ===== Advisor page ===== */
-.advisor-hero{background:color-mix(in srgb,var(--accent) 5%,var(--bg-card))}
+/* the Advisor speaking: a tinted band, not a box. No border and no shadow, so it
+   shifts the ground rather than floating above it. */
+.advisor-hero{background:color-mix(in srgb,var(--accent) 5%,var(--bg-card));border-radius:var(--r-lg);padding:16px 18px}
 .adv-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
 .adv-avatar{width:40px;height:40px;border-radius:11px;background:var(--accent-cta);color:var(--accent-cta-ink);display:grid;place-items:center;flex-shrink:0;box-shadow:var(--shadow-sm)}
 .adv-avatar svg{width:21px;height:21px}
@@ -5339,10 +5343,16 @@ function statQuiet(value){
   if(/^\d{1,3}(?:,\d{3})*\s*\/\s*\d{1,3}(?:,\d{3})*$/.test(t)) return true;  // "11 / 11"
   return /^\d{1,3}(?:,\d{3})*$/.test(t);                     // a bare count, no unit to give it weight
 }
-function statCard(label,value,deltaHTML,sparkHTML,iconName){
-  return '<div class="card stat-card'+(statQuiet(value)?' quiet':'')+'"><div class="stat-accent"></div>'+
-    '<div style="display:flex;align-items:center;gap:10px"><span class="stat-icon">'+icon(iconName)+'</span>'+
-    '<span class="stat-label">'+esc(tr(label))+'</span></div>'+
+/* A figure block, not a card. A KPI is not an object you can pick up and act on
+   as a unit, it is a sentence about the business, so it does not get a box: it
+   gets a micro-label, the figure, and one supporting line, sitting on the page
+   ground with a single rule tying a row of them together. The 29px tinted icon
+   went with the box for the same reason: it was chrome announcing a widget.
+   (The class is still .stat-card because five screens key off it; what it no
+   longer claims is to be a .card.) */
+function statCard(label,value,deltaHTML,sparkHTML){
+  return '<div class="stat-card'+(statQuiet(value)?' quiet':'')+'">'+
+    '<span class="stat-label">'+esc(tr(label))+'</span>'+
     '<div class="stat-value">'+value+'</div>'+(deltaHTML||'')+
     (sparkHTML?'<div class="spark">'+sparkHTML+'</div>':'')+'</div>';
 }
@@ -5425,7 +5435,7 @@ function advisorPaceHTML(){
   var proj=dayN>0?Math.round(cur.revenue/dayN*dim):0;
   var tgt=state.settings.monthlyTarget||0;
   var early=dayN<5; // one or two data points make a linear projection meaningless
-  var html='<div class="card"><div class="card-head"><h3>'+icon('goals',16)+' This month’s pace</h3><span class="sub">day '+dayN+' of '+dim+'</span></div>';
+  var html='<div class="sec"><div class="card-head"><h3>'+icon('goals',16)+' This month’s pace</h3><span class="sub">day '+dayN+' of '+dim+'</span></div>';
   html+='<div class="pace-row"><span>Earned so far</span><b class="num">'+fmtMoney(cur.revenue)+'</b></div>'+
     (early?'':'<div class="pace-row"><span>On pace for</span><b class="num">'+fmtMoney(proj)+'</b></div>');
   if(tgt>0){
@@ -5467,7 +5477,7 @@ function viewInsights(){
   var wins=ins.filter(function(i){return i.sev==='good';});
   var notes=ins.filter(function(i){return i.sev==='info';});
   // 1) narrative + health
-  html+='<div class="card advisor-hero"><div class="adv-head"><span class="adv-avatar">'+icon('spark')+'</span>'+
+  html+='<div class="sec advisor-hero"><div class="adv-head"><span class="adv-avatar">'+icon('spark')+'</span>'+
     '<div style="flex:1;min-width:0"><h3>Here is your read</h3><div class="adv-sub">Generated live from your latest numbers</div></div>'+
     (hs?svgRing(hs.score,64,null,String(hs.score),'/100'):'')+'</div>'+
     '<p class="adv-narrative">'+advisorNarrative()+'</p></div>';
@@ -5475,11 +5485,11 @@ function viewInsights(){
   var months6=lastNMonths(6), mmv=monthlyMap();
   var aStyle=seriesStyle(chartStyleGet('advisor','trend')); // the Advisor argues about direction, so it opens on the trend
   html+='<div class="grid grid-2 mt">';
-  html+='<div class="card"><div class="card-head"><h3>Cash in vs out</h3><span class="spacer"></span>'+
+  html+='<div class="sec"><div class="card-head"><h3>Cash in vs out</h3><span class="spacer"></span>'+
     chartToolbar('advisor',seriesTabOpts(),aStyle)+'</div>'+
     '<div class="chart-box">'+svgSeries(months6,mmv,aStyle)+'</div>'+
     '<div class="legend"><span><span class="dot" style="background:var(--income)"></span>Revenue</span><span><span class="dot" style="background:var(--expense)"></span>Expenses</span></div></div>';
-  html+='<div class="card"><div class="card-head"><h3>Profit by month</h3><span class="sub">above the line = profit</span></div>'+
+  html+='<div class="sec"><div class="card-head"><h3>Profit by month</h3><span class="sub">above the line = profit</span></div>'+
     '<div class="chart-box">'+svgProfitBars(months6,mmv)+'</div></div>';
   html+='</div>';
   // 3) where the money goes + this month's pace
@@ -5487,7 +5497,7 @@ function viewInsights(){
   var mixEntries=Object.keys(expMix).map(function(k){return {label:k,value:expMix[k]};}).sort(function(a,b){return b.value-a.value;}).slice(0,6);
   var mixStyle=chartStyleGet('advisorCats','donut'); // private key: switching here shouldn't restyle the dashboard
   html+='<div class="grid grid-2 mt">';
-  html+='<div class="card"><div class="card-head"><h3>Where the money goes</h3><span class="spacer"></span>'+
+  html+='<div class="sec"><div class="card-head"><h3>Where the money goes</h3><span class="spacer"></span>'+
     (mixEntries.length?chartToolbar('advisorCats',[{v:'donut',i:'cdonut',l:'Share',t:'Share: how the spend splits across categories'},{v:'bars',i:'clist',l:'Ranked',t:'Ranked: biggest categories in order'}],mixStyle):'')+'</div>'+
     (mixEntries.length?
       (mixStyle==='bars'?'<div class="chart-box">'+catBarsHTML(mixEntries)+'</div>':
@@ -6358,9 +6368,9 @@ function viewFinance(){
      margin" subtracted from 100, and shipping both invited the owner to read one number
      as two findings. The margin stays where it belongs, under the profit it describes. */
   html+='<div class="grid grid-3">'+
-    statCard('Revenue',fmtMoney(t.revenue),'','','arrowur')+
-    statCard('Expenses',fmtMoney(t.expenses),'','','arrowdr')+
-    statCard('Net profit',fmtMoney(t.profit),'<span class="stat-delta '+(t.profit>=0?'up':'down')+'">'+(t.margin!=null?fmtPct(t.margin,1)+' margin':'—')+'</span>','','wallet')+
+    statCard('Revenue',fmtMoney(t.revenue),'','')+
+    statCard('Expenses',fmtMoney(t.expenses),'','')+
+    statCard('Net profit',fmtMoney(t.profit),'<span class="stat-delta '+(t.profit>=0?'up':'down')+'">'+(t.margin!=null?fmtPct(t.margin,1)+' margin':'—')+'</span>','')+
   '</div>';
 
   html+='<div class="tabs mt-lg">'+
@@ -6516,8 +6526,8 @@ function financeCategoriesHTML(){
     return html;
   }
   return '<div class="grid grid-2">'+
-    '<div class="card"><div class="card-head"><h3>Income by category</h3><span class="sub">'+fmtMoney(t.revenue)+' total</span></div>'+catTable(inc,t.revenue,'income')+'</div>'+
-    '<div class="card"><div class="card-head"><h3>Expenses by category</h3><span class="sub">'+fmtMoney(t.expenses)+' total</span></div>'+catTable(exp,t.expenses,'expense')+'</div></div>';
+    '<div class="sec"><div class="card-head"><h3>Income by category</h3><span class="sub">'+fmtMoney(t.revenue)+' total</span></div>'+catTable(inc,t.revenue,'income')+'</div>'+
+    '<div class="sec"><div class="card-head"><h3>Expenses by category</h3><span class="sub">'+fmtMoney(t.expenses)+' total</span></div>'+catTable(exp,t.expenses,'expense')+'</div></div>';
 }
 
 function financeCashflowHTML(){
@@ -6533,9 +6543,9 @@ function financeCashflowHTML(){
   var avgExp3=(function(){ var ms=lastNMonths(3),tot=0,c=0; ms.forEach(function(k){ if(mm[k]){tot+=mm[k].expenses;c++;} }); return c?tot/c:0; })();
   var burn=avgExp3-avg3;
   var html='<div class="grid grid-3">'+
-    statCard('Net position',fmtMoney(t.profit),'<span class="stat-delta flat">all-time in − out</span>','','cash')+
-    statCard('Avg monthly net (3m)',fmtMoney(avg3-avgExp3),'<span class="stat-delta '+(avg3-avgExp3>=0?'up':'down')+'">'+(avg3-avgExp3>=0?'cash positive':'cash negative')+'</span>','','metrics')+
-    statCard('Runway signal',burn>0&&t.profit>0?fmtNum(t.profit/burn,1)+' mo':'—','<span class="stat-delta flat">'+(burn>0?'at current burn':'no burn, profitable')+'</span>','','clock')+
+    statCard('Net position',fmtMoney(t.profit),'<span class="stat-delta flat">all-time in − out</span>','')+
+    statCard('Avg monthly net (3m)',fmtMoney(avg3-avgExp3),'<span class="stat-delta '+(avg3-avgExp3>=0?'up':'down')+'">'+(avg3-avgExp3>=0?'cash positive':'cash negative')+'</span>','')+
+    statCard('Runway signal',burn>0&&t.profit>0?fmtNum(t.profit/burn,1)+' mo':'—','<span class="stat-delta flat">'+(burn>0?'at current burn':'no burn, profitable')+'</span>','')+
   '</div>';
   html+='<div class="sec"><div class="card-head"><h3>Running balance</h3><span class="sub">cumulative profit over time</span></div><div class="table-wrap"><table><thead><tr><th>Month</th><th style="text-align:right">Net cash flow</th><th style="text-align:right">Running balance</th><th>Status</th></tr></thead><tbody>';
   rows.slice().reverse().forEach(function(r){
@@ -6714,10 +6724,10 @@ function viewGoals(){/* goal cards align to their own height (no stretched hollo
   var done=state.goals.filter(function(g){return g.done;});
   var overdue=open.filter(function(g){ var d=daysUntil(g.deadline); return d!=null&&d<0; });
   html+='<div class="grid grid-4">'+
-    statCard('Active goals',String(open.length),'','','goals')+
-    statCard('Completed',String(done.length),'','','check')+
-    statCard('Overdue',String(overdue.length),overdue.length?'<span class="stat-delta down">needs attention</span>':'<span class="stat-delta up">all on time</span>','','clock')+
-    statCard('Avg progress',open.length?fmtPct(sum(open,function(g){return goalProgress(g).pct;})/open.length,0):'—','','','metrics')+
+    statCard('Active goals',String(open.length),'','')+
+    statCard('Completed',String(done.length),'','')+
+    statCard('Overdue',String(overdue.length),overdue.length?'<span class="stat-delta down">needs attention</span>':'<span class="stat-delta up">all on time</span>','')+
+    statCard('Avg progress',open.length?fmtPct(sum(open,function(g){return goalProgress(g).pct;})/open.length,0):'—','','')+
   '</div>';
   html+='<div class="chips mt-lg">'+
     ['open','done','all'].map(function(k){
@@ -8141,10 +8151,10 @@ function viewRoadmap(){
       (rs.late?'<span class="t-risk">'+icon('clock',13)+' '+rs.late+' delayed</span>':'')+'</div></div>';
   if(mode==='list'){
     html+='<div class="grid grid-4 mt">'+
-      statCard('Progress: '+rm.name,fmtPct(rs.pct,0),'','','roadmap')+
-      statCard('Milestones',rs.done+' / '+rs.total,'','','flag')+
-      statCard('Blocked',String(rs.blocked),rs.blocked?'<span class="stat-delta down">unblock these first</span>':'','','alert')+
-      statCard('Delayed',String(rs.late),rs.late?'<span class="stat-delta down">past deadline</span>':'','','clock')+
+      statCard('Progress: '+rm.name,fmtPct(rs.pct,0),'','')+
+      statCard('Milestones',rs.done+' / '+rs.total,'','')+
+      statCard('Blocked',String(rs.blocked),rs.blocked?'<span class="stat-delta down">unblock these first</span>':'','')+
+      statCard('Delayed',String(rs.late),rs.late?'<span class="stat-delta down">past deadline</span>':'','')+
     '</div>';
     if(rs.total>0) html+='<div class="card mt"><div class="progress thick"><div class="bar good" style="--p:'+rs.pct+'"></div></div><p style="font-size:.78rem;color:var(--text-3);margin-top:8px">'+fmtPct(rs.pct,0)+' of "'+esc(rm.name)+'" completed</p></div>';
   }
@@ -8209,10 +8219,10 @@ function viewTasks(){
   var html=topbar('Tasks & Actions','What still has to be done, and what is already late.',
     '<button class="btn btn-primary" data-action="open-task-modal">'+icon('plus')+'<span class="btn-txt">New task</span></button>');
   html+='<div class="grid grid-4">'+
-    statCard('Open tasks',String(open.length),'','','tasks')+
-    statCard('Overdue',String(overdue.length),overdue.length?'<span class="stat-delta down">reschedule or do now</span>':'<span class="stat-delta up">all on time</span>','','clock')+
-    statCard('Completed',String(done.length),'','','check')+
-    statCard('Completion rate',fmtPct(donePct,0),'','','metrics')+
+    statCard('Open tasks',String(open.length),'','')+
+    statCard('Overdue',String(overdue.length),overdue.length?'<span class="stat-delta down">reschedule or do now</span>':'<span class="stat-delta up">all on time</span>','')+
+    statCard('Completed',String(done.length),'','')+
+    statCard('Completion rate',fmtPct(donePct,0),'','')+
   '</div>';
   // quick add
   html+='<div class="sec"><form data-form="quick-task" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">'+
@@ -8378,11 +8388,11 @@ function viewManpower(){
     '<button class="btn btn-ghost" data-action="hr-customize" title="Show, hide & add stat cards">'+icon('palette')+'<span class="btn-txt">Cards</span></button>'+
     '<button class="btn btn-primary" data-action="hr-add">'+icon('plus')+'<span class="btn-txt">Add employee</span></button>');
   var cards=[];
-  if(hidden.indexOf('headcount')<0) cards.push(statCard('Headcount',String(active.length),'<span class="stat-delta flat">'+active.length+' active · '+inactive+' inactive</span>','','idcard'));
-  if(hidden.indexOf('payroll')<0) cards.push(statCard('Est. monthly payroll',fmtMoney(payroll),'<span class="stat-delta flat">active staff · estimate</span>','','cash'));
-  if(hidden.indexOf('vale')<0) cards.push(statCard('Advances out (vale)',fmtMoney(vale),'<span class="stat-delta flat">unpaid balances</span>','','wallet'));
-  if(hidden.indexOf('thirteenth')<0) cards.push(statCard('13th-month accrued',fmtMoney(th),'<span class="stat-delta flat">YTD basic ÷ 12</span>','','flag'));
-  (state.settings.hrCustomCards||[]).forEach(function(c){ cards.push(statCard(c.label||'Custom',hrCustomValue(c),'<span class="stat-delta flat">custom</span>','','metrics')); });
+  if(hidden.indexOf('headcount')<0) cards.push(statCard('Headcount',String(active.length),'<span class="stat-delta flat">'+active.length+' active · '+inactive+' inactive</span>',''));
+  if(hidden.indexOf('payroll')<0) cards.push(statCard('Est. monthly payroll',fmtMoney(payroll),'<span class="stat-delta flat">active staff · estimate</span>',''));
+  if(hidden.indexOf('vale')<0) cards.push(statCard('Advances out (vale)',fmtMoney(vale),'<span class="stat-delta flat">unpaid balances</span>',''));
+  if(hidden.indexOf('thirteenth')<0) cards.push(statCard('13th-month accrued',fmtMoney(th),'<span class="stat-delta flat">YTD basic ÷ 12</span>',''));
+  (state.settings.hrCustomCards||[]).forEach(function(c){ cards.push(statCard(c.label||'Custom',hrCustomValue(c),'<span class="stat-delta flat">custom</span>','')); });
   if(cards.length) html+='<div class="grid grid-4">'+cards.join('')+'</div>';
   if(!emps.length){
     html+='<div class="empty-slot">'+emptyState('idcard','No employees yet','Add your team to track salaries, days worked, cash advances (vale), bonuses and 13th-month pay, and add your own custom fields and cards.','<button class="btn btn-sm btn-primary" data-action="hr-add">'+icon('plus')+' Add first employee</button>')+'</div>';
@@ -8754,10 +8764,10 @@ function viewClients(){
   var t=financeTotals();
   var revPerClient=active>0?t.revenue/active:null;
   html+='<div class="grid grid-4">'+
-    statCard('Active clients',String(active),'','','clients')+
-    statCard('Leads in pipeline',String(byStatus['Lead']||0),'','','flag')+
-    statCard('Revenue / active client',revPerClient!=null?fmtMoney(revPerClient):'—','<span class="stat-delta flat">all-time revenue ÷ active</span>','','cash')+
-    statCard('Churned',String(byStatus['Churned']||0),'','','arrowdr')+
+    statCard('Active clients',String(active),'','')+
+    statCard('Leads in pipeline',String(byStatus['Lead']||0),'','')+
+    statCard('Revenue / active client',revPerClient!=null?fmtMoney(revPerClient):'—','<span class="stat-delta flat">all-time revenue ÷ active</span>','')+
+    statCard('Churned',String(byStatus['Churned']||0),'','')+
   '</div>';
   html+=winBackCardHTML();
   html+='<div class="chips mt-lg"><button class="chip '+(ui.clientFilter==='all'?'active':'')+'" data-action="client-filter" data-val="all">All ('+state.clients.length+')</button>'+
@@ -8903,7 +8913,7 @@ function viewMetrics(){
     html+='<div class="sec rows">';
     tracked.forEach(function(t){
       var d=t.def, mv=t.mv, st=d.evaluate(mv.value);
-      html+='<div class="card metric-card"><div class="m-top"><div class="i-icon" style="width:34px;height:34px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center">'+icon(d.icon,16)+'</div>'+
+      html+='<div class="metric-card"><div class="m-top"><div class="i-icon" style="width:34px;height:34px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center">'+icon(d.icon,16)+'</div>'+
         '<div style="flex:1;min-width:0"><b style="font-size:.92rem">'+esc(d.name)+'</b><div style="margin-top:2px"><span class="badge '+(st==='good'?'good':(st==='warn'?'warn':'risk'))+'">'+(st==='good'?'Healthy':(st==='warn'?'Watch':'Risky'))+'</span>'+
         (mv.src==='auto'?' <span class="badge accent">from your entries</span>':'')+'</div></div></div>'+
         '<div class="m-val">'+fmtMetric(d,mv.value)+'</div>'+
@@ -8917,7 +8927,7 @@ function viewMetrics(){
   }
 
   if(untracked.length){
-    html+='<div class="card'+(tracked.length?' mt-lg':'')+'"><div class="card-head"><h3>Not tracked</h3>'+
+    html+='<div class="sec"><div class="card-head"><h3>Not tracked</h3>'+
       '<span class="spacer"></span><span class="badge neutral">'+untracked.length+'</span></div>'+
       '<p class="text-muted" style="font-size:.82rem;max-width:68ch;margin-bottom:6px">Open one to read what it measures and enter the numbers it is worked out from. It becomes a card above once it has a value.</p>'+
       '<div class="mtr-list">';
@@ -10616,10 +10626,10 @@ function viewInvoices(){
   // every peso headline below rolls up foreign invoices, so every one of them carries the
   // same sub-line saying what it counted at an unverified rate and what it had to leave out
   html+='<div class="grid grid-4">'+
-    statCard('Owed to you',fmtMoney(recv.total),'<span class="stat-delta flat">'+recv.count+' unpaid invoice'+(recv.count===1?'':'s')+'</span>'+recv.caveat,'','invoice')+
-    statCard('Overdue',fmtMoney(recv.overdueTotal),(recv.overdueCount?'<span class="stat-delta down">'+recv.overdueCount+' need follow-up</span>':'<span class="stat-delta up">nothing overdue</span>')+recv.overdueCaveat,'','alert')+
-    statCard('Collected this month',fmtMoney(paidThisMonth),fxTotalsCaveatHTML(paidList),'','check')+
-    statCard('All-time invoiced',fmtMoney(sum(state.invoices||[],invPHP)),fxTotalsCaveatHTML(state.invoices),'','cash')+
+    statCard('Owed to you',fmtMoney(recv.total),'<span class="stat-delta flat">'+recv.count+' unpaid invoice'+(recv.count===1?'':'s')+'</span>'+recv.caveat,'')+
+    statCard('Overdue',fmtMoney(recv.overdueTotal),(recv.overdueCount?'<span class="stat-delta down">'+recv.overdueCount+' need follow-up</span>':'<span class="stat-delta up">nothing overdue</span>')+recv.overdueCaveat,'')+
+    statCard('Collected this month',fmtMoney(paidThisMonth),fxTotalsCaveatHTML(paidList),'')+
+    statCard('All-time invoiced',fmtMoney(sum(state.invoices||[],invPHP)),fxTotalsCaveatHTML(state.invoices),'')+
   '</div>';
   html+=fxInvoiceNoticeHTML();
   html+='<div class="'+((state.invoices||[]).length?'sec':'empty-slot')+'">';
@@ -10849,45 +10859,69 @@ function fxTotalsCaveatHTML(list){
 /* Honest banner on the Invoices screen. Historical records are NEVER rewritten: this
    only tells the owner which ones the peso totals can't include, and which ones were
    booked against a rate that was never verified, so they can decide what to do. */
-function fxInvoiceNoticeHTML(){
+/* The facts, split so the surface can choose how much of them to show at once.
+   Returns null when there is nothing to say. */
+function fxNoticeFacts(){
   var list=(state.invoices||[]).filter(function(iv){ return iv.currency&&iv.currency!=='PHP'; });
-  if(!list.length) return '';
+  if(!list.length) return null;
   var missing=list.filter(function(iv){ return invPHP(iv)==null; });
   var unverified=list.filter(function(iv){ return invPHP(iv)!=null&&!ivRateInfo(iv).verified; });
   var curs={}; list.forEach(function(iv){ if(!fxVerified(iv.currency)) curs[iv.currency]=1; });
   var needs=Object.keys(curs);
-  if(!missing.length&&!unverified.length&&!needs.length){
-    /* Nothing left to warn about. If an AUTOMATIC refresh is what just resolved it, the
-       amber card below was on screen a moment ago: letting it return '' would delete it
-       under the owner with no input and take ~175px of page with it, jumping everything
-       beneath it upward. Say what happened in the same slot instead: the height stays
-       put, and a refresh nobody asked for is seen rather than merely felt. */
-    if(!fxJustRefreshed) return '';
-    var upd=fxSettings().updated;
-    return '<div class="card notice mt-lg" data-fx-live style="border-color:var(--good)">'+
-      '<div class="card-head"><h3>'+icon('check',16)+' Exchange rates are up to date</h3></div>'+
-      '<p style="font-size:.82rem;color:var(--text-2);margin:0">Live rates refreshed '+
-        esc(upd?fxAgeText({at:upd,ageMs:Date.now()-new Date(upd).getTime()}):'just now')+
-        ' on their own. Every foreign invoice here now converts against a verified rate.</p></div>';
-  }
+  return {missing:missing,
+    unvPaid:unverified.filter(function(iv){ return iv.status==='Paid'; }),
+    unvOpen:unverified.filter(function(iv){ return iv.status!=='Paid'; }),
+    needs:needs,
+    clear:!missing.length&&!unverified.length&&!needs.length};
+}
+/* The full explanation, in the owner's language. This is the modal body now: it was
+   ~330px of prose permanently parked at the top of Invoices, which on a 390px phone
+   meant the first screenful of an invoice list contained no invoices. */
+function fxInvoiceNoticeDetailHTML(){
+  var f=fxNoticeFacts();
+  if(!f||f.clear) return '';
   var lines=[];
-  if(missing.length) lines.push('<b>'+missing.length+' invoice'+(missing.length>1?'s have':' has')+' no exchange rate</b> and '+(missing.length>1?'are':'is')+' left out of every peso total. '+(missing.length>1?'They':'It')+' cannot be marked paid until a rate is set.');
+  if(f.missing.length) lines.push('<b>'+f.missing.length+' invoice'+(f.missing.length>1?'s have':' has')+' no exchange rate</b> and '+(f.missing.length>1?'are':'is')+' left out of every peso total. '+(f.missing.length>1?'They':'It')+' cannot be marked paid until a rate is set.');
   // Split by status: "it cannot be marked paid" is simply false for an invoice that is
   // ALREADY Paid, and those are the ones with real money already sitting in Finance, so
   // they need the opposite warning, not the same one.
-  var unvPaid=unverified.filter(function(iv){ return iv.status==='Paid'; });
-  var unvOpen=unverified.filter(function(iv){ return iv.status!=='Paid'; });
-  if(unvOpen.length) lines.push('<b>'+unvOpen.length+' unpaid invoice'+(unvOpen.length>1?'s carry':' carries')+' an unverified rate</b> (a built-in estimate, or a rate saved before rate sources were recorded). '+(unvOpen.length>1?'They':'It')+' cannot be marked paid and the peso figure is not printed. Open '+(unvOpen.length>1?'each one':'it')+' and type today’s rate in.');
-  if(unvPaid.length) lines.push('<b>'+unvPaid.length+' invoice'+(unvPaid.length>1?'s were':' was')+' already marked paid at an unverified rate</b>, so the peso income recorded in Finance came from an estimate. Those figures are left exactly as they are. Editing '+(unvPaid.length>1?'those invoices':'that invoice')+' will not re-convert them. Note that the printed invoice omits the peso line, so your books and the client’s copy state different things until you open '+(unvPaid.length>1?'each one':'it')+' and type the rate you were actually paid at.');
-  if(needs.length) lines.push('No verified rate today for <b>'+esc(needs.join(', '))+'</b>. Set '+(needs.length>1?'them':'it')+' in Settings ▸ Currency, or refresh live rates.');
-  return '<div class="card notice mt-lg" data-fx-live style="border-color:var(--warn);background:var(--warn-soft,transparent)">'+
-    '<div class="card-head"><h3>'+icon('alert',16)+' Exchange rates need your attention</h3></div>'+
-    '<ul style="font-size:.82rem;color:var(--text-2);margin:0 0 10px 18px;display:flex;flex-direction:column;gap:6px">'+
-      lines.map(function(l){ return '<li>'+l+'</li>'; }).join('')+'</ul>'+
-    '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
-      '<button class="btn btn-sm btn-primary" data-action="fx-update-now">'+icon('refresh')+' Update live rates now</button>'+
-      '<button class="btn btn-sm btn-ghost" data-action="settings-go" data-tab="business">'+icon('settings')+' Set rates manually</button>'+
-    '</div></div>';
+  if(f.unvOpen.length) lines.push('<b>'+f.unvOpen.length+' unpaid invoice'+(f.unvOpen.length>1?'s carry':' carries')+' an unverified rate</b> (a built-in estimate, or a rate saved before rate sources were recorded). '+(f.unvOpen.length>1?'They':'It')+' cannot be marked paid and the peso figure is not printed. Open '+(f.unvOpen.length>1?'each one':'it')+' and type today\u2019s rate in.');
+  if(f.unvPaid.length) lines.push('<b>'+f.unvPaid.length+' invoice'+(f.unvPaid.length>1?'s were':' was')+' already marked paid at an unverified rate</b>, so the peso income recorded in Finance came from an estimate. Those figures are left exactly as they are. Editing '+(f.unvPaid.length>1?'those invoices':'that invoice')+' will not re-convert them. Note that the printed invoice omits the peso line, so your books and the client\u2019s copy state different things until you open '+(f.unvPaid.length>1?'each one':'it')+' and type the rate you were actually paid at.');
+  if(f.needs.length) lines.push('No verified rate today for <b>'+esc(f.needs.join(', '))+'</b>. Set '+(f.needs.length>1?'them':'it')+' in Settings \u25b8 Currency, or refresh live rates.');
+  return '<ul style="font-size:.86rem;color:var(--text-2);margin:0 0 14px 18px;display:flex;flex-direction:column;gap:8px">'+
+    lines.map(function(l){ return '<li>'+l+'</li>'; }).join('')+'</ul>';
+}
+function fxNoticeModal(){
+  openModal('About these exchange rates',
+    fxInvoiceNoticeDetailHTML()+
+    '<p style="font-size:.82rem;color:var(--text-3);margin:0">A rate is verified when it came from a live refresh or you typed it in yourself. Historical records are never rewritten.</p>',
+    {submitLabel:'Update live rates now',
+     extraFooterHTML:'<button type="button" class="btn btn-ghost" data-action="settings-go" data-tab="business">'+icon('settings')+' Set rates manually</button>',
+     onSubmit:function(){ fetchFxRates(true); return true; }});
+}
+/* One line, not a wall. The detail is a tap away in fxNoticeModal(); what stays on the
+   page is the single fact that changes what the owner can do next. */
+function fxInvoiceNoticeHTML(){
+  var f=fxNoticeFacts();
+  if(!f) return '';
+  if(f.clear){
+    /* Nothing left to warn about. If an AUTOMATIC refresh is what just resolved it, the
+       line below was on screen a moment ago: letting it return '' would delete it under
+       the owner with no input. Say what happened in the same slot instead. */
+    if(!fxJustRefreshed) return '';
+    var upd=fxSettings().updated;
+    return '<p class="noteline ok" data-fx-live>Exchange rates are up to date. Live rates refreshed '+
+      esc(upd?fxAgeText({at:upd,ageMs:Date.now()-new Date(upd).getTime()}):'just now')+
+      ' on their own, so every foreign invoice here now converts against a verified rate.</p>';
+  }
+  var bits=[];
+  if(f.missing.length) bits.push(f.missing.length+' invoice'+(f.missing.length>1?'s have':' has')+' no exchange rate and '+(f.missing.length>1?'are':'is')+' left out of the peso totals');
+  if(f.unvOpen.length) bits.push(f.unvOpen.length+' unpaid invoice'+(f.unvOpen.length>1?'s use':' uses')+' an estimated rate, so '+(f.unvOpen.length>1?'their':'its')+' peso figure'+(f.unvOpen.length>1?'s are':' is')+' approximate and '+(f.unvOpen.length>1?'they':'it')+' cannot be marked paid');
+  if(f.unvPaid.length) bits.push(f.unvPaid.length+' already marked paid at an unverified rate, so the books and the printed invoice state different things');
+  if(f.needs.length) bits.push('No verified rate today for '+esc(f.needs.join(', ')));
+  return '<p class="noteline" data-fx-live>'+bits.join('. ')+'. '+
+    '<button class="led-link" data-action="fx-why">Why this matters</button> \u00b7 '+
+    '<button class="led-link" data-action="fx-update-now">Update live rates now</button></p>';
 }
 function fmtInvAmt(iv){
   var sym=FX_SYMBOLS[iv.currency||'PHP']||'';
@@ -11030,10 +11064,10 @@ function viewReport(){
   var profit=d.revenue-d.expenses;
   var margin=d.revenue>0?profit/d.revenue*100:null;
   html+='<div class="grid grid-4" style="margin-top:4px">'+
-    statCard('Revenue',fmtMoney(d.revenue),prev.revenue>0?'<span class="stat-delta '+((d.revenue>=prev.revenue)?'up':'down')+'">'+fmtPct((d.revenue-prev.revenue)/prev.revenue*100,0)+' vs prior</span>':'','','arrowur')+
-    statCard('Expenses',fmtMoney(d.expenses),prev.expenses>0?'<span class="stat-delta '+((d.expenses<=prev.expenses)?'up':'down')+'">'+fmtPct((d.expenses-prev.expenses)/prev.expenses*100,0)+' vs prior</span>':'','','arrowdr')+
-    statCard('Net profit',fmtMoney(profit),'<span class="stat-delta '+(profit>=0?'up':'down')+'">'+(profit>=0?'Profitable':'Loss')+'</span>','','wallet')+
-    statCard('Margin',fmtPct(margin),'','','pie')+
+    statCard('Revenue',fmtMoney(d.revenue),prev.revenue>0?'<span class="stat-delta '+((d.revenue>=prev.revenue)?'up':'down')+'">'+fmtPct((d.revenue-prev.revenue)/prev.revenue*100,0)+' vs prior</span>':'','')+
+    statCard('Expenses',fmtMoney(d.expenses),prev.expenses>0?'<span class="stat-delta '+((d.expenses<=prev.expenses)?'up':'down')+'">'+fmtPct((d.expenses-prev.expenses)/prev.expenses*100,0)+' vs prior</span>':'','')+
+    statCard('Net profit',fmtMoney(profit),'<span class="stat-delta '+(profit>=0?'up':'down')+'">'+(profit>=0?'Profitable':'Loss')+'</span>','')+
+    statCard('Margin',fmtPct(margin),'','')+
   '</div>';
   function catRows(type,total){
     var map=categoryMap(type,selected);
@@ -11045,8 +11079,8 @@ function viewReport(){
       }).join('')+'</tbody></table></div>';
   }
   html+='<div class="grid grid-2 mt">'+
-    '<div class="card"><div class="card-head"><h3>Income by category</h3></div>'+catRows('income',d.revenue)+'</div>'+
-    '<div class="card"><div class="card-head"><h3>Expenses by category</h3></div>'+catRows('expense',d.expenses)+'</div></div>';
+    '<div class="sec"><div class="card-head"><h3>Income by category</h3></div>'+catRows('income',d.revenue)+'</div>'+
+    '<div class="sec"><div class="card-head"><h3>Expenses by category</h3></div>'+catRows('expense',d.expenses)+'</div></div>';
   // top clients for the month
   var byClient={};
   state.finance.forEach(function(e){
@@ -11599,10 +11633,10 @@ function viewProducts(){
     '<button class="btn btn-primary" data-action="product-new">'+icon('plus')+'<span class="btn-txt">Add product</span></button>');
   html+=productTabsHTML('catalog');
   html+='<div class="grid grid-4">'+
-    statCard('Products',String(prods.length),'','','box')+
-    statCard('Low / out of stock',String(lowCount),lowCount?'<span class="stat-delta down">restock soon</span>':'<span class="stat-delta up">all stocked</span>','','alert')+
-    statCard('Stock value (cost)',fmtMoney(stockValue),'<span class="stat-delta flat">money sitting in inventory</span>','','cash')+
-    statCard('Stock value (retail)',fmtMoney(retailValue),'<span class="stat-delta flat">if everything sells</span>','','arrowur')+
+    statCard('Products',String(prods.length),'','')+
+    statCard('Low / out of stock',String(lowCount),lowCount?'<span class="stat-delta down">restock soon</span>':'<span class="stat-delta up">all stocked</span>','')+
+    statCard('Stock value (cost)',fmtMoney(stockValue),'<span class="stat-delta flat">money sitting in inventory</span>','')+
+    statCard('Stock value (retail)',fmtMoney(retailValue),'<span class="stat-delta flat">if everything sells</span>','')+
   '</div>';
   // category filter
   var cats=productCats();
@@ -11636,7 +11670,7 @@ function viewProducts(){
   }
   html+='</div>';
   // catalog customization
-  html+='<div class="card mt"><div class="card-head"><h3>Customize catalog</h3><span class="sub">your categories and product attributes, fully yours</span></div>'+
+  html+='<div class="sec"><div class="card-head"><h3>Customize catalog</h3><span class="sub">your categories and product attributes, fully yours</span></div>'+
     '<div class="grid grid-2"><div><div class="field"><label>Product categories</label><div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">'+
     cats.map(function(c){return '<span class="tag" style="background:var(--accent-soft);color:var(--accent)">'+esc(c)+' <button class="btn-icon" style="width:14px;height:14px;display:inline-grid;vertical-align:middle" data-action="product-cat-del" data-name="'+esc(c)+'">'+icon('x')+'</button></span>';}).join('')+
     '</div><form data-form="product-cat-add" style="display:flex;gap:8px"><input class="input" name="name" placeholder="e.g. Soap, Diffuser, Bundle…" style="flex:1"><button class="btn btn-ghost btn-sm" type="submit">'+icon('plus')+' Add</button></form></div></div>'+
@@ -11808,10 +11842,10 @@ function viewOrders(){
     '<button class="btn btn-primary" data-action="order-new">'+icon('plus')+'<span class="btn-txt">New order</span></button>');
   var monthProfit=sum(monthOrders,orderProfit);
   html+='<div class="grid grid-4">'+
-    statCard('To fulfill',String(open.length),'','','truck')+
-    statCard('Owed to you',fmtMoney(sum(unpaid,orderTotal)),'<span class="stat-delta flat">'+unpaid.length+' order'+(unpaid.length===1?'':'s')+'</span>','','clock')+
-    statCard('Order value this month',fmtMoney(sum(monthOrders,orderTotal)),'<span class="stat-delta flat">'+monthOrders.length+' orders</span>','','cash')+
-    statCard('Est. profit this month',fmtMoney(monthProfit),'<span class="stat-delta '+(monthProfit>=0?'up':'down')+'">after product costs</span>','','wallet')+
+    statCard('To fulfill',String(open.length),'','')+
+    statCard('Owed to you',fmtMoney(sum(unpaid,orderTotal)),'<span class="stat-delta flat">'+unpaid.length+' order'+(unpaid.length===1?'':'s')+'</span>','')+
+    statCard('Order value this month',fmtMoney(sum(monthOrders,orderTotal)),'<span class="stat-delta flat">'+monthOrders.length+' orders</span>','')+
+    statCard('Est. profit this month',fmtMoney(monthProfit),'<span class="stat-delta '+(monthProfit>=0?'up':'down')+'">after product costs</span>','')+
   '</div>';
   html+=followUpCardHTML();
   html+=paymentBreakdownHTML(curM);
@@ -12714,9 +12748,9 @@ function viewMaterials(){
     '<button class="btn btn-primary" data-action="material-new">'+icon('plus')+'<span class="btn-txt">Add material</span></button>');
   html+=productTabsHTML('materials');
   html+='<div class="grid grid-3">'+
-    statCard('Materials',String(mats.length),'','','box')+
-    statCard('Low / out',String(lowCount),lowCount?'<span class="stat-delta down">reorder soon</span>':'<span class="stat-delta up">all stocked</span>','','alert')+
-    statCard('Material value',fmtMoney(invValue),'<span class="stat-delta flat">cash sitting in supplies</span>','','cash')+
+    statCard('Materials',String(mats.length),'','')+
+    statCard('Low / out',String(lowCount),lowCount?'<span class="stat-delta down">reorder soon</span>':'<span class="stat-delta up">all stocked</span>','')+
+    statCard('Material value',fmtMoney(invValue),'<span class="stat-delta flat">cash sitting in supplies</span>','')+
   '</div>';
   html+='<div class="'+(mats.length?'sec':'empty-slot')+'">';
   if(!mats.length){
@@ -12816,7 +12850,7 @@ function unpaidFollowUps(){
 function followUpCardHTML(){
   var list=unpaidFollowUps();
   if(!list.length) return '';
-  var html='<div class="card mt lead-card lead-warn"><div class="card-head" style="margin-bottom:8px"><span class="lead-icon">'+icon('clock')+'</span><div class="lead-copy"><h3>Needs a follow-up</h3><span class="sub">unpaid 3+ days; one friendly nudge usually collects it</span></div></div>';
+  var html='<div class="sec lead-card lead-warn"><div class="card-head" style="margin-bottom:8px"><span class="lead-icon">'+icon('clock')+'</span><div class="lead-copy"><h3>Needs a follow-up</h3><span class="sub">unpaid 3+ days; one friendly nudge usually collects it</span></div></div>';
   list.slice(0,5).forEach(function(x){
     html+='<div class="list-row"><div style="flex:1;min-width:0"><b style="font-size:.88rem">'+esc(x.o.clientName)+'</b> <span class="badge warn">unpaid '+x.days+'d</span>'+
       '<div style="font-size:.74rem;color:var(--text-3)">'+esc(x.o.number)+' · '+fmtMoney(orderTotal(x.o))+(x.o.contact?' · '+esc(x.o.contact):'')+'</div></div>'+
@@ -12864,7 +12898,7 @@ function winBackList(){
 function winBackCardHTML(){
   var list=winBackList();
   if(!list.length) return '';
-  var html='<div class="card mt-lg lead-card lead-info"><div class="card-head" style="margin-bottom:8px"><span class="lead-icon">'+icon('refresh')+'</span><div class="lead-copy"><h3>Win-back opportunities</h3><span class="sub">bought before, quiet for 45+ days; a message to them is 5× cheaper than a new customer</span></div></div>';
+  var html='<div class="sec lead-card lead-info"><div class="card-head" style="margin-bottom:8px"><span class="lead-icon">'+icon('refresh')+'</span><div class="lead-copy"><h3>Win-back opportunities</h3><span class="sub">bought before, quiet for 45+ days; a message to them is 5× cheaper than a new customer</span></div></div>';
   list.slice(0,6).forEach(function(w){
     html+='<div class="list-row"><div style="flex:1;min-width:0"><b style="font-size:.88rem">'+esc(w.name)+'</b><div style="font-size:.74rem;color:var(--text-3)">last purchase '+fmtDate(w.lastDate)+(w.contact?' · '+esc(w.contact):'')+'</div></div><span class="badge info">'+w.days+' days quiet</span></div>';
   });
@@ -13248,10 +13282,10 @@ function viewAccounts(){
     '<button class="btn btn-primary" data-action="account-new">'+icon('plus')+'<span class="btn-txt">Add account</span></button>');
   // business position summary
   html+='<div class="grid grid-4">'+
-    statCard('Cash on hand (all accounts)',fmtMoney(totalCash),'<span class="stat-delta '+(totalCash>=0?'up':'down')+'">'+accts.length+' account'+(accts.length===1?'':'s')+'</span>','','bank')+
-    statCard('Owed to you',fmtMoney(recv),'<span class="stat-delta flat">unpaid invoices + orders</span>','','invoice')+
-    statCard('True position',fmtMoney(totalCash+recv),'<span class="stat-delta flat">cash + money owed to you</span>','','shield')+
-    statCard('This month P&L',fmtMoney(cur.revenue-cur.expenses),'<span class="stat-delta '+(cur.revenue-cur.expenses>=0?'up':'down')+'">'+fmtMoney(cur.revenue)+' in · '+fmtMoney(cur.expenses)+' out</span>','','metrics')+
+    statCard('Cash on hand (all accounts)',fmtMoney(totalCash),'<span class="stat-delta '+(totalCash>=0?'up':'down')+'">'+accts.length+' account'+(accts.length===1?'':'s')+'</span>','')+
+    statCard('Owed to you',fmtMoney(recv),'<span class="stat-delta flat">unpaid invoices + orders</span>','')+
+    statCard('True position',fmtMoney(totalCash+recv),'<span class="stat-delta flat">cash + money owed to you</span>','')+
+    statCard('This month P&L',fmtMoney(cur.revenue-cur.expenses),'<span class="stat-delta '+(cur.revenue-cur.expenses>=0?'up':'down')+'">'+fmtMoney(cur.revenue)+' in · '+fmtMoney(cur.expenses)+' out</span>','')+
   '</div>';
   html+='<div class="grid acct-grid mt" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">';
   accts.forEach(function(a){
@@ -13286,7 +13320,7 @@ function viewAccounts(){
   // unassigned entries notice
   var unassigned=state.finance.filter(function(e){ return !e.account; }).length;
   if(unassigned>0){
-    html+='<div class="card notice mt" style="background:var(--info-soft);border-color:transparent"><p style="font-size:.84rem;color:var(--text-2)"><b>'+unassigned+'</b> finance entr'+(unassigned===1?'y has':'ies have')+' no account assigned. They count toward revenue and profit, but not toward any account balance. Edit an entry in Finance to assign it. New order payments are auto-assigned by payment method.</p></div>';
+    html+='<p class="noteline"><b>'+unassigned+'</b> finance entr'+(unassigned===1?'y has':'ies have')+' no account assigned. They count toward revenue and profit, but not toward any account balance. Edit an entry in Finance to assign it. New order payments are auto-assigned by payment method.</p>';
   }
   // transfers history
   var tr=(state.transfers||[]).slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
@@ -13617,10 +13651,10 @@ function viewYearReport(){
     yearList.slice().reverse().map(function(y){return '<option value="'+y+'"'+(selected===y?' selected':'')+'>'+y+'</option>';}).join('')+'</select></div>';
   var yd=yearData(selected);
   html+='<div class="grid grid-4" style="margin-top:4px">'+
-    statCard('Revenue '+selected,fmtMoney(yd.revenue),'','','arrowur')+
-    statCard('Expenses',fmtMoney(yd.expenses),'','','arrowdr')+
-    statCard('Net profit',fmtMoney(yd.profit),'<span class="stat-delta '+(yd.profit>=0?'up':'down')+'">'+(yd.revenue>0?fmtPct(yd.profit/yd.revenue*100,0)+' margin':'—')+'</span>','','wallet')+
-    statCard('Best month',yd.bestMonth?monthLabel(yd.bestMonth):'—',yd.bestMonth?'<span class="stat-delta up">'+fmtMoney(yd.bestAmount)+' revenue</span>':'','','spark')+
+    statCard('Revenue '+selected,fmtMoney(yd.revenue),'','')+
+    statCard('Expenses',fmtMoney(yd.expenses),'','')+
+    statCard('Net profit',fmtMoney(yd.profit),'<span class="stat-delta '+(yd.profit>=0?'up':'down')+'">'+(yd.revenue>0?fmtPct(yd.profit/yd.revenue*100,0)+' margin':'—')+'</span>','')+
+    statCard('Best month',yd.bestMonth?monthLabel(yd.bestMonth):'—',yd.bestMonth?'<span class="stat-delta up">'+fmtMoney(yd.bestAmount)+' revenue</span>':'','')+
   '</div>';
   html+='<div class="sec"><div class="card-head"><h3>Month by month in '+selected+'</h3></div><div class="table-wrap"><table><thead><tr><th>Month</th><th style="text-align:right">Revenue</th><th style="text-align:right">Expenses</th><th style="text-align:right">Profit</th></tr></thead><tbody>'+
     yd.months.map(function(r){
@@ -13913,10 +13947,10 @@ function viewUtang(){
   var html=topbar('Customer Credit','Who still owes you, and what they have paid so far.',
     '<button class="btn btn-primary" data-action="utang-new">'+icon('plus')+'<span class="btn-txt">'+esc(tr('Add credit'))+'</span></button>');
   html+='<div class="grid grid-4">'+
-    statCard('Total credit owed',fmtMoney(ut.total),'<span class="stat-delta flat">'+ut.customers+' customer'+(ut.customers===1?'':'s')+'</span>','','ledger')+
-    statCard('30+ days old',fmtMoney(od.total),od.count?'<span class="stat-delta down">'+od.count+' to follow up</span>':'<span class="stat-delta up">nothing aging</span>','','clock')+
-    statCard('Collected this month',fmtMoney(collected),'<span class="stat-delta up">recorded as income on payment</span>','','cash')+
-    statCard('Settled all-time',String((state.utang||[]).filter(function(u){return u.settled||utangBalance(u)<=0;}).length),'','','check')+
+    statCard('Total credit owed',fmtMoney(ut.total),'<span class="stat-delta flat">'+ut.customers+' customer'+(ut.customers===1?'':'s')+'</span>','')+
+    statCard('30+ days old',fmtMoney(od.total),od.count?'<span class="stat-delta down">'+od.count+' to follow up</span>':'<span class="stat-delta up">nothing aging</span>','')+
+    statCard('Collected this month',fmtMoney(collected),'<span class="stat-delta up">recorded as income on payment</span>','')+
+    statCard('Settled all-time',String((state.utang||[]).filter(function(u){return u.settled||utangBalance(u)<=0;}).length),'','')+
   '</div>';
   var list=(state.utang||[]).slice().sort(function(a,b){
     var ba=utangBalance(a)>0&&!a.settled, bb=utangBalance(b)>0&&!b.settled;
@@ -14496,8 +14530,8 @@ function fxCardHTML(){
     '</div></form></div>';
 }
 document.addEventListener('click',function(e){
-  var el=e.target.closest('[data-action="fx-update-now"]');
-  if(el) fetchFxRates(true);
+  if(e.target.closest('[data-action="fx-update-now"]')) fetchFxRates(true);
+  else if(e.target.closest('[data-action="fx-why"]')) fxNoticeModal();
 });
 document.addEventListener('submit',function(e){
   var form=e.target;

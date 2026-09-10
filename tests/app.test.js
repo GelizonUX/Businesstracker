@@ -2806,11 +2806,16 @@ async function main() {
       window.state.invoices = [{ id: 'p1', number: 'INV-9300', client: 'A', desc: 'x', amount: 1000,
         currency: 'USD', fxRate: 58.5, status: 'Paid', paidDate: window.todayISO(),
         issueDate: window.todayISO(), dueDate: window.todayISO() }];
-      const notice = window.fxInvoiceNoticeHTML();
+      // the wall of prose is now the modal body; the page keeps one line
+      const notice = window.fxInvoiceNoticeDetailHTML();
       ok('the rate notice does not tell an already-Paid invoice it "cannot be marked paid"',
         /already marked paid at an unverified rate/.test(notice) && !/It cannot be marked paid/.test(notice));
       ok('and it warns that the books and the printed invoice now state different things',
-        /state different things/.test(notice));
+        /state different things/.test(notice) && /state different things/.test(window.fxInvoiceNoticeHTML()));
+      ok('the on-page notice is one line with a way into the full explanation, not a wall of prose',
+        (function () { const line = window.fxInvoiceNoticeHTML();
+          return /^<p class="noteline"/.test(line) && /data-action="fx-why"/.test(line) &&
+            line.length < 460 && !/<ul/.test(line); })(), window.fxInvoiceNoticeHTML().length);
       window.state.invoices = []; window.state.finance = [];
 
       // ---- a printed invoice never asserts a peso figure from an unverified rate ----
@@ -3278,7 +3283,7 @@ async function main() {
         window.fxJustRefreshed = false;
         const before = window.fxInvoiceNoticeHTML();
         ok('a foreign invoice with no verified rate today raises the amber notice',
-          /need your attention/.test(before) && /No verified rate today/.test(before));
+          /class="noteline"/.test(before) && /No verified rate today/.test(before) && /fx-why/.test(before), before.slice(0, 120));
 
         window.fetch = goodFetch;
         // arrive from a screen with no money on it, so the refresh fires on ENTERING
@@ -3288,7 +3293,7 @@ async function main() {
         await wait(60);
         const after = window.fxInvoiceNoticeHTML();
         ok('after the refresh resolves it, the notice slot is NOT emptied — it says what happened',
-          after !== '' && /up to date/.test(after) && !/need your attention/.test(after),
+          after !== '' && /up to date/.test(after) && !/estimated rate/.test(after),
           after.slice(0, 90));
         ok('...and that confirmation carries the flash marker, so the change is seen',
           /data-fx-live/.test(after));
