@@ -214,6 +214,40 @@ async function main() {
     })();
 
     // ---------- security: escaping + CSP + safeColor ----------
+    // Every roadmap object reaches an HTML ATTRIBUTE, and importData()/cloudPull()
+    // deepMerge whatever JSON they are handed, so a backup someone sends you is the
+    // delivery path. A first fix hardened frames, stamps and edges and left notes,
+    // tables, comments and nodes wide open; there were zero assertions here, which is
+    // exactly why that survived. Test the RULE, on every renderer, forever.
+    //
+    // Note the check: a parsed attribute whose name starts with "on". Searching the
+    // markup for the substring "onmouseover" is wrong, because esc() leaves the payload
+    // visible as inert text and that reads as a failure when it is a pass.
+    (function () {
+      const PAY = 'x onmouseover=window.__hit=1 q=';
+      const hasHandler = (html) => {
+        const host = d.createElement('div'); host.innerHTML = html;
+        return [host, ...host.querySelectorAll('*')].some((e) =>
+          e.getAttributeNames && e.getAttributeNames().some((a) => a.toLowerCase().startsWith('on')));
+      };
+      const cases = [
+        ['note id',       () => window.rmNoteHTML({ id: PAY, x: 0, y: 0, text: 't' })],
+        ['note geometry', () => window.rmNoteHTML({ id: 'n', x: '0;--z:1" onmouseover="window.__hit=1', y: 0, text: 't' })],
+        ['note colour',   () => window.rmNoteHTML({ id: 'n', x: 0, y: 0, text: 't', color: '#fff" onmouseover="window.__hit=1' })],
+        ['table id',      () => window.rmTableHTML({ id: PAY, x: 0, y: 0, cells: [['a']] })],
+        ['comment id',    () => window.rmCommentHTML({ id: PAY, x: 0, y: 0, text: 'c' })],
+        ['node nid',      () => window.rmNodeHTML({ nid: PAY, kind: 'task', left: 0, top: 0, label: 'L' })],
+        ['frame id',      () => window.rmFrameHTML({ id: PAY, x: 0, y: 0, w: 10, h: 10 })],
+        ['stamp id',      () => window.rmStampHTML({ id: PAY, x: 0, y: 0, emoji: 'x' })]
+      ];
+      const leaked = cases.filter(([, f]) => { try { return hasHandler(f()); } catch (e) { return 'threw'; } })
+        .map(([n]) => n);
+      ok('no roadmap renderer lets stored state install an event handler', leaked.length === 0, leaked);
+      // and the sanitising must not eat legitimate content
+      const good = window.rmNoteHTML({ id: 'n1', x: 120, y: -40, w: 200, h: 150, text: 'Order wax', color: '#8ce0a6' });
+      ok('roadmap escaping leaves real notes intact',
+        /left:120px;top:-40px/.test(good) && /--nc:#8ce0a6/.test(good) && good.indexOf('Order wax') > -1, good.slice(0, 0));
+    })();
     ok('no unescaped image src in source', html.match(/src="'\+(?!esc\()/g) === null);
     ok('CSP meta present', !!d.querySelector('meta[http-equiv="Content-Security-Policy"]'));
     ok('CSP blocks objects + framing', /object-src 'none'/.test(html) && /frame-ancestors 'none'/.test(html));

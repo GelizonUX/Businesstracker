@@ -4750,7 +4750,7 @@ function svgSparkline(values,w,h,color,label){
     {c:col,s:'High',b:fmtMoney(vmax)},
     {c:col,s:'Low',b:fmtMoney(vmin)}])+'"':'';
   /* flat tint, not a gradient: at 30px tall a vertical fade reads as noise anyway */
-  return '<svg viewBox="0 0 '+w+' '+h+'" class="c-spark" style="width:'+w+'px;height:'+h+'px"'+tipAttr+'>'+
+  return '<svg viewBox="0 0 '+w+' '+h+'" class="c-spark" style="width:'+rmNum(w,90)+'px;height:'+h+'px"'+tipAttr+'>'+
     '<path class="c-spark-area" d="'+area+'" fill="'+col+'" opacity="0.15"/>'+
     '<polyline class="c-spark-line" points="'+line+'" fill="none" stroke="'+col+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" pathLength="100"/>'+
     '<circle class="c-spark-dot" cx="'+last[0].toFixed(1)+'" cy="'+last[1].toFixed(1)+'" r="2.4" fill="'+col+'"/></svg>';
@@ -7413,13 +7413,13 @@ function rmNodeInnerHTML(d){
   var label='<'+lblTag+' class="rm-node-label">'+esc(d.label)+'</'+lblTag+'>';
   var head=d.kind==='center'?('<span class="rm-topic">'+esc(tr('Roadmap'))+'</span>'+emoji+label):(emoji+label);
   var count=d.count?'<span class="rm-count">'+esc(d.count)+'</span>':'';
-  var fold=d.hasKids?'<button class="rm-fold" data-action="rm-fold" data-nid="'+d.nid+'" tabindex="-1" title="Collapse / expand subtree">'+(d.collapsed?'&#9656;':'&#9662;')+'</button>':'';
+  var fold=d.hasKids?'<button class="rm-fold" data-action="rm-fold" data-nid="'+esc(d.nid)+'" tabindex="-1" title="Collapse / expand subtree">'+(d.collapsed?'&#9656;':'&#9662;')+'</button>':'';
   var tools=d.kind==='center'
     ?'<span class="rm-tools"><button class="rm-tool" data-action="rm-node-pop" data-nid="center" title="Customize">'+icon('palette')+'</button></span>'
-    :'<span class="rm-tools"><button class="rm-tool" data-action="rm-node-pop" data-nid="'+d.nid+'" title="Customize">'+icon('palette')+'</button><button class="rm-tool danger" data-action="rm-node-del" data-nid="'+d.nid+'" title="Delete">'+icon('trash')+'</button></span>';
+    :'<span class="rm-tools"><button class="rm-tool" data-action="rm-node-pop" data-nid="'+esc(d.nid)+'" title="Customize">'+icon('palette')+'</button><button class="rm-tool danger" data-action="rm-node-del" data-nid="'+esc(d.nid)+'" title="Delete">'+icon('trash')+'</button></span>';
   return head+count+fold+rmQaddSlots(d.nid)+tools;
 }
-function rmNodeHTML(d){ return '<div class="'+rmDescCls(d)+'" data-nid="'+d.nid+'" data-kind="'+d.kind+'"'+(d.kind!=='center'?' data-id="'+d.nid.slice(2)+'"':'')+' style="left:'+d.left+'px;top:'+d.top+'px;--nc:'+d.nc+';--nc-ink:'+inkOnFill(d.nc)+'">'+rmNodeInnerHTML(d)+'</div>'; }
+function rmNodeHTML(d){ return '<div class="'+rmDescCls(d)+'" data-nid="'+esc(d.nid)+'" data-kind="'+esc(d.kind)+'"'+(d.kind!=='center'?' data-id="'+esc(String(d.nid).slice(2))+'"':'')+' style="left:'+rmNum(d.left)+'px;top:'+rmNum(d.top)+'px;--nc:'+d.nc+';--nc-ink:'+inkOnFill(d.nc)+'">'+rmNodeInnerHTML(d)+'</div>'; }
 /* Roadmap objects are the one place state reaches an ATTRIBUTE rather than a text node,
    and importData()/cloudPull() deepMerge whatever JSON they are handed. A colour of
    `red" onmouseover="…` therefore closed the attribute and installed a live handler, in
@@ -7439,34 +7439,34 @@ function rmFrameHTML(f){ var id=esc(f.id);
 function rmStampHTML(s){ return '<div class="rm-stamp" data-stamp="'+esc(s.id)+'" style="left:'+rmNum(s.x)+'px;top:'+rmNum(s.y)+'px" title="Drag to move · double-click to remove">'+esc(s.emoji||'⭐')+'</div>'; }
 function rmFramesHTML(rm){ return (rm.frames||[]).map(rmFrameHTML).join(''); }
 function rmStampsHTML(rm){ return (rm.stamps||[]).map(rmStampHTML).join(''); }
-function rmCommentHTML(c){ return '<div class="rm-comment'+((c.text||'').trim()?' has-text':'')+'" data-comment="'+c.id+'" data-action="rm-comment-open" style="left:'+c.x+'px;top:'+c.y+'px" title="'+esc((c.text||'').slice(0,60)||'Comment')+'">'+icon('chat',14)+'</div>'; }
+function rmCommentHTML(c){ return '<div class="rm-comment'+((c.text||'').trim()?' has-text':'')+'" data-comment="'+esc(c.id)+'" data-action="rm-comment-open" style="left:'+rmNum(c.x)+'px;top:'+rmNum(c.y)+'px" title="'+esc((c.text||'').slice(0,60)||'Comment')+'">'+icon('chat',14)+'</div>'; }
 function rmCommentsHTML(rm){ return (rm.comments||[]).map(rmCommentHTML).join(''); }
 function rmTableHTML(t){
   var rows=t.cells.length, cols=(t.cells[0]||[]).length; t.rows=rows; t.cols=cols;
   var widths=[]; for(var i=0;i<cols;i++) widths.push((t.widths&&t.widths[i])||90);
   var total=widths.reduce(function(a,b){return a+b;},0);
-  var colg='<colgroup>'+widths.map(function(w){return '<col style="width:'+w+'px">';}).join('')+'</colgroup>';
-  var body='<table class="rm-tbl-grid" style="width:'+total+'px">'+colg+t.cells.map(function(row,ri){ return '<tr>'+row.map(function(cell,ci){ return '<td class="rm-tbl-cell" contenteditable="true" spellcheck="false" data-table="'+t.id+'" data-r="'+ri+'" data-c="'+ci+'">'+esc(cell||'')+'</td>'; }).join('')+'</tr>'; }).join('')+'</table>';
-  var handles='', cum=0; for(var c=0;c<cols-1;c++){ cum+=widths[c]; handles+='<span class="rm-tbl-colrz" data-table-colrz="'+t.id+'" data-col="'+c+'" style="left:'+cum+'px" title="Drag to resize column"></span>'; }
+  var colg='<colgroup>'+widths.map(function(w){return '<col style="width:'+rmNum(w,90)+'px">';}).join('')+'</colgroup>';
+  var body='<table class="rm-tbl-grid" style="width:'+rmNum(total,90)+'px">'+colg+t.cells.map(function(row,ri){ return '<tr>'+row.map(function(cell,ci){ return '<td class="rm-tbl-cell" contenteditable="true" spellcheck="false" data-table="'+esc(t.id)+'" data-r="'+ri+'" data-c="'+ci+'">'+esc(cell||'')+'</td>'; }).join('')+'</tr>'; }).join('')+'</table>';
+  var handles='', cum=0; for(var c=0;c<cols-1;c++){ cum+=widths[c]; handles+='<span class="rm-tbl-colrz" data-table-colrz="'+esc(t.id)+'" data-col="'+c+'" style="left:'+rmNum(cum)+'px" title="Drag to resize column"></span>'; }
   var ctrls='<div class="rm-tbl-ctrls">'+
-    '<button class="rm-tbl-cbtn" data-action="rm-table-row" data-table="'+t.id+'" title="Add row">'+icon('plus',11)+'row</button>'+
-    (rows>1?'<button class="rm-tbl-cbtn" data-action="rm-table-rowdel" data-table="'+t.id+'" title="Remove last row">'+icon('minus',11)+'row</button>':'')+
-    '<button class="rm-tbl-cbtn" data-action="rm-table-col" data-table="'+t.id+'" title="Add column">'+icon('plus',11)+'col</button>'+
-    (cols>1?'<button class="rm-tbl-cbtn" data-action="rm-table-coldel" data-table="'+t.id+'" title="Remove last column">'+icon('minus',11)+'col</button>':'')+
-    '<button class="rm-tbl-cbtn danger" data-action="rm-table-del" data-table="'+t.id+'" title="Delete table">'+icon('trash',11)+'</button>'+
+    '<button class="rm-tbl-cbtn" data-action="rm-table-row" data-table="'+esc(t.id)+'" title="Add row">'+icon('plus',11)+'row</button>'+
+    (rows>1?'<button class="rm-tbl-cbtn" data-action="rm-table-rowdel" data-table="'+esc(t.id)+'" title="Remove last row">'+icon('minus',11)+'row</button>':'')+
+    '<button class="rm-tbl-cbtn" data-action="rm-table-col" data-table="'+esc(t.id)+'" title="Add column">'+icon('plus',11)+'col</button>'+
+    (cols>1?'<button class="rm-tbl-cbtn" data-action="rm-table-coldel" data-table="'+esc(t.id)+'" title="Remove last column">'+icon('minus',11)+'col</button>':'')+
+    '<button class="rm-tbl-cbtn danger" data-action="rm-table-del" data-table="'+esc(t.id)+'" title="Delete table">'+icon('trash',11)+'</button>'+
   '</div>';
-  return '<div class="rm-table" data-table="'+t.id+'" style="left:'+t.x+'px;top:'+t.y+'px;width:'+total+'px">'+
-    '<span class="rm-table-grip" data-table-grip="'+t.id+'" title="Drag to move"></span>'+ctrls+body+handles+'</div>'; }
+  return '<div class="rm-table" data-table="'+esc(t.id)+'" style="left:'+rmNum(t.x)+'px;top:'+rmNum(t.y)+'px;width:'+rmNum(total,90)+'px">'+
+    '<span class="rm-table-grip" data-table-grip="'+esc(t.id)+'" title="Drag to move"></span>'+ctrls+body+handles+'</div>'; }
 function rmTablesHTML(rm){ return (rm.tables||[]).map(rmTableHTML).join(''); }
 var RM_NOTE_COLORS=['#ffd54a','#ff8a80','#8ce0a6','#82b1ff','#c8a2ff','#ffffff'];
 function rmNoteHTML(n){ var kind=n.kind||'sticky', isShape=kind==='shape', w=n.w||(kind==='text'?200:(isShape?150:190)), h=n.h||(isShape?100:170), boxed=(kind==='sticky'||isShape);
-  var cls='rm-note-obj rm-note-'+kind+(isShape?' rm-fshape-'+(n.shape||'rect'):'');
-  return '<div class="'+cls+'" data-note="'+n.id+'" style="left:'+n.x+'px;top:'+n.y+'px;width:'+w+'px;'+(boxed?'min-height:'+h+'px;':'')+'--nc:'+(n.color||(isShape?'#82b1ff':'#ffd54a'))+'">'+
+  var cls='rm-note-obj rm-note-'+kind+(isShape?' rm-fshape-'+(n.shape||'rect'):''), nid=esc(n.id);
+  return '<div class="'+cls+'" data-note="'+nid+'" style="left:'+rmNum(n.x)+'px;top:'+rmNum(n.y)+'px;width:'+rmNum(w,190)+'px;'+(boxed?'min-height:'+rmNum(h,170)+'px;':'')+'--nc:'+esc(safeColor(n.color,isShape?'#82b1ff':'#ffd54a'))+'">'+
     (isShape?'<span class="rm-fshape-bg"></span>':'')+
-    '<div class="rm-note-body" data-note-body="'+n.id+'" contenteditable="false" spellcheck="false">'+esc(n.text||'')+'</div>'+
-    '<div class="rm-note-bar">'+RM_NOTE_COLORS.map(function(c){ return '<button class="rm-note-sw'+((n.color||'#ffd54a')===c?' on':'')+'" data-action="rm-note-color" data-note="'+n.id+'" data-color="'+c+'" style="background:'+c+'" title="'+c+'"></button>'; }).join('')+
-      '<button class="rm-note-del" data-action="rm-note-del" data-note="'+n.id+'" title="Delete">&#215;</button></div>'+
-    (boxed?'<span class="rm-note-rz" data-note-rz="'+n.id+'" title="Resize"></span>':'')+'</div>'; }
+    '<div class="rm-note-body" data-note-body="'+nid+'" contenteditable="false" spellcheck="false">'+esc(n.text||'')+'</div>'+
+    '<div class="rm-note-bar">'+RM_NOTE_COLORS.map(function(c){ return '<button class="rm-note-sw'+((n.color||'#ffd54a')===c?' on':'')+'" data-action="rm-note-color" data-note="'+nid+'" data-color="'+c+'" style="background:'+c+'" title="'+c+'"></button>'; }).join('')+
+      '<button class="rm-note-del" data-action="rm-note-del" data-note="'+nid+'" title="Delete">&#215;</button></div>'+
+    (boxed?'<span class="rm-note-rz" data-note-rz="'+nid+'" title="Resize"></span>':'')+'</div>'; }
 function rmNotesHTML(rm){ return (rm.notes||[]).map(rmNoteHTML).join(''); }
 function rmBoardInner(rm,pos){ var b=rmBuildBoard(rm,pos);
   return rmFramesHTML(rm)+'<svg class="rm-edges" width="'+RM_BOARD_W+'" height="'+RM_BOARD_H+'" viewBox="0 0 '+RM_BOARD_W+' '+RM_BOARD_H+'" fill="none">'+RM_EDGE_DEFS+b.edges+rmInkHTML(rm)+'</svg>'+b.nodes+rmNotesHTML(rm)+rmTablesHTML(rm)+rmStampsHTML(rm)+rmCommentsHTML(rm); }
