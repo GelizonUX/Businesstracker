@@ -1167,7 +1167,21 @@ body.rm-shift .rm-canvas{cursor:crosshair}
    (title, wide search, primary action, bell, account block) it no longer fits 1111px,
    so the account block dropped onto a second line and read as a duplicate header
    sitting under the page title. Nothing here may wrap; the search absorbs the squeeze. */
+/* Nothing wraps, so SOMETHING has to be able to give way or the row simply runs off
+   the right edge, which it did: measured 153px of the account block hanging past #main
+   on Manpower and 128px of the action group on Products. Order of surrender, least
+   useful first: the account's text, then the per-view action labels, then the search.
+   The avatar, the bell and the primary action never shrink. */
 .topbar>*{flex-shrink:0}
+.topbar .tb-acct{flex-shrink:1;min-width:40px;overflow:hidden}
+.topbar .tb-acct-t{overflow:hidden}
+.topbar .tb-acct-t b,.topbar .tb-acct-t i{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topbar .topbar-actions{flex-shrink:1;min-width:0;overflow:hidden}
+@media (max-width:1240px){
+  /* below this the name is the first thing that stops earning its width: the avatar
+     still says whose account it is, and the chevron still says it opens. */
+  .topbar .tb-acct-t{display:none}
+}
 .topbar .tb-search{flex:1 1 auto;min-width:240px}
 /* the title yields before the search does. Finance's subtitle is long enough to
    squeeze the field to "Sea...", and a search box you cannot read the placeholder of
