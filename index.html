@@ -1170,6 +1170,10 @@ body.rm-shift .rm-canvas{cursor:crosshair}
    squeeze the field to "Sea...", and a search box you cannot read the placeholder of
    has stopped being a search box. */
 .topbar .page-title{min-width:0;max-width:38%}
+/* below 861px the search, bell and account block are hidden, so the cap that keeps
+   them room has nothing left to protect and only truncates the subtitle for free. */
+@media (max-width:860px){.topbar .page-title{max-width:none}
+  .topbar .page-title h1,.topbar .page-title p{white-space:normal;overflow:visible}}
 .topbar .page-title h1,.topbar .page-title p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .page-title h1{font-size:var(--f5);font-weight:var(--w-head);letter-spacing:-.02em;line-height:1.18}
 .page-title p{color:var(--text-3);font-size:var(--f2);margin-top:1px}
