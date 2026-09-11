@@ -67,34 +67,41 @@
   --font-display:'Schibsted Grotesk',var(--font);
   --mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
 
-  /* Neutrals are ONE hue: OKLCH 75, warm paper. They used to be tinted toward two
-     opposing hues, canvas at 106 (warm) and cards at 275 (cool blue), which is
-     why the cards looked subtly detached from the page they sat on. Never pure
-     #fff or #000. Warm rather than brand-tinted on purpose: the brand-tinted
-     version reads as a cold hospital grey, which is the generic look this
-     redesign exists to get away from. */
-  --bg:#f8f4ee;         /* oklch(96.8% .009 75)  warm paper canvas */
-  --bg-card:#fefcf9;    /* oklch(99.2% .005 75)  raised            */
-  --bg-card-glass:rgba(254,252,249,.82);
-  --bg-sunken:#f2ece5;  /* oklch(94.6% .011 75)                    */
-  --bg-hover:rgba(2,96,166,.055);
-  --bg-input:#fefcf9;
-  --bg-sidebar:#f5f1ea;
-  --sidebar-border:#e8e2da;
-  --sidebar-text:#585149;
-  --sidebar-text-active:#1d1710;
-  --sidebar-hover:rgba(29,23,16,.045);
-  --sidebar-active:rgba(2,96,166,.09);
+  /* GOALIFY. The whole app is a WHITE CARD floating on a tinted desk, so there are
+     two grounds, not one: --page is the desk (outside the app card) and --bg is
+     the paper (inside it). Cards sit on --bg at the same white, separated from it
+     only by a hairline and a very soft cast, which is exactly how the reference
+     reads. The ramp is slate + blue; the previous warm-paper hue is gone because
+     the reference is measurably cool (#e9eff6 desk, #f8fafc sunken, #eef1f5 rules). */
+  --app-inset:16px;     /* how far the app card sits off the desk  */
+  --app-radius:20px;
+  --page:#e9eff6;       /* the tinted desk the app card floats on  */
+  --bg:#fdfdff;         /* paper inside the app card. NOT pure #fff: the house rule
+                           is that no neutral is untinted, and at this chroma the
+                           tint is invisible beside the reference's white while the
+                           sheet still belongs to the blue family around it. */
+  --bg-card:#fdfdff;    /* cards are the same sheet, held by their border */
+  --bg-card-glass:rgba(255,255,255,.82);
+  --bg-sunken:#f8fafc;  /* search field, bar tracks                */
+  --bg-hover:#f1f5f9;
+  --bg-input:#f8fafc;
+  --bg-sidebar:#fdfdff; /* the sidebar is the same sheet; the hairline divides */
+  --sidebar-border:#eef1f5;
+  --sidebar-text:#475569;
+  --sidebar-text-active:#0f172a;
+  --sidebar-hover:#f8fafc;
+  --sidebar-active:#f1f5f9;  /* the light-fill active row (spec 1) */
 
-  --text:#1d1710;       /* oklch(21% .016 75) */
+  --text:#0f172a;
   --text-1:var(--text); /* alias: several chart rules reference --text-1 */
-  --text-2:#585149;     /* oklch(44% .016 75) */
-  /* L 52%, not the 54% first derived: at 54% it passes on --bg (4.61) and on
-     --bg-card (4.93) and FAILS on --bg-sunken (4.30). 52% clears all three. */
-  --text-3:#6e6860;     /* oklch(52% .015 75) */
+  --text-2:#475569;
+  /* The reference's faint ink is #94a3b8, which measures 2.56:1 on white and is a
+     WCAG failure for text. Darkened to the slate-500 step (4.76:1) and used for
+     every muted label, placeholder and "closed" figure. Reported, not shipped as-is. */
+  --text-3:#64748b;
 
-  --border:#e8e2da;     /* oklch(91.5% .013 75) hairline           */
-  --border-2:#d6cec4;   /* oklch(85.5% .016 75) the double rule    */
+  --border:#eef1f5;     /* card borders, hairlines                 */
+  --border-2:#e2e8f0;   /* sub-tile borders, the firmer rule       */
 
   /* The old accent #0260a6 sat at OKLCH hue 272.3. Mercury's brand indigo is
      272.0 and Linear's is 275.2: a third of a degree from one and three from the
@@ -102,16 +109,16 @@
      22 degrees away, with chroma dropped from 0.222 to 0.135 so it reads as INK
      rather than as brand voltage. A ledger has no brand colour; it has ink, red
      for what you owe, and paper. */
-  --accent:#0260a6;     /* oklch(48% .135 250) */
-  --accent-2:#01518f;
-  --accent-cta:#0260a6;
+  --accent:#2563eb;     /* the reference brand blue */
+  --accent-2:#1d4ed8;
+  --accent-cta:#2563eb;
   --accent-cta-ink:#ffffff;
-  --accent-soft:rgba(2,96,166,.09);
-  --accent-ink:#01518f;
+  --accent-soft:rgba(37,99,235,.08);
+  --accent-ink:#1d4ed8;
   /* WCAG 1.4.11: an input's boundary is what identifies it as an input, so it
      needs 3:1 against its own fill. --border is a decorative hairline at 1.2:1
      and stays that way for card edges and table rules, which the SC exempts. */
-  --border-ctl:#8d857a;  /* oklch(62% .018 75), 3.55:1 vs --bg-card (WCAG 1.4.11) */
+  --border-ctl:#7b8ba0;  /* 3.47:1 vs white, 3.20:1 vs --bg-sunken (WCAG 1.4.11) */
   /* ink for text/glyphs sitting ON a filled semantic colour. Light in this theme
      because the fills are dark; near-black in dark, where they are light. */
   --on-tint:#ffffff;
@@ -124,9 +131,17 @@
   /* L 48 and L 50, not the spec's 50 and 52: at those the ink measured 4.30 and
      4.28 against its own tint over --bg-sunken, which is a 4.5 requirement. Chroma,
      which is what carries severity here, is unchanged. */
-  --good:#226d49;  --good-soft:rgba(34,109,73,.08);   /* oklch(48% .095 158) */
-  --warn:#925000;  --warn-soft:rgba(146,80,0,.09);    /* oklch(50% .119  62) */
-  --risk:#ab0d15;  --risk-soft:rgba(171,13,21,.08);   /* oklch(47% .185  27) */
+  /* The reference's status trio is amber #f59e0b and red #ef4444, which measure
+     2.15:1 and 3.76:1 on white: both fail AA for the 12px status word. The INK is
+     darkened to the nearest step that clears 4.5:1 on white AND on --bg-sunken;
+     the BAR FILL keeps the reference hue (--warn-fill / --risk-fill) because a bar
+     is graphical and the percentage is printed beside it as text. */
+  --good:#12703a;  --good-soft:rgba(18,112,58,.08);
+  --warn:#9c4e00;  --warn-soft:rgba(156,78,0,.09);   --warn-fill:#f59e0b;
+  --risk:#c81e1e;  --risk-soft:rgba(200,30,30,.08);  --risk-fill:#ef4444;
+  /* status ramp, named as the reference names it */
+  --st-ontrack:#2563eb;  --st-offtrack:var(--warn);  --st-atrisk:var(--risk);  --st-closed:var(--text-3);
+  --st-ontrack-fill:#3b82f6; --st-offtrack-fill:var(--warn-fill); --st-atrisk-fill:var(--risk-fill); --st-closed-fill:#94a3b8;
   /* --info is deleted (spec 3.7): it was #2360bf at hue 259 and the accent is at
      250, nine degrees apart at the same lightness, which is a distinction no user
      can perceive. Four colours are enough: accent, good, warn, risk. The alias
@@ -134,7 +149,7 @@
      resolve to nothing; nothing in this file paints with it any more. */
   --info:var(--accent); --info-soft:var(--accent-soft);
 
-  --income:#226d49; --expense:#ab0d15;
+  --income:#12703a; --expense:#c81e1e;
 
   /* concentric radius scale: iOS 27 unified corner radii toward larger,
      continuous curvature; nested surfaces step down one rung so their
@@ -181,7 +196,7 @@
   --shadow-lg:0 2px 6px rgba(22,23,29,.05),0 24px 48px rgba(22,23,29,.13);
   --ease:cubic-bezier(.4,0,.2,1);
   --ease-snappy:cubic-bezier(.25,.46,.45,.94);
-  --chart-grid:#ecece7;
+  --chart-grid:#eef1f5;
   /* ============================================================
      Liquid Glass (iOS 27): ONE material for every floating surface.
      Everything derives from --glass-clarity (0 = solid & maximally
@@ -307,29 +322,31 @@
 }
 html[data-theme="dark"]{
   color-scheme:dark;
-  /* A warm charcoal, not a blue-black. #0e0f13 was OKLCH hue 274, the same
-     register as Linear's #08090a and Copilot's #000814. Hue 75 at L 17.5% is both
-     warmer and lighter, which reads better on a phone in daylight and is instantly
-     distinguishable from every dev-tool dark theme. */
-  --bg:#12100e;         /* oklch(17.5% .006 75) */
-  --bg-card:#1d1a17;    /* oklch(22%   .007 75) */
-  --bg-card-glass:rgba(29,26,23,.82);
-  --bg-sunken:#0c0a08;  /* oklch(14.5% .006 75) */
-  --bg-hover:rgba(109,176,244,.09);
-  --bg-input:#231f1b;
-  --bg-sidebar:#0f0d0c;
-  --sidebar-border:#302c27;
-  --sidebar-text:#b2ada6;
-  --sidebar-text-active:#f1eeea;
-  --sidebar-hover:rgba(255,255,255,.05);
-  --sidebar-active:rgba(109,176,244,.13);
+  /* DARK IS DERIVED, NOT INVENTED. The screenshot is light only, so the structure
+     is kept exactly (a desk, an app card inset on it, cards on the card, one blue)
+     and only the ramp is swapped: the slate scale is read from the dark end instead
+     of the light end. There is no second accent; the brand blue simply lightens so
+     it can carry ink-level contrast on a dark sheet. */
+  --page:#080d15;       /* the desk, darker than the app card                  */
+  --bg:#101722;         /* paper inside the app card                           */
+  --bg-card:#101722;    /* cards are the same sheet, held by their border      */
+  --bg-card-glass:rgba(16,23,34,.82);
+  --bg-sunken:#161f2d;  /* sunken goes UP in dark: a well is lighter, not darker */
+  --bg-hover:#1a2434;
+  --bg-input:#161f2d;
+  --bg-sidebar:#101722;
+  --sidebar-border:#232e3f;
+  --sidebar-text:#a3b0c2;
+  --sidebar-text-active:#e8edf5;
+  --sidebar-hover:#161f2d;
+  --sidebar-active:#1c2636;  /* the light-fill active row, read from the dark end */
 
-  --text:#f1eeea;       /* oklch(95% .006 75) */
-  --text-2:#b2ada6;     /* oklch(75% .012 75) */
-  --text-3:#97918a;     /* oklch(66% .013 75) */
+  --text:#e8edf5;
+  --text-2:#a3b0c2;
+  --text-3:#8c9ab0;
 
-  --border:#302c27;     /* oklch(29.5% .010 75) */
-  --border-2:#423e38;   /* oklch(36.5% .012 75) */
+  --border:#232e3f;
+  --border-2:#2e3b4e;
   /* dark glass: same construction, quieter numbers. The surface stays denser so
      text keeps its contrast against bright content scrolling underneath, and the
      backdrop is DARKENED rather than brightened. Dark Liquid Glass is a smoked
@@ -354,25 +371,27 @@ html[data-theme="dark"]{
   --lg-shadow:0 2px 8px rgba(0,0,0,.44),0 14px 36px rgba(0,0,0,.42),0 30px 60px rgba(0,0,0,.34);
   --mat-hi:var(--lg-rim); /* subtle rim in the dark theme */
 
-  --accent:#6db0f4;     /* oklch(74% .120 250) */
-  --accent-2:#89c3ff;
-  --accent-cta:#1a6ba8;              /* a fill white ink can sit on */
+  --accent:#60a5fa;     /* the SAME blue, read from the dark end of the ramp */
+  --accent-2:#93c5fd;
+  --accent-cta:#2563eb;              /* the reference fill is unchanged: white ink clears 5.12:1 on it */
   --accent-cta-ink:#ffffff;
-  --accent-soft:rgba(109,176,244,.13);
-  --accent-ink:#89c3ff;
-  --border-ctl:#767169;  /* oklch(55% .014 75) */
+  --accent-soft:rgba(96,165,250,.13);
+  --accent-ink:#93c5fd;
+  --border-ctl:#64748b;  /* 3.46:1 vs --bg-input (WCAG 1.4.11) */
   --on-tint:#14110e;
 
-  --good:#7dbf99; --good-soft:rgba(125,191,153,.12);  /* oklch(75% .088 158) */
-  --warn:#e4a56c; --warn-soft:rgba(228,165,108,.12);  /* oklch(77% .105  62) */
-  --risk:#f1786d; --risk-soft:rgba(241,120,109,.14);  /* oklch(71% .150  27) */
+  --good:#4ade80; --good-soft:rgba(74,222,128,.12);
+  --warn:#fbbf24; --warn-soft:rgba(251,191,36,.12);  --warn-fill:#fbbf24;
+  --risk:#f87171; --risk-soft:rgba(248,113,113,.14); --risk-fill:#f87171;
+  --st-ontrack:#60a5fa;  --st-offtrack:var(--warn);  --st-atrisk:var(--risk);  --st-closed:var(--text-3);
+  --st-ontrack-fill:#60a5fa; --st-offtrack-fill:var(--warn-fill); --st-atrisk-fill:var(--risk-fill); --st-closed-fill:#64748b;
   --info:var(--accent); --info-soft:var(--accent-soft);   /* deleted, see light */
-  --income:#7dbf99; --expense:#f1786d;
+  --income:#4ade80; --expense:#f87171;
 
   --shadow-sm:0 1px 2px rgba(0,0,0,.35);
   --shadow:0 2px 8px rgba(0,0,0,.4),0 12px 32px rgba(0,0,0,.32);
   --shadow-lg:0 12px 24px rgba(0,0,0,.45),0 32px 64px rgba(0,0,0,.4);
-  --chart-grid:#302c27;
+  --chart-grid:#232e3f;
 }
 
 /* iOS-style Liquid Glass slider (Settings → Appearance) */
@@ -522,7 +541,10 @@ html.glass-solid .asst-pop::after,html.glass-solid .chat-bubble::after,html.glas
 html{font-size:14px}
 body{
   font-family:var(--font);
-  background:var(--bg);
+  /* the DESK, not the app. The app itself is a white card inset on this ground
+     (.app below); that inset is the single most recognisable thing in the
+     reference, so the page ground has to be a different colour from the app. */
+  background:var(--page);
   color:var(--text);
   line-height:1.55;
   -webkit-font-smoothing:antialiased;
@@ -1018,35 +1040,52 @@ body.rm-shift .rm-canvas{cursor:crosshair}
 /* ============================================================
    layout: sidebar + main
    ============================================================ */
-.app{display:flex;height:100vh;height:100dvh;overflow:hidden}
+/* THE APP IS A CARD ON A TINTED DESK (spec 0, mechanism 1). Inset on all four
+   sides, radius 20px, its own hairline. Everything else in the shell lives inside
+   it, so the desk is visible as a continuous frame at every width above a phone. */
+.app{display:flex;height:100vh;height:100dvh;overflow:hidden;
+  margin:var(--app-inset,16px);height:calc(100dvh - var(--app-inset,16px)*2);
+  background:var(--bg);border:1px solid var(--border);border-radius:var(--app-radius,20px);
+  box-shadow:0 1px 2px rgba(16,24,40,.04),0 12px 32px rgba(16,24,40,.06)}
 .sidebar{
-  position:fixed;inset:0 auto 0 0;width:calc(248px*var(--nav-scale,1));z-index:60;
+  position:fixed;inset:0 auto 0 0;width:calc(295px*var(--nav-scale,1));z-index:60;
   /* --bg-sidebar is fully opaque, so there is nothing behind this panel to blur or
      bend: a full-viewport-height backdrop pass here cost a composited layer and
      changed exactly zero pixels. The drawer is a solid panel, not glass. */
   background:var(--bg-sidebar);
   border-right:1px solid var(--sidebar-border);
   display:flex;flex-direction:column;
-  padding:20px 12px;
+  /* no padding on the column itself: each block below owns its own 24px gutter so
+     an active row's fill can reach the full width of the list and still sit inside
+     the rail the way the reference's does */
+  padding:0;
   transition:transform .3s var(--ease);
 }
-.brand{display:flex;align-items:center;gap:10px;padding:6px 10px 20px}
-.brand-logo{width:34px;height:34px;border-radius:9px;background:var(--accent-cta);display:grid;place-items:center;flex-shrink:0;box-shadow:var(--shadow-sm)}
-.brand-logo svg{width:20px;height:20px}
-.brand-name{font-family:var(--font-display);font-weight:600;font-size:var(--f4);color:var(--sidebar-text-active);letter-spacing:-.018em}
-.brand-sub{font-size:var(--f1);color:var(--sidebar-text);text-transform:uppercase;letter-spacing:.14em;font-weight:550}
+.brand{display:flex;align-items:center;gap:12px;padding:24px 24px 18px}
+/* 40x40 at radius 11: a rounded square, not a circle and not a pill */
+.brand-logo{width:calc(40px*var(--nav-scale,1));height:calc(40px*var(--nav-scale,1));border-radius:11px;background:var(--accent-cta);display:grid;place-items:center;flex-shrink:0;box-shadow:none;color:var(--accent-cta-ink)}
+.brand-logo svg{width:22px;height:22px}
+.brand-name{font-family:var(--font-display);font-weight:700;font-size:calc(22px*var(--nav-scale,1));color:var(--sidebar-text-active);letter-spacing:-.022em;line-height:1.15}
+.brand-sub{font-size:var(--f1);color:var(--text-3);letter-spacing:.01em;font-weight:500}
 
-.nav{flex:1;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:2px}
-.nav-section{font-size:calc(.66rem*var(--nav-scale,1));font-weight:550;text-transform:uppercase;letter-spacing:.12em;color:var(--sidebar-text);padding:16px 12px 4px}
+/* The nav scrolls (22 routes in a 433px well, scrollHeight 1272), and a scroll area
+   that ends flush cuts a row in half and reads as a rendering fault rather than as
+   "there is more below". The bottom padding lets the last row clear the edge and the
+   mask fades the final few pixels so the cut is legibly a fade, not a crop. */
+.nav{flex:1;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:4px;padding:0 16px 18px;
+  -webkit-mask-image:linear-gradient(180deg,#000 calc(100% - 18px),transparent);
+  mask-image:linear-gradient(180deg,#000 calc(100% - 18px),transparent)}
+.nav-section{font-size:calc(.66rem*var(--nav-scale,1));font-weight:550;text-transform:uppercase;letter-spacing:.12em;color:var(--text-3);padding:16px 10px 4px}
 .nav-sec-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;border-radius:var(--r-sm);transition:opacity .15s}
 .nav-sec-toggle:hover{opacity:1}
 .nav-chev{transition:transform .2s var(--ease);display:inline-flex}
 .nav-chev.closed{transform:rotate(-90deg)}
+/* 44px tall, radius 10, padding 0 14, icon 20 then a 15px/500 label (spec 1) */
 .nav-item{
-  display:flex;align-items:center;gap:10px;
-  padding:6px 12px;border-radius:var(--r-sm);
-  color:var(--sidebar-text);font-size:calc(.9rem*var(--nav-scale,1));font-weight:500;
-  transition:background .15s,color .15s,transform .1s;
+  display:flex;align-items:center;gap:12px;
+  min-height:calc(44px*var(--nav-scale,1));padding:0 14px;border-radius:10px;
+  color:var(--sidebar-text);font-size:calc(15px*var(--nav-scale,1));font-weight:500;
+  transition:background .15s,color .15s;
   width:100%;text-align:left;position:relative;
 }
 .nav-item:not(.active){color:var(--sidebar-text)}
@@ -1061,16 +1100,28 @@ body.rm-shift .rm-canvas{cursor:crosshair}
 .nav-fav:not(.on) svg.ic .d{fill-opacity:0}
 .app.nav-collapsed .nav-fav{display:none}
 .nav-item:hover{background:var(--sidebar-hover);color:var(--sidebar-text-active)}
-/* .nav-item.active is defined once, later, as a single source of truth */
-.nav-item.active::before{content:'';position:absolute;left:-12px;top:22%;bottom:22%;width:3px;border-radius:0 3px 3px 0;background:var(--accent)}
-.nav-item svg{width:calc(17px*var(--nav-scale,1));height:calc(17px*var(--nav-scale,1));flex-shrink:0;opacity:.85}
-.nav-item.active svg{opacity:1}
-.nav-badge{margin-left:auto;background:var(--risk);color:var(--on-tint);font-size:var(--f1);font-weight:550;padding:1px 8px;border-radius:99px;min-width:18px;text-align:center}
+/* ACTIVE IS A LIGHT FILL, NOT A STRIPE (spec 1). The reference marks the selected
+   row with a very light slate fill, a near-black label and a BLUE icon, and carries
+   no left stripe and no border at all. The ::before rail that used to live here is
+   deleted rather than hidden, so there is one source of truth for the state. */
+.nav-item svg{width:calc(20px*var(--nav-scale,1));height:calc(20px*var(--nav-scale,1));flex-shrink:0;opacity:.9}
+.nav-item.active svg{opacity:1;color:var(--accent)}
+.nav-item-chev{margin-left:auto;display:inline-flex;color:var(--text-3);flex-shrink:0}
+/* the count badge is a quiet grey pill, not an alarm: the sidebar counts things,
+   it does not raise them */
+.nav-badge{margin-left:auto;background:var(--bg-hover);color:var(--text-3);font-size:var(--f1);font-weight:550;padding:1px 9px;border-radius:99px;min-width:20px;text-align:center}
 
-.sidebar-foot{padding:12px 10px 2px;border-top:1px solid var(--sidebar-border);margin-top:10px}
-.biz-chip{display:flex;align-items:center;gap:8px;color:var(--sidebar-text);font-size:var(--f2)}
-.biz-chip .avatar{width:30px;height:30px;border-radius:8px;background:var(--accent-cta);display:grid;place-items:center;color:var(--accent-cta-ink);font-weight:550;font-size:var(--f2);flex-shrink:0}
-.biz-chip b{color:var(--sidebar-text-active);display:block;font-size:var(--f2);line-height:1.2;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* the workspace switcher: a dark rounded square, the workspace name, what kind of
+   workspace it is, and a chevron, sitting above a hairline at the very bottom */
+.sidebar-foot{padding:14px 16px 16px;border-top:1px solid var(--sidebar-border);margin-top:10px}
+.biz-chip{display:flex;align-items:center;gap:10px;color:var(--text-3);font-size:var(--f1);width:100%;text-align:left;
+  padding:6px;border-radius:10px;transition:background .15s}
+.biz-chip:hover{background:var(--sidebar-hover)}
+.biz-chip>div{flex:1;min-width:0}
+.biz-chip .avatar{width:36px;height:36px;border-radius:10px;background:var(--text);display:grid;place-items:center;color:#fff;font-weight:600;font-size:var(--f2);flex-shrink:0}
+.biz-chip b{color:var(--sidebar-text-active);display:block;font-size:calc(14px*var(--nav-scale,1));font-weight:600;line-height:1.25;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.biz-chip span{display:block;font-size:var(--f1);color:var(--text-3)}
+.biz-chip .biz-chev{flex:0 0 auto;display:inline-flex;color:var(--text-3)}
 
 /* NO animation on this rule. It used to carry `animation:fadeIn .35s`, and that one
    declaration was the blinking the owner kept reporting. #main.view-enter (:2402) sets
@@ -1081,7 +1132,7 @@ body.rm-shift .rm-canvas{cursor:crosshair}
    350ms, a second entrance nobody asked for and long after the screen was readable.
    Measured (Chromium): Invoices 710ms with two collapses to opacity 0 -> 86ms with one.
    The entrance lives on #main.view-enter alone; the shell must not declare one. */
-.main{--main-pad-x:28px;flex:1;margin-left:calc(248px*var(--nav-scale,1));min-width:0;height:100vh;height:100dvh;overflow-y:auto;overscroll-behavior:contain;padding:20px var(--main-pad-x) 60px}
+.main{--main-pad-x:28px;flex:1 1 auto;margin-left:0;min-width:0;min-height:0;height:auto;overflow-y:auto;overscroll-behavior:contain;padding:0 var(--main-pad-x) 60px}
 
 /* topbar */
 /* ---- iOS large title: PINNED AND OPAQUE ----
@@ -1105,11 +1156,53 @@ body.rm-shift .rm-canvas{cursor:crosshair}
    a pinned bar was the reported defect. The iOS collapsing-large-title pattern
    depends on a pinned bar, so it is intentionally absent too. The two cannot
    coexist, and not-pinned is the requirement. */
-.topbar{position:relative;z-index:30;display:flex;align-items:center;gap:12px;
-  padding:20px var(--main-pad-x,0px) 12px;margin-inline:calc(-1 * var(--main-pad-x,0px));
-  margin-bottom:20px;flex-wrap:wrap;background:var(--bg);border-bottom:1px solid transparent}
+.topbar{position:relative;z-index:30;display:flex;align-items:center;gap:14px;
+  min-height:90px;padding:0 var(--main-pad-x,0px);margin-inline:calc(-1 * var(--main-pad-x,0px));
+  margin-bottom:24px;flex-wrap:nowrap;background:var(--bg);border-bottom:1px solid var(--border)}
+/* nowrap, and the search is the only thing allowed to give way. The bar used to wrap,
+   which was harmless while it held a title and two buttons. With the reference's row
+   (title, wide search, primary action, bell, account block) it no longer fits 1111px,
+   so the account block dropped onto a second line and read as a duplicate header
+   sitting under the page title. Nothing here may wrap; the search absorbs the squeeze. */
+.topbar>*{flex-shrink:0}
+.topbar .tb-search{flex:1 1 auto;min-width:120px}
+.topbar .page-title{min-width:0}
+.topbar .page-title h1,.topbar .page-title p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .page-title h1{font-size:var(--f5);font-weight:var(--w-head);letter-spacing:-.02em;line-height:1.18}
-.page-title p{color:var(--text-2);font-size:var(--f3);margin-top:2px}
+.page-title p{color:var(--text-3);font-size:var(--f2);margin-top:1px}
+/* the wide search field: a rounded RECT at 10px, never a pill, with the magnifier
+   inside its left edge and the filter glyph pinned to its right (spec 2) */
+.tb-search{flex:1 1 380px;max-width:600px;min-width:0;display:flex;align-items:center;gap:10px;
+  height:44px;padding:0 12px;border-radius:10px;background:var(--bg-sunken);border:1px solid var(--border);
+  color:var(--text-3);cursor:pointer;transition:border-color .15s,background .15s}
+.tb-search:hover{border-color:var(--border-2)}
+.tb-search svg{flex-shrink:0}
+.tb-ph{flex:1;min-width:0;text-align:left;font-size:var(--f3);color:var(--text-3);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tb-filter{flex:0 0 auto;display:inline-flex;color:var(--text-3)}
+/* the bell, and the dot it only wears when something really is late */
+.tb-bell{position:relative;width:40px;height:40px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;
+  color:var(--text-2);flex-shrink:0;transition:background .15s,color .15s}
+.tb-bell:hover{background:var(--bg-hover);color:var(--text)}
+.tb-dot{position:absolute;top:8px;right:9px;width:8px;height:8px;border-radius:50%;background:var(--risk-fill);
+  box-shadow:0 0 0 2px var(--bg)}
+/* the account block: circular avatar, name over plan, chevron */
+.tb-acct{display:flex;align-items:center;gap:10px;padding:4px 8px 4px 4px;border-radius:12px;flex-shrink:0;
+  transition:background .15s}
+.tb-acct:hover{background:var(--bg-hover)}
+.tb-avatar{width:40px;height:40px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;
+  background:var(--accent-cta);color:var(--accent-cta-ink);font-weight:600;font-size:var(--f3);object-fit:cover}
+.tb-acct-t{min-width:0;text-align:left;display:block}
+.tb-acct-t b{display:block;font-size:var(--f3);font-weight:600;color:var(--text);line-height:1.2;
+  max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tb-acct-t i{display:block;font-style:normal;font-size:var(--f2);color:var(--text-3);line-height:1.3}
+.tb-acct-chev{display:inline-flex;color:var(--text-3)}
+@media (max-width:1180px){.tb-acct-t{display:none}.tb-acct{padding:4px}}
+@media (max-width:960px){.tb-search{flex-basis:180px}}
+@media (max-width:860px){
+  .tb-search,.tb-bell,.tb-acct{display:none}
+  .topbar{min-height:0;padding-block:14px 12px;margin-bottom:16px}
+}
 .topbar-actions{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .topbar-more{display:none;width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);box-shadow:var(--shadow-sm);color:var(--text-2);align-items:center;justify-content:center;flex-shrink:0;cursor:pointer}
 .theme-toggle .btn-txt{display:none} /* search/theme stay icon-only except inside the mobile overflow menu */
@@ -1955,12 +2048,16 @@ details.calc .calc-body{margin-top:10px}
   .grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media (max-width:860px){
+  /* a phone has no room for a desk: the app card goes full-bleed and the 295px
+     column becomes the off-canvas drawer it always was below this width */
+  :root{--app-inset:0px;--app-radius:0px}
+  .app{border:0}
   /* off-canvas overlay: keep at least ~14vw of scrim tappable even at max menu size */
-  .sidebar{transform:translateX(-100%);width:min(calc(248px*var(--nav-scale,1)),86vw)}
+  .sidebar{transform:translateX(-100%);width:min(calc(295px*var(--nav-scale,1)),86vw)}
   .sidebar.open{transform:translateX(0);box-shadow:var(--shadow-lg)}
   .scrim.show{display:block}
   body.drawer-open .main{overflow:hidden}
-  .main{--main-pad-x:16px;margin-left:0;padding:16px var(--main-pad-x) 56px}
+  .main{--main-pad-x:16px;margin-left:0;padding:0 var(--main-pad-x) 56px}
   .hamburger{display:inline-flex}
   .grid-2,.grid-hero{grid-template-columns:minmax(0,1fr)}
   .form-row,.form-row-3{grid-template-columns:minmax(0,1fr)}
@@ -2245,6 +2342,20 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .sidebar-cta svg{width:16px;height:16px;flex-shrink:0}
 .sidebar-cta>span:first-of-type{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
 .cta-beta{font-size:var(--f1);font-weight:550;letter-spacing:.06em;text-transform:uppercase;background:var(--bg-card);border:1px solid var(--border);padding:1px 6px;border-radius:99px;flex-shrink:0}
+/* the two quiet rows under the spacer (Help, Settings, Edit menu) */
+.sidebar-tail{display:flex;flex-direction:column;gap:4px;padding:8px 16px 0;flex:0 0 auto}
+.nav-item-quiet{color:var(--text-3)}
+.nav-item-quiet:hover{color:var(--sidebar-text-active)}
+/* the promo card: a very light blue panel with a sparkle, a title, two lines of
+   muted copy and a full-width solid-blue button (spec 1) */
+.sb-promo{margin:12px 16px 0;padding:18px;border-radius:14px;background:var(--accent-soft);color:var(--text-2);flex:0 0 auto}
+.sb-promo svg{color:var(--accent);display:block;margin-bottom:8px}
+.sb-promo b{display:block;font-size:calc(15px*var(--nav-scale,1));font-weight:700;color:var(--sidebar-text-active);margin-bottom:4px;letter-spacing:-.01em}
+.sb-promo p{font-size:var(--f2);line-height:1.45;color:var(--text-2);margin:0 0 12px}
+.sb-promo-btn{display:block;width:100%;height:40px;border-radius:8px;background:var(--accent-cta);color:var(--accent-cta-ink);
+  font-size:calc(14px*var(--nav-scale,1));font-weight:600;text-align:center;cursor:pointer;transition:background .15s}
+.sb-promo-btn:hover{background:var(--accent-2)}
+.app.nav-collapsed .sb-promo,.app.nav-collapsed .sidebar-tail span{display:none}
 /* sidebar edit mode: text-size + reorder */
 .nav-edit-open{display:flex;align-items:center;gap:8px;width:100%;margin:0 0 8px;padding:8px 12px;border-radius:var(--r-sm);background:transparent;border:1px dashed var(--sidebar-border,rgba(255,255,255,.16));color:var(--sidebar-text);font-size:var(--f2);font-weight:550;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
 .nav-edit-open:hover{background:var(--sidebar-hover);color:var(--sidebar-text-active);border-color:var(--border-2)}
@@ -2275,10 +2386,10 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 /* color-coded navigation (per section) */
 .nav-item svg{color:currentColor}
 .nav-item:hover{color:var(--sidebar-text-active)}
-/* active item uses ONE consistent brand background regardless of section (no per-section tint) */
-.nav-item.active{background:var(--sidebar-active);color:var(--accent);font-weight:550}
-.nav-item.active svg{color:#fff}
-/* .nav-item.active::before is defined once near the top (accent bar) */
+/* active item uses ONE consistent light fill regardless of section (no per-section
+   tint): near-black label, brand-blue icon, no stripe, no border (spec 1) */
+.nav-item.active{background:var(--sidebar-active);color:var(--sidebar-text-active);font-weight:550}
+.nav-item.active svg{color:var(--accent)}
 .nav-section{transition:color .15s}
 /* ============================================================
    LEDGER: the dashboard is a ruled notebook, not a grid of widgets.
@@ -2911,18 +3022,22 @@ body.greeting-on{overflow:hidden}
   .onb-dots{gap:12px}.onb-dot{width:10px;height:10px}.onb-dot.on{width:26px}
 }
 @media (min-width:861px){
-  /* desktop stacks: nav band on top, scrolling page below. .app owns the viewport
-     height; .main is the only scrollport, and the nav band above it is the only
-     chrome that stays put. */
-  .app{flex-direction:column}
-  .island-bar{display:flex}
-  .sidebar{display:none}
-  /* no padding-top compensation: the bar occupies real space in the column, so
-     nothing can ever pass behind it and the page cannot collide with the pills. */
+  /* THE SIDEBAR IS THE DESKTOP NAV AGAIN (spec 1, mechanism 3). It is a real,
+     permanent, in-flow 295px column inside the app card: not an overlay, not a
+     drawer, and the only thing dividing it from the main area is a hairline,
+     because both are the same white sheet.
+     The island bar is retired: it still renders (its markup is the mobile menu's
+     data source and several behaviours hang off it) but it is never displayed. */
+  .app{flex-direction:row}
+  .island-bar{display:none}
+  .sidebar{display:flex;position:relative;inset:auto;z-index:1;
+    width:calc(295px*var(--nav-scale,1));flex:0 0 auto;transform:none;
+    background:var(--bg-sidebar);border-right:1px solid var(--sidebar-border);
+    box-shadow:none;padding:0}
   .main{--main-pad-x:30px;margin-left:0;padding:0 var(--main-pad-x) 60px;
     height:auto;flex:1 1 auto;min-height:0}
-  .hamburger,.nav-toggle{display:none!important}
-  /* island owns global search/theme on desktop: the per-view copies retire */
+  .hamburger{display:none!important}
+  /* the top bar owns global search/theme on desktop: the per-view copies retire */
   .topbar .theme-toggle{display:none}
 }
 @media (min-width:861px) and (max-width:1180px){
@@ -3228,6 +3343,8 @@ var ICONS = {
   upload:'<path d="M3.6 15.4v3.2a2.8 2.8 0 0 0 2.8 2.8h11.2a2.8 2.8 0 0 0 2.8-2.8v-3.2"/><path d="M7.6 7.2 12 2.8l4.4 4.4M12 2.8v12.4"/>',
   refresh:'<path d="M20.6 5.2v5.2h-5.2M3.4 18.8v-5.2h5.2"/><path d="M5.6 9.7a7.2 7.2 0 0 1 11.9-2.7l3.1 3.4M3.4 13.6l3.1 3.4a7.2 7.2 0 0 0 11.9-2.7"/>',
   search:'<circle class="d" cx="10.8" cy="10.8" r="7.6"/><path d="M16.4 16.4l4.4 4.4"/>',
+  bell:'<path class="d" d="M18.3 9.6a6.3 6.3 0 0 0-12.6 0c0 4.9-2.2 6.3-2.2 6.3h17s-2.2-1.4-2.2-6.3z"/><path d="M13.85 19.4a2.15 2.15 0 0 1-3.7 0"/>',
+  sliders:'<path d="M3.6 7.5h8.2M17.2 7.5h3.2M3.6 16.5h3.2M12.6 16.5h7.8"/><circle class="d" cx="14.4" cy="7.5" r="2.6"/><circle class="d" cx="9.8" cy="16.5" r="2.6"/>',
   alert:'<path class="d" d="M10.24 3.9 2.3 17.6a2 2 0 0 0 1.74 3h15.92a2 2 0 0 0 1.74-3L13.76 3.9a2 2 0 0 0-3.52 0z"/><path d="M12 9.2v4.3"/><circle class="s" cx="12" cy="17" r="1.2"/>',
   check:'<path d="M4.9 12.5 9.6 17.2 19.1 6.9"/>',
   x:'<path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/>',
@@ -4890,7 +5007,6 @@ function renderSidebar(){
     (bl?'<img src="'+esc(bl)+'" alt="" style="width:36px;height:36px;border-radius:10px;object-fit:cover;flex-shrink:0;box-shadow:0 4px 14px rgba(0,0,0,.35)">'
        :'<div class="brand-logo">'+icon('logo')+'</div>')+
     '<div><div class="brand-name" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+appNameEsc()+'">'+appNameEsc()+'</div><div class="brand-sub">Books &amp; stock</div></div></div>'+
-    '<button class="sidebar-cta" data-action="go-import" title="Import a spreadsheet, opens Data \& Sync">'+icon('upload')+'<span>Smart CSV import</span><span class="cta-beta">Beta</span></button>'+
     (editing
       ? '<div class="nav-edit-bar"><div class="nav-edit-size"><span class="nav-edit-lbl">Menu size</span>'+
           '<button class="nav-edit-step" data-action="nav-size" data-dir="-1" title="Smaller" aria-label="Smaller text">A&minus;</button>'+
@@ -4898,7 +5014,7 @@ function renderSidebar(){
           '<button class="nav-edit-step" data-action="nav-size" data-dir="1" title="Larger" aria-label="Larger text">A+</button></div>'+
           '<button class="nav-edit-done" data-action="nav-edit-toggle">'+icon('check',13)+' Done</button>'+
           '<p class="nav-edit-hint">Use the arrows on each section to reorder. Pin items with the '+icon('star',12)+' that appears on hover.</p></div>'
-      : '<button class="nav-edit-open" data-action="nav-edit-toggle" title="Resize text & reorder the menu">'+icon('edit',13)+'<span>Edit menu</span></button>')+
+      : '')+
     '<nav class="nav'+(editing?' nav-editing':'')+'">';
   var labels=state.settings.moduleLabels||{};
   var collapsed=state.settings.collapsedNav||[];
@@ -4953,10 +5069,26 @@ function renderSidebar(){
     });
     html+='<button class="nav-item" data-action="custom-module-new" style="opacity:.75">'+icon('plus')+'<span>'+esc(tr('New table…'))+'</span></button>';
   }
-  html+='</nav><div class="sidebar-foot"><div class="biz-chip">'+
-    (bl?'<img src="'+esc(bl)+'" alt="" style="width:30px;height:30px;border-radius:8px;object-fit:cover;flex-shrink:0">'
+  html+='</nav>';
+  /* The two rows the reference parks under the spacer: help, then settings. Same
+     row treatment as the nav above, one step muted, outside the scrolling list so
+     they stay reachable however long the menu gets. */
+  html+='<div class="sidebar-tail">'+
+    '<button class="nav-item nav-item-quiet" data-action="show-tour" title="Replay the one-minute tour">'+icon('insights')+'<span>'+esc(tr('Help & tour'))+'</span></button>'+
+    '<button class="nav-item nav-item-quiet'+(route==='settings'?' active':'')+'" data-action="nav" data-route="settings" title="'+esc(tr('Settings'))+'">'+icon('settings')+'<span>'+esc(tr('Settings'))+'</span></button>'+
+    '<button class="nav-item nav-item-quiet" data-action="nav-edit-toggle" title="Resize text and reorder the menu">'+icon('edit')+'<span>'+esc(tr('Edit menu'))+'</span></button>'+
+    '</div>';
+  /* The promo card. In the reference this slot sells a plan; this app has nothing
+     to sell, so it carries the one job a new owner most often cannot find. */
+  html+='<div class="sb-promo">'+icon('spark',18)+
+    '<b>'+esc(tr('Smart CSV import'))+'</b>'+
+    '<p>'+esc(tr('Already keep your books in a spreadsheet? Bring it straight in, column by column.'))+'</p>'+
+    '<button class="sb-promo-btn" data-action="go-import">'+esc(tr('Import a file'))+'</button></div>';
+  html+='<div class="sidebar-foot"><button class="biz-chip" data-action="settings-go" data-tab="business" title="'+appNameEsc()+'">'+
+    (bl?'<img src="'+esc(bl)+'" alt="" style="width:36px;height:36px;border-radius:10px;object-fit:cover;flex-shrink:0">'
        :'<div class="avatar">'+esc(appName().charAt(0).toUpperCase())+'</div>')+
-    '<div><b>'+appNameEsc()+'</b><span>Local · private</span></div></div></div>';
+    '<div><b>'+appNameEsc()+'</b><span>Local · private</span></div>'+
+    '<span class="biz-chev">'+icon('down-chev',14)+'</span></button></div>';
   var sb=byId('sidebar');
   var navEl=sb.querySelector('.nav');
   var keepScroll=navEl?navEl.scrollTop:0;
@@ -5016,16 +5148,35 @@ function islandCloseAll(){
   var bar=byId('island-bar'); if(!bar) return;
   bar.querySelectorAll('.isl-group.open').forEach(function(g){ g.classList.remove('open'); var b=g.querySelector('[aria-expanded]'); if(b) b.setAttribute('aria-expanded','false'); });
 }
+/* THE TOP BAR (spec 2). Title at the left, one wide search field with a filter
+   glyph at its right edge, a bell that carries a dot when something is actually
+   late, and the account block. The per-view action buttons keep their own cluster
+   between the search and the bell; on a phone they collapse into the ... menu,
+   which is what .topbar-more has always done. */
 function topbar(title,subtitle,actionsHTML){
+  var late=(state.tasks||[]).filter(function(t){ var d=daysUntil(t.deadline); return !t.done&&d!=null&&d<0; }).length
+    + (typeof overdueInvoices==='function'?overdueInvoices().length:0);
+  var initial=esc(appName().charAt(0).toUpperCase());
+  var bl=state.settings.bizLogo;
   return '<div class="topbar">'+
     '<button class="hamburger" data-action="open-sidebar" aria-label="Menu">'+icon('menu')+'</button>'+
     '<button class="nav-toggle" data-action="toggle-nav-collapse" title="'+((state.settings&&state.settings.navCollapsed)?'Expand sidebar':'Collapse sidebar')+'" aria-label="Collapse or expand sidebar">'+icon((state.settings&&state.settings.navCollapsed)?'collapseR':'collapseL')+'</button>'+
     '<div class="page-title"><h1>'+esc(tr(title))+'</h1><p>'+esc(tr(subtitle||''))+'</p></div>'+
+    '<button class="tb-search" data-action="open-palette" aria-label="Search everything (Ctrl+K)" title="Search everything (Ctrl+K)">'+
+      icon('search',18)+'<span class="tb-ph">'+esc(tr('Search invoices, clients, entries'))+'</span>'+
+      '<span class="tb-filter" aria-hidden="true">'+icon('sliders',18)+'</span></button>'+
     '<button class="topbar-more" data-action="toggle-topbar-actions" aria-label="More actions" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/></svg></button>'+
     '<div class="topbar-actions" id="topbar-actions">'+(actionsHTML||'')+
       '<button class="theme-toggle" data-action="open-palette" aria-label="Search everything (Ctrl+K)" title="Search everything (Ctrl+K)">'+icon('search')+'<span class="btn-txt">Search</span></button>'+
       '<button class="theme-toggle" data-action="toggle-theme" aria-label="Toggle theme">'+icon(document.documentElement.getAttribute('data-theme')==='dark'?'sun':'moon')+'<span class="btn-txt">Theme</span></button>'+
-    '</div></div>';
+    '</div>'+
+    '<button class="tb-bell" data-action="nav" data-route="tasks" aria-label="'+(late?late+' items need attention':'Nothing is late')+'" title="'+(late?late+' items need attention':'Nothing is late')+'">'+
+      icon('bell',20)+(late?'<span class="tb-dot" aria-hidden="true"></span>':'')+'</button>'+
+    '<button class="tb-acct" data-action="settings-go" data-tab="business" aria-label="'+appNameEsc()+' settings">'+
+      (bl?'<img class="tb-avatar" src="'+esc(bl)+'" alt="">':'<span class="tb-avatar">'+initial+'</span>')+
+      '<span class="tb-acct-t"><b>'+appNameEsc()+'</b><i>'+esc(tr('Local workspace'))+'</i></span>'+
+      '<span class="tb-acct-chev" aria-hidden="true">'+icon('down-chev',14)+'</span></button>'+
+    '</div>';
 }
 
 function emptyState(iconName,title,text,btnHTML){

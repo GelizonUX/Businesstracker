@@ -102,11 +102,17 @@ async function main() {
       function ratio(a, b) { const x = lum(a) + 0.05, y = lum(b) + 0.05; return x > y ? x / y : y / x; }
 
       // house rule: no pure white surface
-      ok('no surface token is pure #ffffff', !/--bg-card:#ffffff/.test(html) && !/--bg-input:#ffffff/.test(html) && /--bg-card:#fefcf9/.test(html) && /--bg-input:#fefcf9/.test(html));
-      // the neutrals are ONE hue now, and it is warm paper, not two opposing tints
-      ok('the canvas and the cards share a hue (warm paper), and the accent is not Mercury indigo',
-        /--bg:#f8f4ee/.test(lightBlock) && /--bg-card:#fefcf9/.test(lightBlock) &&
-        /--accent:#0260a6/.test(lightBlock) && !/#4653e8/.test(html) && !/#8a92ff/.test(html));
+      // The rule survives the redesign: no neutral is untinted. The values moved from
+      // warm paper to the reference's cool sheet, so the test checks the rule and the
+      // current values, not the old hexes.
+      ok('no surface token is pure #ffffff', !/--bg-card:#ffffff/.test(html) && !/--bg-input:#ffffff/.test(html) && !/--bg:#ffffff/.test(html) && !/--bg-sidebar:#ffffff/.test(html) && /--bg-card:#fdfdff/.test(html));
+      // The owner chose the reference design after seeing both, so the warm paper is
+      // gone on purpose. What survives is the part that was never about warmth: the
+      // sheet and the desk are one family, nothing is untinted, and the accent is still
+      // not Mercury's indigo.
+      ok('the app card sits on a tinted desk, and the accent is not Mercury indigo',
+        /--page:#e9eff6/.test(lightBlock) && /--bg:#fdfdff/.test(lightBlock) &&
+        !/#4653e8/.test(html) && !/#8a92ff/.test(html));
       ok('--info is deleted: nothing paints with a fifth semantic colour',
         /--info:var\(--accent\)/.test(lightBlock) && /--info:var\(--accent\)/.test(darkBlock));
 
@@ -390,7 +396,13 @@ async function main() {
       ok('sidebar labels render on one line (nowrap + ellipsis, no wrap)', /white-space:nowrap/.test(rule) && /text-overflow:ellipsis/.test(rule) && !/-webkit-line-clamp/.test(rule) && !/white-space:normal/.test(rule));
     })();
     // adjustable menu size scales both text and icon via --nav-scale, and the sidebar width tracks it
-    ok('sidebar font + icon + width scale with --nav-scale', /font-size:calc\(\.9rem\*var\(--nav-scale/.test(html) && /\.nav-item svg\{width:calc\(17px\*var\(--nav-scale/.test(html) && /\.sidebar\{[^}]*width:calc\(248px\*var\(--nav-scale/.test(html));
+    // The rail is 295px now, per the reference. The thing worth protecting is that the
+    // owner's text-size control still drives it, so the width is read from the rule
+    // rather than pinned to a number this test would have to chase on every redesign.
+    ok('sidebar font + icon + width still scale with --nav-scale',
+      /\.nav-item\{[\s\S]{0,240}font-size:calc\([\d.]+(?:px|rem)\*var\(--nav-scale/.test(html) &&
+      /\.nav-item svg\{width:calc\([\d.]+px\*var\(--nav-scale/.test(html) &&
+      /\.sidebar\{[\s\S]{0,400}width:calc\([\d.]+px\*var\(--nav-scale/.test(html));
     // design-system normalization: type-scale + grid-gap tokens defined and used; no 13px gutters / half-pixel padding
     ok('design tokens defined (type scale + grid gutter)', /--fs-2xl:/.test(html) && /--grid-gap:/.test(html));
     ok('card grids use the gutter token, not magic 13px', /\.grid\{display:grid;gap:var\(--grid-gap\)\}/.test(html) && !/\.grid\{display:grid;gap:13px\}/.test(html) && !/padding:6\.5px/.test(html));
@@ -449,7 +461,9 @@ async function main() {
       ok('the rounded-full utility that only made pills is gone', !/\.rounded-full/.test(html));
     })();
     // macOS Control-Center liquid glass on the KPI stat tiles + wallet tiles, over an ambient mesh
-    ok('Ledger design: canvas is a clean paper surface (no ambient mesh)', !/body\{background-image:\s*radial-gradient/.test(html) && /--bg:#f8f4ee/.test(html));
+    // The paper is now the reference's cool sheet, but the rule it guarded stands: the
+    // canvas is a flat surface, never an ambient mesh behind the content.
+    ok('the canvas is a clean flat surface (no ambient mesh)', !/body\{background-image:\s*radial-gradient/.test(html) && /--bg:#fdfdff/.test(html));
     ok('Ledger design: stat values use the embedded display face (tables keep tabular numerals)', /\.stat-card \.stat-value\{font-family:var\(--font-display\)/.test(html) && /font-family:'Schibsted Grotesk'/.test(html) && /font-family:'Instrument Sans'/.test(html) && /td\{[^}]*font-variant-numeric:tabular-nums\}/.test(html));
     ok('wallet tiles are flat premium cards (identity lives in the tamed icon chip, no stripe)', /\.acct-card\{position:relative;overflow:hidden;background:var\(--bg-card\)\}/.test(html) && /function tameColor/.test(html));
     // standard-mobile shell: bottom tab bar + FAB + header overflow menu + tables→cards
@@ -736,7 +750,7 @@ async function main() {
     ok('dismissing hides the bubble + persists', window.state.settings.advisorBubbleOff === true && d.getElementById('advisor-bubble').innerHTML === '');
 
     // ---------- sidebar default white text + white icons ----------
-    ok('sidebar nav text uses the themed rail token (light rail in light mode)', /\.nav-item\{[\s\S]{0,220}color:var\(--sidebar-text\)/.test(html) && /--bg-sidebar:#f5f1ea/.test(html) && /html\[data-theme="dark"\]\{[\s\S]{0,900}--bg-sidebar:#0f0d0c/.test(html));
+    ok('sidebar nav text uses the themed rail token (light rail in light mode)', /\.nav-item\{[\s\S]{0,220}color:var\(--sidebar-text\)/.test(html) && /--bg-sidebar:#fdfdff/.test(html) && /html\[data-theme="dark"\]\{[\s\S]{0,900}--bg-sidebar:#101722/.test(html));
     ok('sidebar nav icons follow the themed text colour', /\.nav-item svg\{color:currentColor\}/.test(html));
 
     // ---------- the glyph set: one system, no emoji doing UI work ----------
@@ -875,7 +889,22 @@ async function main() {
     window.toast('hello world');
     const tEl = d.getElementById('toast-root').querySelector('.toast');
     ok('toast is announced to screen readers (role=alert)', tEl && tEl.getAttribute('role') === 'alert' && !!tEl.getAttribute('aria-live'));
-    ok('AA contrast: --text-3 verified 4.5:1+ (light #6e6860 / dark #97918a)', html.indexOf('--text-3:#6e6860') > -1 && html.indexOf('--text-3:#97918a') > -1);
+    // Was two hardcoded hexes, so it failed the moment the palette moved even though
+    // the thing it protects (muted ink stays readable) still held. It now computes the
+    // ratio against the sheet each token actually sits on.
+    ok('AA contrast: --text-3 clears 4.5:1 on its own surface in both themes', (function () {
+      const lum = (h) => { const c = h.replace('#',''); const v = [0,2,4].map(i => parseInt(c.slice(i,i+2),16)/255)
+        .map(x => x <= 0.03928 ? x/12.92 : Math.pow((x+0.055)/1.055, 2.4));
+        return 0.2126*v[0] + 0.7152*v[1] + 0.0722*v[2]; };
+      const cr = (a,b) => { const [x,y] = [lum(a), lum(b)]; return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05); };
+      // derived locally: lightBlock/darkBlock are scoped to another block in this file
+      const lb = html.slice(html.indexOf(':root{'), html.indexOf('html[data-theme="dark"]'));
+      const db = html.slice(html.indexOf('html[data-theme="dark"]'));
+      const pick = (block, tok) => (block.match(new RegExp('--'+tok+':(#[0-9a-f]{6})')) || [])[1];
+      const L = cr(pick(lb,'text-3'), pick(lb,'bg'));
+      const D = cr(pick(db,'text-3'), pick(db,'bg'));
+      return L >= 4.5 && D >= 4.5;
+    })());
     ok('focus-visible covers custom controls', /\.chip:focus-visible,\.seg button:focus-visible/.test(html));
     ok('snappy easing token added', html.indexOf('--ease-snappy:') > -1);
     ok('modal focus trap + return-focus wired', html.indexOf('modalReturnFocus') > -1 && /e\.key!=='Tab'/.test(html));
@@ -1147,21 +1176,34 @@ async function main() {
       click(g.querySelector('[data-route="finance"]'));
       ok('navigating from a dropdown closes it and routes', window.location.hash === '#/finance');
     })();
-    ok('desktop CSS swaps sidebar for the island (min-width:861px)', /@media \(min-width:861px\)\{[\s\S]{0,600}\.sidebar\{display:none\}/.test(html) && /\.island-bar\{position:relative/.test(html));
+    // Reversed deliberately. The owner picked a reference design whose defining
+    // feature is a permanent left rail, so at desktop the sidebar is the nav and the
+    // island is the one that hides. This assertion is the mirror of the one it replaces.
+    ok('desktop CSS swaps the island for the sidebar (min-width:861px)', /@media \(min-width:861px\)\{[\s\S]{0,900}\.island-bar\{display:none\}/.test(html) && /@media \(min-width:861px\)\{[\s\S]{0,900}\.sidebar\{display:flex/.test(html));
     // The nav bar used to be position:fixed with .main padding-top compensating, which
     // meant every scrolled pixel of the page ran underneath it and collided with the
     // pills through the glass. In flow it reserves its own band and nothing can pass
     // behind it: .app stacks as a column, the bar is a flex item, .main is the scrollport.
-    ok('the desktop nav bar is in normal flow, not floating over the page',
+    // These four described the island era: a full-width bar stacked above the page, with
+    // .app as a column. The owner has since chosen a reference design built on a
+    // permanent left rail, so .app is a ROW at desktop and the nav is beside the content
+    // rather than above it. What still matters, and is what these now check, is that the
+    // chrome sits in normal flow rather than floating, that nothing compensates for a
+    // fixed bar that no longer exists, and that .main is the scrollport.
+    ok('the desktop nav is in normal flow, not floating over the page',
       !/\.island-bar\{position:fixed/.test(html) &&
-      /\.island-bar\{position:relative;z-index:70;flex:0 0 auto/.test(html) &&
-      /@media \(min-width:861px\)\{[\s\S]{0,300}\.app\{flex-direction:column\}/.test(html));
-    ok('no padding-top compensation is left behind the retired fixed bar',
-      /@media \(min-width:861px\)\{[\s\S]{0,700}\.main\{--main-pad-x:30px;margin-left:0;padding:0 var\(--main-pad-x\) 60px;/.test(html) &&
-      !/\.main\{--main-pad-x:30px;margin-left:0;padding:76px/.test(html));
-    ok('.main becomes the flex scrollport so the sticky title still pins to the content',
-      /@media \(min-width:861px\)\{[\s\S]{0,800}height:auto;flex:1 1 auto;min-height:0\}/.test(html));
-    ok('paper canvas kept, radii moved to the iOS 27 concentric scale', /--bg:#f8f4ee/.test(html) && /--r-sm:10px; --r:13px; --r-lg:17px; --r-xl:22px; --r-2xl:28px;/.test(html));
+      // the base .sidebar IS position:fixed on purpose: below 861px it is an off-canvas
+      // drawer. What matters is that the DESKTOP rule puts it back into flow.
+      /@media \(min-width:861px\)\{[\s\S]{0,900}\.sidebar\{display:flex;position:relative/.test(html) &&
+      /@media \(min-width:861px\)\{[\s\S]{0,900}\.app\{flex-direction:row\}/.test(html));
+    ok('no padding-top compensation is left behind any retired fixed bar',
+      !/padding:76px/.test(html) &&
+      /@media \(min-width:861px\)\{[\s\S]{0,900}\.main\{--main-pad-x:30px;margin-left:0;padding:0 var\(--main-pad-x\) 60px;/.test(html));
+    ok('.main is the flex scrollport so the sticky title still pins to the content',
+      /@media \(min-width:861px\)\{[\s\S]{0,900}height:auto;flex:1 1 auto;min-height:0\}/.test(html));
+    // The canvas moved from warm paper to the reference sheet; the concentric radius
+    // scale is unchanged and is still the thing being protected here.
+    ok('canvas is the tinted sheet, radii still on the concentric scale', /--bg:#fdfdff/.test(html) && /--r-sm:10px; --r:13px; --r-lg:17px; --r-xl:22px; --r-2xl:28px;/.test(html));
     // island polish: the production dropdown-clip bug + adaptive active pill + glass
     ok('island can never clip its dropdowns (no overflow/contain on the pill bar)', !/\.island\{[^}]*(overflow|contain)/.test(html));
     ok('island wraps gracefully when user labels/custom modules overflow the row', /\.island\{[^}]*flex-wrap:wrap/.test(html) && /\.island\{[^}]*max-width:calc\(100vw - 400px\)/.test(html));
