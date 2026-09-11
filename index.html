@@ -1165,8 +1165,11 @@ body.rm-shift .rm-canvas{cursor:crosshair}
    so the account block dropped onto a second line and read as a duplicate header
    sitting under the page title. Nothing here may wrap; the search absorbs the squeeze. */
 .topbar>*{flex-shrink:0}
-.topbar .tb-search{flex:1 1 auto;min-width:120px}
-.topbar .page-title{min-width:0}
+.topbar .tb-search{flex:1 1 auto;min-width:240px}
+/* the title yields before the search does. Finance's subtitle is long enough to
+   squeeze the field to "Sea...", and a search box you cannot read the placeholder of
+   has stopped being a search box. */
+.topbar .page-title{min-width:0;max-width:38%}
 .topbar .page-title h1,.topbar .page-title p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .page-title h1{font-size:var(--f5);font-weight:var(--w-head);letter-spacing:-.02em;line-height:1.18}
 .page-title p{color:var(--text-3);font-size:var(--f2);margin-top:1px}
@@ -1283,9 +1286,21 @@ html[data-theme="dark"] .card,html[data-theme="dark"] .kb-card{box-shadow:var(--
    it was a second box around the first. .sec keeps the heading and the spacing
    and drops the box. Its heading sits closer to its content than a card's does,
    because nothing else is competing for the gap. */
-.sec{margin-top:26px}
-.sec>.card-head{margin-bottom:10px}
-.sec>.card-head h3{font-size:var(--f4)}
+/* The reference's second mechanism: everything is a card, one treatment. A previous
+   direction put content on the page ground under a bare heading, which was right for
+   that design and is wrong for this one. .sec is the wrapper that work introduced, so
+   giving it the card treatment converts every screen at once rather than by hand.
+   .sec-bare opts out where a block genuinely is not an object (a lone paragraph, a
+   run of links), because a border around nothing is the thing that made 148 cards
+   read as generated in the first place. */
+.sec{margin-top:24px;background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--r-xl);padding:24px;box-shadow:var(--shadow-sm)}
+.sec+.sec{margin-top:24px}
+.sec.sec-bare{background:none;border:0;border-radius:0;padding:0;box-shadow:none}
+.sec>.card-head{margin-bottom:16px}
+.sec>.card-head h3{font-size:var(--f4);font-weight:var(--w-ui)}
+/* a table inside a card must not draw a second frame around itself */
+.sec>.table-wrap{border:0;border-radius:0;margin-inline:-4px}
 .sec+.sec{margin-top:30px}
 /* rows of data with no table markup: hairline above the first row only */
 .rows{border-top:1px solid var(--border)}
