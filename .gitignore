@@ -2,3 +2,7 @@ tests/node_modules
 node_modules
 *.log
 .DS_Store
+
+# a screenshot path that resolved to the literal string "undefined". A static host
+# publishes every file in the folder it deploys, so junk here goes public.
+undefined/

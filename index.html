@@ -5176,7 +5176,7 @@ function renderSidebar(){
   var favItems=(state.settings.favorites||[]).map(function(id){ for(var i=0;i<allVis.length;i++) if(allVis[i].id===id) return allVis[i]; return null; }).filter(Boolean);
   if(favItems.length){
     var favC=collapsed.indexOf('Favorites')>=0;
-    html+='<div class="nav-section nav-sec-toggle" data-action="nav-sec-toggle" data-sec="Favorites" role="button" style="color:#fbbf24">'+icon('star',10)+' '+esc(tr('Favorites'))+'<span class="nav-chev'+(favC?' closed':'')+'">'+icon('down-chev',10)+'</span></div>';
+    html+='<div class="nav-section nav-sec-toggle" data-action="nav-sec-toggle" data-sec="Favorites" role="button" aria-expanded="'+(favC?'false':'true')+'" style="color:#fbbf24">'+icon('star',10)+' '+esc(tr('Favorites'))+'<span class="nav-chev'+(favC?' closed':'')+'">'+icon('down-chev',10)+'</span></div>';
     if(!favC) favItems.forEach(function(r){ html+=navItemHTML(r); });
   }
   // group routes by section; a section containing the active route is always shown open
@@ -5195,7 +5195,7 @@ function renderSidebar(){
     // Section headers inherit the themed rail colour; honor a user's custom color only if they set one.
     var secOverride=(state.settings.sectionColors||{})[sec.name];
     var hdrStyle=secOverride?' style="color:'+safeColor(secOverride,'')+'"':'';
-    html+='<div class="nav-section nav-sec-toggle'+(editing?' nav-sec-edit':'')+'" '+(editing?'':'data-action="nav-sec-toggle" ')+'data-sec="'+esc(sec.name)+'" role="button"'+hdrStyle+'><span class="nav-sec-name">'+esc(sectionLabelOf(sec.name))+'</span>'+
+    html+='<div class="nav-section nav-sec-toggle'+(editing?' nav-sec-edit':'')+'" '+(editing?'':'data-action="nav-sec-toggle" ')+'data-sec="'+esc(sec.name)+'" role="button" aria-expanded="'+(isCollapsed?'false':'true')+'"'+hdrStyle+'><span class="nav-sec-name">'+esc(sectionLabelOf(sec.name))+'</span>'+
       (editing
         ? '<span class="nav-sec-move"><button class="nav-move-btn nav-move-up" data-action="sec-move" data-sec="'+esc(sec.name)+'" data-dir="up" title="Move up" aria-label="Move section up">'+icon('down-chev',12)+'</button>'+
             '<button class="nav-move-btn" data-action="sec-move" data-sec="'+esc(sec.name)+'" data-dir="down" title="Move down" aria-label="Move section down">'+icon('down-chev',12)+'</button></span>'
@@ -5207,7 +5207,7 @@ function renderSidebar(){
   var modsCollapsed=collapsed.indexOf('My Modules')>=0&&!modsActive;
   var modOverride=(state.settings.sectionColors||{})['My Modules'];
   var modHdrStyle=modOverride?' style="color:'+safeColor(modOverride,'')+'"':'';
-  html+='<div class="nav-section nav-sec-toggle" '+(editing?'':'data-action="nav-sec-toggle" ')+'data-sec="My Modules" role="button"'+modHdrStyle+'><span class="nav-sec-name">'+esc(sectionLabelOf('My Modules'))+'</span>'+
+  html+='<div class="nav-section nav-sec-toggle" '+(editing?'':'data-action="nav-sec-toggle" ')+'data-sec="My Modules" role="button" aria-expanded="'+(modsCollapsed?'false':'true')+'"'+modHdrStyle+'><span class="nav-sec-name">'+esc(sectionLabelOf('My Modules'))+'</span>'+
     (editing?'':'<span class="nav-chev'+(modsCollapsed?' closed':'')+'">'+icon('down-chev',10)+'</span>')+'</div>';
   if(!modsCollapsed||editing){
     (state.customModules||[]).forEach(function(m){
