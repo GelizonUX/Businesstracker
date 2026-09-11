@@ -2824,6 +2824,24 @@ async function main() {
         return iv.status === 'Paid' && iv.fxRate === 61.732 && iv.fxRateBy === 'manual' &&
           window.state.finance.length === 1 && fe.amount === 61732;
       })(), [window.state.invoices[0], window.state.finance]);
+      // receivablesTotal() had NO coverage at all: an audit reverted its fix (summing the
+      // raw foreign amount into a peso total, so a $1000 invoice counted as 1000) and all
+      // 789 assertions still passed. It is one of two functions that answer "what am I
+      // owed", both of which surface to the owner, so they are pinned together here.
+      ok('receivablesTotal converts foreign invoices instead of summing their face value', (function () {
+        window.fxSetManualRate('USD', 61.732);
+        window.state.orders = [];
+        window.state.invoices = [
+          { id: 'ra', number: 'INV-R1', client: 'US', amount: 1000, currency: 'USD', fxRate: 61.732,
+            fxRateBy: 'manual', fxRateAt: new Date().toISOString(), status: 'Sent', dueDate: window.todayISO() },
+          { id: 'rb', number: 'INV-R2', client: 'Local', amount: 15000, currency: 'PHP',
+            status: 'Sent', dueDate: window.todayISO() }
+        ];
+        const total = window.receivablesTotal();
+        const summary = window.receivablesSummary().total;
+        // 1000 x 61.732 + 15000. The bug produced 16,000 by treating dollars as pesos.
+        return total === 76732 && summary === 76732 && total !== 16000;
+      })(), { total: window.receivablesTotal && window.receivablesTotal() });
       ok('58,500 never reached the books on the three mark-paid paths',
         window.state.finance.every((e) => e.amount !== 58500), window.state.finance);
       window.confirm = realConfirm;

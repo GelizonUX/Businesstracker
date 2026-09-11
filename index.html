@@ -1121,7 +1121,7 @@ body.rm-shift .rm-canvas{cursor:crosshair}
   padding:6px;border-radius:10px;transition:background .15s}
 .biz-chip:hover{background:var(--sidebar-hover)}
 .biz-chip>div{flex:1;min-width:0}
-.biz-chip .avatar{width:36px;height:36px;border-radius:10px;background:var(--text);display:grid;place-items:center;color:#fff;font-weight:600;font-size:var(--f2);flex-shrink:0}
+.biz-chip .avatar{width:36px;height:36px;border-radius:10px;background:var(--text);display:grid;place-items:center;color:var(--bg);font-weight:600;font-size:var(--f2);flex-shrink:0}
 .biz-chip b{color:var(--sidebar-text-active);display:block;font-size:calc(14px*var(--nav-scale,1));font-weight:600;line-height:1.25;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .biz-chip span{display:block;font-size:var(--f1);color:var(--text-3)}
 .biz-chip .biz-chev{flex:0 0 auto;display:inline-flex;color:var(--text-3)}
@@ -1513,15 +1513,22 @@ html[data-theme="dark"] .metric-card{box-shadow:none}
    which is the one place a card inside a card is right: the tree needs a boundary of
    its own or the indentation has nothing to indent from. */
 .gf-tbody{border:1px solid var(--border);border-radius:12px;overflow:hidden}
-.gf-thead,.gf-row{display:grid;grid-template-columns:minmax(0,1fr) 190px 200px 120px;gap:14px;align-items:center}
+/* The name column was minmax(0,1fr) against three FIXED columns totalling 510px plus
+   70px of gaps. In a 710px row that left it 50px, so every client rendered as "PetP..."
+   at every desktop width, and the layout was strictly better at 1024 than at 1920. The
+   card exists to answer "who owes me money"; it could not. The trailing columns are now
+   proportional with a floor, so the name takes the slack instead of yielding it. */
+.gf-thead,.gf-row{display:grid;
+  grid-template-columns:minmax(160px,2.2fr) minmax(120px,1fr) minmax(140px,1.1fr) minmax(96px,0.7fr);
+  gap:14px;align-items:center}
 .gf-thead{padding:0 16px 10px;font-size:var(--f1);color:var(--text-3)}
 .gf-thead span:last-child{text-align:left}
 .gf-row{width:100%;padding:14px 16px;background:none;border:0;border-top:1px solid var(--border);text-align:left;font:inherit;color:inherit}
 .gf-tbody>.gf-node:first-child>.gf-row{border-top:0}
 button.gf-row{cursor:pointer}
 button.gf-row:hover{background:var(--bg-sunken)}
-.gf-parent{grid-template-columns:22px 24px minmax(0,1fr) 190px 200px 120px}
-.gf-kid{grid-template-columns:24px minmax(0,1fr) 190px 200px 120px;padding-left:62px;background:var(--bg-sunken)}
+.gf-parent{grid-template-columns:22px 24px minmax(160px,2.2fr) minmax(120px,1fr) minmax(140px,1.1fr) minmax(96px,0.7fr)}
+.gf-kid{grid-template-columns:24px minmax(160px,2.2fr) minmax(120px,1fr) minmax(140px,1.1fr) minmax(96px,0.7fr);padding-left:62px;background:var(--bg-sunken)}
 .gf-chev{display:inline-flex;color:var(--text-3);transition:transform .15s var(--ease)}
 .gf-parent[aria-expanded="true"] .gf-chev{transform:rotate(90deg)}
 .gf-ic{display:inline-flex;color:var(--text-3)}
@@ -1586,7 +1593,11 @@ button.gf-row:hover{background:var(--bg-sunken)}
 .badge{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:99px;font-size:var(--f1);font-weight:550;letter-spacing:0;white-space:nowrap;font-variant-numeric:normal}
 .badge.good{background:var(--good-soft);color:var(--good)}
 .badge.warn{background:var(--warn-soft);color:var(--warn)}
-.badge.risk{background:var(--risk-soft);color:var(--risk)}
+/* An overdue badge sits INSIDE an overdue row, and both paint the same translucent
+   risk tint, so the ink lands on a background darker than the token assumes and the
+   most important label in the app measured 4.38:1. An opaque ground stops the tint
+   compounding, so the badge reads the same wherever it sits. */
+.badge.risk{background:color-mix(in srgb,var(--risk) 10%,var(--bg-card));color:var(--risk)}
 .badge.info{background:var(--accent-soft);color:var(--accent-ink)}
 .badge.neutral{background:var(--bg-sunken);color:var(--text-2)}
 .badge.accent{background:var(--accent-soft);color:var(--accent-ink)}
@@ -5805,7 +5816,7 @@ function gfWhoOwesHTML(){
       '<button class="gf-row gf-parent" data-action="gf-toggle" data-gf="'+i+'" aria-expanded="false">'+
         '<span class="gf-chev">'+icon('down-chev',14)+'</span>'+
         '<span class="gf-ic accent">'+icon('clients',16)+'</span>'+
-        '<span class="gf-name">'+esc(g.name)+'</span>'+
+        '<span class="gf-name" title="'+esc(g.name)+'">'+esc(g.name)+'</span>'+
         '<span class="gf-src">'+pills+'</span>'+
         '<span class="gf-prog">'+gfBarHTML(s,word(g.worst,false),g.worst)+'</span>'+
         '<span class="gf-amt">'+fmtMoney(g.total,0)+'</span>'+
@@ -5814,7 +5825,7 @@ function gfWhoOwesHTML(){
         var rs=sev(r.late,r.draft);
         return '<div class="gf-row gf-kid">'+
           '<span class="gf-ic">'+icon(r.ic,15)+'</span>'+
-          '<span class="gf-name">'+esc(r.desc||r.ref)+'</span>'+
+          '<span class="gf-name" title="'+esc(r.desc||r.ref)+'">'+esc(r.desc||r.ref)+'</span>'+
           '<span class="gf-src"><span class="gf-ref">'+esc(r.ref)+'</span></span>'+
           '<span class="gf-prog">'+gfBarHTML(rs,word(r.late,r.draft),r.late)+'</span>'+
           '<span class="gf-amt">'+(r.foreign?r.foreign+'<i class="gf-sub">'+(r.html||'')+'</i>'
