@@ -1110,6 +1110,9 @@ body.rm-shift .rm-canvas{cursor:crosshair}
 /* the count badge is a quiet grey pill, not an alarm: the sidebar counts things,
    it does not raise them */
 .nav-badge{margin-left:auto;background:var(--bg-hover);color:var(--text-3);font-size:var(--f1);font-weight:550;padding:1px 9px;border-radius:99px;min-width:20px;text-align:center}
+/* severity, not decoration: on-tint ink so the number stays readable on the fill */
+.nav-badge.risk{background:var(--risk);color:var(--on-tint,#fff)}
+.nav-badge.warn{background:var(--warn);color:var(--on-tint,#fff)}
 
 /* the workspace switcher: a dark rounded square, the workspace name, what kind of
    workspace it is, and a chevron, sitting above a hairline at the very bottom */
@@ -5116,11 +5119,24 @@ function renderSidebar(){
   var labels=state.settings.moduleLabels||{};
   var collapsed=state.settings.collapsedNav||[];
   var allVis=visibleRoutes();
+  /* The reference puts a count badge on one nav row ("Messages 10"). Here the two rows
+     that can be behind are Invoices and Tasks, and the count carries severity because
+     money that is late is not the same kind of number as a task that is due: overdue
+     invoices take --risk, overdue tasks take --warn, and a row with nothing behind it
+     shows nothing at all. A badge that is always present is decoration. */
+  function navBadgeHTML(id,openTasks){
+    if(id==='invoices'){
+      var n=(typeof overdueInvoices==='function'?overdueInvoices():[]).length;
+      return n>0?'<span class="nav-badge risk" title="'+n+' past the due date">'+n+'</span>':'';
+    }
+    if(id==='tasks'&&openTasks>0) return '<span class="nav-badge warn" title="'+openTasks+' overdue">'+openTasks+'</span>';
+    return '';
+  }
   function navItemHTML(r){
     var rlbl=labels[r.id]||tr(r.label)||r.label||r.id;
     var fav=(state.settings.favorites||[]).indexOf(r.id)>=0;
     return '<button class="nav-item'+(route===r.id?' active':'')+'" data-action="nav" data-route="'+r.id+'" title="'+esc(rlbl)+'">'+icon(r.icon)+'<span>'+esc(rlbl)+'</span>'+
-      (r.id==='tasks'&&openTasks>0?'<span class="nav-badge">'+openTasks+'</span>':'')+
+      navBadgeHTML(r.id,openTasks)+
       '<span class="nav-fav'+(fav?' on':'')+'" data-action="fav-toggle" data-route="'+r.id+'" role="button" tabindex="0" title="'+(fav?'Unpin from Favorites':'Pin to Favorites')+'" aria-label="'+(fav?'Unpin':'Pin')+'">'+icon('star')+'</span></button>';
   }
   // Favorites: pinned shortcuts at the very top
