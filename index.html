@@ -1443,6 +1443,84 @@ html[data-theme="dark"] .metric-card{box-shadow:none}
 .relative{position:relative}.absolute{position:absolute}.cursor-pointer{cursor:pointer}.select-none{user-select:none}
 .tabular-nums{font-variant-numeric:tabular-nums}
 
+/* ---- the reference's content blocks (spec 4) ----------------------------------
+   Cards are the universal container again: same radius, same hairline, same soft
+   shadow, per the reference. The two-up row is 2fr/1fr on desktop and stacks on
+   phones, where 295px of sidebar is already gone. */
+/* 1.7fr, not 2fr: at 2fr the owed card was ~240px against the reference's ~420px,
+   which is not enough room for four money figures at any readable size. */
+.gf-two{display:grid;grid-template-columns:1.7fr 1fr;gap:24px;margin-bottom:24px;align-items:start}
+.gf-two.gf-one{grid-template-columns:1fr}
+.gf-card{padding:24px}
+.gf-h{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.gf-h h3{font-size:var(--f4);font-weight:var(--w-ui);letter-spacing:-.01em;flex:1;min-width:0}
+.gf-h-act{display:flex;gap:8px;flex-shrink:0}
+.gf-h .more{margin-left:auto;color:var(--text-3);display:inline-flex;align-items:center}
+/* the caveat is a sentence about the figure above it, so it gets its own line. As an
+   inline .stat-delta it sat beside the hero and the two read as one broken string. */
+.gf-owed .stat-delta{display:block;margin-top:6px;white-space:normal;line-height:1.35}
+.gf-owed .n2{display:block}
+/* the 2x2 severity grid: bordered tiles, no fill, exactly as the reference draws them */
+.gf-tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
+.gf-tile{border:1px solid var(--border);border-radius:12px;padding:14px 16px;min-width:0}
+.gf-tl{display:flex;align-items:center;gap:6px;font-size:var(--f1);color:var(--text-3);white-space:nowrap}
+.gf-tl svg{margin-left:auto;opacity:.7;flex-shrink:0}
+/* --f6 overflowed a ~130px tile: PHP 198.9k and PHP 4.3k ran into each other across the
+   column gap. One step down, and the figure is allowed to shrink rather than escape. */
+.gf-tv{display:block;margin-top:8px;font-size:var(--f4);font-weight:var(--w-stand);
+  font-variant-numeric:tabular-nums;letter-spacing:-.02em;
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gf-tv.warn{color:var(--warn)}.gf-tv.risk{color:var(--risk)}.gf-tv.muted{color:var(--text-3)}
+.gf-tile.quiet .gf-tv{color:var(--text-3);font-weight:var(--w-ui)}
+/* ---- the tree ----
+   The signature of the reference. The rows live inside their own bordered container,
+   which is the one place a card inside a card is right: the tree needs a boundary of
+   its own or the indentation has nothing to indent from. */
+.gf-tbody{border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.gf-thead,.gf-row{display:grid;grid-template-columns:minmax(0,1fr) 190px 200px 120px;gap:14px;align-items:center}
+.gf-thead{padding:0 16px 10px;font-size:var(--f1);color:var(--text-3)}
+.gf-thead span:last-child{text-align:left}
+.gf-row{width:100%;padding:14px 16px;background:none;border:0;border-top:1px solid var(--border);text-align:left;font:inherit;color:inherit}
+.gf-tbody>.gf-node:first-child>.gf-row{border-top:0}
+button.gf-row{cursor:pointer}
+button.gf-row:hover{background:var(--bg-sunken)}
+.gf-parent{grid-template-columns:22px 24px minmax(0,1fr) 190px 200px 120px}
+.gf-kid{grid-template-columns:24px minmax(0,1fr) 190px 200px 120px;padding-left:62px;background:var(--bg-sunken)}
+.gf-chev{display:inline-flex;color:var(--text-3);transition:transform .15s var(--ease)}
+.gf-parent[aria-expanded="true"] .gf-chev{transform:rotate(90deg)}
+.gf-ic{display:inline-flex;color:var(--text-3)}
+.gf-ic.accent{color:var(--accent)}
+.gf-name{font-size:var(--f3);font-weight:var(--w-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gf-kid .gf-name{font-size:var(--f2);font-weight:var(--w-body);color:var(--text-2)}
+.gf-src{display:flex;gap:6px;flex-wrap:wrap;min-width:0}
+.gf-pill,.gf-ref{background:var(--bg-sunken);border:1px solid var(--border);border-radius:6px;
+  padding:2px 8px;font-size:var(--f1);color:var(--text-2);white-space:nowrap}
+.gf-kid .gf-src .gf-ref{font-family:var(--mono)}
+.gf-kid .gf-pill,.gf-kid .gf-ref{background:var(--bg-card)}
+/* status word above a 6px bar, per the reference. Colour alone never carries it:
+   the word says the same thing for anyone who cannot separate amber from red. */
+.gf-prog{min-width:0}
+.gf-word{display:block;font-size:var(--f1);color:var(--text-3);margin-bottom:5px;white-space:nowrap}
+.gf-word.warn{color:var(--warn)}.gf-word.risk{color:var(--risk)}.gf-word.ok{color:var(--good)}
+.gf-bar{display:block;height:6px;border-radius:3px;background:var(--bg-sunken);overflow:hidden}
+.gf-bar i{display:block;height:100%;border-radius:3px;background:var(--text-3)}
+.gf-bar i.warn{background:var(--warn)}.gf-bar i.risk{background:var(--risk)}.gf-bar i.ok{background:var(--good)}
+.gf-amt{text-align:right;font-weight:var(--w-ui);font-variant-numeric:tabular-nums;white-space:nowrap}
+/* the peso equivalent sits under the billed figure, never instead of it */
+.gf-sub{display:block;font-style:normal;font-size:var(--f1);font-weight:var(--w-body);color:var(--text-3);margin-top:2px}
+@media (max-width:1100px){
+  .gf-two{grid-template-columns:1fr}
+  /* the tree's three trailing columns cannot survive a phone, so the row becomes two
+     lines: identity above, money and lateness below. */
+  .gf-thead{display:none}
+  .gf-row,.gf-parent,.gf-kid{grid-template-columns:22px minmax(0,1fr) auto;row-gap:8px}
+  .gf-parent>.gf-ic,.gf-kid>.gf-ic{display:none}
+  .gf-src{grid-column:2/-1}
+  .gf-prog{grid-column:2/3}
+  .gf-amt{grid-column:3/4;align-self:end}
+  .gf-kid{padding-left:34px}
+}
+
 /* stat cards */
 .stat-card{position:relative;overflow:hidden}
 /* .8rem, not .7rem: at 14px root the old label was 9.8px, and uppercase at .1em tracking
@@ -5519,7 +5597,19 @@ function viewDashboard(){
   if(!unpaid.length) emptyIds.push('recv');
   if(!recent.length) emptyIds.push('recent');
   if(!links.length) emptyIds.push('links');
-  var shown=dashVisibleOrder().filter(function(id){ return W[id] && emptyIds.indexOf(id)<0; });
+  /* The reference's two-up row sits directly under the standing figure: the wide chart
+     card beside the big-number card, then the tree table full width beneath. The rest of
+     the ledger sections follow, so nothing the owner could already reorder is taken away. */
+  /* An empty card is a placeholder, not a calm card. On a dashboard with nothing in it
+     these blocks do not render at all, which the fresh-install test pins. */
+  var showMonth=W.month&&emptyIds.indexOf('month')<0, showOwed=hasData||unpaid.length>0;
+  if(showMonth||showOwed){
+    html+='<div class="gf-two'+(showMonth&&showOwed?'':' gf-one')+'">'+
+      (showMonth?'<section class="card gf-card gf-chart">'+W.month+'</section>':'')+
+      (showOwed?gfOwedCardHTML():'')+'</div>';
+  }
+  html+=gfWhoOwesHTML();
+  var shown=dashVisibleOrder().filter(function(id){ return W[id] && emptyIds.indexOf(id)<0 && id!=='month' && id!=='recv'; });
   html+='<div class="dash-grid led-grid">'+shown.map(function(id){
     return '<section class="dash-widget" data-widget="'+id+'" data-span="1">'+
       '<div class="dash-handle" draggable="true" data-dh="'+id+'" title="Drag to reorder">'+icon('grip',12)+'<span>drag</span></div>'+
@@ -5531,6 +5621,124 @@ function viewDashboard(){
   html+='<p class="led-note"><button class="led-link" data-action="dash-customize">'+esc(tr('Choose what shows here'))+'</button></p>';
   html+='</div>';
   return html;
+}
+/* ---- the reference's two-up row: a wide chart card and a big-number card ----
+   The screenshot's top row is "Goal Progress" (a wide line chart) beside "Total Goals"
+   (one large figure over a 2x2 grid of severity tiles). The translation is not literal:
+   "103 objectives" is a team number, and a solo owner's equivalent reads "3", which is
+   the hero slot admitting it has nothing to say. What this owner always has a large,
+   meaningful number for is what they are OWED, and it carries a real four-rung severity
+   ladder, which is what earns the reference's amber/red/grey tiles. */
+function gfOwedCardHTML(){
+  var recv=receivablesSummary();
+  var unpaid=(state.invoices||[]).filter(function(iv){ return iv.status!=='Paid'; });
+  var h='<section class="card gf-card gf-owed"><div class="gf-h"><h3>'+esc(tr('Owed to you'))+'</h3>'+
+    '<button class="more" data-action="nav" data-route="invoices" title="Open invoices">'+icon('down-chev',16)+'</button></div>'+
+    nMoney(recv.total,2);
+  // Non-negotiable: the hero is a sum of invPHP(), which returns null for an invoice
+  // whose rate nobody verified. Without this line the figure claims a completeness the
+  // app cannot justify, which is the one thing the money rules here never allow.
+  if(recv.caveat) h+=recv.caveat;
+  if(!unpaid.length){
+    h+='<p class="led-note">'+esc(tr('Nobody owes you anything right now.'))+'</p></section>';
+    return h;
+  }
+  var bucket=function(f){ return sum(unpaid.filter(f),invPHP); };
+  var tiles=[
+    {k:'ontime',  lbl:tr('On time'),  ic:'check', cls:'',      v:bucket(function(iv){ var d=daysUntil(iv.dueDate); return iv.status==='Sent'&&d!=null&&d>=0; })},
+    {k:'late',    lbl:tr('Late'),     ic:'clock', cls:'warn',  v:bucket(function(iv){ var d=daysUntil(iv.dueDate); return iv.status==='Sent'&&d!=null&&d<0&&d>-30; })},
+    {k:'verylate',lbl:tr('Very late'),ic:'alert', cls:'risk',  v:bucket(function(iv){ var d=daysUntil(iv.dueDate); return iv.status==='Sent'&&d!=null&&d<=-30; })},
+    {k:'notsent', lbl:tr('Not sent'), ic:'edit',  cls:'muted', v:bucket(function(iv){ return iv.status==='Draft'; })}
+  ];
+  h+='<div class="gf-tiles">'+tiles.map(function(t){
+    // A tile at zero goes quiet rather than shouting a severity colour at nothing.
+    var quiet=!(t.v>0);
+    return '<div class="gf-tile'+(quiet?' quiet':'')+'" title="'+esc(fmtMoney(t.v))+'">'+
+      '<span class="gf-tl">'+esc(t.lbl)+icon(t.ic,14)+'</span>'+
+      '<b class="gf-tv'+(quiet?'':' '+t.cls)+'">'+esc(moneyShort(t.v))+'</b></div>';
+  }).join('')+'</div></section>';
+  return h;
+}
+/* ---- the reference's "Alignments" tree ----
+   The signature of the design: a parent row with a chevron, indented children, and a
+   per-row progress bar. Of the things in this app that are genuinely hierarchical, the
+   roadmap is the truer tree but the wrong subject for a landing screen, and invoices
+   have no line items at all. What is both a real hierarchy AND the thing the owner needs
+   is a CLIENT and the open documents they owe on, joined the way the rest of the app
+   already joins them: on a lowercased name. */
+function gfWhoOwesHTML(){
+  var by={}, push=function(name,row){
+    var k=String(name||'').trim().toLowerCase(); if(!k) k='(no name)';
+    (by[k]=by[k]||{name:name||'(no name)',rows:[],total:0,worst:0,src:{}}).rows.push(row);
+  };
+  (state.invoices||[]).filter(function(iv){ return iv.status!=='Paid'; }).forEach(function(iv){
+    var d=daysUntil(iv.dueDate);
+    push(iv.client,{kind:'invoice',ic:'invoice',ref:iv.number,desc:iv.desc||'',
+      // a foreign invoice shows the figure the client was actually billed, with the peso
+      // equivalent under it. Printing only the converted number is how a $450 invoice
+      // came to read "PHP 450" on this very screen once before.
+      php:invPHP(iv),html:invPHPText(iv),foreign:(iv.currency&&iv.currency!=='PHP')?fmtInvAmt(iv):'',
+      late:(iv.status==='Sent'&&d!=null&&d<0)?-d:0,draft:iv.status==='Draft'});
+  });
+  (state.orders||[]).filter(function(o){ return o.payStatus!=='Paid'&&o.status!=='Cancelled'; }).forEach(function(o){
+    push(o.clientName,{kind:'order',ic:'orders',ref:o.number,desc:'',php:orderTotal(o),html:null,late:0,draft:false});
+  });
+  (state.utang||[]).filter(function(u){ return !u.settled&&utangBalance(u)>0; }).forEach(function(u){
+    push(u.clientName,{kind:'credit',ic:'ledger',ref:tr('Credit'),desc:'',php:utangBalance(u),html:null,late:0,draft:false});
+  });
+  var list=Object.keys(by).map(function(k){
+    var g=by[k];
+    g.rows.forEach(function(r){ g.total+=num(r.php); g.worst=Math.max(g.worst,r.late); g.src[r.kind]=(g.src[r.kind]||0)+1; });
+    return g;
+  });
+  if(!list.length) return '';
+  // very late first, then by money. Sorting by money alone buries an 8-month-old debt
+  // under a larger invoice that is not due yet.
+  list.sort(function(a,b){ return (b.worst>=30?1:0)-(a.worst>=30?1:0) || b.total-a.total; });
+  var sev=function(days,draft){ return draft?'':(days>=30?'risk':(days>0?'warn':'ok')); };
+  var word=function(days,draft){ return draft?tr('Not sent'):(days>0?lateWords(-days):tr('On time')); };
+  var h='<section class="card gf-card gf-tree"><div class="gf-h"><h3>'+esc(tr('Who owes you'))+'</h3>'+
+    '<span class="gf-h-act"><button class="btn btn-ghost btn-sm" data-action="gf-expand-all">'+esc(tr('Expand all'))+'</button>'+
+    '<button class="btn btn-primary btn-sm" data-action="invoice-new">'+icon('plus',14)+esc(tr('New invoice'))+'</button></span></div>'+
+    '<div class="gf-thead"><span>'+esc(tr('Client'))+'</span><span>'+esc(tr('Where it came from'))+'</span><span>'+esc(tr('How late'))+'</span></div>'+
+    '<div class="gf-tbody">';
+  list.slice(0,6).forEach(function(g,i){
+    var pills=Object.keys(g.src).map(function(k){
+      var n=g.src[k]; return '<span class="gf-pill">'+n+' '+esc(n>1?tr(k+'s'):tr(k))+'</span>'; }).join('');
+    var s=sev(g.worst,false);
+    h+='<div class="gf-node" data-gf-node="'+i+'">'+
+      '<button class="gf-row gf-parent" data-action="gf-toggle" data-gf="'+i+'" aria-expanded="false">'+
+        '<span class="gf-chev">'+icon('down-chev',14)+'</span>'+
+        '<span class="gf-ic accent">'+icon('clients',16)+'</span>'+
+        '<span class="gf-name">'+esc(g.name)+'</span>'+
+        '<span class="gf-src">'+pills+'</span>'+
+        '<span class="gf-prog">'+gfBarHTML(s,word(g.worst,false),g.worst)+'</span>'+
+        '<span class="gf-amt">'+fmtMoney(g.total,0)+'</span>'+
+      '</button><div class="gf-kids" hidden>'+
+      g.rows.map(function(r){
+        var rs=sev(r.late,r.draft);
+        return '<div class="gf-row gf-kid">'+
+          '<span class="gf-ic">'+icon(r.ic,15)+'</span>'+
+          '<span class="gf-name">'+esc(r.desc||r.ref)+'</span>'+
+          '<span class="gf-src"><span class="gf-ref">'+esc(r.ref)+'</span></span>'+
+          '<span class="gf-prog">'+gfBarHTML(rs,word(r.late,r.draft),r.late)+'</span>'+
+          '<span class="gf-amt">'+(r.foreign?r.foreign+'<i class="gf-sub">'+(r.html||'')+'</i>'
+            :(r.php==null&&r.html?r.html:fmtMoney(num(r.php),0)))+'</span></div>';
+      }).join('')+'</div></div>';
+  });
+  h+='</div>';
+  if(list.length>6) h+='<p class="led-note"><button class="led-link" data-action="nav" data-route="invoices">'+
+    esc(tr('See all')+' '+list.length+' '+tr('clients'))+'</button></p>';
+  return h+'</section>';
+}
+/* The reference puts a small coloured status word above a 6px bar. Here the bar measures
+   age against the payment window, not the share collected: iv.status has no partial
+   state, so a "collected" bar would read 0% on nine rows in ten and teach the owner to
+   ignore it. Full bar = 30 days late or worse. */
+function gfBarHTML(sev,word,days){
+  var pct=Math.max(0,Math.min(100,Math.round((num(days)/30)*100)));
+  return '<span class="gf-word '+esc(sev)+'">'+esc(word)+'</span>'+
+    '<span class="gf-bar"><i class="'+esc(sev)+'" style="width:'+(sev==='ok'?0:Math.max(pct,6))+'%"></i></span>';
 }
 var DASH_DEFAULT=['today','month','recv','recent','links'];
 var DASH_SPAN={today:1,month:1,recv:1,recent:1,links:1};
@@ -10079,6 +10287,25 @@ document.addEventListener('click',function(e){
   if(action==='pin-remove'){ pinModal('remove'); return; }
   if(action==='lock-now'){ lockNow(); return; }
   if(action==='dash-customize'){ dashCustomizeModal(); return; }
+  /* The tree opens in place. render() would rebuild the whole view and lose which rows
+     the owner had open, so this toggles the DOM directly, the way the nav sections do. */
+  if(action==='gf-toggle'){
+    var gfn=el.closest('.gf-node'); if(!gfn) return;
+    var kids=gfn.querySelector('.gf-kids'), open=el.getAttribute('aria-expanded')==='true';
+    el.setAttribute('aria-expanded',open?'false':'true'); if(kids) kids.hidden=open;
+    return;
+  }
+  if(action==='gf-expand-all'){
+    var tree=el.closest('.gf-tree'); if(!tree) return;
+    var rows=[].slice.call(tree.querySelectorAll('.gf-parent'));
+    var anyClosed=rows.some(function(r){ return r.getAttribute('aria-expanded')!=='true'; });
+    rows.forEach(function(r){
+      r.setAttribute('aria-expanded',anyClosed?'true':'false');
+      var k=r.parentNode.querySelector('.gf-kids'); if(k) k.hidden=!anyClosed;
+    });
+    el.textContent=anyClosed?tr('Collapse all'):tr('Expand all');
+    return;
+  }
   if(action==='start-dismiss'){ state.settings.startDismissed=true; commit(); toast('Checklist hidden. You can bring it back from Settings → Data.'); return; }
   if(action==='start-show'){ state.settings.startDismissed=false; nav('dashboard'); render(); toast('Getting-started checklist is back.'); return; }
   if(action==='settings-go'){ ui.settingsTab=el.getAttribute('data-tab')||'business'; nav('settings'); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); return; }
