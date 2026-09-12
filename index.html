@@ -1465,6 +1465,11 @@ html[data-theme="dark"] .metric-card{box-shadow:none}
    between columns than a row of panels does. Rows still use the normal gutter. */
 .grid:has(>.stat-card){gap:var(--grid-gap) 30px}
 .grid-2{grid-template-columns:repeat(2,1fr)}
+/* Settings cards take the height of what is in them. By default a grid row stretches
+   every cell to the tallest one, which left Storage health as a short paragraph followed
+   by 600px of nothing because Cloud sync happened to sit beside it. Panels of unrelated
+   settings are not a table and have no reason to line up at the bottom. */
+.settings-grid>.card{align-self:start}
 .grid-3{grid-template-columns:repeat(3,1fr)}
 .grid-4{grid-template-columns:repeat(4,1fr)}
 .grid-hero{grid-template-columns:1fr 1.7fr}
@@ -2239,9 +2244,38 @@ details.calc .calc-body{margin-top:10px}
   font-family:var(--mono);font-size:var(--f1);line-height:1.55;
   background:var(--bg-sunken);border:1px solid var(--border);
   border-radius:10px;padding:12px 14px;margin:8px 0 10px;
-  white-space:pre;overflow-x:auto;color:var(--text-2);
-  -webkit-overflow-scrolling:touch;
+  /* pre-WRAP, not pre. As pre these blocks were 3,377px wider than the phone showing
+     them, and were the only thing left on the whole site that scrolled sideways. Wrapping
+     keeps the indentation that makes the JSON readable and loses nothing. */
+  white-space:pre-wrap;overflow-wrap:anywhere;color:var(--text-2);
 }
+/* the signed-in panel in Settings: the same shape as the row at the top of the account
+   menu, so the two places that show who you are do not look like different products */
+.acct-panel{display:flex;align-items:center;gap:12px;margin-top:14px;padding:13px 15px;
+  border-radius:12px;background:var(--accent-soft)}
+.acct-panel-face{width:42px;height:42px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;
+  background:var(--accent);color:#fff;font-weight:600;font-size:var(--f4)}
+.acct-panel-who{min-width:0}
+.acct-panel-who b{display:block;font-size:var(--f3);font-weight:600;color:var(--text);line-height:1.25}
+.acct-panel-who span{display:block;font-size:var(--f1);color:var(--text-2);line-height:1.45;overflow-wrap:anywhere}
+/* the fold that keeps Firebase keys and two screens of database rules away from someone
+   who came here to find the backup button */
+.adv-setup{margin-top:18px;border:1px solid var(--border);border-radius:var(--r);background:var(--bg-card)}
+.adv-setup>summary{display:flex;align-items:center;gap:10px;padding:14px 18px;cursor:pointer;
+  list-style:none;user-select:none;font-size:var(--f3);font-weight:550;color:var(--text-2)}
+.adv-setup>summary::-webkit-details-marker{display:none}
+.adv-setup>summary:hover{color:var(--text)}
+.adv-setup>summary>span:first-of-type{flex:1;min-width:0}
+.adv-setup .adv-chev{flex:0 0 auto;display:inline-flex;color:var(--text-3);transition:transform .2s var(--ease)}
+.adv-setup[open] .adv-chev{transform:rotate(180deg)}
+/* Author display on the card inside would otherwise defeat the UA's closed-details
+   hiding, exactly as it does for .start-details above: the fold read as closed, said it
+   was closed, and rendered 1,976px of database rules anyway. Third time this pattern has
+   bitten in this file, so it is spelled out rather than assumed. */
+.adv-setup:not([open]) .adv-body{display:none}
+.adv-body{padding:0 18px 18px}
+/* the rules card is already a card; inside the fold it is a section, not a second frame */
+.adv-body>.card{border:0;padding:0;margin-top:8px;background:transparent;box-shadow:none}
 .code-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px}
 .code-head h4{font-size:var(--f2);font-weight:550}
 .code-head .spacer{margin-left:auto}
@@ -10551,9 +10585,9 @@ function viewSettings(){
   var html=topbar('Settings & Data','Business profile, backups, and everything this app stores. · build '+APP_BUILD);
   html+='<div class="tabs">'+[['business','Business'],['custom','Customization'],['data','Data & Sync']].map(function(x){
     return '<button class="'+(tab===x[0]?'active':'')+'" data-action="settings-tab" data-tab="'+x[0]+'">'+esc(tr(x[1]))+'</button>';}).join('')+'</div>';
-  if(tab==='custom'){ return html+'<div class="grid grid-2">'+customizationCardHTML()+customizationExtrasCardHTML()+'</div>'; }
+  if(tab==='custom'){ return html+'<div class="grid grid-2 settings-grid">'+customizationCardHTML()+customizationExtrasCardHTML()+'</div>'; }
   if(tab==='data'){ return html+settingsDataHTML(); }
-  html+='<div class="grid grid-2">';
+  html+='<div class="grid grid-2 settings-grid">';
   html+='<div class="card"><div class="card-head"><h3>Business profile</h3></div>'+
     '<form data-form="settings">'+
     '<div class="field"><label>Business name</label><input class="input" name="businessName" value="'+esc(s.businessName)+'" required></div>'+
@@ -10604,13 +10638,12 @@ function viewSettings(){
 function settingsDataHTML(){
   var s=state.settings;
   var entryCount=state.finance.length+state.goals.length+state.tasks.length+state.notes.length+state.clients.length;
-  var html='<div class="grid grid-2">';
+  var html='<div class="grid grid-2 settings-grid">';
   html+=privacyLockCardHTML();
   html+=connectionsCardHTML();
   html+=storageCardHTML();
   html+=cloudSyncCardHTML();
   html+=authAccountCardHTML();
-  html+=databaseRulesCardHTML();
   html+='<div class="card"><div class="card-head"><h3>Backup & restore</h3></div>'+
     '<p style="font-size:var(--f2);color:var(--text-2);margin-bottom:16px">'+entryCount+' records in this browser. Export a backup regularly. Clearing browser data would erase everything.'+
     (s.lastBackup?' Last backup: <b>'+fmtDate(s.lastBackup)+'</b>.':' <b>No backup yet.</b>')+'</p>'+
@@ -10629,7 +10662,33 @@ function settingsDataHTML(){
     (state.settings.startDismissed?'<button class="btn btn-ghost" data-action="start-show">'+icon('spark')+' Show getting-started checklist</button>':'')+
     '<button class="btn btn-danger" data-action="reset-data">'+icon('trash')+' Reset all data</button></div></div>';
   html+='</div>';
+  /* Everything below the grid is for whoever CONNECTS this copy to a Firebase project,
+     which is a job done once and usually not by the person who runs the business. It used
+     to sit in the middle of the settings grid: two screens of database rules in a
+     monospace block, a Web API key field and an OAuth client id, in front of an owner who
+     only wanted to find the backup button. It is folded away now, and shut by default. */
+  html+=developerSetupHTML();
   return html;
+}
+/* The setup nobody running a shop should have to look at. Closed by default; everything
+   in it still works exactly as it did when it was lying out in the open. */
+function developerSetupHTML(){
+  var cfg=shareCfg();
+  var configured=authConfigured();
+  return '<details class="adv-setup"'+(configured?'':'')+'>'+
+    '<summary>'+icon('sliders',15)+'<span>'+esc(tr('Developer setup: connect this copy to a Firebase project'))+'</span>'+
+      (configured?'<span class="badge good">'+esc(tr('Connected'))+'</span>':'<span class="badge neutral">'+esc(tr('Not connected'))+'</span>')+
+      '<span class="adv-chev">'+icon('down-chev',12)+'</span></summary>'+
+    '<div class="adv-body">'+
+      '<p style="font-size:var(--f2);color:var(--text-2)">'+esc(tr('This is a one-time job for whoever set this copy up. Sharing needs a Firebase project: paste its Web API key here, publish the database rules below, and the sign-in screen starts working. Both values are public and ship inside every web app; the rules, not these, are what keep the books private.'))+'</p>'+
+      '<form data-form="share-keys" style="margin-top:12px">'+
+        '<div class="field"><label>'+esc(tr('Firebase Web API key'))+'</label><input class="input" name="apiKey" value="'+esc(cfg.apiKey||'')+'" placeholder="AIza…" autocomplete="off" spellcheck="false"></div>'+
+        '<div class="field"><label>'+esc(tr('Google OAuth client id (optional, for the Google button)'))+'</label><input class="input" name="clientId" value="'+esc(cfg.clientId||'')+'" placeholder="…apps.googleusercontent.com" autocomplete="off" spellcheck="false">'+
+          '<p style="font-size:var(--f1);color:var(--text-3);margin-top:4px">'+esc(tr('The redirect URI to register for it is'))+' <span class="mono" style="overflow-wrap:anywhere">'+esc(authRedirectUri())+'</span>.</p></div>'+
+        '<button class="btn btn-ghost btn-sm" type="submit">'+icon('check')+' '+esc(tr('Save project keys'))+'</button></form>'+
+      cloudSyncAdvancedHTML()+
+      databaseRulesCardHTML()+
+    '</div></details>';
 }
 
 /* ============================================================
@@ -13348,26 +13407,47 @@ function cloudAdoptLegacy(blob){
 }
 function cloudSyncCardHTML(){
   var s=state.settings.sync||{};
-  var html='<div class="card"><div class="card-head"><h3>'+icon('cloud',16)+' Cloud sync</h3><span class="spacer"></span>'+
-    (s.enabled?'<span class="badge good">Auto-sync on</span>':'<span class="badge neutral">Off</span>')+'</div>'+
-    '<p style="font-size:var(--f2);color:var(--text-2);margin-bottom:12px">Sync your data to your own cloud database so it survives browser resets and follows you across devices. Every invoice, expense and task is stored under its own address, so two people can work at once: pushing sends only what you changed, and merging keeps the newest version of each record rather than replacing anybody. '+
-    (s.lastSync?'Last sync: <b>'+fmtDate(s.lastSync.slice(0,10))+'</b>.':'Never synced.')+'</p>'+
-    '<form data-form="sync-settings">'+
-    '<div class="field"><label>Realtime Database URL</label><input class="input" name="url" value="'+esc(s.url||'')+'" placeholder="https://your-project-default-rtdb.firebaseio.com"></div>'+
-    /* The path was fixed at "bizpilot" and had no field, while the note underneath told
-       the owner to use an unguessable one. Sync signs in to nothing, so the path is the
-       only part of the address an outsider has to guess: it deserved a box. */
-    '<div class="field"><label>Path inside the database</label><input class="input" name="path" value="'+esc(s.path||'bizpilot')+'" placeholder="bizpilot" maxlength="64">'+
-      '<p style="font-size:var(--f1);color:var(--text-3);margin-top:4px">Your data is stored under this name. A long random one (say <span class="mono">bizpilot-7fq2xk9m</span>) is worth setting: it is the only part of the address a stranger cannot read off this app. Changing it starts an empty copy, so push once afterwards.</p></div>'+
-    '<label class="checkrow" style="margin-bottom:12px"><input type="checkbox" name="enabled"'+(s.enabled?' checked':'')+'> Auto-push changed records to the cloud after every change</label>'+
-    '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
-    '<button class="btn btn-primary btn-sm" type="submit">'+icon('check')+' Save sync settings</button>'+
-    '<button class="btn btn-ghost btn-sm" type="button" data-action="cloud-push">'+icon('upload')+' Push my changes</button>'+
-    '<button class="btn btn-ghost btn-sm" type="button" data-action="cloud-pull">'+icon('download')+' Merge from cloud</button>'+
-    '</div></form>'+
-    '<p style="font-size:var(--f1);color:var(--text-3);margin-top:12px">'+icon('alert',12)+' Anyone who can read your database can read your books. Trakora talks to it over plain REST and signs in to nothing, so a rule like <span class="mono">auth != null</span> will simply stop sync working. Publish the rules below instead, and treat the URL and path together as the password they are.</p>'+
+  var setUp=!!(s.url||'').trim();
+  /* What an owner needs from this card is three answers: is my work in the cloud, when
+     did that last happen, and can I send it now. The database URL, the path inside it and
+     the warning about auth rules are all real, and all three moved into Developer setup
+     with the keys: they are typed once by whoever connected the project and never again
+     by the person running the shop. */
+  return '<div class="card"><div class="card-head"><h3>'+icon('cloud',16)+' '+esc(tr('Cloud sync'))+'</h3><span class="spacer"></span>'+
+    (s.enabled?'<span class="badge good">'+esc(tr('On'))+'</span>'
+     :setUp?'<span class="badge neutral">'+esc(tr('Set up, not automatic'))+'</span>'
+     :'<span class="badge neutral">'+esc(tr('Not set up'))+'</span>')+'</div>'+
+    '<p style="font-size:var(--f2);color:var(--text-2);margin-bottom:12px">'+
+      esc(tr('A copy of your books in your own cloud database, so they survive a browser reset and follow you between devices. Each record travels on its own, so two people can work at the same time without overwriting each other.'))+' '+
+      (s.lastSync?esc(tr('Last sync'))+': <b>'+esc(fmtDate(s.lastSync.slice(0,10)))+'</b>.':'<b>'+esc(tr('Never synced.'))+'</b>')+'</p>'+
+    (setUp
+      ? '<form data-form="sync-settings">'+
+          '<label class="checkrow" style="margin-bottom:12px"><input type="checkbox" name="enabled"'+(s.enabled?' checked':'')+'> '+
+            esc(tr('Send my changes automatically'))+'</label>'+
+          '<input type="hidden" name="url" value="'+esc(s.url||'')+'">'+
+          '<input type="hidden" name="path" value="'+esc(s.path||'bizpilot')+'">'+
+          '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+            '<button class="btn btn-primary btn-sm" type="submit">'+icon('check')+' '+esc(tr('Save'))+'</button>'+
+            '<button class="btn btn-ghost btn-sm" type="button" data-action="cloud-push">'+icon('upload')+' '+esc(tr('Send my changes'))+'</button>'+
+            '<button class="btn btn-ghost btn-sm" type="button" data-action="cloud-pull">'+icon('download')+' '+esc(tr('Get the latest'))+'</button>'+
+          '</div></form>'
+      : '<p style="font-size:var(--f2);color:var(--text-3)">'+icon('alert',12)+' '+
+          esc(tr('No cloud database is connected to this copy yet. Whoever set it up can connect one under Developer setup at the bottom of this page.'))+'</p>')+
     '</div>';
-  return html;
+}
+/* The technical half of cloud sync, for the person who connects the project. Same form
+   name as the card above, so the one handler still saves it. */
+function cloudSyncAdvancedHTML(){
+  var s=state.settings.sync||{};
+  return '<h4 style="font-size:var(--f3);font-weight:550;margin:18px 0 8px">'+esc(tr('Cloud database'))+'</h4>'+
+    '<form data-form="sync-settings">'+
+    '<div class="field"><label>'+esc(tr('Realtime Database URL'))+'</label><input class="input" name="url" value="'+esc(s.url||'')+'" placeholder="https://your-project-default-rtdb.firebaseio.com"></div>'+
+    '<div class="field"><label>'+esc(tr('Path inside the database'))+'</label><input class="input" name="path" value="'+esc(s.path||'bizpilot')+'" placeholder="bizpilot" maxlength="64">'+
+      '<p style="font-size:var(--f1);color:var(--text-3);margin-top:4px">'+esc(tr('The data is stored under this name. A long random one (say bizpilot-7fq2xk9m) is worth setting: it is the only part of the address a stranger cannot read off this app. Changing it starts an empty copy, so push once afterwards.'))+'</p></div>'+
+    '<input type="hidden" name="enabled" value="'+(s.enabled?'on':'')+'">'+
+    '<button class="btn btn-ghost btn-sm" type="submit">'+icon('check')+' '+esc(tr('Save database settings'))+'</button></form>'+
+    '<p style="font-size:var(--f1);color:var(--text-3);margin-top:12px">'+icon('alert',12)+' '+
+      esc(tr('Anyone who can read this database can read the books. Sync talks to it over plain REST and signs in to nothing, so a rule that demands a signed-in user will simply stop sync working. Publish the rules below instead, and treat the URL and the path together as the password they are.'))+'</p>';
 }
 
 /* ---------- sharing: the account card ----------
@@ -13392,44 +13472,40 @@ function shareCfg(){
 }
 function authAccountCardHTML(){
   var u=authUser(), cfg=shareCfg();
-  var html='<div class="card"><div class="card-head"><h3>'+icon('users',16)+' Sharing &amp; accounts</h3><span class="spacer"></span>'+
-    (u?(u.expired?'<span class="badge warn">Session ended</span>':'<span class="badge good">Signed in</span>'):'<span class="badge neutral">Not signed in</span>')+'</div>'+
-    '<p style="font-size:var(--f2);color:var(--text-2)">Trakora works with no account at all, offline, exactly as it does now. Signing in adds one thing: other people. Invite a partner or your accountant and everyone sees the same books, because the database checks who is asking before it answers. That check happens on Firebase\'s servers, which is why it is worth anything.</p>';
-
-  if(!authConfigured()){
-    html+='<p style="font-size:var(--f2);color:var(--text-3)">'+icon('alert',12)+' This copy has no Firebase project set up yet, so there is nothing to sign in to. Paste the Web API key from your Firebase project below (Project settings ▸ General ▸ Web API Key), and the Google OAuth client id if you want the Google button. Both are public values that ship in every web app; the database rules, not these, are what keeps your books private.</p>';
-  }
-  html+='<form data-form="share-keys" style="margin-top:10px">'+
-    '<div class="field"><label>Firebase Web API key</label><input class="input" name="apiKey" value="'+esc(cfg.apiKey||'')+'" placeholder="AIza…" autocomplete="off" spellcheck="false"></div>'+
-    '<div class="field"><label>Google OAuth client id (optional, for the Google button)</label><input class="input" name="clientId" value="'+esc(cfg.clientId||'')+'" placeholder="…apps.googleusercontent.com" autocomplete="off" spellcheck="false">'+
-      '<p style="font-size:var(--f1);color:var(--text-3);margin-top:4px">The redirect URI to register for it is <span class="mono">'+esc(authRedirectUri())+'</span>.</p></div>'+
-    '<button class="btn btn-ghost btn-sm" type="submit">'+icon('check')+' Save project keys</button></form>';
+  var html='<div class="card"><div class="card-head"><h3>'+icon('users',16)+' '+esc(tr('Sharing &amp; accounts').replace('&amp;','&'))+'</h3><span class="spacer"></span>'+
+    (u?(u.expired?'<span class="badge warn">'+esc(tr('Session ended'))+'</span>':'<span class="badge good">'+esc(tr('Signed in'))+'</span>'):'<span class="badge neutral">'+esc(tr('Not signed in'))+'</span>')+'</div>'+
+    '<p style="font-size:var(--f2);color:var(--text-2)">'+esc(tr('Your books work with no account at all, offline, exactly as they do now. Signing in adds one thing: other people. Invite a partner or your accountant and everyone sees the same books.'))+'</p>';
 
   if(u){
-    html+='<div style="margin-top:14px;padding:12px 16px;border-radius:11px;background:var(--accent-soft)">'+
-      '<b style="font-size:var(--f2)">'+icon('check',13)+' '+esc(authName())+'</b>'+
-      '<div style="font-size:var(--f1);color:var(--text-2);margin-top:2px">'+esc(u.email)+' · signed in with '+(u.provider==='google'?'Google':'an email and password')+(u.verified?'':' · email not verified yet')+'</div>'+
-      (u.expired?'<div style="font-size:var(--f1);color:var(--warn);margin-top:4px">'+icon('alert',11)+' This session ended. Your books on this device are untouched; sign in again to start sharing them.</div>':'')+
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+
-        '<button class="btn btn-ghost btn-sm" data-action="auth-signout">Sign out</button>'+
-      '</div></div>';
+    /* The standard signed-in panel: who you are, how you got in, and the two things
+       anybody expects to find here. No keys, no JSON, no setup. */
+    html+='<div class="acct-panel">'+
+      '<span class="acct-panel-face" aria-hidden="true">'+esc(String(authName()||'?').charAt(0).toUpperCase())+'</span>'+
+      '<div class="acct-panel-who"><b>'+esc(authName())+'</b>'+
+        '<span>'+esc(u.email)+'</span>'+
+        '<span>'+esc(tr(u.provider==='google'?'Signed in with Google':'Signed in with an email and password'))+
+          (u.verified?'':' · '+esc(tr('email not verified yet')))+'</span></div></div>'+
+      (u.expired?'<p style="font-size:var(--f1);color:var(--warn);margin-top:8px">'+icon('alert',11)+' '+esc(tr('This session ended. Your books on this device are untouched; sign in again to start sharing them.'))+'</p>':'')+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'+
+        (u.provider==='password'?'<button class="btn btn-ghost btn-sm" data-action="auth-change-password">'+icon('shield',13)+' '+esc(tr('Change password'))+'</button>':'')+
+        '<button class="btn btn-ghost btn-sm" data-action="auth-signout">'+icon('signin',13)+' '+esc(tr('Sign out'))+'</button>'+
+      '</div>';
     html+=wsCardBodyHTML(u,cfg);
     return html+'</div>';
   }
 
-  html+='<div class="auth-box">'+
-    (authClientId()?'<button class="btn btn-primary btn-sm" type="button" data-action="auth-google" style="width:100%;justify-content:center">'+icon('users',14)+' Sign in with Google</button>'+
-      '<div class="auth-or"><span>or use an email and password</span></div>':'')+
-    '<form data-form="auth-email">'+
-      '<div class="field"><label>Email</label><input class="input" type="email" name="email" autocomplete="username" placeholder="you@email.com"></div>'+
-      '<div class="field"><label>Password</label><input class="input" type="password" name="password" autocomplete="current-password" placeholder="at least 6 characters"></div>'+
-      '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
-        '<button class="btn btn-primary btn-sm" type="submit" name="mode" value="in">'+icon('check')+' Sign in</button>'+
-        '<button class="btn btn-ghost btn-sm" type="submit" name="mode" value="up">Create an account</button>'+
-        '<button class="btn btn-ghost btn-sm" type="button" data-action="auth-reset">Forgot password</button>'+
-      '</div>'+
-    '</form></div>';
-  return html+'</div>';
+  if(!authConfigured()){
+    /* Nothing to sign in to yet, and the fix is a developer job. Point at where it lives
+       rather than putting an API key field in front of a candle maker. */
+    return html+'<p style="font-size:var(--f2);color:var(--text-3);margin-top:10px">'+icon('alert',12)+' '+
+      esc(tr('This copy is not connected to a sign-in project yet, so there is no account to sign in to. Whoever set it up can connect one under Developer setup at the bottom of this page.'))+'</p></div>';
+  }
+
+  /* Signed out, and able to sign in: ONE button, to the one screen that does it. */
+  return html+'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">'+
+    '<button class="btn btn-primary btn-sm" data-action="auth-signin-email">'+icon('signin',13)+' '+esc(tr('Sign in'))+'</button>'+
+    '<button class="btn btn-ghost btn-sm" data-action="auth-signup">'+esc(tr('Create an account'))+'</button>'+
+    '</div></div>';
 }
 
 /* ---------- the workspace half of the sharing card ----------
@@ -13763,8 +13839,14 @@ document.addEventListener('submit',function(e){
   if(kind==='sync-settings'){
     state.settings.sync=state.settings.sync||{};
     state.settings.sync.url=fv(form,'url');
-    state.settings.sync.enabled=form.elements['enabled'].checked&&!!fv(form,'url');
-    if(form.elements['enabled'].checked&&!fv(form,'url')) toast('Enter the database URL to enable auto-sync.','warn');
+    /* Two forms post here now: the owner's card, where "enabled" is a checkbox, and the
+       developer fold, where it rides along as a hidden input carrying the current value.
+       Reading .checked off a hidden input gives undefined, which would have quietly
+       switched auto-sync OFF every time somebody saved the database URL. */
+    var enEl=form.elements['enabled'];
+    var wantOn=enEl?(enEl.type==='checkbox'?enEl.checked:!!String(enEl.value||'').trim()):!!state.settings.sync.enabled;
+    state.settings.sync.enabled=wantOn&&!!fv(form,'url');
+    if(wantOn&&!fv(form,'url')) toast('Connect a database under Developer setup to turn automatic sync on.','warn');
     /* Firebase keys cannot contain . $ # [ ] / or control characters, and a path that
        breaks the URL would fail every push with an error nobody can act on. Strip it
        here rather than letting the owner discover it four saves later. */

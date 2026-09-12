@@ -4407,6 +4407,67 @@ async function main() {
       }
     })();
 
+    // ---------- the sign-in screen, and a settings page an owner can read ----------
+    /* "the log in ... is not the standard, plus the setting has a horizontal scroll all
+       over it" and "i don't need all the codes to be in there, business owner will not
+       know that". Measured first: the only thing still scrolling sideways anywhere on the
+       site was .code-block on the Data & Sync tab, 3,377px wider than a 320px phone. It
+       was also the codes. One cause, both complaints. */
+    (function signInAndSettings() {
+      ok('the sign-in screen is built to the reference: panel, artwork, form',
+        /\.si-panel\{[^}]*grid-template-columns/.test(html) && html.indexOf('si-art') > 0 &&
+        html.indexOf('class="si-card"') > 0);
+      ok('...with the parts the reference has',
+        ['si-oauth', 'si-or', 'si-field', 'si-eye', 'si-remember', 'si-cta', 'si-foot']
+          .every((c) => html.indexOf(c) > 0));
+      ok('...and the business name, not a hardcoded one',
+        /si-name">'\+appNameEsc\(\)/.test(html));
+      /* Two things in the reference are deliberately absent, and both would be a lie:
+         a gradient the owner ruled out, and a Facebook button this app cannot honour. */
+      /* Two things in the reference are deliberately absent, and both would be a lie: a
+         gradient the owner ruled out, and a Facebook button this app cannot honour. The
+         screen offers exactly one federated sign-in, and it is the one that works. */
+      ok('...with no gradient, and no federated button it cannot honour',
+        !/\.si-[a-z-]*\{[^}]*linear-gradient/.test(html) &&
+        /class="si-oauth" data-action="auth-google"/.test(html) &&
+        html.indexOf('auth-facebook') === -1);
+      ok('sign in, create an account and forgot password all lead to the one screen',
+        /action==='auth-signin-email'\)\{ acctMenuClose\(true\); signInOpen\('in'\)/.test(html) &&
+        /action==='auth-signup'\)\{ acctMenuClose\(true\); signInOpen\('up'\)/.test(html) &&
+        html.indexOf("action==='signin-forgot'") > 0);
+      /* A screen, not a wall. The books work with no account, so there is always a way
+         past it unless this copy was deliberately set to demand one. */
+      ok('it can be dismissed unless the copy was set to require an account',
+        /var dismissible=!REQUIRE_SIGNIN/.test(html) && html.indexOf("action==='signin-dismiss'") > 0);
+
+      ok('code blocks wrap instead of scrolling sideways',
+        /\.code-block\{[\s\S]*?white-space:pre-wrap/.test(html) &&
+        !/\.code-block\{[\s\S]*?white-space:pre;/.test(html));
+      ok('the keys and the database rules are folded away, shut by default',
+        html.indexOf('developerSetupHTML') > 0 && /<details class="adv-setup"/.test(html) &&
+        !/<details class="adv-setup" open/.test(html));
+      /* The same trap as .start-details and as [hidden] on the sidebar body: author
+         display on content inside a closed <details> defeats the browser's own hiding.
+         Without this rule the fold reported closed and rendered 1,976px of JSON anyway. */
+      ok('...and the stylesheet actually lets a closed fold hide them',
+        /\.adv-setup:not\(\[open\]\) \.adv-body\{display:none\}/.test(html));
+      ok('nothing technical is left on the page an owner reads',
+        html.indexOf('Firebase Web API key') > 0 &&
+        /developerSetupHTML[\s\S]{0,2000}Firebase Web API key/.test(html));
+      ok('the cloud sync card no longer puts a database URL in front of the owner',
+        /function cloudSyncCardHTML[\s\S]{0,2600}?\n\}/.test(html) &&
+        !/function cloudSyncCardHTML[\s\S]{0,2600}?label>Realtime Database URL/.test(html) &&
+        /function cloudSyncAdvancedHTML[\s\S]{0,900}Realtime Database URL/.test(html));
+      /* Both forms post to one handler. "enabled" is a checkbox in the owner's card and a
+         hidden input in the fold, and reading .checked off a hidden input gives undefined,
+         which would have switched auto-sync off every time the URL was saved. */
+      ok('...and saving the database settings cannot silently switch auto-sync off',
+        /enEl\.type==='checkbox'\?enEl\.checked:!!String\(enEl\.value\|\|''\)\.trim\(\)/.test(html));
+      ok('settings cards size to their content instead of stretching to their neighbour',
+        /\.settings-grid>\.card\{align-self:start\}/.test(html) &&
+        /class="grid grid-2 settings-grid"/.test(html));
+    })();
+
     // ---------- the foot of the sidebar ----------
     /* This block used to test a "Help & settings" disclosure row that folded help,
        settings, edit menu and the backup card away, and an account chip beside it. Both
