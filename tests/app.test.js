@@ -108,8 +108,18 @@ async function main() {
       // gone on purpose. What survives is the part that was never about warmth: the
       // sheet and the desk are one family, nothing is untinted, and the accent is still
       // not Mercury's indigo.
-      ok('the app card sits on a tinted desk, and the accent is not Mercury indigo',
-        /--page:#e9eff6/.test(lightBlock) && /--bg:#fdfdff/.test(lightBlock) &&
+      /* The desk is gone. The app used to sit inset on a tinted ground with a 20px radius
+         and a shadow, which was the most recognisable thing about the reference it was
+         built from; the owner wants the page edge to edge instead. --page still exists
+         because overscroll would flash it, so it matches the paper rather than contrasting
+         with it. What survives from before: nothing is pure white, and the accent is still
+         not Mercury's indigo. */
+      ok('the app is the page, not a card on a desk',
+        /--app-inset:0px/.test(html) && /--app-radius:0px/.test(html) &&
+        /\.app\{[^}]*border:0;border-radius:var\(--app-radius,0\)\}/.test(html) &&
+        !/\.app\{[^}]*box-shadow/.test(html));
+      ok('...and the ground matches the paper, so overscroll shows no desk',
+        /--page:#fdfdff/.test(lightBlock) && /--bg:#fdfdff/.test(lightBlock) &&
         !/#4653e8/.test(html) && !/#8a92ff/.test(html));
       ok('--info is deleted: nothing paints with a fifth semantic colour',
         /--info:var\(--accent\)/.test(lightBlock) && /--info:var\(--accent\)/.test(darkBlock));
@@ -4581,8 +4591,24 @@ async function main() {
           !d.querySelector('.sb-tail-toggle') && html.indexOf('sidebar-foot-toggle') === -1);
         ok('...and no chevron left floating where it used to be',
           !d.querySelector('.sidebar-tail .nav-chev'));
-        ok('the backup card is on screen and no longer folds away',
-          !!d.getElementById('sidebar-backup'));
+        /* Nothing is pinned below the menu now. The card that used to live there was
+           always present whether or not it had anything to say, and it ate the room the
+           menu wants when the list is long. The message that mattered is not lost: the
+           dashboard banner carries it when the data really is at risk. */
+        ok('nothing is pinned below the menu any more',
+          !d.getElementById('sidebar-backup') && html.indexOf('sb-promo') === -1 &&
+          html.indexOf('sidebarBackupCardHTML') === -1);
+        /* Not pinned means INSIDE the scroller, not merely un-styled. If the tail drifts
+           back out of .nav it becomes fixed chrome again and eats the menu on a short
+           window, which is the thing that was asked to go. */
+        ok('...and the help/settings rows scroll with the menu instead of being pinned',
+          (function () {
+            const nav = d.querySelector('.nav'), tail = d.querySelector('.sidebar-tail');
+            return !!nav && !!tail && nav.contains(tail);
+          })());
+        ok('...and the "not backed up" warning still exists, on the dashboard',
+          /function backupSafetyBannerHTML\(\)\{[\s\S]{0,600}?backup-banner/.test(html) &&
+          /Your data isn.t backed up yet/.test(html));
         ok('the account chip is gone from the foot of the sidebar',
           !d.querySelector('.sidebar-foot') && !d.querySelector('.biz-chip'));
         /* Dead weight from the removed feature: a setting nothing reads, CSS for elements

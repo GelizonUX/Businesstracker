@@ -79,9 +79,12 @@
      only by a hairline and a very soft cast, which is exactly how the reference
      reads. The ramp is slate + blue; the previous warm-paper hue is gone because
      the reference is measurably cool (#e9eff6 desk, #f8fafc sunken, #eef1f5 rules). */
-  --app-inset:16px;     /* how far the app card sits off the desk  */
-  --app-radius:20px;
-  --page:#e9eff6;       /* the tinted desk the app card floats on  */
+  /* The app used to sit inset on a tinted desk with a 20px radius and a shadow, which is
+     the single most recognisable thing about the reference it was built from. The owner
+     wants the page itself, edge to edge: no desk, no corners, no frame. */
+  --app-inset:0px;
+  --app-radius:0px;
+  --page:#fdfdff;       /* no desk any more: the same paper as the app itself */
   --bg:#fdfdff;         /* paper inside the app card. NOT pure #fff: the house rule
                            is that no neutral is untinted, and at this chroma the
                            tint is invisible beside the reference's white while the
@@ -333,7 +336,7 @@ html[data-theme="dark"]{
      and only the ramp is swapped: the slate scale is read from the dark end instead
      of the light end. There is no second accent; the brand blue simply lightens so
      it can carry ink-level contrast on a dark sheet. */
-  --page:#080d15;       /* the desk, darker than the app card                  */
+  --page:#101722;       /* no desk any more: the same paper as the app itself  */
   --bg:#101722;         /* paper inside the app card                           */
   --bg-card:#101722;    /* cards are the same sheet, held by their border      */
   --bg-card-glass:rgba(16,23,34,.82);
@@ -1051,8 +1054,7 @@ body.rm-shift .rm-canvas{cursor:crosshair}
    it, so the desk is visible as a continuous frame at every width above a phone. */
 .app{display:flex;height:100vh;height:100dvh;overflow:hidden;
   margin:var(--app-inset,16px);height:calc(100dvh - var(--app-inset,16px)*2);
-  background:var(--bg);border:1px solid var(--border);border-radius:var(--app-radius,20px);
-  box-shadow:0 1px 2px rgba(16,24,40,.04),0 12px 32px rgba(16,24,40,.06)}
+  background:var(--bg);border:0;border-radius:var(--app-radius,0)}
 .sidebar{
   position:fixed;inset:0 auto 0 0;width:calc(295px*var(--nav-scale,1));z-index:60;
   /* --bg-sidebar is fully opaque, so there is nothing behind this panel to blur or
@@ -2344,10 +2346,8 @@ details.calc .calc-body{margin-top:10px}
   .grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media (max-width:860px){
-  /* a phone has no room for a desk: the app card goes full-bleed and the 295px
-     column becomes the off-canvas drawer it always was below this width */
-  :root{--app-inset:0px;--app-radius:0px}
-  .app{border:0}
+  /* full-bleed is the default now; below this width the 295px column also becomes the
+     off-canvas drawer it always was */
   /* off-canvas overlay: keep at least ~14vw of scrim tappable even at max menu size */
   .sidebar{transform:translateX(-100%);width:min(calc(295px*var(--nav-scale,1)),86vw)}
   .sidebar.open{transform:translateX(0);box-shadow:var(--shadow-lg)}
@@ -2701,7 +2701,9 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .sidebar-cta>span:first-of-type{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
 .cta-beta{font-size:var(--f1);font-weight:550;letter-spacing:.06em;text-transform:uppercase;background:var(--bg-card);border:1px solid var(--border);padding:1px 6px;border-radius:99px;flex-shrink:0}
 /* the two quiet rows under the spacer (Help, Settings, Edit menu) */
-.sidebar-tail{display:flex;flex-direction:column;gap:4px;padding:8px 16px 0;flex:0 0 auto}
+/* inside the scrolling list now, so it needs separation from the menu above it rather
+   than a position of its own */
+.sidebar-tail{display:flex;flex-direction:column;gap:4px;padding:10px 0 4px;margin-top:8px;border-top:1px solid var(--sidebar-border)}
 /* the disclosure row that folds help, settings, edit menu and the backup card into
    one. Same row as the three it hides, so folding does not change the rhythm of the
    column; only the chevron says which way it is. */
@@ -2711,25 +2713,10 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .sidebar-tail-body[hidden]{display:none}
 .nav-item-quiet{color:var(--text-3)}
 .nav-item-quiet:hover{color:var(--sidebar-text-active)}
-/* the promo card: a very light blue panel with a sparkle, a title, two lines of
-   muted copy and a full-width solid-blue button (spec 1) */
-.sb-promo{margin:12px 16px 0;padding:18px;border-radius:14px;background:var(--accent-soft);color:var(--text-2);flex:0 0 auto}
 /* the tint IS the severity, so the card says which state it is in before it is read */
-.sb-promo.sb-risk{background:var(--risk-soft)}
-.sb-promo.sb-risk svg{color:var(--risk)}
-.sb-promo.sb-warn{background:var(--warn-soft)}
-.sb-promo.sb-warn svg{color:var(--warn)}
 /* safe states get a quiet button: nothing is wrong, so nothing should look urgent */
-.sb-promo-btn.ghost{background:none;border:1px solid var(--border-2);color:var(--text-2)}
-.sb-promo-btn.ghost:hover{background:var(--bg-hover);color:var(--text)}
-.sb-promo svg{color:var(--accent);display:block;margin-bottom:8px}
-.sb-promo b{display:block;font-size:calc(15px*var(--nav-scale,1));font-weight:700;color:var(--sidebar-text-active);margin-bottom:4px;letter-spacing:-.01em}
-.sb-promo p{font-size:var(--f2);line-height:1.45;color:var(--text-2);margin:0 0 12px}
-.sb-promo-btn{display:block;width:100%;height:40px;border-radius:8px;background:var(--accent-cta);color:var(--accent-cta-ink);
   font-size:calc(14px*var(--nav-scale,1));font-weight:600;text-align:center;cursor:pointer;transition:background .15s}
-.sb-promo-btn:hover{background:var(--accent-2)}
-.app.nav-collapsed .sb-promo,.app.nav-collapsed .sidebar-tail span{display:none}
-/* sidebar edit mode: text-size + reorder */
+.app.nav-collapsed /* sidebar edit mode: text-size + reorder */
 .nav-edit-open{display:flex;align-items:center;gap:8px;width:100%;margin:0 0 8px;padding:8px 12px;border-radius:var(--r-sm);background:transparent;border:1px dashed var(--sidebar-border,rgba(255,255,255,.16));color:var(--sidebar-text);font-size:var(--f2);font-weight:550;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
 .nav-edit-open:hover{background:var(--sidebar-hover);color:var(--sidebar-text-active);border-color:var(--border-2)}
 .nav-edit-open svg{width:14px;height:14px;flex-shrink:0}
@@ -6022,9 +6009,11 @@ function renderSidebar(){
     });
     html+='<button class="nav-item" data-action="custom-module-new" style="opacity:.75">'+icon('plus')+'<span>'+esc(tr('New table…'))+'</span></button>';
   }
-  html+='</nav>';
-  /* Help, Settings and Edit menu sit under the spacer, outside the scrolling list so they
-     stay reachable however long the menu gets.
+  /* Help, Settings and Edit menu are INSIDE the scrolling list. They used to sit outside
+     it, pinned to the bottom of the rail so they stayed put however long the menu got.
+     That is a real trade and the owner has called it: pinned rows are always there whether
+     or not the list needs the room, and on a short viewport they ate the menu. Nothing in
+     the rail is fixed now, it all scrolls together.
 
      These were briefly folded behind a "Help & settings" disclosure row. The row did not
      earn its place: its own label truncated to "Help & setti..." at the sidebar's width,
@@ -6036,10 +6025,13 @@ function renderSidebar(){
     '<button class="nav-item nav-item-quiet'+(route==='settings'?' active':'')+'" data-action="nav" data-route="settings" title="'+esc(tr('Settings'))+'">'+icon('settings')+'<span>'+esc(tr('Settings'))+'</span></button>'+
     '<button class="nav-item nav-item-quiet" data-action="nav-edit-toggle" title="Resize text and reorder the menu">'+icon('edit')+'<span>'+esc(tr('Edit menu'))+'</span></button>'+
     '</div>';
-  /* The promo card carries the one thing that is genuinely urgent and genuinely changes:
-     whether their books would survive losing this device. It reads differently in each
-     state, and when everything is safe it says so quietly instead of inventing a task. */
-  html+=sidebarBackupCardHTML();
+  html+='</nav>';
+  /* Nothing pinned below the menu any more. A card bolted to the bottom of the rail is
+     always there whether or not it has anything to say, and it ate the space the menu
+     itself wants when the list gets long. The one message it carried that genuinely
+     matters, "these books are not backed up", is not lost: backupSafetyBannerHTML() puts
+     it across the top of the dashboard when the data really is at risk, where it is read
+     rather than parked, and Settings carries the permanent version. */
   /* No account chip down here any more. There were two doors to the same menu, and this
      one was the crooked door: a fixed-width name that truncated, a second chevron, and a
      block of chrome between the backup card and the bottom of the rail. The account lives
@@ -6450,39 +6442,6 @@ function dataAtRisk(){
 /* Four states, each with a different thing to say and a different button. The tint is
    the severity, the title is the fact, and the line under it is dated evidence rather
    than a reassurance nobody can check. */
-function sidebarBackupCardHTML(){
-  var s=state.settings||{};
-  var backupAge=s.lastBackup?-daysUntil(s.lastBackup):null;
-  var syncOn=!!(s.sync&&s.sync.enabled&&s.sync.lastSync);
-  var syncAge=syncOn?-daysUntil(String(s.sync.lastSync).slice(0,10)):null;
-  var tone,title,line,label,ghost;
-  if(dataRecordCount()<5){
-    // Nothing to lose yet. Saying "not backed up" to someone with two entries is alarm
-    // for its own sake, and it teaches them to ignore the card before it matters.
-    tone='accent'; title=tr('Everything stays here');
-    line=tr('Your books live in this browser, on this device. Nothing is uploaded.');
-    label=tr('How backups work'); ghost=true;
-  } else if(!s.lastBackup&&!syncOn){
-    tone='risk'; title=tr('Not backed up');
-    line=tr('Everything lives only in this browser. Clearing site data would erase it.');
-    label=tr('Back up now'); ghost=false;
-  } else if(syncOn&&syncAge!=null&&syncAge<=7){
-    tone='accent'; title=tr('Synced');
-    line=tr('Last synced')+' '+esc(fmtDate(String(s.sync.lastSync).slice(0,10)))+'.';
-    label=tr('Back up now'); ghost=true;
-  } else if(backupAge!=null&&backupAge<=14){
-    tone='accent'; title=tr('Backed up');
-    line=esc(fmtDate(s.lastBackup))+'. '+tr('A reminder follows in')+' '+(14-Math.round(backupAge))+' '+tr('days')+'.';
-    label=tr('Back up now'); ghost=true;
-  } else {
-    tone='warn'; title=tr('Backup is')+' '+Math.round(backupAge)+' '+tr('days old');
-    line=tr('Your last backup was')+' '+esc(fmtDate(s.lastBackup))+'.';
-    label=tr('Back up now'); ghost=false;
-  }
-  return '<div class="sb-promo sb-'+tone+'" id="sidebar-backup">'+icon(tone==='accent'?'shield':'alert',18)+
-    '<b>'+esc(title)+'</b><p>'+line+'</p>'+
-    '<button class="sb-promo-btn'+(ghost?' ghost':'')+'" data-action="export-json">'+esc(label)+'</button></div>';
-}
 function backupSafetyBannerHTML(){
   if(!dataAtRisk()) return '';
   var snz=state.settings.backupSnooze;
