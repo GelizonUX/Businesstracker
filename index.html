@@ -2713,10 +2713,9 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .sidebar-tail-body[hidden]{display:none}
 .nav-item-quiet{color:var(--text-3)}
 .nav-item-quiet:hover{color:var(--sidebar-text-active)}
-/* the tint IS the severity, so the card says which state it is in before it is read */
-/* safe states get a quiet button: nothing is wrong, so nothing should look urgent */
-  font-size:calc(14px*var(--nav-scale,1));font-weight:600;text-align:center;cursor:pointer;transition:background .15s}
-.app.nav-collapsed /* sidebar edit mode: text-size + reorder */
+/* in the icon rail the quiet rows keep their icons and lose their words */
+.app.nav-collapsed .sidebar-tail span{display:none}
+/* sidebar edit mode: text-size + reorder */
 .nav-edit-open{display:flex;align-items:center;gap:8px;width:100%;margin:0 0 8px;padding:8px 12px;border-radius:var(--r-sm);background:transparent;border:1px dashed var(--sidebar-border,rgba(255,255,255,.16));color:var(--sidebar-text);font-size:var(--f2);font-weight:550;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
 .nav-edit-open:hover{background:var(--sidebar-hover);color:var(--sidebar-text-active);border-color:var(--border-2)}
 .nav-edit-open svg{width:14px;height:14px;flex-shrink:0}
@@ -2978,13 +2977,23 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .app.nav-collapsed .sidebar{width:74px;padding:20px 10px}
 .app.nav-collapsed .main{margin-left:74px}
 .app.nav-collapsed .brand{justify-content:center;padding:6px 0 16px}
+/* Everything with words in it goes; the icons stay. This list was missing its
+   {display:none} and ran straight into the .sidebar-cta rule below, so instead of hiding,
+   the brand name, the section headers and every nav label were merely CENTRED inside a
+   74px rail and spilled out of it. That is the whole of what a collapsed sidebar looked
+   like: text lying across the icons and off the left edge. */
 .app.nav-collapsed .brand>div:last-child,
 .app.nav-collapsed .sidebar-cta>span:first-of-type,
 .app.nav-collapsed .cta-beta,
 .app.nav-collapsed .nav-item>span:not(.nav-badge),
-.app.nav-collapsed .nav-section,
+.app.nav-collapsed .nav-section{display:none}
 .app.nav-collapsed .sidebar-cta{justify-content:center;padding:12px 0}
-.app.nav-collapsed .nav-item{justify-content:center;padding:10px 0}
+/* The list keeps its 16px side padding when expanded; in a 74px rail that leaves a 21px
+   content box, so every row was a 21px tap target with the icon overflowing it. Under the
+   24px floor the rest of this file holds itself to, on the one control every route is
+   reached from. The rail drops the side padding and the rows fill it. */
+.app.nav-collapsed .nav{padding-left:0;padding-right:0}
+.app.nav-collapsed .nav-item{justify-content:center;padding:10px 0;width:100%}
 .app.nav-collapsed .nav-item svg{opacity:1}
 .app.nav-collapsed .nav-item.active::before{left:-10px}
 .app.nav-collapsed .nav-badge{position:absolute;top:2px;right:9px;margin:0;padding:0 4px;min-width:13px;font-size:var(--f1);line-height:1.5}
@@ -4281,8 +4290,11 @@ function signInRender(){
     btn.disabled=true; msg.className='si-msg';
     btn.innerHTML='<span class="si-spin"></span>'+esc(tr(st.mode==='up'?'Creating your account…':'Signing in…'));
     if(!authConfigured()){
-      /* Preview: let them in. No session is stored, so nothing downstream believes a
-         sign-in happened; this only takes the screen away. */
+      /* Preview: let them in. No AUTH session is stored, so nothing treats this as proof
+         of identity; what is set is a local flag that decides which rows the account menu
+         shows. The person who pressed Login expects to find their profile and a way back
+         out, and both now work. */
+      state.settings.localIn=true; save();
       signInClose();
       if(location.hash==='#/signin') location.hash='#/dashboard';
       if(typeof bootApp==='function'&&!appBooted) bootApp(); else { render(); renderSidebar(); }
@@ -4290,6 +4302,7 @@ function signInRender(){
       return;
     }
     authSubmitEmail(byId('si-email').value,byId('si-pass').value,st.mode).then(function(){
+      state.settings.localIn=false; save();
       signInClose();
       if(typeof bootApp==='function'&&!appBooted) bootApp(); else { render(); renderSidebar(); }
       toast(tr(st.mode==='up'?'Account created. You are signed in.':'Signed in.'),'good');
@@ -4526,7 +4539,16 @@ var PRIVACY_UPDATED='2026-09-12';
 var PRIVACY_CONTACT='';   // e.g. 'support@yourdomain.com'
 var DEFAULT_STATE={
   v:2,
-  settings:{ businessName:'My Business', currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
+  /* WHO IS USING THIS COPY. profile is the person, not the business: their name, what
+     they do here and what their time costs. It is kept on the device and needs no account,
+     because the books need no account; when there IS a session the display name is pushed
+     to it as well so other people in the workspace see the same one.
+
+     localIn is the answer to "am I signed in" for a copy with no sign-in project behind
+     it. It is a local session, not an authenticated one, and nothing anywhere treats it as
+     proof of identity: it decides which rows the account menu shows and nothing else. */
+  settings:{ businessName:'My Business',
+    profile:{ name:'', position:'', rate:0, ratePer:'month' }, localIn:false, currency:'₱', theme:null, taxRate:8, lastBackup:null, backupNudged:false, monthlyTarget:0,
     accent:'', autoBackupDays:0, lastAutoBackup:null, hiddenModules:[],
     customCats:{ income:[], expense:[] },
     sync:{ url:'', path:'bizpilot', enabled:false, lastSync:null },
@@ -6115,8 +6137,20 @@ var acctMenuTrigger=null;
    and "Local workspace" unconditionally, which stopped being true the moment anyone
    signed in or joined a workspace, and a chip that lies about who you are is a chip
    nobody trusts to sign them out. */
+/* The chip in the top bar is a PROFILE icon, so once somebody is using this copy as a
+   person it shows that person and their position, not the business name over again. The
+   business name is on the rail three inches to the left. With nobody signed in it falls
+   back to the business, because then there is no person to name. */
+function acctChipName(){
+  var p=(typeof meProfile==='function')?meProfile():null;
+  if(meIsIn()&&p&&p.name) return p.name;
+  if(typeof authSignedIn==='function'&&authSignedIn()) return authName()||appName();
+  return appName();
+}
 function acctChipLine(){
   var cfg=(typeof shareCfg==='function')?shareCfg():{};
+  var p=(typeof meProfile==='function')?meProfile():null;
+  if(meIsIn()&&p&&p.position) return p.position;
   if(cfg&&cfg.enabled&&cfg.wsId) return cfg.wsName||tr('Shared workspace');
   if(typeof authSignedIn==='function'&&authSignedIn()) return authName();
   return tr('On this device');
@@ -6130,27 +6164,53 @@ function acctRow(action,glyph,label,extra){
 }
 /* What the menu says depends entirely on whether there is a session, so the two states
    are written next to each other rather than in two functions that drift. */
+/* One answer for "is somebody using this copy as a person", whether that is a real
+   session or the local one. Everything that decides between "sign in" and "sign out"
+   asks this, so the two can never disagree on screen. */
+function meIsIn(){ return (typeof authSignedIn==='function'&&authSignedIn()) || !!(state.settings&&state.settings.localIn); }
+function meProfile(){
+  var p=(state.settings&&state.settings.profile)||{};
+  return { name:String(p.name||'').trim()||((typeof authName==='function'&&authName())||state.settings.displayName||''),
+           position:String(p.position||'').trim(),
+           rate:Number(p.rate)||0,
+           ratePer:(p.ratePer==='hour'?'hour':'month') };
+}
+/* The line under the name, wherever the person is shown. Their position if they gave one,
+   what their time costs if they gave that, and otherwise the plain truth. */
+function meSubtitle(){
+  var p=meProfile(), u=(typeof authUser==='function')?authUser():null;
+  var bits=[];
+  if(p.position) bits.push(p.position);
+  if(p.rate>0) bits.push(fmtMoney(p.rate)+' / '+tr(p.ratePer==='hour'?'hour':'month'));
+  if(!bits.length) bits.push(u?(u.email||tr('Signed in')):tr('On this device'));
+  return bits.join(' · ');
+}
 function acctMenuHTML(){
   var u=(typeof authUser==='function')?authUser():null;
   var cfg=(typeof shareCfg==='function')?shareCfg():{};
   var bl=state.settings.bizLogo;
   var h='';
-  if(u){
-    var nm=authName();
+  /* Somebody is using this copy: either a real session, or the local one a copy with no
+     sign-in project behind it gets. Both people want the same three things out of this
+     menu, so both get them. What differs is only what is true underneath, and the head
+     says which it is rather than implying an account that does not exist. */
+  if(meIsIn()){
+    var pr=meProfile();
+    var nm=pr.name||(u?authName():appName());
     var ws=(cfg.enabled&&cfg.wsId)?(cfg.wsName||cfg.wsId):'';
     h+='<div class="acct-head">'+
       '<span class="acct-face" aria-hidden="true">'+esc(String(nm||'?').charAt(0).toUpperCase())+'</span>'+
       '<span class="acct-who"><b>'+esc(nm)+'</b>'+
-        '<span>'+esc(u.email||'')+'</span>'+
-        '<span>'+esc(ws?tr('Workspace')+': '+ws:tr('No workspace yet'))+'</span></span></div>';
-    if(u.expired) h+='<p class="acct-note">'+esc(tr('This session ended. Your books on this device are untouched; sign in again when you want sharing back.'))+'</p>';
+        '<span>'+esc(meSubtitle())+'</span>'+
+        '<span>'+esc(u?(ws?tr('Workspace')+': '+ws:tr('No workspace yet')):tr('This device only'))+'</span></span></div>';
+    if(u&&u.expired) h+='<p class="acct-note">'+esc(tr('This session ended. Your books on this device are untouched; sign in again when you want sharing back.'))+'</p>';
     h+='<div class="acct-sep"></div>';
     h+=acctRow('auth-profile','idcard','Your profile');
     /* A Google account has no password here to change. Firebase holds no password for
        it at all, so a Change password row could only ever fail; the honest version
        says where the password actually lives and offers to go there. */
-    if(u.provider==='password') h+=acctRow('auth-change-password','shield','Change password');
-    else h+='<a role="menuitem" href="https://myaccount.google.com/security" target="_blank" rel="noopener noreferrer">'+
+    if(u&&u.provider==='password') h+=acctRow('auth-change-password','shield','Change password');
+    else if(u) h+='<a role="menuitem" href="https://myaccount.google.com/security" target="_blank" rel="noopener noreferrer">'+
       icon('shield')+'<span>'+esc(tr('Password'))+'</span><span class="acct-sub">'+esc(tr('kept by Google'))+'</span></a>';
     if(typeof shareOn==='function'&&shareOn()) h+=acctRow('settings-go','users','Members and invites',' data-tab="data"');
     h+='<div class="acct-sep"></div>';
@@ -6333,23 +6393,55 @@ function authPasswordModal(){
   }});
 }
 function authProfileModal(){
-  var u=authUser();
-  if(!u){ toast('Sign in first, from the account menu.','warn'); return; }
-  var body='<div class="field"><label>Display name</label>'+
-      '<input class="input" name="name" maxlength="60" value="'+esc(u.name||'')+'" placeholder="e.g. Ira">'+
+  var u=authUser(), p=meProfile();
+  var cur=state.settings.currency||'₱';
+  /* It no longer demands a session. The profile is the person using this copy: their
+     name, what they do here, and what their time costs. None of that needs an account,
+     and an owner with no account still wants it, not least because the rate is what makes
+     "how long did that job take me" answerable in money. */
+  var body='<div class="field"><label>'+esc(tr('Your name'))+'</label>'+
+      '<input class="input" name="name" maxlength="60" value="'+esc(p.name)+'" placeholder="'+esc(tr('e.g. Ira'))+'">'+
       '<p style="font-size:var(--f1);color:var(--text-3);margin-top:4px">'+
-        esc(tr('What the other people in your workspace see next to your changes. It is not your business name, which lives in Business settings.'))+'</p></div>'+
-    '<p style="font-size:var(--f1);color:var(--text-3)">'+esc(u.email)+' · '+
+        esc(tr('Your own name, not the business name. Business settings holds that one.'))+
+        (u?' '+esc(tr('The people in your workspace see this next to your changes.')):'')+'</p></div>'+
+    '<div class="field"><label>'+esc(tr('Position'))+'</label>'+
+      '<input class="input" name="position" maxlength="60" value="'+esc(p.position)+'" placeholder="'+esc(tr('e.g. Owner, Bookkeeper, Partner'))+'">'+
+      '<p style="font-size:var(--f1);color:var(--text-3);margin-top:4px">'+
+        esc(tr('What you do here. Shown under your name in the account menu.'))+'</p></div>'+
+    '<div class="form-row">'+
+      '<div class="field"><label>'+esc(tr('Your rate'))+'</label>'+
+        '<input class="input" type="number" name="rate" min="0" step="any" inputmode="decimal" value="'+(p.rate>0?esc(String(p.rate)):'')+'" placeholder="0"></div>'+
+      '<div class="field"><label>'+esc(tr('Per'))+'</label>'+
+        '<select class="input" name="ratePer">'+
+          '<option value="month"'+(p.ratePer==='month'?' selected':'')+'>'+esc(tr('Month'))+'</option>'+
+          '<option value="hour"'+(p.ratePer==='hour'?' selected':'')+'>'+esc(tr('Hour'))+'</option>'+
+        '</select></div>'+
+    '</div>'+
+    '<p style="font-size:var(--f1);color:var(--text-3)">'+
+      esc(tr('What your own time costs, in'))+' '+esc(cur)+'. '+
+      esc(tr('Kept on this device. It is not added to any invoice or expense on its own.'))+'</p>'+
+    (u?'<p style="font-size:var(--f1);color:var(--text-3);margin-top:8px">'+esc(u.email)+' · '+
       esc(u.provider==='google'?tr('signed in with Google'):tr('signed in with an email and password'))+
-      (u.verified?'':' · '+esc(tr('email not verified yet')))+'</p>';
-  openModal('Your profile',body,{submitLabel:'Save',onSubmit:function(form){
-    authModalBusy(form,true,'Saving…');
-    authUpdateProfile(fv(form,'name')).then(function(){
-      closeModal(); toast('Profile saved.'); save(); render();
-    },function(err){
-      authModalBusy(form,false);
-      toast((err&&err.msg)||'Could not save your profile.','error');
-    });
+      (u.verified?'':' · '+esc(tr('email not verified yet')))+'</p>'
+      :'<p style="font-size:var(--f1);color:var(--text-3);margin-top:8px">'+
+       esc(tr('No account is connected to this copy, so this profile lives here and nowhere else.'))+'</p>');
+
+  openModal(tr('Your profile'),body,{submitLabel:tr('Save'),onSubmit:function(form){
+    var nm=String(fv(form,'name')||'').trim().slice(0,60);
+    var rate=Math.max(0,Number(fv(form,'rate'))||0);
+    var per=fv(form,'ratePer')==='hour'?'hour':'month';
+    state.settings.profile={ name:nm, position:String(fv(form,'position')||'').trim().slice(0,60),
+                             rate:rate, ratePer:per };
+    /* The greeting has always used displayName; keep the two from drifting apart rather
+       than asking for the same name in two places. */
+    if(nm) state.settings.displayName=nm;
+    save();
+    /* With a real session the display name belongs to the account too, so the workspace
+       sees the same name. Saving locally must not wait on that, and must not fail with it. */
+    if(u&&typeof authUpdateProfile==='function'&&nm&&nm!==authName()){
+      authUpdateProfile(nm).catch(function(){ /* local save already stands */ });
+    }
+    closeModal(); toast(tr('Profile saved.')); render(); renderSidebar();
     return false;
   }});
 }
@@ -6379,8 +6471,8 @@ function topbar(title,subtitle,actionsHTML){
     '<button class="tb-bell" data-action="nav" data-route="tasks" aria-label="'+(late?late+' items need attention':'Nothing is late')+'" title="'+(late?late+' items need attention':'Nothing is late')+'">'+
       icon('bell',20)+(late?'<span class="tb-dot" aria-hidden="true"></span>':'')+'</button>'+
     '<button class="tb-acct" data-action="acct-menu" aria-haspopup="menu" aria-expanded="false" aria-label="'+esc(tr('Account and workspace'))+'">'+
-      (bl?'<img class="tb-avatar" src="'+esc(bl)+'" alt="">':'<span class="tb-avatar">'+initial+'</span>')+
-      '<span class="tb-acct-t"><b>'+appNameEsc()+'</b><i>'+esc(acctChipLine())+'</i></span>'+
+      (bl?'<img class="tb-avatar" src="'+esc(bl)+'" alt="">':'<span class="tb-avatar">'+esc(String(acctChipName()||'?').charAt(0).toUpperCase())+'</span>')+
+      '<span class="tb-acct-t"><b>'+esc(acctChipName())+'</b><i>'+esc(acctChipLine())+'</i></span>'+
       '<span class="tb-acct-chev" aria-hidden="true">'+icon('down-chev',14)+'</span></button>'+
     '</div>';
 }
@@ -11457,8 +11549,17 @@ document.addEventListener('click',function(e){
     return;
   }
   if(action==='auth-signout'){
-    authSignOut(); toast('Signed out. Everything on this device is untouched.');
-    save(); render(); return;
+    /* Clears both kinds of session, because the menu offers one Sign out and it has to
+       mean it whichever one is in play. Then it puts the sign-in screen back up, which is
+       what "signed out" looks like; an app that drops you on the dashboard has not
+       really signed you out of anything as far as the person clicking is concerned. */
+    acctMenuClose(true);
+    if(typeof authSignOut==='function') authSignOut();
+    state.settings.localIn=false;
+    save(); render(); renderSidebar();
+    toast(tr('Signed out. Everything on this device is untouched.'));
+    signInOpen('in');
+    return;
   }
   /* Sign in, create an account and forgot-password all lead to the one screen now. They
      used to open three small modals, which is how "the log in is not the standard" came
@@ -11468,6 +11569,7 @@ document.addEventListener('click',function(e){
   /* Google, in preview, goes the same way as Login: into the books, signing in to nothing.
      Opening a real Google popup with no client id behind it would only fail. */
   if(action==='signin-preview'){
+    state.settings.localIn=true; save();
     signInClose();
     if(location.hash==='#/signin') location.hash='#/dashboard';
     if(!appBooted) bootApp(); else { render(); renderSidebar(); }

@@ -4572,6 +4572,71 @@ async function main() {
         /class="grid grid-2 settings-grid"/.test(html));
     })();
 
+    // ---------- the collapsed rail, and who is using this copy ----------
+    /* THE COLLAPSED RAIL. Two separate faults met here. The selector list that is supposed
+       to hide every label was missing its {display:none} and ran straight into the rule
+       below it, so the brand name, the section headers and every nav label were merely
+       CENTRED inside a 74px rail and spilled out of it. And the list kept its 16px side
+       padding when collapsed, leaving a 21px content box, so every row was a 21px tap
+       target with its icon overflowing. */
+    ok('collapsing the rail hides the words rather than centring them',
+      /\.app\.nav-collapsed \.nav-section\{display:none\}/.test(html) &&
+      !/\.app\.nav-collapsed \.nav-section,\s*\.app\.nav-collapsed \.sidebar-cta\{/.test(html));
+    ok('...including the quiet rows at the end of the list',
+      /\.app\.nav-collapsed \.sidebar-tail span\{display:none\}/.test(html));
+    ok('...and the rail drops its side padding so a row is a real tap target',
+      /\.app\.nav-collapsed \.nav\{padding-left:0;padding-right:0\}/.test(html) &&
+      /\.app\.nav-collapsed \.nav-item\{[^}]*width:100%\}/.test(html));
+    /* A stray selector fragment left by an earlier edit swallowed the rule after it, which
+       is how sidebar edit mode lost its styling without anything failing. */
+    ok('...with no dangling selector left in the stylesheet',
+      !/\.app\.nav-collapsed\s*\/\*/.test(html) && !/^\s*font-size:calc\(14px\*var\(--nav-scale,1\)\);font-weight:600/m.test(html));
+
+    /* WHO IS USING THIS COPY. The owner's point: if the app has let someone in, the icon
+       at the top must offer them their profile and a way out, and both must work. That is
+       true whether they got in through a real account or through the preview a copy with
+       no sign-in project behind it offers. */
+    (function meAndProfile() {
+      const saved = JSON.parse(JSON.stringify(window.state.settings.profile || {}));
+      const savedIn = window.state.settings.localIn;
+      try {
+        window.state.settings.localIn = false; window.authStore(null);
+        ok('with nobody using it, the menu offers a way IN, not a way out',
+          acts0().indexOf('auth-signout') < 0);
+        window.state.settings.localIn = true;
+        const rows = acts0();
+        ok('once somebody is in, the menu offers their profile and a sign out',
+          rows.indexOf('auth-profile') >= 0 && rows.indexOf('auth-signout') >= 0, rows);
+        /* The profile is the person, not the business, and it holds what their time
+           costs, which is the part that makes "what did that job cost me" answerable. */
+        window.state.settings.profile = { name: 'Ira Santos', position: 'Owner', rate: 1200, ratePer: 'hour' };
+        const p = window.meProfile();
+        ok('the profile carries a position and a rate per hour or month',
+          p.position === 'Owner' && p.rate === 1200 && p.ratePer === 'hour');
+        ok('...and they show under the name wherever the person is shown',
+          /Owner/.test(window.meSubtitle()) && /1,200/.test(window.meSubtitle()) &&
+          /hour/.test(window.meSubtitle()), window.meSubtitle());
+        ok('...and the chip in the top bar becomes the person, not the business again',
+          window.acctChipName() === 'Ira Santos' && window.acctChipLine() === 'Owner');
+        /* The preview must never leave an AUTH session behind: a local flag decides which
+           rows the menu shows, and nothing treats it as proof of identity. */
+        ok('the local session is a flag, not a forged account',
+          window.authSignedIn() === false && !window.localStorage.getItem('bizpilot.auth') &&
+          window.meIsIn() === true);
+        ok('signing out clears it and puts the sign-in screen back',
+          /state\.settings\.localIn=false;[\s\S]{0,220}?signInOpen\('in'\)/.test(html));
+      } finally {
+        window.state.settings.profile = saved;
+        window.state.settings.localIn = savedIn;
+        window.save();
+      }
+      function acts0() {
+        window.acctMenuClose(true); window.render(); click(d.querySelector('.tb-acct'));
+        return Array.prototype.map.call(d.querySelectorAll('#acct-menu [data-action]'),
+          (e) => e.getAttribute('data-action'));
+      }
+    })();
+
     // ---------- the foot of the sidebar ----------
     /* This block used to test a "Help & settings" disclosure row that folded help,
        settings, edit menu and the backup card away, and an account chip beside it. Both
