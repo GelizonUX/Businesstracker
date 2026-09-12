@@ -3523,6 +3523,295 @@ async function main() {
       window.location.hash = '#/dashboard'; window.render();
     })();
 
+    // =====================================================================
+    // CLOUD SYNC — per-record push, per-record merge, tombstones, migration
+    // Nothing here touches a real database. A fake Firebase Realtime Database
+    // is stubbed into window.fetch and implements the two verbs the app uses:
+    // GET returns a deep copy of the node, PATCH replaces the children NAMED in
+    // the body and leaves that node's other children alone (null removes one).
+    // Two devices are simulated by swapping window.state and window.DEVICE_ID,
+    // which is what the app itself keys every write on.
+    // Every assertion below reads STATE, not rendered HTML: an earlier round of
+    // work in this project shipped a half-finished fix because a rendered string
+    // said what the test wanted to hear.
+    // =====================================================================
+    await (async function perRecordSync() {
+      const realFetch = window.fetch, realToast = window.toast, realRender = window.render;
+      const realState = window.state, realDev = window.DEVICE_ID, realKey = window.cryptoKey;
+      const realNow = window.Date.now, realFmt = window.cloudFormatKnown;  // the app runs on jsdom's Date, not node's
+      const T0 = Date.parse('2026-06-01T00:00:00Z');
+      const T = (n) => T0 + n * 60000;
+      let clock = T0;
+      const toasts = [];
+      const calls = [];
+      const db = {};
+      try {
+        window.Date.now = () => clock;
+        window.cryptoKey = null;                    // this block writes plain JSON to localStorage
+        window.toast = (m, t) => { toasts.push({ msg: m, type: t || 'good' }); };
+        window.render = () => {};
+
+        const clone = (v) => (v === undefined || v === null ? null : JSON.parse(JSON.stringify(v)));
+        function readAt(segs) {
+          let cur = db;
+          for (const s of segs) { if (cur === null || cur === undefined || typeof cur !== 'object') return null; cur = cur[s]; }
+          return cur === undefined ? null : cur;
+        }
+        function nodeAt(segs) {
+          let cur = db;
+          for (const s of segs) {
+            if (cur[s] === undefined || cur[s] === null || typeof cur[s] !== 'object') cur[s] = {};
+            cur = cur[s];
+          }
+          return cur;
+        }
+        function jres(v) {
+          const s = JSON.stringify(v === undefined ? null : v);
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(JSON.parse(s)), text: () => Promise.resolve(s) });
+        }
+        window.fetch = function (url, opts) {
+          opts = opts || {};
+          const method = opts.method || 'GET';
+          const u = String(url);
+          const m = u.match(/^https:\/\/db\.test\/(.*)\.json$/);
+          if (!m) return Promise.reject(new Error('the app reached a URL the stub does not serve: ' + u));
+          const segs = m[1] ? m[1].split('/') : [];
+          const body = opts.body ? JSON.parse(opts.body) : undefined;
+          calls.push({ method, path: m[1], body });
+          if (method === 'GET') return jres(clone(readAt(segs)));
+          if (method === 'PATCH') {
+            const parent = nodeAt(segs);
+            Object.keys(body).forEach((k) => { if (body[k] === null) delete parent[k]; else parent[k] = clone(body[k]); });
+            return jres(body);
+          }
+          return Promise.reject(new Error('the app used an unexpected method: ' + method));
+        };
+
+        const devs = {};
+        function blank(path) {
+          const s = JSON.parse(JSON.stringify(window.DEFAULT_STATE));
+          s.meta = { createdAt: '2026-01-01' };
+          s.settings.sync = { url: 'https://db.test', path: path || 'p', enabled: false, lastSync: null };
+          return s;
+        }
+        function use(id) {
+          if (!devs[id]) devs[id] = blank();
+          window.DEVICE_ID = id;
+          window.state = devs[id];
+          window.cloudFormatKnown = false;          // every device checks the format for itself
+          return devs[id];
+        }
+        const push = (id) => { use(id); return window.cloudPush(true); };
+        const pull = (id) => { use(id); return window.cloudPull(); };
+        const rows = (id, coll) => devs[id][coll || 'finance'] || [];
+        const one = (id, coll, rid) => rows(id, coll).filter((r) => r.id === rid)[0];
+        const ids = (id, coll) => rows(id, coll).map((r) => r.id).sort().join(',');
+        const uniq = (id, coll) => new Set(rows(id, coll).map((r) => r.id)).size === rows(id, coll).length;
+        function add(id, coll, rec, at) { use(id); clock = at; devs[id][coll].push(rec); window.syncScan(); }
+        function edit(id, coll, rid, patch, at) { use(id); clock = at; Object.assign(one(id, coll, rid), patch); window.syncScan(); }
+        function del(id, coll, rid, at) { use(id); clock = at; devs[id][coll] = devs[id][coll].filter((r) => r.id !== rid); window.syncScan(); }
+        const patches = (path) => calls.filter((c) => c.method === 'PATCH' && c.path === path);
+
+        // ---------- a push writes one address per record ----------
+        clock = T(1);
+        use('A');
+        devs.A.finance.push({ id: 'f1', type: 'income', amount: 1000, category: 'Sales', date: '2026-06-01', note: 'first sale' });
+        devs.A.finance.push({ id: 'f2', type: 'expense', amount: 250, category: 'Supplies', date: '2026-06-01', note: 'ink' });
+        window.save();                                // the ledger is refreshed by the normal save path
+        ok('save() notes what changed, so nothing has to be stamped at 300 call sites',
+          !!devs.A.meta.sync && !!devs.A.meta.sync.recs['finance/f1'] && !!devs.A.meta.sync.recs['finance/f2'],
+          Object.keys((devs.A.meta.sync || {}).recs || {}));
+        await push('A');
+        ok('a push writes one document per record, not one blob',
+          !!db.p.v2.finance.f1 && !!db.p.v2.finance.f2 && db.p.finance === undefined, Object.keys(db.p));
+        const first = patches('p/v2/finance');
+        ok('the record write is a PATCH to <path>/v2/<collection>.json keyed by record id',
+          first.length === 1 && Object.keys(first[0].body).sort().join(',') === 'f1,f2',
+          first.map((c) => c.path + ' ' + Object.keys(c.body).join(',')));
+        ok('each record travels with updatedAt in epoch ms and updatedBy',
+          first[0].body.f1.updatedAt === T(1) && first[0].body.f1.updatedBy === 'A' && first[0].body.f1.rec.amount === 1000,
+          first[0].body.f1);
+        ok('updatedBy is a plain id field, so a user id can take the device id’s place later',
+          typeof first[0].body.f1.updatedBy === 'string');
+        calls.length = 0;
+        edit('A', 'finance', 'f1', { amount: 1100 }, T(2));
+        await push('A');
+        ok('a later push sends only the record that changed, never the collection',
+          patches('p/v2/finance').length === 1 && Object.keys(patches('p/v2/finance')[0].body).join(',') === 'f1',
+          patches('p/v2/finance').map((c) => Object.keys(c.body)));
+        ok('...and an unchanged record is not re-sent at all',
+          patches('p/v2/finance')[0].body.f2 === undefined);
+
+        // ---------- two devices, different records ----------
+        await pull('B');
+        ok('a device that has never synced picks the whole book up on its first merge',
+          rows('B').length === 2 && one('B', 'finance', 'f1').amount === 1100);
+        edit('A', 'finance', 'f1', { note: 'A touched this one' }, T(10));
+        await push('A');
+        edit('B', 'finance', 'f2', { amount: 275 }, T(11));
+        await push('B');
+        await pull('A');
+        await pull('B');
+        ok('two devices editing DIFFERENT records: both edits survive on both devices',
+          one('A', 'finance', 'f1').note === 'A touched this one' && one('A', 'finance', 'f2').amount === 275 &&
+          one('B', 'finance', 'f1').note === 'A touched this one' && one('B', 'finance', 'f2').amount === 275,
+          [one('A', 'finance', 'f1').note, one('A', 'finance', 'f2').amount, one('B', 'finance', 'f1').note, one('B', 'finance', 'f2').amount]);
+        ok('...and neither merge duplicated a finance entry',
+          rows('A').length === 2 && rows('B').length === 2 && uniq('A') && uniq('B'), [rows('A').length, rows('B').length]);
+
+        // ---------- two devices, the same record ----------
+        edit('A', 'finance', 'f1', { note: 'A wrote at 20' }, T(20));
+        edit('B', 'finance', 'f1', { note: 'B wrote at 21' }, T(21));
+        await push('B');
+        toasts.length = 0;
+        await pull('A');
+        ok('two devices editing the SAME record: the newest edit wins',
+          one('A', 'finance', 'f1').note === 'B wrote at 21', one('A', 'finance', 'f1').note);
+        ok('...and the merge reports the clash instead of discarding quietly',
+          toasts.length === 1 && /edited in both places/.test(toasts[0].msg) && toasts[0].type === 'warn', toasts);
+        edit('A', 'finance', 'f1', { note: 'A wrote at 29' }, T(29));
+        await push('A');
+        edit('B', 'finance', 'f1', { note: 'B wrote at 30' }, T(30));
+        toasts.length = 0;
+        await pull('B');
+        ok('a local edit newer than the cloud copy is kept, and the clash is still reported',
+          one('B', 'finance', 'f1').note === 'B wrote at 30' && /edited in both places/.test(toasts[toasts.length - 1].msg),
+          [one('B', 'finance', 'f1').note, toasts]);
+        await push('B');
+        await pull('A');
+        ok('...and both devices settle on the newest of the two, with no third copy',
+          one('A', 'finance', 'f1').note === 'B wrote at 30' && rows('A').length === 2 && rows('B').length === 2 && uniq('A'));
+        ok('nothing in the merge copy promises to replace a device any more',
+          !/replace/i.test(toasts.map((t) => t.msg).join(' ')) && html.indexOf('Replace the data on THIS device with the cloud copy?') === -1);
+
+        // ---------- tombstones: a delete must not walk back in ----------
+        add('A', 'finance', { id: 'f3', type: 'expense', amount: 90, category: 'Fees', date: '2026-06-02', note: 'bank fee' }, T(40));
+        await push('A');
+        await pull('B');
+        ok('a record created on A reaches B', !!one('B', 'finance', 'f3'));
+        del('A', 'finance', 'f3', T(41));
+        ok('deleting locally records a tombstone rather than just dropping the key',
+          !!devs.A.meta.sync.tombs['finance/f3'] && !devs.A.meta.sync.recs['finance/f3'],
+          devs.A.meta.sync.tombs['finance/f3']);
+        await push('A');
+        ok('the tombstone is what goes up, at the record’s own address',
+          db.p.v2.finance.f3.deleted === true && db.p.v2.finance.f3.updatedAt === T(41) && db.p.v2.finance.f3.rec === undefined,
+          db.p.v2.finance.f3);
+        await pull('A');
+        ok('merging on the device that deleted it does not bring it back', !one('A', 'finance', 'f3'));
+        await pull('B');
+        ok('a delete on A does not resurrect from B: B drops it too',
+          !one('B', 'finance', 'f3') && rows('B').length === 2, ids('B'));
+        await push('B');
+        await pull('A');
+        ok('...and it is still gone after B pushes and A merges again',
+          !one('A', 'finance', 'f3') && rows('A').length === 2 && ids('A') === 'f1,f2');
+        del('B', 'finance', 'f2', T(45));
+        await pull('B');
+        ok('a delete that has NOT been pushed yet also survives a merge',
+          !one('B', 'finance', 'f2') && rows('B').length === 1, ids('B'));
+        await push('B');
+        await pull('A');
+        ok('...and reaches the other device as soon as it is pushed',
+          !one('A', 'finance', 'f2') && rows('A').length === 1 && ids('A') === 'f1');
+
+        // ---------- a record made offline on each device ----------
+        add('A', 'finance', { id: 'fa', type: 'income', amount: 500, category: 'Sales', date: '2026-06-03', note: 'offline on A' }, T(50));
+        add('B', 'finance', { id: 'fb', type: 'expense', amount: 120, category: 'Fuel', date: '2026-06-03', note: 'offline on B' }, T(51));
+        await push('A');
+        await push('B');
+        await pull('A');
+        await pull('B');
+        ok('a record created offline on each device arrives on both, exactly once',
+          ids('A') === 'f1,fa,fb' && ids('B') === 'f1,fa,fb' && uniq('A') && uniq('B'), [ids('A'), ids('B')]);
+        const sumA = rows('A').reduce((n, r) => n + r.amount, 0), sumB = rows('B').reduce((n, r) => n + r.amount, 0);
+        ok('the two devices agree on the money, to the peso', sumA === sumB && sumA === 1100 + 500 + 120, [sumA, sumB]);
+        const beforeRepeat = rows('A').length;
+        await pull('A'); await pull('A'); await pull('A');
+        ok('merging three times over changes nothing and duplicates no finance entry',
+          rows('A').length === beforeRepeat && uniq('A') && rows('A').reduce((n, r) => n + r.amount, 0) === sumA,
+          [rows('A').length, beforeRepeat]);
+
+        // ---------- money: an invoice that crosses devices still adds up ----------
+        use('A');
+        devs.A.invoices.push({ id: 'inv1', number: 'INV-1', client: 'Acme', desc: 'build', amount: 5000, issueDate: '2026-06-01', dueDate: '2026-06-15', status: 'Sent', createdAt: '2026-06-01' });
+        clock = T(55); window.syncScan();
+        await push('A');
+        await pull('B');
+        use('B');
+        ok('an invoice merged onto another device keeps receivables agreeing with themselves',
+          window.receivablesTotal() === window.receivablesSummary().total && window.receivablesTotal() === 5000,
+          [window.receivablesTotal(), window.receivablesSummary().total]);
+
+        // ---------- migration from the pre-v2 whole-blob document ----------
+        db.legacy = {
+          v: 2,
+          settings: { businessName: 'Old Books', currency: '₱', taxRate: 8 },
+          finance: [{ id: 'L1', type: 'income', amount: 1000, category: 'Sales', date: '2026-05-01', note: 'old sale' },
+                    { id: 'L2', type: 'expense', amount: 400, category: 'Rent', date: '2026-05-02', note: 'old rent' }],
+          invoices: [{ id: 'LI1', number: 'OLD-1', client: 'Wayne', desc: 'x', amount: 2500, issueDate: '2026-05-01', dueDate: '2026-05-20', status: 'Sent' }],
+          tasks: [{ id: 'LT1', title: 'old task', done: false }],
+          clients: [{ id: 'LC1', name: 'Wayne', status: 'Active' }],
+          meta: { createdAt: '2026-01-01', updatedAt: T(-100), deviceId: 'oldphone' }
+        };
+        devs.C = blank('legacy');
+        clock = T(60);
+        await pull('C');
+        ok('migration converts the old whole-blob copy into one document per record',
+          !!db.legacy.v2 && !!db.legacy.v2.finance.L1 && !!db.legacy.v2.finance.L2 &&
+          !!db.legacy.v2.invoices.LI1 && !!db.legacy.v2.tasks.LT1 && !!db.legacy.v2.clients.LC1,
+          Object.keys(db.legacy.v2 || {}));
+        ok('...and each converted record keeps the old copy’s own last-modified time and author',
+          db.legacy.v2.finance.L1.updatedAt === T(-100) && db.legacy.v2.finance.L1.updatedBy === 'oldphone',
+          db.legacy.v2.finance.L1);
+        ok('...and nothing is lost: every record and the settings reach the device',
+          rows('C').length === 2 && devs.C.invoices.length === 1 && devs.C.tasks.length === 1 &&
+          devs.C.clients.length === 1 && devs.C.settings.businessName === 'Old Books',
+          [rows('C').length, devs.C.invoices.length, devs.C.tasks.length, devs.C.settings.businessName]);
+        ok('...and the device keeps its own database address rather than the one it merged',
+          devs.C.settings.sync.path === 'legacy' && devs.C.settings.sync.url === 'https://db.test');
+        ok('...and the old document is left where it is rather than deleted under the owner',
+          Array.isArray(db.legacy.finance) && db.legacy.finance.length === 2);
+        ok('the conversion marks the format, which is what stops it running twice',
+          db.legacy.v2._meta.format === 2, db.legacy.v2._meta);
+        const afterFirst = JSON.stringify(db.legacy.v2);
+        const dataOf = (d) => JSON.stringify({ f: d.finance, i: d.invoices, t: d.tasks, c: d.clients, n: d.settings.businessName, led: d.meta.sync });
+        const stateAfterFirst = dataOf(devs.C);
+        calls.length = 0;
+        clock = T(61);
+        await pull('C');
+        ok('running the migration a second time writes nothing at all',
+          calls.filter((c) => c.method === 'PATCH').length === 0, calls.filter((c) => c.method === 'PATCH').map((c) => c.path));
+        ok('...and changes neither the database nor the device',
+          JSON.stringify(db.legacy.v2) === afterFirst && dataOf(devs.C) === stateAfterFirst);
+        delete db.legacy.v2._meta;                   // a conversion that died before it could mark the format
+        clock = T(62);
+        await pull('C');
+        ok('a conversion interrupted before it marked the format is safe to simply repeat',
+          JSON.stringify(db.legacy.v2.finance) === JSON.stringify(JSON.parse(afterFirst).finance) &&
+          db.legacy.v2._meta.format === 2 && dataOf(devs.C) === stateAfterFirst);
+
+        // ---------- a device that never enabled sync is untouched ----------
+        const offline = blank();
+        offline.settings.sync = { url: '', path: 'bizpilot', enabled: false, lastSync: null };
+        window.state = offline; window.DEVICE_ID = 'D';
+        offline.finance.push({ id: 'z1', type: 'income', amount: 10, category: 'Sales', date: '2026-06-01' });
+        window.save();
+        ok('a device with no database URL keeps no ledger and makes no request',
+          offline.meta.sync === undefined && window.syncScan() === null);
+
+        if (process.env.SYNC_TRACE) {
+          console.log('\n--- SYNC TRACE: every request the stub saw (last run) ---');
+          calls.slice(-12).forEach((c) => console.log(c.method + ' https://db.test/' + c.path + '.json  ' + (c.body ? JSON.stringify(c.body) : '')));
+          console.log('--- cloud tree ---\n' + JSON.stringify(db, null, 1).slice(0, 4000));
+        }
+      } finally {
+        window.fetch = realFetch; window.toast = realToast; window.render = realRender;
+        window.state = realState; window.DEVICE_ID = realDev; window.cryptoKey = realKey;
+        window.Date.now = realNow; window.cloudFormatKnown = realFmt;
+      }
+    })();
+
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
   } catch (e) {

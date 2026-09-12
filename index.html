@@ -11910,11 +11910,6 @@ function syncCarryLedger(led){
   if(!state.meta||typeof state.meta!=='object') state.meta={};
   state.meta.sync=led;
 }
-function syncMarkAllDirty(){
-  var led=syncLedger();
-  Object.keys(led.recs).forEach(function(k){ led.recs[k].sy=0; });
-  Object.keys(led.tombs).forEach(function(k){ led.tombs[k].sy=0; });
-}
 /* Everything the cloud has not confirmed, grouped by the path it will be PATCHed
    to. One PATCH per collection: Firebase replaces the children named in the body
    and leaves every other child of that collection untouched, so a push of one
@@ -12068,6 +12063,16 @@ function syncApplyDoc(name,val){
 function cloudMerge(tree){
   var led=syncScan()||syncLedger();
   var sum={added:0,updated:0,removed:0,conflicts:[],reap:[]},now=Date.now();
+  /* A device merging for the very first time has nothing the cloud has ever
+     confirmed, so "changed here" cannot be told apart from "this is simply how
+     this device started". Joining a book that already exists, the book wins for
+     anything that exists on both sides; records only this device has are left
+     alone and go up on the next push. After that first merge every stamp is real
+     and the newest edit decides. In practice the only collisions this settles are
+     the whole documents (settings and the like): record ids carry a timestamp and
+     six random characters, so two devices do not invent the same one. */
+  var firstMerge=!Object.keys(led.recs).some(function(k){ return !!led.recs[k].sy; });
+  function movedHere(e){ return !!(e&&e.at!==e.sy&&!(firstMerge&&!e.sy)); }
   SYNC_COLLECTIONS.forEach(function(coll){
     var cloudColl=tree[coll];
     if(!cloudColl||typeof cloudColl!=='object') return;
@@ -12110,7 +12115,7 @@ function cloudMerge(tree){
         return;
       }
       if(e&&e.h===h){ e.at=cAt||e.at; e.sy=e.at; return; }
-      var dirty=!!(e&&e.at!==e.sy);
+      var dirty=movedHere(e);
       if(dirty&&e.sy!==cAt){
         if(cAt>e.at){ byId[id]=rec; led.recs[key]={at:cAt,sy:cAt,h:h}; sum.updated++; sum.conflicts.push({key:key,kept:'the cloud'}); }
         else sum.conflicts.push({key:key,kept:'this device'});
@@ -12129,11 +12134,18 @@ function cloudMerge(tree){
     if(!env||typeof env!=='object'||env.deleted||!env.rec||typeof env.rec!=='object') return;
     var key='doc/'+name,cAt=+env.updatedAt||0,e=led.recs[key],h=syncHash(env.rec);
     if(e&&e.h===h){ e.at=cAt||e.at; e.sy=e.at; return; }
-    var dirty=!!(e&&e.at!==e.sy);
+    var dirty=movedHere(e);
     if(dirty&&e.sy===cAt) return;               // only this device moved
     if(dirty&&cAt<=e.at){ sum.conflicts.push({key:key,kept:'this device'}); return; }
+    /* A document written by an older build carries fewer keys than the defaults fill
+       in, so the hash of what arrives never matches the hash of what is stored. Apply
+       it, then compare the RESULT: re-applying the same document must not be reported
+       as a change on every single merge. */
+    var was=e?e.h:null;
     syncApplyDoc(name,env.rec);
-    led.recs[key]={at:cAt,sy:cAt,h:syncHash(syncDocValue(name))};
+    var now2=syncHash(syncDocValue(name));
+    led.recs[key]={at:cAt,sy:cAt,h:now2};
+    if(now2===was) return;
     sum.updated++;
     if(dirty) sum.conflicts.push({key:key,kept:'the cloud'});
   });
@@ -12163,18 +12175,32 @@ function cloudEnsureFormat(root){
       return fetch(root+'.json')
         .then(function(r){ return r.ok?r.json():null; }).catch(function(){ return null; })
         .then(function(blob){
-          var n=0;
-          if(blob&&typeof blob==='object'&&blob.settings){ cloudAdoptLegacy(blob); n=1; }
-          return (n?cloudSend(root,true,0):Promise.resolve(0)).then(function(sent){
+          var tree=(blob&&typeof blob==='object'&&blob.settings)?cloudAdoptLegacy(blob):null;
+          return (tree?cloudWriteTree(root,tree):Promise.resolve(0)).then(function(n){
             return cloudPatch(root,'v2',{_meta:{format:2,migratedAt:Date.now(),migratedBy:DEVICE_ID}})
-              .then(function(){ cloudFormatKnown=true; return sent; });
+              .then(function(){ cloudFormatKnown=true; return n; });
           });
         });
     });
 }
+/* Writes the converted tree exactly as it was read out of the old document, one
+   PATCH per collection. Deliberately NOT a normal push: the records keep the time
+   and the device id the old copy carried, so converting the same document twice
+   produces the same bytes, and a conversion interrupted before it could mark the
+   format is safe to simply run again. */
+function cloudWriteTree(root,tree){
+  var n=0,jobs=[];
+  Object.keys(tree).forEach(function(coll){
+    var body=tree[coll],ks=Object.keys(body);
+    if(!ks.length) return;
+    n+=ks.length;
+    jobs.push(cloudPatch(root,'v2/'+coll,body));
+  });
+  return Promise.all(jobs).then(function(){ return n; });
+}
 /* The pre-v2 copy was ONE document holding the whole app state. Fold it in the way
-   a pull does, record by record and newest wins, then mark everything dirty so the
-   push that follows writes each record to its own address.
+   a pull does, record by record and newest wins, and hand the caller the per-record
+   tree it built, so the same records can be written back out one address each.
    The old document is left exactly where it is. It is the only copy of the data
    that predates the conversion, and deleting it on the strength of a write that has
    not been confirmed yet is how migrations lose people's books. Nothing reads it
@@ -12198,10 +12224,9 @@ function cloudAdoptLegacy(blob){
   });
   // roadmaps lived in state.phases before v15; migrateState() below moves them across
   if(Array.isArray(blob.phases)&&blob.phases.length&&!(state.phases||[]).length&&!(state.roadmaps||[]).length) state.phases=blob.phases;
-  var sum=cloudMerge(tree);
+  cloudMerge(tree);
   migrateState();
-  syncMarkAllDirty();
-  return sum;
+  return tree;
 }
 function cloudSyncCardHTML(){
   var s=state.settings.sync||{};
