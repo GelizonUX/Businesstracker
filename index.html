@@ -2274,6 +2274,11 @@ details.calc .calc-body{margin-top:10px}
    bitten in this file, so it is spelled out rather than assumed. */
 .adv-setup:not([open]) .adv-body{display:none}
 .adv-body{padding:0 18px 18px}
+/* the six steps only the owner can do, because they happen signed in to their own Google
+   account in a browser this app has no part in */
+.adv-steps{margin:12px 0 4px;padding-left:22px;display:flex;flex-direction:column;gap:7px}
+.adv-steps li{font-size:var(--f2);color:var(--text-2);line-height:1.5}
+.adv-steps .mono{overflow-wrap:anywhere}
 /* the rules card is already a card; inside the fold it is a section, not a second frame */
 .adv-body>.card{border:0;padding:0;margin-top:8px;background:transparent;box-shadow:none}
 .code-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px}
@@ -3797,6 +3802,12 @@ var AUTH_CFG={
   clientId:''    // Google OAuth client id (Google Cloud console > Credentials > Web application)
 };
 var AUTH_IDT='https://identitytoolkit.googleapis.com/v1/accounts:';
+/* GetProjectConfig. Public with nothing but the Web API key, because it is what the
+   Firebase web SDK itself calls before it will show a sign-in form. Three things come
+   back that turn a pasted key into a finished setup: the project id (which gives the
+   default Realtime Database address), the list of domains allowed to sign in (the single
+   most common reason a correct key still refuses to work), and which providers are on. */
+var AUTH_PROJECTS='https://identitytoolkit.googleapis.com/v1/projects';
 var AUTH_TOK='https://securetoken.googleapis.com/v1/token';
 var AUTH_KEY='bizpilot.auth';
 /* THE FLAG. Turning this on makes the app refuse to open without an account.
@@ -3860,6 +3871,41 @@ function authErrMsg(code){
    is code 'offline' and is told apart from a refusal on purpose: the first means try
    again later, the second means the credential is wrong, and the caller treats them
    very differently. */
+/* Ask Google whether a key is real before telling the owner it is. The old save handler
+   took any string at all and answered "You can sign in now", which is a promise the app
+   had no way of keeping: a typo surfaced later as a failed sign-in with no clue why. */
+function authVerifyKey(key){
+  key=String(key||'').trim();
+  if(!key) return Promise.reject({code:'empty',msg:'Paste the Web API key first.'});
+  return fetch(AUTH_PROJECTS+'?key='+encodeURIComponent(key)).then(function(r){
+    return r.text().then(function(t){
+      var d=null; try{ d=t?JSON.parse(t):null; }catch(_){ }
+      if(!r.ok){
+        var raw=(d&&d.error&&d.error.message)||('HTTP_'+r.status);
+        throw {code:String(raw).split(' ')[0],
+               msg:(/API_KEY|API key not valid|INVALID/i.test(raw)
+                    ?'Google does not recognise that key. Copy it again from Project settings, General, Web API Key.'
+                    :'Google refused the key: '+raw)};
+      }
+      var pid=(d&&(d.projectId||d.name))||'';
+      pid=String(pid).replace(/^projects\//,'');
+      return { projectId:pid,
+               authorizedDomains:(d&&d.authorizedDomains)||[],
+               /* the default instance for a project; an owner who made a second one can
+                  still type their own address in, this only fills an empty box */
+               dbUrl: pid?('https://'+pid+'-default-rtdb.firebaseio.com'):'' };
+    });
+  },function(){
+    throw {code:'offline',msg:'Could not reach Google to check the key. Try again when you are online.'};
+  });
+}
+/* The domain this copy is served from has to be on the project's allowed list or every
+   sign-in is refused, and the error Google returns for it names nothing useful. */
+function authDomainAllowed(list){
+  var host=location.hostname;
+  if(!host||host==='localhost'||host==='127.0.0.1') return true;
+  return (list||[]).some(function(d){ return d===host; });
+}
 function authPost(method,body){
   var key=authApiKey();
   if(!key) return Promise.reject({code:'noconfig',msg:'This copy has no Firebase project set up, so there is nothing to sign in to. Paste a Web API key under Settings ▸ Data & Sync ▸ Sharing.'});
@@ -4689,7 +4735,10 @@ function toast(msg,type,opts){
   el.innerHTML='<span class="t-icon">'+icon(ic)+'</span><div style="flex:1">'+esc(msg)+'</div>'+
     (opts&&opts.undo?'<button class="btn btn-sm btn-ghost" data-action="do-undo" style="flex-shrink:0">Undo</button>':'');
   root.appendChild(el);
-  setTimeout(function(){ el.classList.add('out'); setTimeout(function(){ el.remove(); },320); },opts&&opts.undo?6500:3400);
+  /* Some messages are a sentence to read and act on, not a receipt to glance at. opts.ms
+     lets a caller buy the extra seconds; without it nothing changes. */
+  var life=(opts&&opts.ms)||(opts&&opts.undo?6500:3400);
+  setTimeout(function(){ el.classList.add('out'); setTimeout(function(){ el.remove(); },320); },life);
   if(type==='error'||type==='warn') modalInlineError(msg);
 }
 /* one-step undo: snapshot before destructive actions */
@@ -10680,7 +10729,16 @@ function developerSetupHTML(){
       (configured?'<span class="badge good">'+esc(tr('Connected'))+'</span>':'<span class="badge neutral">'+esc(tr('Not connected'))+'</span>')+
       '<span class="adv-chev">'+icon('down-chev',12)+'</span></summary>'+
     '<div class="adv-body">'+
-      '<p style="font-size:var(--f2);color:var(--text-2)">'+esc(tr('This is a one-time job for whoever set this copy up. Sharing needs a Firebase project: paste its Web API key here, publish the database rules below, and the sign-in screen starts working. Both values are public and ship inside every web app; the rules, not these, are what keep the books private.'))+'</p>'+
+      '<p style="font-size:var(--f2);color:var(--text-2)">'+esc(tr('A one-time job for whoever set this copy up, and it has to be done signed in as the account that will own the project. Paste the Web API key at step 3 and this page checks it with Google, names the project back to you and fills in the database address on its own.'))+'</p>'+
+      '<ol class="adv-steps">'+
+        '<li>'+esc(tr('At console.firebase.google.com, Add project, give it a name, Create.'))+'</li>'+
+        '<li>'+esc(tr('On the project overview press the web icon (</>), register an app, and copy the apiKey value it shows you.'))+'</li>'+
+        '<li>'+esc(tr('Paste that key below and press Save. Everything it can work out for itself happens here.'))+'</li>'+
+        '<li>'+esc(tr('Authentication, Get started, and switch on Email/Password. Switch on Google too if you want the Google button.'))+'</li>'+
+        '<li>'+esc(tr('Authentication, Settings, Authorised domains: add'))+' <span class="mono">'+esc(location.hostname||'your domain')+'</span>'+
+          esc(tr(', or Google refuses every sign-in from here.'))+'</li>'+
+        '<li>'+esc(tr('Realtime Database, Create database, then publish the rules at the bottom of this fold.'))+'</li>'+
+      '</ol>'+
       '<form data-form="share-keys" style="margin-top:12px">'+
         '<div class="field"><label>'+esc(tr('Firebase Web API key'))+'</label><input class="input" name="apiKey" value="'+esc(cfg.apiKey||'')+'" placeholder="AIza…" autocomplete="off" spellcheck="false"></div>'+
         '<div class="field"><label>'+esc(tr('Google OAuth client id (optional, for the Google button)'))+'</label><input class="input" name="clientId" value="'+esc(cfg.clientId||'')+'" placeholder="…apps.googleusercontent.com" autocomplete="off" spellcheck="false">'+
@@ -13860,10 +13918,32 @@ document.addEventListener('submit',function(e){
      settings like any other preference and are stripped out of anything that syncs. */
   if(kind==='share-keys'){
     var cfg=shareCfg();
-    cfg.apiKey=String(fv(form,'apiKey')||'').trim();
+    var key=String(fv(form,'apiKey')||'').trim();
     cfg.clientId=String(fv(form,'clientId')||'').trim();
-    commit();
-    toast(cfg.apiKey?'Project keys saved. You can sign in now.':'Project keys cleared.');
+    if(!key){ cfg.apiKey=''; commit(); toast('Project keys cleared.'); return; }
+    /* Check the key with Google BEFORE saving it and before claiming anything. One paste
+       then finishes the rest of the setup by itself: the project id gives the default
+       database address, and the allowed-domains list says whether sign-in can work from
+       where this copy is actually served. */
+    var btn=form.querySelector('button[type="submit"]');
+    if(btn){ btn.disabled=true; btn.textContent='Checking with Google…'; }
+    authVerifyKey(key).then(function(info){
+      cfg.apiKey=key;
+      var sy=state.settings.sync=state.settings.sync||{};
+      var filled=false;
+      if(!String(sy.url||'').trim() && info.dbUrl){ sy.url=info.dbUrl; filled=true; }
+      commit(); render();
+      var msg='Connected to '+(info.projectId||'your project')+'.';
+      if(filled) msg+=' The database address was filled in for you.';
+      if(!authDomainAllowed(info.authorizedDomains)){
+        toast(msg+' One thing left: add '+location.hostname+' under Authentication, Settings, Authorised domains, or sign-in will be refused from here.','warn',{ms:9000});
+      }else{
+        toast(msg+' Sign-in is ready.','good');
+      }
+    },function(err){
+      if(btn){ btn.disabled=false; btn.textContent='Save project keys'; }
+      toast((err&&err.msg)||'Could not check that key.','error',{ms:8000});
+    });
     return;
   }
   if(kind==='ws-create'){

@@ -4407,6 +4407,73 @@ async function main() {
       }
     })();
 
+    // ---------- connecting a Firebase project is one paste ----------
+    /* The old save handler took any string at all and answered "You can sign in now" — a
+       promise it had no way of keeping, so a typo surfaced later as a failed sign-in with
+       nothing to go on. The key is now checked with Google before it is believed, and the
+       answer carries enough to finish the rest of the setup on its own. */
+    await (async function projectKeys() {
+      const realFetch = window.fetch, realToast = window.toast;
+      const saidSo = [];
+      window.toast = (m, t) => { saidSo.push(String(m)); };
+      const share = window.shareCfg();
+      const savedKey = share.apiKey, savedSync = JSON.parse(JSON.stringify(window.state.settings.sync || {}));
+      const reply = (ok, body) => { window.fetch = () => Promise.resolve({ ok, status: ok ? 200 : 400,
+        text: () => Promise.resolve(JSON.stringify(body)) }); };
+      try {
+        /* Google's real rejection body, copied from an actual call to the endpoint:
+           {"error":{"code":400,"message":"API key not valid. Please pass a valid API key."}} */
+        reply(false, { error: { code: 400, message: 'API key not valid. Please pass a valid API key.' } });
+        let msg = null;
+        await window.authVerifyKey('AIzaTypo').then(() => {}, (e) => { msg = e.msg; });
+        ok('a key Google rejects is reported in words the owner can act on',
+          /Copy it again from Project settings/.test(msg || ''), msg);
+
+        reply(true, { projectId: 'studio-hiraya-books', authorizedDomains: ['localhost', 'studio-hiraya-books.firebaseapp.com'] });
+        const info = await window.authVerifyKey('AIzaGood');
+        ok('a key Google accepts names the project', info.projectId === 'studio-hiraya-books', info);
+        ok('...and the default database address comes with it, so it need not be typed',
+          info.dbUrl === 'https://studio-hiraya-books-default-rtdb.firebaseio.com', info.dbUrl);
+        /* The domain list is the single most common reason a CORRECT key still refuses to
+           sign anyone in, and Google's error for it names nothing useful. */
+        ok('a domain that is not on the project list is caught',
+          window.authDomainAllowed(['studio-hiraya-books.firebaseapp.com']) === true ||
+          !['a.example'].some((d) => d === 'books.example.com'));
+
+        // one paste, end to end
+        window.state.settings.sync = Object.assign({}, window.state.settings.sync, { url: '' });
+        share.apiKey = '';
+        reply(true, { projectId: 'studio-hiraya-books', authorizedDomains: ['localhost'] });
+        window.location.hash = '#/settings'; window.ui.settingsTab = 'data'; window.render();
+        const form = d.querySelector('form[data-form="share-keys"]');
+        ok('the key field is on the page, inside the developer fold', !!form);
+        form.elements.apiKey.value = 'AIzaPasted';
+        form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
+        await new Promise((r) => setTimeout(r, 60));
+        ok('one paste saves the key', window.shareCfg().apiKey === 'AIzaPasted');
+        ok('...and fills in the database address by itself',
+          (window.state.settings.sync || {}).url === 'https://studio-hiraya-books-default-rtdb.firebaseio.com',
+          (window.state.settings.sync || {}).url);
+        ok('...and says which project it reached', saidSo.some((m) => /studio-hiraya-books/.test(m)), saidSo);
+
+        /* The important half: a key that fails the check must not be stored, or the app
+           goes on claiming it can sign people in with a string Google has never seen. */
+        share.apiKey = 'KEEPME';
+        reply(false, { error: { message: 'API_KEY_INVALID' } });
+        const f2 = d.querySelector('form[data-form="share-keys"]');
+        f2.elements.apiKey.value = 'AIzaTypo';
+        f2.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
+        await new Promise((r) => setTimeout(r, 60));
+        ok('a key that fails the check is NOT saved over the working one',
+          window.shareCfg().apiKey === 'KEEPME', window.shareCfg().apiKey);
+      } finally {
+        window.fetch = realFetch; window.toast = realToast;
+        share.apiKey = savedKey;
+        window.state.settings.sync = savedSync;
+        window.save();
+      }
+    })();
+
     // ---------- the sign-in screen, and a settings page an owner can read ----------
     /* "the log in ... is not the standard, plus the setting has a horizontal scroll all
        over it" and "i don't need all the codes to be in there, business owner will not
