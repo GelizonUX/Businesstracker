@@ -3924,6 +3924,217 @@ function renderSignInWall(){
   setTimeout(function(){ var el=byId('signin-email'); if(el) el.focus(); },120);
 }
 
+/* ============================================================
+   workspaces and invites
+   ============================================================
+   A workspace is the shared copy of the books: one owner, and the partners and
+   accountant they invite. Two roles, and the difference is administrative rather
+   than a matter of visibility. Everyone invited sees everything, because the owner
+   is sharing their books with people they already trust with them, and inventing a
+   read-only role now would buy complexity for a case nobody has asked for.
+
+     workspaces/<wsId>/meta      { name, ownerUid, createdAt }
+     workspaces/<wsId>/members   <uid>: { email, name, role, joinedAt, viaInvite }
+     workspaces/<wsId>/invites   <token>: { email, invitedBy, createdAt, expiresAt }
+     workspaces/<wsId>/data      the per-record tree, exactly as it already is
+     users/<uid>/workspaces      <wsId>: true
+
+   EVERY check written below is also written into the rules in Settings, and the rules
+   are the ones that count. The database is the only place a check runs on a machine
+   the user does not own; everything here runs in a browser they can open the console
+   of. What the UI is for is telling someone what went wrong in words, which a
+   "Permission denied" does not do. */
+var WS_INVITE_DAYS=14;
+
+function wsDbBase(){ var s=(state&&state.settings&&state.settings.sync)||{}; return s.url?String(s.url).replace(/\/+$/,''):''; }
+function wsRoot(wsId){ var b=wsDbBase(); return b?b+'/workspaces/'+encodeURIComponent(wsId):''; }
+function wsUserRoot(uid){ var b=wsDbBase(); return b?b+'/users/'+encodeURIComponent(uid):''; }
+
+/* One request, one shape of failure: {code,msg}, like authPost(). A refusal and an
+   outage are told apart on purpose. The first means the rules are not published or the
+   session is over; the second means try again later and change nothing meanwhile. */
+function wsReq(url,method,body){
+  var o={method:method||'GET'};
+  if(body!==undefined){ o.headers={'Content-Type':'application/json'}; o.body=JSON.stringify(body); }
+  return fetch(url+'.json'+cloudQ(),o).then(function(r){
+    return r.text().then(function(t){
+      var d=null; try{ d=t?JSON.parse(t):null; }catch(_){ }
+      if(!r.ok){
+        if(r.status===401||r.status===403) throw {code:'denied',
+          msg:'The database refused that. Publish the workspace rules from Settings, and check you are still signed in.'};
+        throw {code:'http',msg:'The database answered HTTP '+r.status+'.'};
+      }
+      return d;
+    });
+  },function(){ throw {code:'offline',msg:'Could not reach the database. Nothing on this device has changed.'}; });
+}
+/* Every workspace call needs a signed-in user, a database and (except for creating one)
+   a workspace. Checked in one place so each caller reads as what it does. */
+function wsReady(needWs){
+  var u=authUser();
+  if(!u) return {err:{code:'nosession',msg:'Sign in first, under Settings, Data and sync, Sharing.'}};
+  if(!wsDbBase()) return {err:{code:'nodb',msg:'Enter your Realtime Database URL under Cloud sync first, then save it.'}};
+  var cfg=shareCfg();
+  if(needWs&&!cfg.wsId) return {err:{code:'nows',msg:'This copy has not joined a workspace yet.'}};
+  return {u:u,cfg:cfg};
+}
+
+/* The owner's first sign-in makes one of these. The id is random rather than derived
+   from the name: a workspace id is an address in a database anybody can guess at, and a
+   business name is the first thing they would guess. */
+function wsCreate(name){
+  var g=wsReady(false); if(g.err) return Promise.reject(g.err);
+  var u=g.u, wsId='ws_'+authRandom(9), now=Date.now();
+  var nm=String(name||'').trim().slice(0,60)||appName();
+  var root=wsRoot(wsId);
+  return wsReq(root+'/meta','PUT',{name:nm,ownerUid:u.uid,createdAt:now})
+    .then(function(){ return wsReq(root+'/members/'+encodeURIComponent(u.uid),'PUT',
+      {email:u.email,name:u.name||'',role:'owner',joinedAt:now}); })
+    .then(function(){ return wsReq(wsUserRoot(u.uid)+'/workspaces/'+encodeURIComponent(wsId),'PUT',true); })
+    .then(function(){
+      var cfg=shareCfg();
+      cfg.enabled=true; cfg.wsId=wsId; cfg.wsName=nm; cfg.role='owner';
+      save();
+      return {wsId:wsId,wsName:nm,role:'owner'};
+    });
+}
+
+/* The link the owner hands over. No email is sent by this app, and none will be:
+   a mail server is a thing to run, a thing to be blocked as spam and a thing to leak
+   an address list, and handing someone a link is the honest version of all three. */
+function wsInviteLink(wsId,token){
+  return location.origin+location.pathname+'#/join?ws='+encodeURIComponent(wsId)+'&t='+encodeURIComponent(token);
+}
+function wsParseInviteHash(h){
+  h=String(h||'');
+  var i=h.indexOf('#/join?');
+  if(i<0) return null;
+  var q; try{ q=new URLSearchParams(h.slice(i+7)); }catch(_){ return null; }
+  var ws=q.get('ws')||'', t=q.get('t')||'';
+  return (ws&&t)?{wsId:ws,token:t}:null;
+}
+/* The token IS the secret, so it is 32 random bytes from the CSPRNG rather than
+   anything derived from the email, the workspace or the clock. */
+function wsInvite(email){
+  var g=wsReady(true); if(g.err) return Promise.reject(g.err);
+  email=String(email||'').trim().toLowerCase();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
+    return Promise.reject({code:'email',msg:'That does not look like an email address.'});
+  if(g.cfg.role!=='owner')
+    return Promise.reject({code:'notowner',msg:'Only the workspace owner can invite people.'});
+  var token=authRandom(32), now=Date.now(), exp=now+WS_INVITE_DAYS*86400000;
+  return wsReq(wsRoot(g.cfg.wsId)+'/invites/'+encodeURIComponent(token),'PUT',
+      {email:email,invitedBy:g.u.uid,createdAt:now,expiresAt:exp})
+    .then(function(){ return {token:token,email:email,expiresAt:exp,link:wsInviteLink(g.cfg.wsId,token)}; });
+}
+function wsInvitesList(){
+  var g=wsReady(true); if(g.err) return Promise.reject(g.err);
+  return wsReq(wsRoot(g.cfg.wsId)+'/invites','GET').then(function(m){ return m||{}; });
+}
+function wsRevokeInvite(token){
+  var g=wsReady(true); if(g.err) return Promise.reject(g.err);
+  return wsReq(wsRoot(g.cfg.wsId)+'/invites/'+encodeURIComponent(token),'DELETE');
+}
+
+/* Claiming. Single use and expiring, and both failures are told apart out loud,
+   because "that did not work" is the message that makes someone email the owner.
+
+   The email compared is the VERIFIED one on the session: Google's, or an address whose
+   verification link was clicked. An address typed into a box proves nothing, and an
+   invite that matched on one would be an invite anybody could claim. */
+function wsClaimInvite(wsId,token){
+  var g=wsReady(false); if(g.err) return Promise.reject(g.err);
+  var u=g.u, root=wsRoot(wsId), now=Date.now();
+  return wsReq(root+'/invites/'+encodeURIComponent(token),'GET').then(function(inv){
+    /* Claiming DELETES the invite, so the database gives the same answer for used and
+       for never-existed. Say the likely one and name the other rather than inventing a
+       certainty the data cannot support. */
+    if(!inv||typeof inv!=='object')
+      throw {code:'used',msg:'That invitation has already been used, or it was withdrawn. Ask for a new link.'};
+    if(inv.expiresAt&&now>+inv.expiresAt)
+      throw {code:'expired',msg:'That invitation expired on '+fmtDate(new Date(+inv.expiresAt).toISOString().slice(0,10))+'. Ask for a new link.'};
+    if(!u.verified)
+      throw {code:'unverified',msg:'Your email address is not verified yet, so it cannot be matched against the invitation. Open the verification email first, or sign in with Google.'};
+    if(String(inv.email||'').trim().toLowerCase()!==String(u.email||'').trim().toLowerCase())
+      throw {code:'mismatch',msg:'This invitation was sent to '+String(inv.email||'')+' and you are signed in as '+u.email+'. Sign in with the invited address, or ask for an invitation to this one.'};
+    /* Membership first, then the invite. The rules check the invite while writing the
+       membership, so deleting it first would refuse the write that matters. A failure
+       between the two leaves a live invite the same person can simply use again. */
+    return wsReq(root+'/members/'+encodeURIComponent(u.uid),'PUT',
+        {email:u.email,name:u.name||'',role:'member',joinedAt:now,viaInvite:token})
+      .then(function(){ return wsReq(root+'/invites/'+encodeURIComponent(token),'DELETE'); })
+      .then(function(){ return wsReq(wsUserRoot(u.uid)+'/workspaces/'+encodeURIComponent(wsId),'PUT',true); })
+      .then(function(){ return wsReq(root+'/meta','GET').then(function(m){ return m; },function(){ return null; }); })
+      .then(function(meta){
+        var cfg=shareCfg();
+        cfg.enabled=true; cfg.wsId=wsId; cfg.wsName=(meta&&meta.name)||''; cfg.role='member';
+        save();
+        return {wsId:wsId,wsName:cfg.wsName,role:'member'};
+      });
+  });
+}
+function wsMembers(){
+  var g=wsReady(true); if(g.err) return Promise.reject(g.err);
+  return wsReq(wsRoot(g.cfg.wsId)+'/members','GET').then(function(m){ return m||{}; });
+}
+/* Removing someone takes their membership row out, and that is the whole of it: the
+   rules read that row on every single read and write, so the next thing they try fails
+   on Firebase's server. Nothing in this app has to be told, and nothing in this app
+   could enforce it if it were. */
+function wsRemoveMember(uid){
+  var g=wsReady(true); if(g.err) return Promise.reject(g.err);
+  if(g.cfg.role!=='owner') return Promise.reject({code:'notowner',msg:'Only the workspace owner can remove members.'});
+  if(uid===g.u.uid) return Promise.reject({code:'self',msg:'You cannot remove yourself. Delete the workspace instead, from the Firebase console.'});
+  return wsReq(wsRoot(g.cfg.wsId)+'/members/'+encodeURIComponent(uid),'DELETE');
+}
+/* Leaving is local. It points this device back at its own database and leaves the
+   shared copy exactly where it is, because a member walking out is not a reason to
+   touch anybody else's books. The membership row stays until the owner removes it. */
+function wsLeave(){
+  var cfg=shareCfg();
+  cfg.enabled=false; cfg.wsId=''; cfg.wsName=''; cfg.role='';
+  save();
+}
+
+/* An invite link opened by someone who is not signed in yet has to survive the round
+   trip through Google. sessionStorage, not localStorage: a token left on a shared
+   machine forever is a token someone else can use. */
+var WS_INVITE_STASH='trakora.invite';
+function wsStashInvite(inv){ try{ sessionStorage.setItem(WS_INVITE_STASH,JSON.stringify(inv)); }catch(_){ } }
+function wsPendingInvite(){
+  try{ var v=JSON.parse(sessionStorage.getItem(WS_INVITE_STASH)||'null'); return (v&&v.wsId&&v.token)?v:null; }
+  catch(_){ return null; }
+}
+function wsClearInvite(){ try{ sessionStorage.removeItem(WS_INVITE_STASH); }catch(_){ } }
+/* Called once on boot. Takes the token out of the address bar either way, because a
+   link with a live invite in it should not sit in the history of a borrowed laptop. */
+function wsTakeInviteFromUrl(){
+  var inv=wsParseInviteHash(location.hash);
+  if(!inv) return null;
+  wsStashInvite(inv);
+  try{ history.replaceState(null,'',location.pathname+location.search+'#/settings'); }catch(_){ location.hash='#/settings'; }
+  return inv;
+}
+/* The claim, once there is a session to claim with. Silent when there is nothing to
+   claim, so it is safe to call on every boot and after every sign-in. */
+function wsMaybeClaim(){
+  var inv=wsPendingInvite();
+  if(!inv) return Promise.resolve(null);
+  if(!authSignedIn()) return Promise.resolve(null);
+  return wsClaimInvite(inv.wsId,inv.token).then(function(res){
+    wsClearInvite();
+    if(typeof toast==='function') toast('You have joined '+(res.wsName||'the workspace')+'. Merge from cloud to pull the books in.');
+    if(typeof render==='function') render();
+    return res;
+  },function(err){
+    /* An outage is not a failed claim: the link is still good, so it stays stashed and
+       the next boot tries again. Anything the database actually decided is final. */
+    if(err&&err.code!=='offline') wsClearInvite();
+    if(typeof toast==='function') toast((err&&err.msg)||'Could not accept that invitation.','error');
+    return null;
+  });
+}
+
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
 var APP_BUILD='2026.08.16a'; // bump per release: shown in Settings + console so "did it update?" is a 2-second check
@@ -5143,7 +5354,12 @@ var ui={
   navEdit:false,
   roadmapMode:'map',
   rmCam:null,
-  rmGrid:'dots'
+  rmGrid:'dots',
+  /* The workspace member list and the last invitation link are read once, on request,
+     and held here rather than fetched during a render. ui is session state: neither is
+     ever saved, so a shared laptop does not keep somebody's invite link on disk. */
+  wsMembers:null,
+  wsLastInvite:null
 };
 
 var lastRenderRoute=null, viewEnterT=0;
@@ -10556,7 +10772,7 @@ document.addEventListener('click',function(e){
   /* accounts. A cancelled popup is silent on purpose: the owner closed it, they know. */
   if(action==='auth-google'){
     authGoogle().then(function(s){
-      if(s){ toast('Signed in as '+authName()+'.'); save(); render(); }
+      if(s){ toast('Signed in as '+authName()+'.'); save(); render(); wsMaybeClaim(); }
     },function(err){
       if(err&&err.code==='cancelled') return;
       toast((err&&err.msg)||'Could not sign in with Google.','error');
@@ -10570,6 +10786,29 @@ document.addEventListener('click',function(e){
   /* Google sends the reset mail, not this app. Success is reported the same way whether
      or not the address has an account, because saying "no account with that email" to
      anyone who types one is a way of listing the owner's users. */
+  /* Workspaces. Every one of these is a database write the rules re-decide on their own
+     server; what happens here is only the part that has to be said in words. */
+  if(action==='ws-members'){
+    wsMembers().then(function(m){ ui.wsMembers=m; render(); },
+      function(err){ toast((err&&err.msg)||'Could not read the member list.','error'); });
+    return;
+  }
+  if(action==='ws-remove'){
+    var rid=el.getAttribute('data-id');
+    var who=(ui.wsMembers&&ui.wsMembers[rid]&&(ui.wsMembers[rid].email||ui.wsMembers[rid].name))||'that person';
+    if(!confirm('Remove '+who+' from this workspace?\n\nThe next thing they try to read or write is refused by the database. Anything already on their own device stays there: you cannot take a copy back, and Trakora will not pretend otherwise.')) return;
+    wsRemoveMember(rid).then(function(){
+      if(ui.wsMembers) delete ui.wsMembers[rid];
+      toast('Removed. The database refuses them from now on.'); render();
+    },function(err){ toast((err&&err.msg)||'Could not remove them.','error'); });
+    return;
+  }
+  if(action==='ws-leave'){
+    if(!confirm('Leave this workspace on this device?\n\nThis device goes back to syncing to your own path. The shared books are left exactly as they are, and your membership stays until the owner removes it.')) return;
+    wsLeave(); ui.wsMembers=null; ui.wsLastInvite=null;
+    toast('Left. This device syncs to its own path again.'); render();
+    return;
+  }
   if(action==='auth-reset'){
     var rf=el.closest('form')||document.querySelector('form[data-form="auth-email"]');
     var rmail=rf&&rf.elements['email']?String(rf.elements['email'].value||'').trim():'';
@@ -12014,11 +12253,40 @@ var SYNC_DOCS=['settings','metrics','reviews','assistant'];
    and it is the same order as the backup nudge, so it is the trade taken here. */
 var SYNC_TOMB_TTL=90*24*60*60*1000;
 
+/* Where the books live, and the only place that decision is made.
+
+   Sharing off: the owner's own path, unchanged, no account, no token. That is the
+   product and it stays byte for byte what it was.
+   Sharing on: under the workspace, where the rules can see who is asking. The whole
+   per-record tree moves across intact, because "v2/..." is appended to whatever this
+   returns and nothing below cares which of the two it got. */
 function cloudRoot(){
   var s=state.settings.sync||{};
   if(!s.url) return null;
+  var base=s.url.replace(/\/+$/,'');
+  var sh=(state.settings.share&&typeof state.settings.share==='object')?state.settings.share:null;
+  if(sh&&sh.enabled&&sh.wsId) return base+'/workspaces/'+encodeURIComponent(sh.wsId)+'/data';
   var path=(s.path||'bizpilot').replace(/^\/+|\/+$/g,'');
-  return s.url.replace(/\/+$/,'')+'/'+path;
+  return base+'/'+path;
+}
+/* The Realtime Database REST API takes the ID token as a query parameter; it has no
+   header form. Read straight out of the stored session and never refreshed here:
+   refreshing is authTokenQuiet()'s job, and cloudPush/cloudPull do it once before a
+   batch so a burst of PATCHes does not race a burst of refreshes.
+
+   With no session this is the empty string and every URL the app builds is exactly the
+   URL it built before accounts existed. That is deliberate: an owner who never signs in
+   must not be able to tell from the wire that this code is here. */
+function cloudQ(){
+  var s=(typeof authLoad==='function')?authLoad():null;
+  return (s&&s.idToken)?('?auth='+encodeURIComponent(s.idToken)):'';
+}
+/* Who made the edit. A device id is the only honest answer when there is no account:
+   it is the same person on two laptops. Once there is one, the uid is better, because
+   it survives a new laptop and it is what the other people in the workspace recognise. */
+function syncAuthor(){
+  var u=(typeof authUser==='function')?authUser():null;
+  return (u&&u.uid)?u.uid:DEVICE_ID;
 }
 
 /* A cheap content fingerprint. The ledger stores this instead of the record, so
@@ -12116,13 +12384,13 @@ function syncPending(led){
     var cut=key.indexOf('/'),coll=key.slice(0,cut),id=key.slice(cut+1);
     var rec=coll==='doc'?syncDocValue(id):(index[coll]||{})[id];
     if(rec===undefined||rec===null) return;
-    put(coll,id,{updatedAt:e.at,updatedBy:DEVICE_ID,rec:rec},{kind:'rec',key:key,at:e.at,coll:coll});
+    put(coll,id,{updatedAt:e.at,updatedBy:syncAuthor(),rec:rec},{kind:'rec',key:key,at:e.at,coll:coll});
   });
   Object.keys(led.tombs).forEach(function(key){
     var t=led.tombs[key];
     if(!t||t.at===t.sy) return;
     var cut=key.indexOf('/'),coll=key.slice(0,cut),id=key.slice(cut+1);
-    put(coll,id,{deleted:true,updatedAt:t.at,updatedBy:DEVICE_ID},{kind:'tomb',key:key,at:t.at,coll:coll});
+    put(coll,id,{deleted:true,updatedAt:t.at,updatedBy:syncAuthor()},{kind:'tomb',key:key,at:t.at,coll:coll});
   });
   return {byPath:byPath,marks:marks,count:count};
 }
@@ -12162,17 +12430,27 @@ function cloudErr(r,verb){
   return new Error('HTTP '+r.status+((r.status===401||r.status===403)?'. Your Firebase database rules denied the '+(verb||'write')+'. Open Firebase console → Realtime Database → Rules.':''));
 }
 function cloudPatch(root,path,body){
-  return fetch(root+'/'+path+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+  return fetch(root+'/'+path+'.json'+cloudQ(),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
     .then(function(r){ if(!r.ok) throw cloudErr(r); return r; });
 }
 /* "Push my changes": only the records this device has touched since its last
    confirmed write, each to its own address. */
+/* One token refresh before a batch, never inside it. With no session this resolves on
+   the spot and makes no request, so the no-account path is untouched. A refresh that
+   fails is not an error here: authTokenQuiet() says so once and hands back null, the
+   push goes out with whatever token is stored, and the database decides. Being offline
+   must not stop a local save, and it does not: this is only the push. */
+function cloudReady(){
+  if(typeof authSignedIn!=='function'||!authSignedIn()) return Promise.resolve(null);
+  return authTokenQuiet();
+}
 function cloudPush(silent){
   var root=cloudRoot();
   if(!root){ if(!silent) toast('Enter your database URL first, then save sync settings.','warn'); return Promise.resolve(0); }
   if(cloudBusy) return Promise.resolve(0);
   cloudBusy=true;
-  return cloudEnsureFormat(root)
+  return cloudReady()
+    .then(function(){ return cloudEnsureFormat(root); })
     .then(function(migrated){ return cloudSend(root,silent,migrated); })
     .catch(function(e){
       if(!silent) toast('Could not push to the cloud. Your changes are saved on this device and will go up on the next successful push. Check your connection and the database URL in Settings ▸ Cloud sync. ('+e.message+')','error');
@@ -12204,8 +12482,9 @@ function cloudSend(root,silent,migrated){
 function cloudPull(){
   var root=cloudRoot();
   if(!root){ toast('Enter your database URL first, then save sync settings.','warn'); return Promise.resolve(); }
-  return cloudEnsureFormat(root)
-    .then(function(){ return fetch(root+'/v2.json'); })
+  return cloudReady()
+    .then(function(){ return cloudEnsureFormat(root); })
+    .then(function(){ return fetch(root+'/v2.json'+cloudQ()); })
     .then(function(r){ if(!r.ok) throw cloudErr(r,'read'); return r.json(); })
     .then(function(tree){
       if(!tree||typeof tree!=='object'){ toast('Nothing in the cloud yet. Push first.','warn'); return; }
@@ -12356,19 +12635,19 @@ function cloudReap(root,keys){
    database that cannot be read is a push that does not happen, not a migration. */
 function cloudEnsureFormat(root){
   if(cloudFormatKnown) return Promise.resolve(0);
-  return fetch(root+'/v2/_meta.json')
+  return fetch(root+'/v2/_meta.json'+cloudQ())
     .then(function(r){ if(!r.ok) throw cloudErr(r,'read'); return r.json(); })
     .then(function(m){
       if(m&&+m.format===2){ cloudFormatKnown=true; return 0; }
       /* No marker. Before going anywhere near the old copy, check that records are
          not already here: a marker lost to a conversion that died halfway must not
          be licence to write the old copy back over everything since. */
-      return fetch(root+'/v2.json')
+      return fetch(root+'/v2.json'+cloudQ())
         .then(function(r){ if(!r.ok) throw cloudErr(r,'read'); return r.json(); })
         .then(function(have){
           var live=have&&typeof have==='object'&&Object.keys(have).some(function(k){ return k!=='_meta'; });
           if(live) return null;
-          return fetch(root+'.json').then(function(r){ if(!r.ok) throw cloudErr(r,'read'); return r.json(); });
+          return fetch(root+'.json'+cloudQ()).then(function(r){ if(!r.ok) throw cloudErr(r,'read'); return r.json(); });
         })
         .then(function(blob){
           var tree=(blob&&typeof blob==='object'&&blob.settings)?cloudAdoptLegacy(blob):null;
@@ -12496,6 +12775,7 @@ function authAccountCardHTML(){
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+
         '<button class="btn btn-ghost btn-sm" data-action="auth-signout">Sign out</button>'+
       '</div></div>';
+    html+=wsCardBodyHTML(u,cfg);
     return html+'</div>';
   }
 
@@ -12512,6 +12792,65 @@ function authAccountCardHTML(){
       '</div>'+
     '</form></div>';
   return html+'</div>';
+}
+
+/* ---------- the workspace half of the sharing card ----------
+   Only ever reached with a session in hand, so it can say "you" and mean it. The
+   member list is rendered from whatever the last read put in ui.wsMembers rather than
+   fetched during a render: render() runs on every keystroke in a filter box, and a
+   settings screen that fires a database read each time is a settings screen that gets
+   rate limited. */
+function wsCardBodyHTML(u,cfg){
+  var joined=!!(cfg.enabled&&cfg.wsId);
+  var h='<div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px">'+
+    '<div class="card-head" style="margin-bottom:6px"><h4 style="font-size:var(--f3);font-weight:550;margin:0">Workspace</h4><span class="spacer"></span>'+
+      (joined?'<span class="badge good">'+esc(cfg.role==='owner'?'You own it':'You are a member')+'</span>':'<span class="badge neutral">None yet</span>')+'</div>';
+
+  if(!wsDbBase()){
+    return h+'<p style="font-size:var(--f2);color:var(--text-3)">'+icon('alert',12)+' A workspace lives in your own Realtime Database, so fill in the database URL under Cloud sync above and save it first. The same database holds the books; sharing only moves them to an address the rules can check.</p></div>';
+  }
+  if(!joined){
+    return h+'<p style="font-size:var(--f2);color:var(--text-2)">Making a workspace moves this device\'s cloud copy under an address only its members can read, and lets you hand out invitations. Nothing local moves, and nothing is sent until you push.</p>'+
+      '<form data-form="ws-create" style="margin-top:8px">'+
+        '<div class="field"><label>Name it</label><input class="input" name="name" maxlength="60" value="'+esc(appName())+'" placeholder="'+esc(appName())+'"></div>'+
+        '<button class="btn btn-primary btn-sm" type="submit">'+icon('users')+' Create the workspace</button></form>'+
+      '<p style="font-size:var(--f1);color:var(--text-3);margin-top:10px">Been sent an invitation? Open the link you were given while signed in as the invited address. Nothing has to be set up on this side first.</p></div>';
+  }
+
+  h+='<p style="font-size:var(--f2);color:var(--text-2)">'+esc(cfg.wsName||cfg.wsId)+'. Everyone in it reads and writes the same books; the only difference between owner and member is who can invite and remove people. Push and merge from Cloud sync above, exactly as before.</p>';
+
+  if(cfg.role==='owner'){
+    h+='<form data-form="ws-invite" style="margin-top:10px">'+
+      '<div class="field"><label>Invite someone by email</label><input class="input" type="email" name="email" placeholder="partner@email.com" autocomplete="off"></div>'+
+      '<button class="btn btn-primary btn-sm" type="submit">'+icon('users')+' Make an invitation link</button>'+
+      '<p style="font-size:var(--f1);color:var(--text-3);margin-top:6px">Trakora sends no email. You get a link to hand over yourself, it works once, and it expires after '+WS_INVITE_DAYS+' days. Whoever opens it has to be signed in as that exact address, verified, or the database refuses them.</p></form>';
+    var last=ui.wsLastInvite;
+    if(last) h+='<div style="margin-top:10px;padding:12px 16px;border-radius:11px;background:var(--accent-soft)">'+
+      '<b style="font-size:var(--f2)">Invitation for '+esc(last.email)+'</b>'+
+      '<div class="code-block" id="ws-invite-link" style="margin-top:8px;word-break:break-all">'+esc(last.link)+'</div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">'+
+        '<button class="btn btn-ghost btn-sm" type="button" data-action="copy-code" data-target="ws-invite-link">'+icon('copy',13)+' Copy the link</button>'+
+      '</div>'+
+      '<p style="font-size:var(--f1);color:var(--text-3);margin-top:6px">Anyone holding this link and that email address can join, so send it the way you would send a password.</p></div>';
+  }
+
+  var mem=ui.wsMembers;
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'+
+      '<button class="btn btn-ghost btn-sm" type="button" data-action="ws-members">'+icon('download',13)+' '+(mem?'Refresh the member list':'Show who is in it')+'</button>'+
+      '<button class="btn btn-ghost btn-sm" type="button" data-action="ws-leave">Leave this workspace on this device</button>'+
+    '</div>';
+  if(mem){
+    var ids=Object.keys(mem);
+    h+='<div style="margin-top:10px">'+(ids.length?ids.map(function(id){
+      var m=mem[id]||{};
+      return '<div class="row" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">'+
+        '<div style="flex:1;min-width:0"><b style="font-size:var(--f2)">'+esc(m.name||m.email||id)+'</b>'+
+          '<div style="font-size:var(--f1);color:var(--text-3)">'+esc(m.email||'')+' · '+esc(m.role||'member')+'</div></div>'+
+        ((cfg.role==='owner'&&id!==u.uid)?'<button class="btn btn-ghost btn-sm" type="button" data-action="ws-remove" data-id="'+esc(id)+'">Remove</button>':'')+
+      '</div>';
+    }).join(''):'<p style="font-size:var(--f2);color:var(--text-3)">Nobody is listed. If that is wrong, the rules are not published yet.</p>')+'</div>';
+  }
+  return h+'</div>';
 }
 
 /* ---------- database rules ----------
@@ -12726,6 +13065,22 @@ document.addEventListener('submit',function(e){
     toast(cfg.apiKey?'Project keys saved. You can sign in now.':'Project keys cleared.');
     return;
   }
+  if(kind==='ws-create'){
+    wsCreate(fv(form,'name')).then(function(w){
+      ui.wsMembers=null;
+      toast('Workspace "'+w.wsName+'" created. Push your changes to fill it, then invite people.');
+      render();
+    },function(err){ toast((err&&err.msg)||'Could not create the workspace.','error'); });
+    return;
+  }
+  if(kind==='ws-invite'){
+    wsInvite(fv(form,'email')).then(function(inv){
+      ui.wsLastInvite=inv;
+      toast('Invitation ready. Copy the link and send it to '+inv.email+' yourself.');
+      render();
+    },function(err){ toast((err&&err.msg)||'Could not create that invitation.','error'); });
+    return;
+  }
   if(kind==='auth-email'){
     /* Which button was pressed. A submit button's value only reaches the form through
        the submitter, and jsdom and older Safari both leave e.submitter undefined, so
@@ -12734,7 +13089,7 @@ document.addEventListener('submit',function(e){
     authSubmitEmail(fv(form,'email'),form.elements['password']?form.elements['password'].value:'',mode)
       .then(function(){
         toast(mode==='up'?'Account created. You are signed in as '+authName()+'.':'Signed in as '+authName()+'.');
-        save(); render();
+        save(); render(); wsMaybeClaim();
       },function(err){ toast((err&&err.msg)||'Could not sign in.','error'); });
     return;
   }
@@ -17265,6 +17620,7 @@ function bootApp(){
   storageWarnOnBoot();
   fxAutoUpdateCheck();
   backupReminder();
+  wsMaybeClaim();         // an invite link opened before signing in, claimed now
   maybeConsentNotice();   // last, and it waits for the overlays above to clear
 }
 /* backup reminder: once per session if data exists and backup is stale */
@@ -17282,6 +17638,9 @@ function backupReminder(){
 }
 
 loadState();
+/* Before anything renders: an invite link must not sit in the address bar or the
+   history of whatever machine it was opened on. */
+wsTakeInviteFromUrl();
 /* REQUIRE_SIGNIN is off by default, so this is a straight bootApp() in every shipped
    copy. See the flag's own comment for why turning it on buys less than it looks. */
 if(REQUIRE_SIGNIN && !authSignedIn()){

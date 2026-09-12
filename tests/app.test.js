@@ -3887,10 +3887,284 @@ async function main() {
       }
     })();
 
+    // ================= workspaces, invites and losing access =================
+    // The stub below is not a mock that always says yes. It enforces the SAME rules
+    // this build ships in Settings, because the rules are the access control: a test
+    // where the database always answers 200 proves that a button was clickable, not
+    // that anybody was kept out. Every assertion here is on state or on the database
+    // contents, never on rendered markup — asserting on markup has reported a pass as
+    // a failure twice in this project.
+    await (async function workspacesAndInvites() {
+      const realFetch = window.fetch, realToast = window.toast, realRender = window.render;
+      const realState = window.state, realConfirm = window.confirm, realNow = window.Date.now;
+      const realAuth = window.localStorage.getItem('bizpilot.auth');
+      try {
+        window.toast = () => {}; window.render = () => {}; window.confirm = () => true;
+
+        const db = { workspaces: {}, users: {} };
+        const sessions = {};          // idToken -> the claims a real Firebase token would carry
+        let clock = Date.UTC(2026, 5, 1, 9, 0, 0);
+        window.Date.now = () => clock;
+
+        function signIn(uid, email, verified) {
+          const tok = 'idtok_' + uid;
+          sessions[tok] = { uid, email, email_verified: verified !== false };
+          window.localStorage.setItem('bizpilot.auth', JSON.stringify({
+            uid, email, name: '', idToken: tok, refreshToken: 'r_' + uid,
+            expiresAt: clock + 3600e3, provider: 'google', verified: verified !== false, at: clock
+          }));
+        }
+        function signOut() { window.localStorage.removeItem('bizpilot.auth'); }
+
+        const clone = (v) => (v === undefined || v === null ? null : JSON.parse(JSON.stringify(v)));
+        function readAt(segs) {
+          let cur = db;
+          for (const s of segs) { if (cur === null || cur === undefined || typeof cur !== 'object') return null; cur = cur[s]; }
+          return cur === undefined ? null : cur;
+        }
+        function nodeAt(segs) {
+          let cur = db;
+          for (const s of segs) {
+            if (cur[s] === undefined || cur[s] === null || typeof cur[s] !== 'object') cur[s] = {};
+            cur = cur[s];
+          }
+          return cur;
+        }
+        const memberRole = (ws, uid) => {
+          const m = readAt(['workspaces', ws, 'members', uid]);
+          return (m && m.role) || null;
+        };
+        // The shipped rules, in JS. Kept deliberately literal so a change to one is
+        // obviously a change to the other.
+        function allowed(method, segs, body, claims) {
+          // The owner's own private sync path keeps exactly the rules it always had:
+          // open at that one path, and no token, because a copy with no account sends
+          // none. Sharing is what moves the books somewhere a token is required.
+          if (segs[0] !== 'workspaces' && segs[0] !== 'users') return true;
+          if (!claims) return false;
+          if (segs[0] === 'users') return segs[1] === claims.uid;
+          const ws = segs[1];
+          if (!ws) return false;
+          const role = memberRole(ws, claims.uid);
+          const wsExists = !!readAt(['workspaces', ws]);
+          const hasMembers = !!readAt(['workspaces', ws, 'members']);
+
+          // Invitations. The token IS the secret, so anybody signed in who holds one can
+          // read that one invite — and nobody can list them, because reading the parent
+          // needs membership. Only an owner writes one, and the person it names deletes
+          // it as they claim it.
+          if (segs[2] === 'invites' && segs[3]) {
+            const inv = readAt(['workspaces', ws, 'invites', segs[3]]);
+            if (method === 'GET') return true;
+            if (method === 'DELETE') return role === 'owner' ||
+              (!!inv && inv.email === claims.email && claims.email_verified === true);
+            return role === 'owner';
+          }
+          // Claiming the membership row an invite entitles you to. The rule looks the
+          // invite up by the token the row names, so expiry and the email match are
+          // decided here, on the server, and not only in the app.
+          if (segs[2] === 'members' && segs[3] === claims.uid && method === 'PUT' && !readAt(segs) && !role) {
+            if (!hasMembers) return !!(body && body.role === 'owner');   // first member owns it
+            const inv = body && body.viaInvite ? readAt(['workspaces', ws, 'invites', body.viaInvite]) : null;
+            return !!inv && inv.email === claims.email && claims.email_verified === true && +inv.expiresAt > clock;
+          }
+          if (role) {
+            // a member reads and writes the books; only an owner changes meta or membership
+            if (segs[2] === 'meta' || segs[2] === 'members') return role === 'owner' || method === 'GET';
+            return true;
+          }
+          // A workspace nobody is in yet can be created. Without this no workspace could
+          // ever exist, because the owner-only rule would refuse the row that makes
+          // someone an owner.
+          if (!wsExists || !hasMembers) return !segs[2] || segs[2] === 'meta';
+          return false;
+        }
+        function res(status, payload) {
+          const t = JSON.stringify(payload === undefined ? null : payload);
+          return Promise.resolve({ ok: status >= 200 && status < 300, status,
+            json: () => Promise.resolve(JSON.parse(t)), text: () => Promise.resolve(t) });
+        }
+        const seen = [];
+        window.fetch = function (url, opts) {
+          opts = opts || {};
+          const method = opts.method || 'GET';
+          const m = String(url).match(/^https:\/\/db\.test\/(.*?)\.json(?:\?auth=(.*))?$/);
+          if (!m) return Promise.reject(new Error('the app reached a URL the stub does not serve: ' + url));
+          const segs = m[1] ? m[1].split('/') : [];
+          const body = opts.body !== undefined ? JSON.parse(opts.body) : undefined;
+          const claims = m[2] ? sessions[decodeURIComponent(m[2])] : null;
+          seen.push({ method, path: m[1], uid: claims ? claims.uid : null });
+          if (!allowed(method, segs, body, claims)) return res(401, { error: 'Permission denied' });
+          if (method === 'GET') return res(200, clone(readAt(segs)));
+          if (method === 'DELETE') {
+            const parent = nodeAt(segs.slice(0, -1));
+            delete parent[segs[segs.length - 1]];
+            return res(200, null);
+          }
+          if (method === 'PUT') {
+            const parent = nodeAt(segs.slice(0, -1));
+            parent[segs[segs.length - 1]] = clone(body);
+            return res(200, body);
+          }
+          if (method === 'PATCH') {
+            const parent = nodeAt(segs);
+            Object.keys(body).forEach((k) => { if (body[k] === null) delete parent[k]; else parent[k] = clone(body[k]); });
+            return res(200, body);
+          }
+          return Promise.reject(new Error('unexpected method ' + method));
+        };
+
+        function device() {
+          const st = JSON.parse(JSON.stringify(window.DEFAULT_STATE));
+          st.meta = { createdAt: '2026-01-01' };
+          st.settings.sync = { url: 'https://db.test', path: 'p', enabled: false, lastSync: null };
+          st.settings.share = { enabled: false, wsId: '', wsName: '', role: '', apiKey: 'k', clientId: '' };
+          return st;
+        }
+
+        // ---------- the owner's first sign-in makes a workspace ----------
+        const owner = device(); window.state = owner; window.DEVICE_ID = 'dev-owner';
+        signIn('uid-owner', 'owner@x.test');
+        const ws = await window.wsCreate('Owner Books');
+        ok('creating a workspace records it on this device as the owner',
+          owner.settings.share.enabled === true && owner.settings.share.role === 'owner' &&
+          owner.settings.share.wsId === ws.wsId && owner.settings.share.wsName === 'Owner Books');
+        ok('the workspace exists in the database with its owner as the first member',
+          db.workspaces[ws.wsId].meta.ownerUid === 'uid-owner' &&
+          db.workspaces[ws.wsId].members['uid-owner'].role === 'owner');
+        ok('the owner’s own user record points at it', db.users['uid-owner'].workspaces[ws.wsId] === true);
+
+        // ---------- sync writes move under the workspace, authored by the user ----------
+        owner.finance.push({ id: 'wf1', type: 'income', amount: 1000, category: 'Sales', date: '2026-06-01', note: 'shared sale' });
+        window.save();
+        ok('with sharing on, the books address moves under the workspace',
+          window.cloudRoot() === 'https://db.test/workspaces/' + ws.wsId + '/data');
+        await window.cloudPush(true);
+        const pushed = db.workspaces[ws.wsId].data.v2.finance.wf1;
+        ok('a push lands under the workspace, not the old private path',
+          !!pushed && pushed.rec.amount === 1000 && !db.p);
+        ok('updatedBy is the signed-in user rather than the device', pushed.updatedBy === 'uid-owner');
+
+        // ---------- an invitation is a token, not an email ----------
+        const inv = await window.wsInvite('Partner@X.test');
+        ok('the invite is stored under a long random token with the invited email',
+          inv.token.length >= 32 && db.workspaces[ws.wsId].invites[inv.token].email === 'partner@x.test' &&
+          db.workspaces[ws.wsId].invites[inv.token].invitedBy === 'uid-owner');
+        ok('the invite expires', db.workspaces[ws.wsId].invites[inv.token].expiresAt > clock);
+        ok('the link carries the workspace and the token, and parses back to them',
+          (function () { const p = window.wsParseInviteHash(inv.link); return !!p && p.wsId === ws.wsId && p.token === inv.token; })());
+
+        // ---------- the invitee: wrong address, unverified address, then the real one ----------
+        const guest = device(); window.state = guest; window.DEVICE_ID = 'dev-guest';
+
+        signIn('uid-other', 'someone@else.test');
+        const mismatch = await window.wsClaimInvite(ws.wsId, inv.token).then(() => null, (e) => e);
+        ok('an invite claimed from the wrong email address is refused, and says so',
+          mismatch && mismatch.code === 'mismatch' && /someone@else\.test/.test(mismatch.msg));
+        ok('...and the refused claim joined nothing',
+          guest.settings.share.enabled === false && !db.workspaces[ws.wsId].members['uid-other']);
+
+        signIn('uid-partner', 'partner@x.test', false);
+        const unver = await window.wsClaimInvite(ws.wsId, inv.token).then(() => null, (e) => e);
+        ok('an unverified email cannot claim an invite: a typed address proves nothing',
+          unver && unver.code === 'unverified' && !db.workspaces[ws.wsId].members['uid-partner']);
+
+        signIn('uid-partner', 'partner@x.test', true);
+        const joined = await window.wsClaimInvite(ws.wsId, inv.token);
+        ok('the invited, verified address joins as a member',
+          joined.role === 'member' && guest.settings.share.enabled === true &&
+          guest.settings.share.wsId === ws.wsId && guest.settings.share.role === 'member' &&
+          guest.settings.share.wsName === 'Owner Books');
+        ok('...and the membership row the rules read on every request is written',
+          db.workspaces[ws.wsId].members['uid-partner'].email === 'partner@x.test' &&
+          db.workspaces[ws.wsId].members['uid-partner'].role === 'member');
+        ok('...and the invite is consumed, so the link is spent',
+          db.workspaces[ws.wsId].invites[inv.token] === undefined);
+
+        // ---------- single use, and expiry, each with its own message ----------
+        const reuse = await window.wsClaimInvite(ws.wsId, inv.token).then(() => null, (e) => e);
+        ok('claiming a spent invite fails and says it has been used',
+          reuse && reuse.code === 'used' && /already been used/.test(reuse.msg));
+
+        window.state = owner; signIn('uid-owner', 'owner@x.test');
+        const old = await window.wsInvite('late@x.test');
+        clock += (window.WS_INVITE_DAYS + 1) * 86400e3;
+        window.state = guest;
+        signIn('uid-late', 'late@x.test', true);
+        const expired = await window.wsClaimInvite(ws.wsId, old.token).then(() => null, (e) => e);
+        ok('an expired invite fails and says it expired, not that it was used',
+          expired && expired.code === 'expired' && /expired/.test(expired.msg));
+        ok('...and an expired invite joins nobody, at the database as well as here',
+          !db.workspaces[ws.wsId].members['uid-late'] && guest.settings.share.wsId === ws.wsId);
+
+        // ---------- a member reads and writes the same books ----------
+        signIn('uid-partner', 'partner@x.test', true);
+        await window.cloudPull();
+        ok('a member merges the owner’s records out of the workspace',
+          (guest.finance || []).some((r) => r.id === 'wf1' && r.amount === 1000));
+        guest.finance.push({ id: 'gf1', type: 'expense', amount: 250, category: 'Supplies', date: '2026-06-02', note: 'partner expense' });
+        window.save();
+        await window.cloudPush(true);
+        ok('a member’s own record reaches the shared books, authored by them',
+          !!db.workspaces[ws.wsId].data.v2.finance.gf1 &&
+          db.workspaces[ws.wsId].data.v2.finance.gf1.updatedBy === 'uid-partner');
+
+        // ---------- removal is the database's decision, not a hidden button ----------
+        window.state = owner; signIn('uid-owner', 'owner@x.test');
+        await window.wsRemoveMember('uid-partner');
+        ok('removing a member deletes the row every rule reads',
+          db.workspaces[ws.wsId].members['uid-partner'] === undefined);
+
+        window.state = guest; signIn('uid-partner', 'partner@x.test', true);
+        guest.finance.push({ id: 'gf2', type: 'expense', amount: 90, category: 'Supplies', date: '2026-06-03', note: 'after removal' });
+        window.save();
+        window.cloudFormatKnown = false;
+        await window.cloudPush(true);
+        ok('a removed member’s writes are refused by the database, not by the UI',
+          db.workspaces[ws.wsId].data.v2.finance.gf2 === undefined);
+        ok('...and nothing of theirs is lost locally: the record is still here and still pending',
+          (guest.finance || []).some((r) => r.id === 'gf2') &&
+          guest.meta.sync.recs['finance/gf2'].at !== guest.meta.sync.recs['finance/gf2'].sy);
+        const before = JSON.stringify(db.workspaces[ws.wsId].data);
+        await window.cloudPull();
+        ok('...and a removed member can no longer read the books either',
+          JSON.stringify(db.workspaces[ws.wsId].data) === before &&
+          seen.filter((c) => c.uid === 'uid-partner').length > 0);
+
+        // ---------- leaving is local, and takes nothing with it ----------
+        const sharedBefore = JSON.stringify(db.workspaces[ws.wsId]);
+        window.wsLeave();
+        ok('leaving points this device back at its own path and leaves the shared copy alone',
+          guest.settings.share.enabled === false && guest.settings.share.wsId === '' &&
+          window.cloudRoot() === 'https://db.test/p' &&
+          JSON.stringify(db.workspaces[ws.wsId]) === sharedBefore);
+
+        // ---------- with no account, nothing above happens at all ----------
+        signOut();
+        const solo = device(); window.state = solo; window.DEVICE_ID = 'dev-solo';
+        ok('with sharing off the books address is the private path it always was',
+          window.cloudRoot() === 'https://db.test/p' && window.cloudQ() === '');
+        solo.finance.push({ id: 'sf1', type: 'income', amount: 10, category: 'Sales', date: '2026-06-01' });
+        window.save();
+        window.cloudFormatKnown = false;
+        const soloFrom = seen.length;
+        await window.cloudPush(true);
+        ok('...and not one request it makes carries a token',
+          seen.slice(soloFrom).length > 0 && seen.slice(soloFrom).every((c) => c.uid === null) &&
+          !!db.p.v2.finance.sf1);
+      } finally {
+        window.clearTimeout(window.cloudTimer);
+        window.fetch = realFetch; window.toast = realToast; window.render = realRender;
+        window.confirm = realConfirm; window.state = realState; window.Date.now = realNow;
+        if (realAuth === null) window.localStorage.removeItem('bizpilot.auth');
+        else window.localStorage.setItem('bizpilot.auth', realAuth);
+      }
+    })();
+
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
   } catch (e) {
-    console.log('SUITE THREW >>', e.stack);
+    console.log('SUITE THREW >>', (e && e.stack) || JSON.stringify(e) || e);
     process.exit(2);
   }
 }
