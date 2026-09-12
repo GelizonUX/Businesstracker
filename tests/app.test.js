@@ -4248,6 +4248,130 @@ async function main() {
       }
     })();
 
+    // ---------- the account menu ----------
+    // The owner's report was "i cant see the log in log out or sign up when i click the
+    // profile name". Both chips drew a chevron and both went to Settings. These assert
+    // on live DOM STATE (which actions the open menu carries, what aria says, whether it
+    // is in the document) rather than on rendered markup: matching HTML strings has
+    // reported a pass as a failure twice in this project.
+    await (async function accountMenu() {
+      const savedAuth = window.localStorage.getItem('bizpilot.auth');
+      const share = window.state.settings.share;
+      const savedShare = JSON.parse(JSON.stringify(share));
+      const acts = () => Array.prototype.map.call(
+        d.querySelectorAll('#acct-menu [data-action]'), (e) => e.getAttribute('data-action'));
+      const open = (sel) => { window.acctMenuClose(true); window.render(); click(d.querySelector(sel)); };
+      try {
+        window.location.hash = '#/dashboard';
+        window.authStore(null);
+        share.apiKey = 'AIzaTEST'; share.clientId = 'test.apps.googleusercontent.com';
+        share.enabled = false; share.wsId = ''; share.wsName = ''; share.role = '';
+
+        // both chips, one menu
+        open('.tb-acct');
+        ok('the account menu opens from the top bar chip', window.acctMenuIsOpen() === true);
+        ok('...and the chip says so', d.querySelector('.tb-acct').getAttribute('aria-expanded') === 'true');
+        const fromTop = acts().join(',');
+        open('.biz-chip');
+        ok('the account menu opens from the sidebar chip too', window.acctMenuIsOpen() === true
+          && d.querySelector('.biz-chip').getAttribute('aria-expanded') === 'true');
+        ok('both chips open the SAME menu, not two of them', acts().join(',') === fromTop, [fromTop, acts().join(',')]);
+        ok('the menu is mounted on <body>, so neither the top bar nor the sidebar can clip it',
+          d.getElementById('acct-menu').parentNode === d.body);
+
+        // signed out: the three ways in
+        open('.tb-acct');
+        const out = acts();
+        ok('signed out, the menu offers Google, email sign-in and Create an account',
+          ['auth-google', 'auth-signin-email', 'auth-signup'].every((a) => out.indexOf(a) >= 0), out);
+        ok('signed out, there is nothing to sign out of', out.indexOf('auth-signout') < 0, out);
+        ok('signed out, Business settings and Privacy are still reachable',
+          out.indexOf('settings-go') >= 0 && out.indexOf('nav') >= 0, out);
+        ok('every row in the menu is a real menuitem (keyboard reachable)',
+          d.querySelectorAll('#acct-menu [data-action]').length > 0 &&
+          Array.prototype.every.call(d.querySelectorAll('#acct-menu [data-action]'),
+            (e) => e.getAttribute('role') === 'menuitem'));
+
+        // a copy with no Firebase project offers no sign-in it cannot honour
+        share.apiKey = ''; share.clientId = '';
+        open('.tb-acct');
+        const bare = acts();
+        ok('with no project configured the menu offers set-up, not buttons that must fail',
+          bare.indexOf('auth-signin-email') < 0 && bare.indexOf('auth-google') < 0 && bare.indexOf('settings-go') >= 0, bare);
+        share.apiKey = 'AIzaTEST'; share.clientId = 'test.apps.googleusercontent.com';
+
+        // signed in with an email and password
+        window.authStore({ uid: 'u1', email: 'owner@example.com', name: 'Ira Santos', idToken: 't',
+          refreshToken: 'r', expiresAt: Date.now() + 3.6e6, provider: 'password', verified: true, at: Date.now() });
+        open('.tb-acct');
+        const inp = acts();
+        ok('signed in, the menu carries the profile, the password and the way out',
+          ['auth-profile', 'auth-change-password', 'auth-signout'].every((a) => inp.indexOf(a) >= 0), inp);
+        ok('signed in, it stops offering to sign in',
+          inp.indexOf('auth-signin-email') < 0 && inp.indexOf('auth-google') < 0 && inp.indexOf('auth-signup') < 0, inp);
+        ok('signed in, the header names the account',
+          d.querySelector('#acct-menu .acct-who').textContent.indexOf('owner@example.com') >= 0);
+
+        // a Google account's password is not this app's to change
+        window.authStore(Object.assign(JSON.parse(window.localStorage.getItem('bizpilot.auth')), { provider: 'google' }));
+        open('.tb-acct');
+        ok('a Google account is shown no Change password control', acts().indexOf('auth-change-password') < 0, acts());
+        ok('...it is pointed at Google, where the password actually lives',
+          Array.prototype.some.call(d.querySelectorAll('#acct-menu a[href]'),
+            (a) => /myaccount\.google\.com/.test(a.getAttribute('href'))));
+        // and the refusal is real, not only a hidden button: the function itself says no
+        // before a single request leaves the device.
+        const refusal = await window.authChangePassword('old', 'newpassword').then(
+          () => null, (e) => e);
+        ok('authChangePassword refuses a Google account rather than failing at the server',
+          !!refusal && refusal.code === 'notpassword', refusal);
+        ok('...with a reason a person can act on', !!refusal && /Google/.test(refusal.msg || ''));
+
+        // members and invites only exist once sharing does
+        ok('members and invites is hidden while nothing is shared',
+          acts().filter((a) => a === 'settings-go').length === 1, acts());
+        share.enabled = true; share.wsId = 'ws_test'; share.wsName = 'Lumina Studio'; share.role = 'owner';
+        open('.tb-acct');
+        ok('members and invites appears once this copy has joined a workspace',
+          acts().filter((a) => a === 'settings-go').length === 2, acts());
+        ok('the header names the workspace',
+          d.querySelector('#acct-menu .acct-who').textContent.indexOf('Lumina Studio') >= 0);
+        ok('both chips stop claiming the books are local once they are shared',
+          window.acctChipLine() === 'Lumina Studio');
+
+        // Escape closes it and hands focus back to the chip that opened it
+        open('.tb-acct');
+        const trig = d.querySelector('.tb-acct');
+        d.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        ok('Escape closes the menu', window.acctMenuIsOpen() === false);
+        ok('...and focus goes back to the chip', d.activeElement === trig);
+        ok('...and the chip stops claiming to be open', trig.getAttribute('aria-expanded') === 'false');
+
+        // a click anywhere else closes it; a second click on the chip toggles it shut
+        open('.tb-acct');
+        click(d.getElementById('main'));
+        ok('a click outside closes the menu', window.acctMenuIsOpen() === false);
+        open('.tb-acct');
+        click(d.querySelector('.tb-acct'));
+        ok('a second click on the chip closes what the first one opened', window.acctMenuIsOpen() === false);
+
+        // acting on a row puts the menu away
+        window.authStore(null);
+        share.enabled = false; share.wsId = ''; share.wsName = ''; share.role = '';
+        open('.tb-acct');
+        click(d.querySelector('#acct-menu [data-action="settings-go"]'));
+        ok('choosing a row closes the menu behind it', window.acctMenuIsOpen() === false);
+      } finally {
+        window.acctMenuClose(true);
+        Object.keys(share).forEach((k) => { delete share[k]; });
+        Object.assign(share, savedShare);
+        if (savedAuth) window.localStorage.setItem('bizpilot.auth', savedAuth);
+        else window.localStorage.removeItem('bizpilot.auth');
+        window.location.hash = '#/dashboard';
+        window.render();
+      }
+    })();
+
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
   } catch (e) {

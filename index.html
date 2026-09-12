@@ -1228,6 +1228,50 @@ body.rm-shift .rm-canvas{cursor:crosshair}
 .tb-acct-t i{display:block;font-style:normal;font-size:var(--f2);color:var(--text-3);line-height:1.3}
 .tb-acct-chev{display:inline-flex;color:var(--text-3)}
 @media (max-width:1180px){.tb-acct-t{display:none}.tb-acct{padding:4px}}
+
+/* ---- the account menu ----
+   One dropdown, opened by the top bar chip and by the sidebar chip. It wears the same
+   glass as .isl-drop above (tint, edge, radius, shadow, the same spring entrance, the
+   same row treatment) rather than inventing a second dropdown material.
+
+   It is parked on <body> with position:fixed instead of nested inside either chip,
+   because both anchors clip: .topbar .tb-acct carries overflow:hidden so the business
+   name can ellipsis, and the sidebar is a scrolling column with its own stacking. A
+   menu nested in either one is cut off. Fixed placement against the trigger's rect,
+   clamped to a 12px gutter, is the only version that survives both and the narrow
+   widths where the chevron itself was already hanging past the viewport edge. */
+.acct-menu{position:fixed;z-index:120;width:min(304px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow-y:auto;
+  background:var(--lg-tint);border:1px solid var(--lg-edge);border-radius:var(--r-lg);
+  box-shadow:var(--shadow-lg),var(--lg-rim);padding:6px;
+  opacity:0;transform:translateY(-6px) scale(.96);transform-origin:top right;
+  transition:opacity .18s var(--ease),transform .22s cubic-bezier(.34,1.56,.64,1)}
+.acct-menu.up{transform-origin:bottom right}
+.acct-menu.open{opacity:1;transform:translateY(0) scale(1)}
+.acct-menu button,.acct-menu a{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 12px;
+  border-radius:10px;font-size:var(--f3);font-weight:500;color:var(--text-2);text-decoration:none;
+  transition:background .12s,color .12s}
+.acct-menu button:hover,.acct-menu a:hover{background:var(--bg-sunken);color:var(--text)}
+.acct-menu svg{width:15px;height:15px;opacity:.8;flex-shrink:0}
+.acct-menu .acct-sep{height:1px;background:var(--border);margin:5px 8px}
+.acct-menu .acct-head{display:flex;align-items:center;gap:10px;padding:10px 12px 11px}
+.acct-menu .acct-face{width:38px;height:38px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;
+  background:var(--accent-cta);color:var(--accent-cta-ink);font-weight:600;font-size:var(--f3);object-fit:cover}
+.acct-menu .acct-who{min-width:0;flex:1}
+.acct-menu .acct-who b{display:block;font-size:var(--f3);font-weight:600;color:var(--text);line-height:1.25;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acct-menu .acct-who span{display:block;font-size:var(--f1);color:var(--text-3);line-height:1.45;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acct-menu .acct-note{padding:0 12px 10px;font-size:var(--f1);color:var(--text-3);line-height:1.5}
+.acct-menu .acct-sub{margin-left:auto;font-size:var(--f1);color:var(--text-3);flex-shrink:0;font-weight:500}
+/* the chevron finally means something, so it turns over when the menu is open */
+.tb-acct-chev,.biz-chip .biz-chev{transition:transform .18s var(--ease)}
+.tb-acct[aria-expanded="true"] .tb-acct-chev,.biz-chip[aria-expanded="true"] .biz-chev{transform:rotate(180deg)}
+/* On a phone every row in here is a thing to tap, and 9px of padding on a 15px label
+   is not 44px. The rows grow instead of wearing a pseudo-element, because nothing in a
+   list of full-width rows reflows when the rows get taller. */
+@media (max-width:860px){
+  .acct-menu button,.acct-menu a{min-height:44px;padding:11px 12px}
+}
 @media (max-width:960px){.tb-search{flex-basis:180px}}
 @media (max-width:860px){
   .tb-search,.tb-bell,.tb-acct{display:none}
@@ -3506,6 +3550,11 @@ var ICONS = {
   plus:'<path d="M12 4.9v14.2M4.9 12h14.2"/>',
   minus:'<path d="M4.9 12h14.2"/>',
   'down-chev':'<path d="M6.4 9.5 12 15.1l5.6-5.6"/>',
+  /* The two the account menu needed and the set did not have: the standard door with
+     an arrow going out of it, and its mirror going in. Drawn on the same 24 grid and
+     the same hairline as the rest, so they sit in a row of them without shouting. */
+  signout:'<path d="M12.4 4.5H6.2A1.7 1.7 0 0 0 4.5 6.2v11.6a1.7 1.7 0 0 0 1.7 1.7h6.2"/><path d="m14.8 16.4 4.4-4.4-4.4-4.4"/><path d="M19.2 12H9"/>',
+  signin:'<path d="M11.6 4.5h6.2a1.7 1.7 0 0 1 1.7 1.7v11.6a1.7 1.7 0 0 1-1.7 1.7h-6.2"/><path d="m10 16.4 4.4-4.4L10 7.6"/><path d="M14.4 12H4.5"/>',
   menu:'<path d="M3.6 6.6h16.8M3.6 12h16.8M3.6 17.4h16.8"/>',
   grip:'<circle class="s" cx="9" cy="5.6" r="1.55"/><circle class="s" cx="15" cy="5.6" r="1.55"/><circle class="s" cx="9" cy="12" r="1.55"/><circle class="s" cx="15" cy="12" r="1.55"/><circle class="s" cx="9" cy="18.4" r="1.55"/><circle class="s" cx="15" cy="18.4" r="1.55"/>',
   sun:'<circle class="d" cx="12" cy="12" r="4.9"/><path d="M12 2.1v2.5M12 19.4v2.5M4.6 12H2.1M21.9 12h-2.5M5 5 6.77 6.77M17.23 17.23 19 19M19 5l-1.77 1.77M6.77 17.23 5 19"/>',
@@ -3691,6 +3740,57 @@ function authSignIn(email,password){
 }
 function authSendReset(email){
   return authPost('sendOobCode',{requestType:'PASSWORD_RESET',email:String(email||'').trim()}).then(function(){ return true; });
+}
+/* accounts:update, used for the two things an owner expects to be able to change about
+   their own account. Both write back into the stored session by MERGING rather than by
+   re-adopting the response: accounts:update answers with the fields it touched, so
+   authAdopt() would quietly blank the display name on a password change and the
+   verified flag on a rename. */
+function authMergeSession(d){
+  var cur=authLoad(); if(!cur) return null;
+  if(d&&d.idToken){
+    cur.idToken=d.idToken;
+    if(d.refreshToken) cur.refreshToken=d.refreshToken;
+    if(d.expiresIn) cur.expiresAt=Date.now()+(Math.max(60,+d.expiresIn||3600))*1000;
+    cur.expired=false;
+  }
+  if(d&&typeof d.displayName==='string') cur.name=d.displayName;
+  if(d&&d.email) cur.email=String(d.email).toLowerCase();
+  return authStore(cur);
+}
+/* Changing a password re-signs-in with the current one first. Firebase refuses the
+   change on a token it does not consider fresh, and it is right to: a borrowed unlocked
+   laptop must not be able to lock the owner out of their own account. Asking for the
+   old password is also the only way this app can say "that is not your current
+   password" instead of relaying a CREDENTIAL_TOO_OLD_LOGIN_AGAIN nobody can act on. */
+function authChangePassword(current,next){
+  var u=authUser();
+  if(!u) return Promise.reject({code:'nosession',msg:'You are not signed in.'});
+  if(u.provider!=='password') return Promise.reject({code:'notpassword',
+    msg:'This account signs in with Google, so its password lives at Google and cannot be changed from here.'});
+  next=String(next||'');
+  if(next.length<6) return Promise.reject({code:'WEAK_PASSWORD',msg:'Choose a password of at least 6 characters.'});
+  return authSignIn(u.email,String(current||''))
+    .then(function(s){ return authPost('update',{idToken:s.idToken,password:next,returnSecureToken:true}); })
+    .then(function(d){ authMergeSession(d); return true; });
+}
+/* The display name, which is the only part of a profile this app owns. Emptying it is a
+   deletion rather than an empty string, or Firebase stores the empty string and every
+   greeting falls back to the email address for the wrong reason. */
+function authUpdateProfile(name){
+  if(!authUser()) return Promise.reject({code:'nosession',msg:'You are not signed in.'});
+  name=String(name||'').trim().slice(0,60);
+  return authToken().then(function(tok){
+    var body=name?{idToken:tok,displayName:name,returnSecureToken:false}
+                 :{idToken:tok,deleteAttribute:['DISPLAY_NAME'],returnSecureToken:false};
+    return authPost('update',body);
+  }).then(function(d){
+    authMergeSession(d);
+    /* The delete branch answers without a displayName, so the merge cannot learn the
+       new value from it. What was asked for is what is stored. */
+    var cur=authLoad(); if(cur){ cur.name=name; authStore(cur); }
+    return name;
+  });
 }
 /* Signing out takes the session and NOTHING else. The books, the device id and the PIN
    lock all stay exactly where they are, because they were never the account's to begin
@@ -5630,10 +5730,10 @@ function renderSidebar(){
      whether their books would survive losing this device. It reads differently in each
      state, and when everything is safe it says so quietly instead of inventing a task. */
   html+=sidebarBackupCardHTML();
-  html+='<div class="sidebar-foot"><button class="biz-chip" data-action="settings-go" data-tab="business" title="'+appNameEsc()+'">'+
+  html+='<div class="sidebar-foot"><button class="biz-chip" data-action="acct-menu" aria-haspopup="menu" aria-expanded="false" title="'+appNameEsc()+'">'+
     (bl?'<img src="'+esc(bl)+'" alt="" style="width:36px;height:36px;border-radius:10px;object-fit:cover;flex-shrink:0">'
        :'<div class="avatar">'+esc(appName().charAt(0).toUpperCase())+'</div>')+
-    '<div><b>'+appNameEsc()+'</b><span>Local · private</span></div>'+
+    '<div><b>'+appNameEsc()+'</b><span>'+esc(acctChipLine())+'</span></div>'+
     '<span class="biz-chev">'+icon('down-chev',14)+'</span></button></div>';
   var sb=byId('sidebar');
   var navEl=sb.querySelector('.nav');
@@ -5694,6 +5794,264 @@ function islandCloseAll(){
   var bar=byId('island-bar'); if(!bar) return;
   bar.querySelectorAll('.isl-group.open').forEach(function(g){ g.classList.remove('open'); var b=g.querySelector('[aria-expanded]'); if(b) b.setAttribute('aria-expanded','false'); });
 }
+
+/* ============================================================
+   the account menu
+   ============================================================
+   The owner's complaint, in their words: "i cant see the log in log out or sign up when
+   i click the profile name". They were right. Both account chips drew a chevron and
+   both were data-action="settings-go", so the chevron promised a dropdown that did not
+   exist and the click landed on a settings page instead. Every path into the accounts
+   the app already has (sign in, Google, sign out, workspaces, invites) was reachable
+   only by scrolling to the bottom of Settings ▸ Data & Sync.
+
+   ONE renderer, two triggers. The top bar chip (.tb-acct) is hidden below 860px, where
+   the sidebar chip (.biz-chip) is the one an owner can reach, so neither is optional
+   and neither may be a second copy of the other. */
+var acctMenuTrigger=null;
+/* The one line under the business name on both chips. It used to say "Local · private"
+   and "Local workspace" unconditionally, which stopped being true the moment anyone
+   signed in or joined a workspace, and a chip that lies about who you are is a chip
+   nobody trusts to sign them out. */
+function acctChipLine(){
+  var cfg=(typeof shareCfg==='function')?shareCfg():{};
+  if(cfg&&cfg.enabled&&cfg.wsId) return cfg.wsName||tr('Shared workspace');
+  if(typeof authSignedIn==='function'&&authSignedIn()) return authName();
+  return tr('On this device');
+}
+function acctMenuEl(){ return byId('acct-menu'); }
+function acctMenuIsOpen(){ return !!acctMenuEl(); }
+
+function acctRow(action,glyph,label,extra){
+  return '<button type="button" role="menuitem" data-action="'+action+'"'+(extra||'')+'>'+
+    icon(glyph)+'<span>'+esc(tr(label))+'</span></button>';
+}
+/* What the menu says depends entirely on whether there is a session, so the two states
+   are written next to each other rather than in two functions that drift. */
+function acctMenuHTML(){
+  var u=(typeof authUser==='function')?authUser():null;
+  var cfg=(typeof shareCfg==='function')?shareCfg():{};
+  var bl=state.settings.bizLogo;
+  var h='';
+  if(u){
+    var nm=authName();
+    var ws=(cfg.enabled&&cfg.wsId)?(cfg.wsName||cfg.wsId):'';
+    h+='<div class="acct-head">'+
+      '<span class="acct-face" aria-hidden="true">'+esc(String(nm||'?').charAt(0).toUpperCase())+'</span>'+
+      '<span class="acct-who"><b>'+esc(nm)+'</b>'+
+        '<span>'+esc(u.email||'')+'</span>'+
+        '<span>'+esc(ws?tr('Workspace')+': '+ws:tr('No workspace yet'))+'</span></span></div>';
+    if(u.expired) h+='<p class="acct-note">'+esc(tr('This session ended. Your books on this device are untouched; sign in again when you want sharing back.'))+'</p>';
+    h+='<div class="acct-sep"></div>';
+    h+=acctRow('auth-profile','idcard','Your profile');
+    /* A Google account has no password here to change. Firebase holds no password for
+       it at all, so a Change password row could only ever fail; the honest version
+       says where the password actually lives and offers to go there. */
+    if(u.provider==='password') h+=acctRow('auth-change-password','shield','Change password');
+    else h+='<a role="menuitem" href="https://myaccount.google.com/security" target="_blank" rel="noopener noreferrer">'+
+      icon('shield')+'<span>'+esc(tr('Password'))+'</span><span class="acct-sub">'+esc(tr('kept by Google'))+'</span></a>';
+    if(typeof shareOn==='function'&&shareOn()) h+=acctRow('settings-go','users','Members and invites',' data-tab="data"');
+    h+='<div class="acct-sep"></div>';
+    h+=acctRow('settings-go','settings','Business settings',' data-tab="business"');
+    h+=acctRow('nav','shield','Privacy',' data-route="privacy"');
+    h+='<div class="acct-sep"></div>';
+    h+='<button type="button" role="menuitem" data-action="auth-signout">'+icon('signout')+
+      '<span>'+esc(tr('Sign out'))+'</span></button>';
+    return h;
+  }
+  h+='<div class="acct-head">'+
+    (bl?'<img class="acct-face" src="'+esc(bl)+'" alt="">'
+       :'<span class="acct-face" aria-hidden="true">'+esc(appName().charAt(0).toUpperCase())+'</span>')+
+    '<span class="acct-who"><b>'+appNameEsc()+'</b><span>'+esc(tr('Not signed in'))+'</span></span></div>';
+  /* This is the true and the selling part, so it goes first: nobody has to make an
+     account to run their books, and nothing is being withheld until they do. */
+  h+='<p class="acct-note">'+esc(tr('Your books are saved on this device and work offline. No account is needed to use them. Signing in adds one thing: other people you invite can see the same books.'))+'</p>';
+  h+='<div class="acct-sep"></div>';
+  if(typeof authConfigured==='function'&&authConfigured()){
+    if(authClientId()) h+=acctRow('auth-google','users','Sign in with Google');
+    h+='<button type="button" role="menuitem" data-action="auth-signin-email">'+icon('signin')+
+      '<span>'+esc(tr('Sign in with email'))+'</span></button>';
+    h+=acctRow('auth-signup','plus','Create an account');
+  }else{
+    h+='<p class="acct-note">'+esc(tr('No sign-in project is connected to this copy yet, so there is no account to sign in to. Connect one and the buttons appear here.'))+'</p>';
+    h+=acctRow('settings-go','cloud','Set up sign-in',' data-tab="data"');
+  }
+  h+='<div class="acct-sep"></div>';
+  h+=acctRow('settings-go','settings','Business settings',' data-tab="business"');
+  h+=acctRow('nav','shield','Privacy',' data-route="privacy"');
+  return h;
+}
+/* Placement. The menu is on <body>, so it is positioned from the trigger's own rect and
+   then clamped into the viewport with a 12px gutter: the top bar chip's chevron was
+   itself measured 11px past the right edge at some widths, and a menu anchored blindly
+   to that would start off-screen. Below the trigger where there is room, above it where
+   there is not. */
+function acctMenuPlace(menu,trig){
+  var r=trig.getBoundingClientRect();
+  var vw=document.documentElement.clientWidth||window.innerWidth||0;
+  var vh=document.documentElement.clientHeight||window.innerHeight||0;
+  var mw=menu.offsetWidth, mh=menu.offsetHeight, gut=12;
+  // the sidebar chip hangs from its left edge, the top bar chip from its right
+  var left=trig.classList.contains('biz-chip')?r.left:(r.right-mw);
+  left=Math.max(gut,Math.min(left,vw-mw-gut));
+  var top=r.bottom+8, up=false;
+  if(top+mh>vh-gut&&r.top-mh-8>=gut){ top=r.top-mh-8; up=true; }
+  top=Math.max(gut,Math.min(top,Math.max(gut,vh-mh-gut)));
+  menu.classList.toggle('up',up);
+  menu.style.left=Math.round(left)+'px';
+  menu.style.top=Math.round(top)+'px';
+}
+function acctMenuOpen(trig){
+  acctMenuClose(true);
+  var menu=document.createElement('div');
+  menu.id='acct-menu'; menu.className='acct-menu';
+  menu.setAttribute('role','menu');
+  menu.setAttribute('aria-label',tr('Account'));
+  menu.innerHTML=acctMenuHTML();
+  document.body.appendChild(menu);
+  if(typeof enhanceA11y==='function') enhanceA11y(menu);
+  acctMenuPlace(menu,trig);
+  acctMenuTrigger=trig;
+  trig.setAttribute('aria-expanded','true');
+  // the entrance needs a frame with a real box behind it, or there is nothing to run from
+  requestAnimationFrame(function(){ var m=acctMenuEl(); if(m) m.classList.add('open'); });
+  var first=menu.querySelector('[role="menuitem"]');
+  if(first) try{ first.focus(); }catch(_){ }
+  return menu;
+}
+/* silent=true when the trigger is about to be replaced by a render(), or when the click
+   that closed the menu has already moved focus somewhere the user chose. */
+function acctMenuClose(silent){
+  var menu=acctMenuEl(), trig=acctMenuTrigger;
+  acctMenuTrigger=null;
+  if(menu&&menu.parentNode) menu.parentNode.removeChild(menu);
+  if(trig){
+    trig.setAttribute('aria-expanded','false');
+    if(!silent&&trig.isConnected) try{ trig.focus(); }catch(_){ }
+  }
+  return !!menu;
+}
+function acctMenuToggle(trig){
+  if(acctMenuIsOpen()&&acctMenuTrigger===trig){ acctMenuClose(); return false; }
+  acctMenuOpen(trig);
+  return true;
+}
+/* Keyboard. The trigger is a real button, so Enter and Space open it for free; from
+   there the arrows walk the rows, Escape closes and hands focus back to the chip, and
+   Tab cycles inside rather than dropping the user behind an open menu. */
+document.addEventListener('keydown',function(e){
+  var menu=acctMenuEl(); if(!menu) return;
+  if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); acctMenuClose(); return; }
+  var items=Array.prototype.slice.call(menu.querySelectorAll('[role="menuitem"]'));
+  if(!items.length) return;
+  var i=items.indexOf(document.activeElement);
+  var go=function(n){ e.preventDefault(); items[(n+items.length)%items.length].focus(); };
+  if(e.key==='ArrowDown'||(e.key==='Tab'&&!e.shiftKey)) go(i+1);
+  else if(e.key==='ArrowUp'||(e.key==='Tab'&&e.shiftKey)) go(i-1);
+  else if(e.key==='Home') go(0);
+  else if(e.key==='End') go(items.length-1);
+},true);
+/* A fixed menu does not follow a scrolling anchor, and a menu left hovering over the
+   wrong control is worse than one that closed. Reposition while the trigger is still
+   on screen; give up and close when it is not. */
+window.addEventListener('resize',function(){ if(acctMenuIsOpen()) acctMenuClose(true); });
+document.addEventListener('scroll',function(){
+  var menu=acctMenuEl(); if(!menu) return;
+  if(!acctMenuTrigger||!acctMenuTrigger.isConnected) return acctMenuClose(true);
+  acctMenuPlace(menu,acctMenuTrigger);
+},true);
+
+/* ---------- the account dialogs ----------
+   All three are the same shape: take what was typed, hand it to one auth function, and
+   keep the dialog open until that function has actually said yes. onSubmit returns
+   false so the modal stays put; closeModal() runs on success only, which is what stops
+   a failed sign-in from silently throwing away the address somebody just typed. */
+function authModalBusy(form,on,label){
+  var b=form.querySelector('button[type="submit"]'); if(!b) return;
+  b.disabled=!!on;
+  if(on){ b.setAttribute('data-idle',b.textContent); b.textContent=label||'Working…'; }
+  else if(b.getAttribute('data-idle')){ b.textContent=b.getAttribute('data-idle'); }
+}
+/* Sign in and create an account are the same two fields and the same one call, so they
+   are one dialog with a mode rather than two that drift apart. */
+function authEmailModal(mode){
+  if(!authConfigured()){
+    toast('This copy has no Firebase project set up, so there is nothing to sign in to yet.','warn'); return;
+  }
+  var up=mode==='up';
+  var body='<p style="font-size:var(--f2);color:var(--text-2);margin-bottom:12px">'+esc(tr(up
+      ? 'An account is only used for sharing. Everything already on this device stays exactly where it is.'
+      : 'Signing in moves nothing. It lets the database check who is asking before it answers.'))+'</p>'+
+    '<div class="field"><label>Email</label><input class="input" type="email" name="email" autocomplete="username" placeholder="you@email.com"></div>'+
+    '<div class="field"><label>Password</label><input class="input" type="password" name="password" autocomplete="'+(up?'new-password':'current-password')+'" placeholder="at least 6 characters"></div>'+
+    (up?'':'<button class="btn btn-ghost btn-sm" type="button" data-action="auth-reset">'+esc(tr('Forgot password'))+'</button>');
+  openModal(up?'Create an account':'Sign in',body,{submitLabel:up?'Create account':'Sign in',onSubmit:function(form){
+    // the password is read raw: fv() trims, and a trailing space is a real character in one
+    var pw=form.elements['password']?form.elements['password'].value:'';
+    authModalBusy(form,true,up?'Creating…':'Signing in…');
+    authSubmitEmail(fv(form,'email'),pw,up?'up':'in').then(function(){
+      closeModal();
+      toast(up?('Account created. You are signed in as '+authName()+'.'):('Signed in as '+authName()+'.'));
+      save(); render();
+      if(typeof wsMaybeClaim==='function') wsMaybeClaim();
+    },function(err){
+      authModalBusy(form,false);
+      toast((err&&err.msg)||'Could not sign in.','error');
+    });
+    return false;
+  }});
+}
+function authPasswordModal(){
+  var u=authUser();
+  if(!u){ toast('Sign in first, from the account menu.','warn'); return; }
+  if(u.provider!=='password'){
+    toast('This account signs in with Google, so its password is kept at Google, not here.','warn'); return;
+  }
+  var body='<p style="font-size:var(--f2);color:var(--text-2);margin-bottom:12px">'+
+      esc(tr('Signed in as ')+u.email+'. '+tr('Your current password is asked for because Firebase refuses a password change on a stale session, and because it is the only way this app can tell you that you typed the old one wrong.'))+'</p>'+
+    '<div class="field"><label>Current password</label><input class="input" type="password" name="current" autocomplete="current-password"></div>'+
+    '<div class="field"><label>New password</label><input class="input" type="password" name="next" autocomplete="new-password" placeholder="at least 6 characters"></div>'+
+    '<div class="field"><label>New password again</label><input class="input" type="password" name="confirm" autocomplete="new-password"></div>';
+  openModal('Change password',body,{submitLabel:'Change password',onSubmit:function(form){
+    var cur=form.elements['current']?form.elements['current'].value:'';
+    var nw=form.elements['next']?form.elements['next'].value:'';
+    var cf=form.elements['confirm']?form.elements['confirm'].value:'';
+    if(nw.length<6){ toast('Choose a new password of at least 6 characters.','error'); return false; }
+    if(nw!==cf){ toast('The two new passwords do not match.','error'); return false; }
+    authModalBusy(form,true,'Changing…');
+    authChangePassword(cur,nw).then(function(){
+      closeModal();
+      toast('Password changed. This device stays signed in.');
+      save(); render();
+    },function(err){
+      authModalBusy(form,false);
+      toast((err&&err.msg)||'Could not change the password.','error');
+    });
+    return false;
+  }});
+}
+function authProfileModal(){
+  var u=authUser();
+  if(!u){ toast('Sign in first, from the account menu.','warn'); return; }
+  var body='<div class="field"><label>Display name</label>'+
+      '<input class="input" name="name" maxlength="60" value="'+esc(u.name||'')+'" placeholder="e.g. Ira">'+
+      '<p style="font-size:var(--f1);color:var(--text-3);margin-top:4px">'+
+        esc(tr('What the other people in your workspace see next to your changes. It is not your business name, which lives in Business settings.'))+'</p></div>'+
+    '<p style="font-size:var(--f1);color:var(--text-3)">'+esc(u.email)+' · '+
+      esc(u.provider==='google'?tr('signed in with Google'):tr('signed in with an email and password'))+
+      (u.verified?'':' · '+esc(tr('email not verified yet')))+'</p>';
+  openModal('Your profile',body,{submitLabel:'Save',onSubmit:function(form){
+    authModalBusy(form,true,'Saving…');
+    authUpdateProfile(fv(form,'name')).then(function(){
+      closeModal(); toast('Profile saved.'); save(); render();
+    },function(err){
+      authModalBusy(form,false);
+      toast((err&&err.msg)||'Could not save your profile.','error');
+    });
+    return false;
+  }});
+}
+
 /* THE TOP BAR (spec 2). Title at the left, one wide search field with a filter
    glyph at its right edge, a bell that carries a dot when something is actually
    late, and the account block. The per-view action buttons keep their own cluster
@@ -5718,9 +6076,9 @@ function topbar(title,subtitle,actionsHTML){
     '</div>'+
     '<button class="tb-bell" data-action="nav" data-route="tasks" aria-label="'+(late?late+' items need attention':'Nothing is late')+'" title="'+(late?late+' items need attention':'Nothing is late')+'">'+
       icon('bell',20)+(late?'<span class="tb-dot" aria-hidden="true"></span>':'')+'</button>'+
-    '<button class="tb-acct" data-action="settings-go" data-tab="business" aria-label="'+appNameEsc()+' settings">'+
+    '<button class="tb-acct" data-action="acct-menu" aria-haspopup="menu" aria-expanded="false" aria-label="'+esc(tr('Account and workspace'))+'">'+
       (bl?'<img class="tb-avatar" src="'+esc(bl)+'" alt="">':'<span class="tb-avatar">'+initial+'</span>')+
-      '<span class="tb-acct-t"><b>'+appNameEsc()+'</b><i>'+esc(tr('Local workspace'))+'</i></span>'+
+      '<span class="tb-acct-t"><b>'+appNameEsc()+'</b><i>'+esc(acctChipLine())+'</i></span>'+
       '<span class="tb-acct-chev" aria-hidden="true">'+icon('down-chev',14)+'</span></button>'+
     '</div>';
 }
@@ -10772,10 +11130,18 @@ document.addEventListener('click',function(e){
   if(rmCtxEl&&!e.target.closest('.rm-ctx')) rmCtxClose();
   if(rmPopEl&&!e.target.closest('.rm-pop')&&!e.target.closest('[data-action="rm-node-pop"]')) rmPopClose();
   if(rmCommentEl&&!e.target.closest('.rm-comment-pop')&&!e.target.closest('.rm-comment')) rmCommentClose();
+  /* The account menu closes on any click outside it. Its own trigger is excluded, or
+     this would close the menu a moment before acctMenuToggle() decided to reopen it and
+     the chip would never close what it opened. */
+  if(!e.target.closest('#acct-menu')&&!e.target.closest('[data-action="acct-menu"]')) acctMenuClose(true);
   var el=e.target.closest('[data-action]');
   if(!el) return;
   var action=el.getAttribute('data-action');
   var id=el.getAttribute('data-id');
+  /* A row in the menu acts and the menu goes. Silently: most of these rows call
+     render(), which replaces the chip the focus would otherwise be handed back to. */
+  if(el.closest('#acct-menu')) acctMenuClose(true);
+  if(action==='acct-menu'){ acctMenuToggle(el); return; }
 
   /* accounts. A cancelled popup is silent on purpose: the owner closed it, they know. */
   if(action==='auth-google'){
@@ -10791,6 +11157,10 @@ document.addEventListener('click',function(e){
     authSignOut(); toast('Signed out. Everything on this device is untouched.');
     save(); render(); return;
   }
+  if(action==='auth-signin-email'){ authEmailModal('in'); return; }
+  if(action==='auth-signup'){ authEmailModal('up'); return; }
+  if(action==='auth-change-password'){ authPasswordModal(); return; }
+  if(action==='auth-profile'){ authProfileModal(); return; }
   /* Google sends the reset mail, not this app. Success is reported the same way whether
      or not the address has an account, because saying "no account with that email" to
      anyone who types one is a way of listing the owner's users. */
