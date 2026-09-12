@@ -539,6 +539,30 @@ async function main() {
     ok('header collapses actions into an overflow menu on mobile', /class="topbar-more"/.test(html) && /data-action="toggle-topbar-actions"/.test(html) && /id="topbar-actions"/.test(html) && /\.topbar-actions\.open\{display:flex/.test(html));
     ok('mobile turns data tables into stacked labeled cards', /\.table-wrap thead\{position:absolute/.test(html) && /\.table-wrap td\[data-label\]::before\{content:attr\(data-label\)/.test(html));
     ok('mobile hides empty/dash cells + stacks the hand-built order rows (no overflow)', /\.table-wrap td:empty,\.table-wrap td\[data-mobempty\]\{display:none\}/.test(html) && /\.order-row>div\{min-width:0!important;flex:1 1 100%!important\}/.test(html));
+    /* Tables stack on the room they have, not on the size of the window. The sidebar takes
+       roughly 300px, so a 1024px window leaves a table less space than a 768px one with the
+       drawer shut; keying the stack to the viewport left tables scrolling sideways on every
+       laptop width. These three assertions are what makes that true, and each one on its own
+       is enough to bring the sideways scroll back. */
+    ok('tables stack on their own width, not the window width',
+      /\.table-wrap\{[^}]*container-type:inline-size/.test(html) &&
+      /@container \(max-width:1000px\)\{\s*\.table-wrap table/.test(html));
+    ok('...and the stacking rules are no longer inside the 560px media query',
+      !/@media \(max-width:560px\)\{[\s\S]{0,4000}?\.table-wrap thead\{position:absolute/.test(html));
+    ok('...with a tightening band above it so the widest table still fits',
+      /@container \(max-width:1150px\)\{[\s\S]{0,300}?\.table-wrap \.cell-clamp\{max-width:/.test(html));
+    /* Orders are flex rows, not a table, so the rule above cannot reach them and they need
+       their own container. Without it the orders list was the last thing on the site still
+       scrolling sideways, at 900px. */
+    ok('order rows stack on their own width too',
+      /class="'\+\(list\.length\?'sec rows order-rows'/.test(html) &&
+      /\.order-rows\{container-type:inline-size\}/.test(html) &&
+      /@container \(max-width:660px\)\{\s*\.order-row\{flex-wrap:wrap/.test(html));
+    /* The free-text clamp has to stay a class. As an inline style no rule could reach it,
+       and the tightening band above would silently do nothing to the widest column. */
+    ok('the free-text column clamp is a class, not an inline style',
+      /\.cell-clamp\{max-width:200px/.test(html) &&
+      !/<td style="max-width:200px;overflow:hidden/.test(html));
     (function () {
       window.location.hash = '#/orders'; window.render();
       ok('order cards are tagged for the mobile stack rule', /class="list-row order-row"/.test(d.getElementById('main').innerHTML));
