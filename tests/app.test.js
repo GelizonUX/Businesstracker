@@ -2272,7 +2272,12 @@ async function main() {
         ok('view transitions use the smooth spring and are reduced-motion guarded',
           /::view-transition-new\(main-content\)\{animation:vtIn [^}]*var\(--spring-smooth\)/.test(css) &&
           /@media \(prefers-reduced-motion:reduce\)\{\s*::view-transition-old\(main-content\),::view-transition-new\(main-content\)\{animation:none/.test(css));
-        ok('routing degrades gracefully where startViewTransition is absent', /typeof document\.startViewTransition!=='function'/.test(html) && /window\.addEventListener\('hashchange',renderRouted\)/.test(html));
+        /* hashchange still drives renderRouted; it goes through a wrapper now because
+           #/signin opens a full-page screen OVER the app and must not also redraw what is
+           underneath it. The fallback being asserted is unchanged. */
+        ok('routing degrades gracefully where startViewTransition is absent',
+          /typeof document\.startViewTransition!=='function'/.test(html) &&
+          /window\.addEventListener\('hashchange',function\(\)\{[\s\S]{0,300}?renderRouted\(\);/.test(html));
         // 2) entrances overshoot (physical), instead of plain fades
         ok('node entrance overshoots before settling (spring physics)', /@keyframes rmNodeIn\{[\s\S]{0,220}?scale\(1\.02\)/.test(css));
         ok('popover entrance overshoots before settling', /@keyframes rmPopIn\{[\s\S]{0,220}?translateY\(1px\)/.test(css));
@@ -4498,6 +4503,25 @@ async function main() {
         !/\.si-[a-z-]*\{[^}]*linear-gradient/.test(html) &&
         /class="si-oauth" data-action="auth-google"/.test(html) &&
         html.indexOf('auth-facebook') === -1);
+      /* The design is a page first. It used to replace itself with a one-line apology when
+         no project was connected, which meant it could not be opened, shown to anyone or
+         worked on until the auth behind it was finished. Every part must render either
+         way; what changes is what the buttons DO, not whether they exist. */
+      ok('the whole screen renders with no project connected, as a preview',
+        /if\(!authConfigured\(\)\)\{[\s\S]{0,400}?si-msg show ok/.test(html) &&
+        !/if\(!authConfigured\(\)\)\{[\s\S]{0,600}?return h;/.test(html));
+      ok('...and the Google button is no longer hidden when the client id is missing',
+        !/if\(authClientId\(\)\)\{\s*h\+='<button type="button" class="si-oauth"/.test(html));
+      /* An address of its own, so the page can be opened and linked on its own. It is not
+         a route: it opens OVER the shell rather than rendering inside it. */
+      ok('#/signin opens the screen without redrawing the app underneath',
+        /function signInRouteCheck\(\)\{[\s\S]{0,200}?location\.hash\|\|''\)!=='#\/signin'/.test(html) &&
+        /if\(signInRouteCheck\(\)\) return;/.test(html));
+      ok('...and dismissing it leaves the address behind too',
+        /if\(location\.hash==='#\/signin'\) location\.hash='#\/dashboard';/.test(html));
+      /* Buttons that cannot work say why, in the panel, rather than failing quietly. */
+      ok('submitting with nothing connected explains itself in the form',
+        /Nothing to sign in to yet: this copy is not connected to a sign-in project/.test(html));
       ok('sign in, create an account and forgot password all lead to the one screen',
         /action==='auth-signin-email'\)\{ acctMenuClose\(true\); signInOpen\('in'\)/.test(html) &&
         /action==='auth-signup'\)\{ acctMenuClose\(true\); signInOpen\('up'\)/.test(html) &&

@@ -3908,7 +3908,7 @@ function authDomainAllowed(list){
 }
 function authPost(method,body){
   var key=authApiKey();
-  if(!key) return Promise.reject({code:'noconfig',msg:'This copy has no Firebase project set up, so there is nothing to sign in to. Paste a Web API key under Settings ▸ Data & Sync ▸ Sharing.'});
+  if(!key) return Promise.reject({code:'noconfig',msg:'This copy is not connected to a sign-in project yet, so there is nothing to sign in to. Whoever set it up can connect one under Settings, Data & Sync, Developer setup.'});
   return fetch(AUTH_IDT+method+'?key='+encodeURIComponent(key),{
     method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)
   }).then(function(r){
@@ -4139,7 +4139,7 @@ function authGoogleExchange(idToken,nonce){
 }
 function authGoogle(){
   if(!authClientId()) return Promise.reject({code:'noconfig',
-    msg:'This copy has no Google client ID, so there is nothing to sign in to yet.'});
+    msg:'Google sign-in is not connected to this copy yet. Whoever set it up can add the client id under Settings, Data & Sync, Developer setup.'});
   var st=authRandom(16), nonce=authRandom(16), url=authGoogleUrl(st,nonce);
   var win=null;
   try{ win=window.open(url,'trakora-google','width=480,height=640,menubar=no,toolbar=no'); }catch(_){ win=null; }
@@ -4250,19 +4250,19 @@ function signInHTML(){
     '<p class="si-kicker">'+esc(tr(up?'Create an account for':'Welcome to'))+'</p>'+
     '<h1 class="si-name">'+appNameEsc()+'</h1>';
 
+  /* The WHOLE design renders whether or not a project is connected. It used to replace
+     itself with a one-line apology, which meant the screen could not be looked at, shown
+     to anyone or worked on until the auth was finished. That is backwards: the page is a
+     page first. When nothing is wired up the form is still all here and says so quietly;
+     what changes is what the buttons do, not whether they exist. */
   if(!authConfigured()){
-    /* Nothing to sign in to. Say that, rather than drawing buttons that must fail. */
-    h+='<div class="si-msg show err">'+esc(tr('No sign-in project is connected to this copy yet, so there is no account to sign in to. Everything on this device keeps working exactly as it does now.'))+'</div>'+
-      (dismissible?'<button type="button" class="si-cta" data-action="signin-dismiss" style="margin-top:16px">'+esc(tr('Continue to my books'))+'</button>':'')+
-      '</div></div></div></div></div>';
-    return h;
+    h+='<div class="si-msg show ok" style="margin-bottom:18px">'+
+      esc(tr('Preview: no sign-in project is connected to this copy yet, so these buttons have nothing to sign in to. Your books on this device work exactly as they do now.'))+'</div>';
   }
 
-  if(authClientId()){
-    h+='<button type="button" class="si-oauth" data-action="auth-google">'+siGoogleMark()+
-      '<span>'+esc(tr(up?'Sign up with Google':'Login with Google'))+'</span></button>'+
-      '<div class="si-or"><span>'+esc(tr('OR'))+'</span></div>';
-  }
+  h+='<button type="button" class="si-oauth" data-action="auth-google">'+siGoogleMark()+
+    '<span>'+esc(tr(up?'Sign up with Google':'Login with Google'))+'</span></button>'+
+    '<div class="si-or"><span>'+esc(tr('OR'))+'</span></div>';
 
   h+='<form id="si-form" autocomplete="on" novalidate>'+
     '<div class="si-field">'+icon('mail',18)+'<div class="si-field-body">'+
@@ -4316,6 +4316,12 @@ function signInRender(){
     var was=btn.textContent;
     btn.disabled=true; msg.className='si-msg';
     btn.innerHTML='<span class="si-spin"></span>'+esc(tr(st.mode==='up'?'Creating your account…':'Signing in…'));
+    if(!authConfigured()){
+      btn.disabled=false; btn.textContent=was;
+      msg.className='si-msg show err';
+      msg.textContent=tr('Nothing to sign in to yet: this copy is not connected to a sign-in project. The screen is here and working; the account behind it is the part still to come.');
+      return;
+    }
     authSubmitEmail(byId('si-email').value,byId('si-pass').value,st.mode).then(function(){
       signInClose();
       if(typeof bootApp==='function'&&!appBooted) bootApp(); else { render(); renderSidebar(); }
@@ -5618,8 +5624,17 @@ function visibleRoutes(){
    banner and sent to a customer who asks. It is deliberately NOT in ROUTES: the menu is
    the owner's working set and every entry there can be hidden in Customization, which
    is the wrong thing to be able to do to a policy page. Hence the check here. */
+/* #/signin is an address, not a route: it opens the full-page screen over the app rather
+   than rendering inside the shell. Having a URL for it means the design can be opened,
+   linked and looked at on its own, with or without a project connected behind it. */
+function signInRouteCheck(){
+  if((location.hash||'')!=='#/signin') return false;
+  if(!signInIsOpen()) signInOpen('in');
+  return true;
+}
 function currentRoute(){
   var h=(location.hash||'#/dashboard').replace('#/','');
+  if(h==='signin') return 'dashboard';
   if(h.indexOf('custom-')===0&&(state.customModules||[]).some(function(m){return 'custom-'+m.id===h;})) return h;
   if(h==='privacy') return 'privacy';
   return visibleRoutes().some(function(r){return r.id===h;})?h:'dashboard';
@@ -11511,7 +11526,12 @@ document.addEventListener('click',function(e){
      to be true: the only full-page thing in the app was a licence gate that no longer
      exists. */
   if(action==='auth-signin-email'){ acctMenuClose(true); signInOpen('in'); return; }
-  if(action==='signin-dismiss'){ signInClose(); if(!appBooted) bootApp(); return; }
+  if(action==='signin-dismiss'){
+    signInClose();
+    if(location.hash==='#/signin') location.hash='#/dashboard';
+    if(!appBooted) bootApp();
+    return;
+  }
   if(action==='signin-eye'){ ui.signin.show=!ui.signin.show; signInRender(); return; }
   if(action==='signin-mode'){ ui.signin.mode=el.getAttribute('data-mode')||'in'; signInRender(); return; }
   if(action==='signin-forgot'){
@@ -18088,7 +18108,12 @@ function renderRouted(){
   try{ document.startViewTransition(function(){ render(); }); }
   catch(_){ render(); } // never let a transition failure cost the user their navigation
 }
-window.addEventListener('hashchange',renderRouted);
+window.addEventListener('hashchange',function(){
+  /* the screen sits over the app, so opening it must not also redraw the page underneath */
+  if(signInRouteCheck()) return;
+  if(signInIsOpen()) signInClose();
+  renderRouted();
+});
 
 /* ============================================================
    init
@@ -18539,7 +18564,9 @@ if(REQUIRE_SIGNIN && !authSignedIn()){
      set of books and the next thing they want is back in. A copy nobody has connected a
      project to never sees it, because there would be nothing to sign in to and the books
      work perfectly well without. Either way it can be dismissed. */
-  if(authConfigured() && !authSignedIn() && (shareCfg().enabled || (state.settings.share||{}).wsId)){
+  if(location.hash==='#/signin'){
+    setTimeout(signInRouteCheck,200);
+  }else if(authConfigured() && !authSignedIn() && (shareCfg().enabled || (state.settings.share||{}).wsId)){
     setTimeout(function(){ if(!signInIsOpen()) signInOpen('in'); },400);
   }
 }
