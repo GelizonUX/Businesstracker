@@ -11,8 +11,14 @@
      and licence key to any host an attacker owns, while this confines it to Firebase and
      the rate API. It is a narrowing, not a cure, and it is cheap.
      upgrade-insecure-requests rewrites any http:// asset request to https:// before it
-     leaves the browser, which is the half of "force HTTPS" that a redirect cannot do. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://open.er-api.com https://*.firebaseio.com https://*.firebasedatabase.app; media-src 'self' data: blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests">
+     leaves the browser, which is the half of "force HTTPS" that a redirect cannot do.
+     identitytoolkit and securetoken are Firebase Auth's REST API: sign-up, sign-in,
+     the Google credential exchange, and token refresh. They are named exactly, with no
+     wildcard, because unlike the database they are not the owner's own subdomain. Note
+     what is NOT here: script-src is untouched. The Firebase JS SDK and Google Identity
+     Services are both CDN scripts and both stay blocked, which is why the Google button
+     is a popup this app opens itself rather than a library it loads. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://open.er-api.com https://*.firebaseio.com https://*.firebasedatabase.app https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests">
 <meta name="referrer" content="no-referrer">
 <script>
 /* Belt and braces for HTTPS, and the first thing in the file that runs.
@@ -3516,6 +3522,10 @@ var ICONS = {
   textT:'<path d="M4.4 6.6V4.4h15.2v2.2M12 4.4v15.2M8.8 19.6h6.4"/>',
   sticky:'<path class="d" d="M4.2 6.6a2.4 2.4 0 0 1 2.4-2.4h10.8a2.4 2.4 0 0 1 2.4 2.4v7.2l-6 6H6.6a2.4 2.4 0 0 1-2.4-2.4z"/><path d="M19.8 13.8h-3.6a2.4 2.4 0 0 0-2.4 2.4v3.6"/>',
   frame:'<path class="f" d="M8 8h8v8H8z"/><path d="M8 2.6v18.8M16 2.6v18.8M2.6 8h18.8M2.6 16h18.8"/>',
+  /* Same two-person glyph as `clients`, under the name the sharing screens want. An
+     alias rather than a second drawing: the icon set was standardised once already, and
+     a near-duplicate path is how a set drifts back out of shape. */
+  users:'<circle class="d" cx="9.4" cy="8.1" r="3.9"/><path class="d" d="M2.8 20.6v-1a5.3 5.3 0 0 1 5.3-5.3h2.6a5.3 5.3 0 0 1 5.3 5.3v1z"/><path d="M16.2 4.7a3.9 3.9 0 0 1 0 7.6M18.1 14.4h.7a5.3 5.3 0 0 1 5.3 5.3v.9"/>',
   alignL:'<path d="M3.8 5.4h16.4M3.8 9.8h10.2M3.8 14.2h16.4M3.8 18.6h10.2"/>',
   alignJ:'<path d="M3.8 5.4h16.4M3.8 9.8h16.4M3.8 14.2h16.4M3.8 18.6h16.4"/>',
   hand2:'<path class="d" d="M7.4 14.6V10a1.6 1.6 0 0 1 3.2 0V6.4a1.6 1.6 0 0 1 3.2 0V5.2a1.6 1.6 0 0 1 3.2 0v2.4a1.6 1.6 0 0 1 3.2 0v7.2a6.4 6.4 0 0 1-6.4 6.4h-1.4a6.4 6.4 0 0 1-4.9-2.3l-3.2-3.8a1.6 1.6 0 0 1 2.4-2.1z"/>',
@@ -3768,6 +3778,233 @@ function deactivateDevice(){
   location.reload();
 }
 
+/* ============================================================
+   accounts: Firebase Auth over its REST API
+   ============================================================
+   There is no Firebase JS SDK and no Google Identity Services in this page, because
+   script-src is 'self' and both are CDN scripts. Everything below is plain fetch to
+   two hosts named in the CSP, exactly like the exchange-rate call and the database
+   calls already are.
+
+   WHAT SIGNING IN IS AND IS NOT. It is not a paywall. This app works offline out of
+   localStorage and always will, so anyone who opens the page can use it locally and no
+   amount of client-side checking changes that. The licence gate proved it, twice, in
+   this project's own audit. What an account buys is the thing that genuinely cannot be
+   forged: a token Firebase's server checks before it lets anyone read or write the
+   shared database. Sharing and cloud sync are enforceable. Local use is not, so it is
+   not gated.
+
+   Endpoints used, and nothing else:
+     accounts:signUp             create an email/password account
+     accounts:signInWithPassword sign in
+     accounts:signInWithIdp      trade a Google credential for a Firebase token
+     accounts:sendOobCode        send a password-reset email (Google sends it, not us)
+     securetoken /v1/token       refresh an expired ID token                          */
+
+/* The project this app signs in to. Both values are public by nature: an API key and an
+   OAuth client id ship in every copy of a web app and cannot be hidden in a static page,
+   which is why neither grants any access on its own. The database rules do that.
+   Left empty here on purpose. Filling them in with a plausible-looking string would be
+   inventing a credential; the owner pastes their own under Settings > Data & Sync >
+   Sharing, or edits these two lines before deploying. With both empty, every sign-in
+   path refuses with a message that says the app has no project configured, and the rest
+   of the app is untouched. */
+var AUTH_CFG={
+  apiKey:'',     // Firebase Web API key (Firebase console > Project settings > Web API Key)
+  clientId:''    // Google OAuth client id (Google Cloud console > Credentials > Web application)
+};
+var AUTH_IDT='https://identitytoolkit.googleapis.com/v1/accounts:';
+var AUTH_TOK='https://securetoken.googleapis.com/v1/token';
+var AUTH_KEY='bizpilot.auth';
+/* THE FLAG. Turning this on makes the app refuse to open without an account.
+   It is off, and it should stay off unless the owner has a reason that is not revenue.
+   It inconveniences the honest (a partner on a plane, the owner on a dead connection)
+   and it stops nobody who does not want to be stopped: the whole app is one HTML file
+   the browser has already downloaded, so bypassing a client-side check is one line in a
+   console. That is not a theory here. An audit of this repository forged a working
+   licence key and, separately, walked past the old gate with a single
+   localStorage.setItem. A login screen is the same shape of promise and keeps the same
+   amount of it. What sign-in really enforces is the server: sharing, sync and anything
+   else Firebase's rules decide, and none of that needs this flag. */
+var REQUIRE_SIGNIN=false;
+
+function authApiKey(){ var o=(state&&state.settings&&state.settings.share&&state.settings.share.apiKey)||''; return String(o||AUTH_CFG.apiKey||'').trim(); }
+function authClientId(){ var o=(state&&state.settings&&state.settings.share&&state.settings.share.clientId)||''; return String(o||AUTH_CFG.clientId||'').trim(); }
+function authConfigured(){ return !!authApiKey(); }
+
+/* The session lives in its own storage key, never inside the books. Signing out must
+   not be able to touch a single invoice, and a corrupt books record must not be able to
+   take the session with it. */
+function authLoad(){
+  try{ var s=JSON.parse(localStorage.getItem(AUTH_KEY)||'null'); return (s&&typeof s==='object'&&s.uid)?s:null; }
+  catch(_){ return null; }
+}
+function authStore(s){
+  try{ if(s) localStorage.setItem(AUTH_KEY,JSON.stringify(s)); else localStorage.removeItem(AUTH_KEY); }catch(_){ }
+  return s;
+}
+function authUser(){
+  var s=authLoad();
+  if(!s) return null;
+  return {uid:s.uid,email:s.email||'',name:s.name||'',provider:s.provider||'password',verified:!!s.verified,expired:!!s.expired};
+}
+function authSignedIn(){ return !!authLoad(); }
+/* The label the UI shows for whoever is signed in. Google accounts carry a display
+   name; an email account usually does not, so the address is the honest fallback. */
+function authName(){ var u=authUser(); return u?(u.name||u.email||'your account'):''; }
+
+/* Firebase's error strings are shouted constants. These are the ones a real person can
+   actually hit; anything else falls through to a message that says what happened rather
+   than pretending to know why. */
+function authErrMsg(code){
+  var m={
+    EMAIL_EXISTS:'That email already has an account. Sign in instead, or use "Forgot password".',
+    EMAIL_NOT_FOUND:'No account with that email. Check the address, or create an account.',
+    INVALID_PASSWORD:'Wrong password. Try again, or use "Forgot password".',
+    INVALID_LOGIN_CREDENTIALS:'That email and password do not match an account.',
+    INVALID_EMAIL:'That does not look like an email address.',
+    MISSING_PASSWORD:'Enter your password.',
+    WEAK_PASSWORD:'Passwords need at least 6 characters.',
+    USER_DISABLED:'This account has been disabled.',
+    TOKEN_EXPIRED:'Your session ended. Sign in again to keep sharing.',
+    INVALID_REFRESH_TOKEN:'Your session ended. Sign in again to keep sharing.',
+    OPERATION_NOT_ALLOWED:'This sign-in method is switched off in the Firebase project. Enable it under Authentication > Sign-in method.',
+    TOO_MANY_ATTEMPTS_TRY_LATER:'Too many attempts. Wait a few minutes and try again.'
+  };
+  return m[code]||('Sign-in failed ('+code+'). Check your connection and try again.');
+}
+/* One POST to identitytoolkit, one shape of rejection: {code,msg}. A transport failure
+   is code 'offline' and is told apart from a refusal on purpose: the first means try
+   again later, the second means the credential is wrong, and the caller treats them
+   very differently. */
+function authPost(method,body){
+  var key=authApiKey();
+  if(!key) return Promise.reject({code:'noconfig',msg:'This copy has no Firebase project set up, so there is nothing to sign in to. Paste a Web API key under Settings ▸ Data & Sync ▸ Sharing.'});
+  return fetch(AUTH_IDT+method+'?key='+encodeURIComponent(key),{
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)
+  }).then(function(r){
+    return r.text().then(function(t){
+      var d=null; try{ d=t?JSON.parse(t):null; }catch(_){ }
+      if(!r.ok){
+        var raw=(d&&d.error&&d.error.message)||('HTTP_'+r.status);
+        var code=String(raw).split(' ')[0];
+        throw {code:code,msg:authErrMsg(code)};
+      }
+      return d||{};
+    });
+  },function(){
+    throw {code:'offline',msg:'Could not reach the sign-in service. Your data on this device is unaffected.'};
+  });
+}
+/* Turn an identitytoolkit response into the stored session. expiresIn is seconds from
+   now, so it is converted once, here, and never recomputed from a stale clock. */
+function authAdopt(d,provider){
+  var s={
+    uid:d.localId||d.user_id||'',
+    email:String(d.email||'').toLowerCase(),
+    name:d.displayName||d.fullName||'',
+    idToken:d.idToken||'',
+    refreshToken:d.refreshToken||'',
+    expiresAt:Date.now()+(Math.max(60,+d.expiresIn||3600))*1000,
+    provider:provider||'password',
+    /* A Google account's address is verified by Google. An email/password account's is
+       not until the owner clicks the link, and the invite claim below refuses to match
+       on an address nobody has proved. */
+    verified:(d.emailVerified===true||d.emailVerified==='true'||provider==='google'),
+    at:Date.now()
+  };
+  if(!s.uid) throw {code:'nouid',msg:'The sign-in service answered without an account id. Try again.'};
+  return authStore(s);
+}
+function authSignUp(email,password){
+  return authPost('signUp',{email:String(email||'').trim(),password:String(password||''),returnSecureToken:true})
+    .then(function(d){ return authAdopt(d,'password'); });
+}
+function authSignIn(email,password){
+  return authPost('signInWithPassword',{email:String(email||'').trim(),password:String(password||''),returnSecureToken:true})
+    .then(function(d){ return authAdopt(d,'password'); });
+}
+function authSendReset(email){
+  return authPost('sendOobCode',{requestType:'PASSWORD_RESET',email:String(email||'').trim()}).then(function(){ return true; });
+}
+/* Signing out takes the session and NOTHING else. The books, the device id and the PIN
+   lock all stay exactly where they are, because they were never the account's to begin
+   with: this app's data is local first and an account is a thing bolted on the side. */
+function authSignOut(){
+  authStore(null);
+  authStale=false;
+  return true;
+}
+
+/* Refresh. One flight at a time: a burst of pushes must not fire five refreshes and
+   race five new refresh tokens against each other. */
+var authRefreshing=null,authStale=false;
+function authRefresh(){
+  var s=authLoad();
+  if(!s||!s.refreshToken) return Promise.reject({code:'nosession',msg:'You are not signed in.'});
+  var key=authApiKey();
+  if(!key) return Promise.reject({code:'noconfig',msg:'No Firebase project is configured.'});
+  if(authRefreshing) return authRefreshing;
+  authRefreshing=fetch(AUTH_TOK+'?key='+encodeURIComponent(key),{
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'grant_type=refresh_token&refresh_token='+encodeURIComponent(s.refreshToken)
+  }).then(function(r){
+    return r.text().then(function(t){
+      var d=null; try{ d=t?JSON.parse(t):null; }catch(_){ }
+      if(!r.ok){
+        var raw=(d&&d.error&&(d.error.message||d.error))||('HTTP_'+r.status);
+        var code=String(raw).split(' ')[0];
+        /* The server said this session is over: the refresh token was revoked, expired
+           or belongs to a deleted account. Mark it and keep the record, so the UI can
+           say "signed in as X, session ended" instead of silently forgetting who the
+           owner is. The local books are never touched by this. */
+        var cur=authLoad();
+        if(cur){ cur.expired=true; cur.idToken=''; authStore(cur); }
+        throw {code:code,msg:authErrMsg(code)};
+      }
+      var cur2=authLoad()||s;
+      cur2.idToken=d.id_token||d.idToken||'';
+      cur2.refreshToken=d.refresh_token||d.refreshToken||cur2.refreshToken;
+      cur2.expiresAt=Date.now()+(Math.max(60,+(d.expires_in||d.expiresIn)||3600))*1000;
+      if(d.user_id) cur2.uid=d.user_id;
+      cur2.expired=false;
+      authStale=false;
+      return authStore(cur2);
+    });
+  },function(){
+    /* No response at all. This is a plane, not a revocation. The session stays exactly
+       as it was so that reconnecting costs nothing, and the owner is not signed out of
+       an account they are still perfectly entitled to. */
+    throw {code:'offline',msg:'Could not reach the sign-in service.'};
+  }).then(function(v){ authRefreshing=null; return v; },function(e){ authRefreshing=null; throw e; });
+  return authRefreshing;
+}
+/* A valid ID token, refreshing if it is within a minute of expiry. Rejects rather than
+   returning a stale one: a request that will be refused is worse than one not made. */
+function authToken(){
+  var s=authLoad();
+  if(!s) return Promise.reject({code:'nosession',msg:'You are not signed in.'});
+  if(s.idToken && (s.expiresAt-Date.now())>60000) return Promise.resolve(s.idToken);
+  return authRefresh().then(function(n){ return n.idToken; });
+}
+/* The version everything offline-tolerant calls: never rejects, hands back null when
+   there is no usable token, and says the network was the problem exactly once.
+   This is the whole of "an expired token while offline must not lock the owner out".
+   Nothing on the local path ever waits on this. */
+function authTokenQuiet(){
+  if(!authLoad()) return Promise.resolve(null);
+  return authToken().then(function(t){ return t||null; },function(e){
+    if(!authStale){
+      authStale=true;
+      if(typeof toast==='function') toast(e&&e.code==='offline'
+        ? 'Offline, so sharing is paused. Everything you do is saved on this device and goes up when the connection is back.'
+        : 'Your sign-in ended. Everything still works on this device; sign in again from Settings ▸ Data & Sync when you want sharing back.','warn');
+    }
+    return null;
+  });
+}
+
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
 var APP_BUILD='2026.08.16a'; // bump per release: shown in Settings + console so "did it update?" is a 2-second check
@@ -3784,6 +4021,11 @@ var DEFAULT_STATE={
     accent:'', autoBackupDays:0, lastAutoBackup:null, hiddenModules:[],
     customCats:{ income:[], expense:[] },
     sync:{ url:'', path:'bizpilot', enabled:false, lastSync:null },
+    /* Sharing: opt-in, off by default, and like sync it belongs to the device rather
+       than to the books: apiKey and clientId are deployment config, and wsId is which
+       workspace THIS copy joined. All of it is stripped on the way up so a partner's
+       merge cannot rewrite where this device points. */
+    share:{ enabled:false, wsId:'', wsName:'', role:'', apiKey:'', clientId:'' },
     productCats:['Candle','Keychain','Gift Box'], productAttrs:['Scent','Color'],
     moduleLabels:{}, bizAddress:'', bizPhone:'', onboarded:false, lang:'en', payQR:'', payQRLabel:'',
     collapsedNav:[], taskLanes:['To do','Doing','Done'], bizLogo:'', tourDone:false, favorites:[], sectionOrder:[],
@@ -11864,6 +12106,7 @@ function syncDocValue(name){
   if(name!=='settings') return state[name];
   var c=Object.assign({},state.settings);
   delete c.sync;
+  delete c.share;   // which workspace this device joined, and the keys to reach it, are this device's
   return c;
 }
 /* Walks state once per save and writes down what moved. Nothing here touches the
@@ -12043,9 +12286,11 @@ function syncSummaryText(s){
 }
 function syncApplyDoc(name,val){
   if(name==='settings'){
-    var mine=state.settings.sync;   // the database address stays this device's own
+    var mine=state.settings.sync;      // the database address stays this device's own
+    var mineShare=state.settings.share; // and so does the workspace it joined
     state.settings=deepMerge(JSON.parse(JSON.stringify(DEFAULT_STATE.settings)),val);
     state.settings.sync=mine;
+    if(mineShare) state.settings.share=mineShare;
     return;
   }
   state[name]=val;
@@ -12273,6 +12518,57 @@ function cloudSyncCardHTML(){
     '<p style="font-size:var(--f1);color:var(--text-3);margin-top:12px">'+icon('alert',12)+' Anyone who can read your database can read your books. Trakora talks to it over plain REST and signs in to nothing, so a rule like <span class="mono">auth != null</span> will simply stop sync working. Publish the rules below instead, and treat the URL and path together as the password they are.</p>'+
     '</div>';
   return html;
+}
+
+/* ---------- sharing: the account card ----------
+   Settings ▸ Data & Sync. Deliberately one card and not a screen of its own: sharing is
+   a setting, and an owner who never wants it should be able to scroll past it once and
+   never think about it again. Nothing here blocks anything; with sharing off the app is
+   byte for byte the local-only app it was. */
+function shareCfg(){
+  var s=state.settings;
+  if(!s.share||typeof s.share!=='object') s.share={enabled:false,wsId:'',wsName:'',role:'',apiKey:'',clientId:''};
+  return s.share;
+}
+function authAccountCardHTML(){
+  var u=authUser(), cfg=shareCfg();
+  var html='<div class="card"><div class="card-head"><h3>'+icon('users',16)+' Sharing &amp; accounts</h3><span class="spacer"></span>'+
+    (u?(u.expired?'<span class="badge warn">Session ended</span>':'<span class="badge good">Signed in</span>'):'<span class="badge neutral">Not signed in</span>')+'</div>'+
+    '<p style="font-size:var(--f2);color:var(--text-2)">Trakora works with no account at all, offline, exactly as it does now. Signing in adds one thing: other people. Invite a partner or your accountant and everyone sees the same books, because the database checks who is asking before it answers. That check happens on Firebase\'s servers, which is why it is worth anything.</p>';
+
+  if(!authConfigured()){
+    html+='<p style="font-size:var(--f2);color:var(--text-3)">'+icon('alert',12)+' This copy has no Firebase project set up yet, so there is nothing to sign in to. Paste the Web API key from your Firebase project below (Project settings ▸ General ▸ Web API Key), and the Google OAuth client id if you want the Google button. Both are public values that ship in every web app; the database rules, not these, are what keeps your books private.</p>';
+  }
+  html+='<form data-form="share-keys" style="margin-top:10px">'+
+    '<div class="field"><label>Firebase Web API key</label><input class="input" name="apiKey" value="'+esc(cfg.apiKey||'')+'" placeholder="AIza…" autocomplete="off" spellcheck="false"></div>'+
+    '<div class="field"><label>Google OAuth client id (optional, for the Google button)</label><input class="input" name="clientId" value="'+esc(cfg.clientId||'')+'" placeholder="…apps.googleusercontent.com" autocomplete="off" spellcheck="false">'+
+      '<p style="font-size:var(--f1);color:var(--text-3);margin-top:4px">The redirect URI to register for it is <span class="mono">'+esc(authRedirectUri())+'</span>.</p></div>'+
+    '<button class="btn btn-ghost btn-sm" type="submit">'+icon('check')+' Save project keys</button></form>';
+
+  if(u){
+    html+='<div style="margin-top:14px;padding:12px 16px;border-radius:11px;background:var(--accent-soft)">'+
+      '<b style="font-size:var(--f2)">'+icon('check',13)+' '+esc(authName())+'</b>'+
+      '<div style="font-size:var(--f1);color:var(--text-2);margin-top:2px">'+esc(u.email)+' · signed in with '+(u.provider==='google'?'Google':'an email and password')+(u.verified?'':' · email not verified yet')+'</div>'+
+      (u.expired?'<div style="font-size:var(--f1);color:var(--warn);margin-top:4px">'+icon('alert',11)+' This session ended. Your books on this device are untouched; sign in again to start sharing them.</div>':'')+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+
+        '<button class="btn btn-ghost btn-sm" data-action="auth-signout">Sign out</button>'+
+      '</div></div>';
+    return html+'</div>';
+  }
+
+  html+='<div class="auth-box">'+
+    (authClientId()?'<button class="btn btn-primary btn-sm" type="button" data-action="auth-google" style="width:100%;justify-content:center">'+icon('users',14)+' Sign in with Google</button>'+
+      '<div class="auth-or"><span>or use an email and password</span></div>':'')+
+    '<form data-form="auth-email">'+
+      '<div class="field"><label>Email</label><input class="input" type="email" name="email" autocomplete="username" placeholder="you@email.com"></div>'+
+      '<div class="field"><label>Password</label><input class="input" type="password" name="password" autocomplete="current-password" placeholder="at least 6 characters"></div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+        '<button class="btn btn-primary btn-sm" type="submit" name="mode" value="in">'+icon('check')+' Sign in</button>'+
+        '<button class="btn btn-ghost btn-sm" type="submit" name="mode" value="up">Create an account</button>'+
+        '<button class="btn btn-ghost btn-sm" type="button" data-action="auth-reset">Forgot password</button>'+
+      '</div>'+
+    '</form></div>';
+  return html+'</div>';
 }
 
 /* ---------- database rules ----------
