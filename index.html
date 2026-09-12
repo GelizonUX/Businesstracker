@@ -1172,7 +1172,13 @@ body.rm-shift .rm-canvas{cursor:crosshair}
    useful first: the account's text, then the per-view action labels, then the search.
    The avatar, the bell and the primary action never shrink. */
 .topbar>*{flex-shrink:0}
-.topbar .tb-acct{flex-shrink:1;min-width:40px;overflow:hidden}
+/* The chip is who you are, so it is the last thing to give up room, not the first. It
+   used to carry flex-shrink:1 with a 40px floor, which meant that on any route with a few
+   more buttons in the bar the name was squeezed to nothing while everything else kept its
+   width: 186px and readable on the dashboard, 84px with the name at ZERO width on
+   Products, at 1440px on both. The text still hides below 1240px, which is a decision
+   rather than an accident. */
+.topbar .tb-acct{flex-shrink:0;min-width:40px;overflow:hidden}
 .topbar .tb-acct-t{overflow:hidden}
 .topbar .tb-acct-t b,.topbar .tb-acct-t i{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .topbar .topbar-actions{flex-shrink:1;min-width:0;overflow:hidden}
@@ -2253,6 +2259,15 @@ details.calc .calc-body{margin-top:10px}
 }
 /* the signed-in panel in Settings: the same shape as the row at the top of the account
    menu, so the two places that show who you are do not look like different products */
+/* the header of the profile page: the same shape as the row at the top of the account
+   menu, so the two places a person sees themselves do not look like different products */
+.prof-head{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.prof-face{width:60px;height:60px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;
+  background:var(--accent);color:#fff;font-weight:600;font-size:var(--f6)}
+.prof-who{flex:1;min-width:0}
+.prof-who b{display:block;font-family:var(--font-display);font-size:var(--f5);font-weight:600;
+  color:var(--text);line-height:1.2;letter-spacing:-.015em;overflow-wrap:anywhere}
+.prof-who span{display:block;font-size:var(--f2);color:var(--text-2);margin-top:3px;overflow-wrap:anywhere}
 .acct-panel{display:flex;align-items:center;gap:12px;margin-top:14px;padding:13px 15px;
   border-radius:12px;background:var(--accent-soft)}
 .acct-panel-face{width:42px;height:42px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;
@@ -2345,6 +2360,31 @@ details.calc .calc-body{margin-top:10px}
   .grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}
   .grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+/* ---- the top bar stops clipping and starts collapsing ----
+   The action buttons used to fold into the overflow menu only below 860px. Between there
+   and about 1100 they stayed inline inside a box with overflow:hidden, so they were cut
+   in half or painted past the right edge instead: "New invoice" ended 7px outside the
+   window at 1024, "Catalog" 14px outside at 980. They fold in from 1100 now.
+
+   The search goes with them, down to its glyph. A field whose placeholder reads "tr…" has
+   stopped being a search box, which is what this file already says three hundred lines
+   up; it just did not hold below 960 once the floor dropped. */
+@media (max-width:1100px){
+  .topbar-more{display:inline-flex;margin-left:auto}
+  .topbar-actions{position:absolute;top:calc(100% + 4px);right:0;left:auto;margin:0;z-index:46;
+    flex-direction:column;align-items:stretch;flex-wrap:nowrap;gap:2px;min-width:210px;max-width:80vw;
+    background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-lg);padding:6px;display:none}
+  .topbar-actions.open{display:flex;animation:fadeUp .16s var(--ease)}
+  .topbar-actions .btn,.topbar-actions .theme-toggle{width:100%;justify-content:flex-start;gap:11px;padding:11px 12px;
+    border-radius:9px;background:transparent;border:none;box-shadow:none;font-weight:550;min-height:44px}
+  .topbar-actions .btn:hover,.topbar-actions .theme-toggle:hover{background:var(--bg-hover)}
+  .topbar-actions .btn .btn-txt,.topbar-actions .theme-toggle .btn-txt{display:inline!important}
+  .topbar-actions .btn.btn-primary{color:var(--accent)}
+  /* .topbar .tb-search sets the 240px floor, so the override has to match that
+     specificity: a media query buys no weight of its own. */
+  .topbar .tb-search{flex:0 0 auto;min-width:0;width:40px;padding:0;justify-content:center}
+  .topbar .tb-search .tb-ph,.topbar .tb-search .tb-filter{display:none}
+}
 @media (max-width:860px){
   /* full-bleed is the default now; below this width the 295px column also becomes the
      off-canvas drawer it always was */
@@ -2362,16 +2402,6 @@ details.calc .calc-body{margin-top:10px}
   .page-title{flex:1;min-width:0}
   .page-title h1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .page-title p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .topbar-more{display:inline-flex;margin-left:auto}
-  .topbar-actions{position:absolute;top:calc(100% + 4px);right:0;left:auto;margin:0;z-index:46;
-    flex-direction:column;align-items:stretch;flex-wrap:nowrap;gap:2px;min-width:210px;max-width:80vw;
-    background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-lg);padding:6px;display:none}
-  .topbar-actions.open{display:flex;animation:fadeUp .16s var(--ease)}
-  .topbar-actions .btn,.topbar-actions .theme-toggle{width:100%;justify-content:flex-start;gap:11px;padding:11px 12px;
-    border-radius:9px;background:transparent;border:none;box-shadow:none;font-weight:550;min-height:44px}
-  .topbar-actions .btn:hover,.topbar-actions .theme-toggle:hover{background:var(--bg-hover)}
-  .topbar-actions .btn .btn-txt,.topbar-actions .theme-toggle .btn-txt{display:inline!important}
-  .topbar-actions .btn.btn-primary{color:var(--accent)}
 }
 @media (max-width:560px){
   .grid-3,.grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -3073,7 +3103,12 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
   .rm-task-row .rm-task-status{flex:0 0 auto}
   .rm-task-row .row-actions{margin-left:auto}
 }
-.step-btn{width:22px;height:22px}
+/* The stock stepper is pressed over and over while counting things in, and at 22px it was
+   under the 24px floor on a desktop. Phones already got 34px; this is the mouse catching
+   up. The roadmap canvas handles are left alone deliberately: a resize grip and a frame
+   delete are drag affordances sitting ON the thing they act on, and growing those to 24px
+   would cover the frame they belong to. */
+.step-btn{width:26px;height:26px}
 /* ===== standard-mobile shell: bottom tab bar + FAB (phones/tablets ≤860px) ===== */
 .tabbar{display:none}
 .fab{display:none}
@@ -5626,6 +5661,7 @@ function currentRoute(){
   if(h==='signin') return 'dashboard';
   if(h.indexOf('custom-')===0&&(state.customModules||[]).some(function(m){return 'custom-'+m.id===h;})) return h;
   if(h==='privacy') return 'privacy';
+  if(h==='profile') return 'profile';
   return visibleRoutes().some(function(r){return r.id===h;})?h:'dashboard';
 }
 function nav(route){ location.hash='#/'+route; }
@@ -5791,7 +5827,7 @@ function render(){
     invoices:viewInvoices, report:viewReport, products:viewProducts, orders:viewOrders, accounts:viewAccounts, utang:viewUtang,
     calculators:viewCalculators, metrics:viewMetrics, goals:viewGoals,
     roadmap:viewRoadmap, tasks:viewTasks, clients:viewClients, manpower:viewManpower,
-    notes:viewNotes, reviews:viewReviews, settings:viewSettings, privacy:viewPrivacy
+    notes:viewNotes, reviews:viewReviews, settings:viewSettings, privacy:viewPrivacy, profile:viewProfile
   };
   if(route.indexOf('custom-')===0) main.innerHTML=viewCustomModule(route.slice(7));
   else main.innerHTML=(views[route]||viewDashboard)();
@@ -6392,58 +6428,76 @@ function authPasswordModal(){
     return false;
   }});
 }
-function authProfileModal(){
-  var u=authUser(), p=meProfile();
+/* ============================================================
+   view: your profile (#/profile)
+   ============================================================
+   A page, not a dialog. A profile is somewhere you go and look at, and a modal cannot be
+   linked to, cannot be bookmarked, and throws the whole thing away if you tap outside it.
+   It works with no account, because the books work with no account. */
+function viewProfile(){
+  var u=(typeof authUser==='function')?authUser():null;
+  var p=meProfile();
   var cur=state.settings.currency||'₱';
-  /* It no longer demands a session. The profile is the person using this copy: their
-     name, what they do here, and what their time costs. None of that needs an account,
-     and an owner with no account still wants it, not least because the rate is what makes
-     "how long did that job take me" answerable in money. */
-  var body='<div class="field"><label>'+esc(tr('Your name'))+'</label>'+
-      '<input class="input" name="name" maxlength="60" value="'+esc(p.name)+'" placeholder="'+esc(tr('e.g. Ira'))+'">'+
-      '<p style="font-size:var(--f1);color:var(--text-3);margin-top:4px">'+
-        esc(tr('Your own name, not the business name. Business settings holds that one.'))+
-        (u?' '+esc(tr('The people in your workspace see this next to your changes.')):'')+'</p></div>'+
-    '<div class="field"><label>'+esc(tr('Position'))+'</label>'+
-      '<input class="input" name="position" maxlength="60" value="'+esc(p.position)+'" placeholder="'+esc(tr('e.g. Owner, Bookkeeper, Partner'))+'">'+
-      '<p style="font-size:var(--f1);color:var(--text-3);margin-top:4px">'+
-        esc(tr('What you do here. Shown under your name in the account menu.'))+'</p></div>'+
-    '<div class="form-row">'+
-      '<div class="field"><label>'+esc(tr('Your rate'))+'</label>'+
-        '<input class="input" type="number" name="rate" min="0" step="any" inputmode="decimal" value="'+(p.rate>0?esc(String(p.rate)):'')+'" placeholder="0"></div>'+
-      '<div class="field"><label>'+esc(tr('Per'))+'</label>'+
-        '<select class="input" name="ratePer">'+
-          '<option value="month"'+(p.ratePer==='month'?' selected':'')+'>'+esc(tr('Month'))+'</option>'+
-          '<option value="hour"'+(p.ratePer==='hour'?' selected':'')+'>'+esc(tr('Hour'))+'</option>'+
-        '</select></div>'+
-    '</div>'+
-    '<p style="font-size:var(--f1);color:var(--text-3)">'+
-      esc(tr('What your own time costs, in'))+' '+esc(cur)+'. '+
-      esc(tr('Kept on this device. It is not added to any invoice or expense on its own.'))+'</p>'+
-    (u?'<p style="font-size:var(--f1);color:var(--text-3);margin-top:8px">'+esc(u.email)+' · '+
-      esc(u.provider==='google'?tr('signed in with Google'):tr('signed in with an email and password'))+
-      (u.verified?'':' · '+esc(tr('email not verified yet')))+'</p>'
-      :'<p style="font-size:var(--f1);color:var(--text-3);margin-top:8px">'+
-       esc(tr('No account is connected to this copy, so this profile lives here and nowhere else.'))+'</p>');
+  var initial=esc(String(p.name||appName()||'?').charAt(0).toUpperCase());
+  var html=topbar('Your profile','Who is using this copy, and what your time costs.');
 
-  openModal(tr('Your profile'),body,{submitLabel:tr('Save'),onSubmit:function(form){
-    var nm=String(fv(form,'name')||'').trim().slice(0,60);
-    var rate=Math.max(0,Number(fv(form,'rate'))||0);
-    var per=fv(form,'ratePer')==='hour'?'hour':'month';
-    state.settings.profile={ name:nm, position:String(fv(form,'position')||'').trim().slice(0,60),
-                             rate:rate, ratePer:per };
-    /* The greeting has always used displayName; keep the two from drifting apart rather
-       than asking for the same name in two places. */
-    if(nm) state.settings.displayName=nm;
-    save();
-    /* With a real session the display name belongs to the account too, so the workspace
-       sees the same name. Saving locally must not wait on that, and must not fail with it. */
-    if(u&&typeof authUpdateProfile==='function'&&nm&&nm!==authName()){
-      authUpdateProfile(nm).catch(function(){ /* local save already stands */ });
-    }
-    closeModal(); toast(tr('Profile saved.')); render(); renderSidebar();
-    return false;
-  }});
+  /* the header: who this is, at a glance, in the shape the account menu uses */
+  html+='<div class="card prof-head">'+
+    '<span class="prof-face" aria-hidden="true">'+initial+'</span>'+
+    '<div class="prof-who"><b>'+esc(p.name||tr('Your name is not set yet'))+'</b>'+
+      '<span>'+esc(meSubtitle())+'</span></div>'+
+    (meIsIn()?'<span class="badge good">'+esc(u?tr('Signed in'):tr('On this device'))+'</span>'
+             :'<span class="badge neutral">'+esc(tr('Not signed in'))+'</span>')+
+    '</div>';
+
+  html+='<div class="grid grid-2 settings-grid">';
+  html+='<div class="card"><div class="card-head"><h3>'+esc(tr('Your details'))+'</h3></div>'+
+    '<form data-form="profile">'+
+      '<div class="field"><label>'+esc(tr('Your name'))+'</label>'+
+        '<input class="input" name="name" maxlength="60" value="'+esc(p.name)+'" placeholder="'+esc(tr('e.g. Ira'))+'">'+
+        '<p style="font-size:var(--f1);color:var(--text-3);margin-top:4px">'+
+          esc(tr('Your own name, not the business name. Business settings holds that one.'))+'</p></div>'+
+      '<div class="field"><label>'+esc(tr('Position'))+'</label>'+
+        '<input class="input" name="position" maxlength="60" value="'+esc(p.position)+'" placeholder="'+esc(tr('e.g. Owner, Bookkeeper, Partner'))+'">'+
+        '<p style="font-size:var(--f1);color:var(--text-3);margin-top:4px">'+
+          esc(tr('What you do here. Shown under your name wherever you appear.'))+'</p></div>'+
+      '<div class="form-row">'+
+        '<div class="field"><label>'+esc(tr('Your rate'))+'</label>'+
+          '<input class="input" type="number" name="rate" min="0" step="any" inputmode="decimal" value="'+(p.rate>0?esc(String(p.rate)):'')+'" placeholder="0"></div>'+
+        '<div class="field"><label>'+esc(tr('Per'))+'</label>'+
+          '<select class="input" name="ratePer">'+
+            '<option value="month"'+(p.ratePer==='month'?' selected':'')+'>'+esc(tr('Month'))+'</option>'+
+            '<option value="hour"'+(p.ratePer==='hour'?' selected':'')+'>'+esc(tr('Hour'))+'</option>'+
+          '</select></div></div>'+
+      '<p style="font-size:var(--f1);color:var(--text-3);margin-bottom:14px">'+
+        esc(tr('What your own time costs, in'))+' '+esc(cur)+'. '+
+        esc(tr('Kept on this device. It is not added to any invoice or expense on its own.'))+'</p>'+
+      '<button class="btn btn-primary" type="submit">'+icon('check')+' '+esc(tr('Save profile'))+'</button>'+
+    '</form></div>';
+
+  /* the account half: what is true about the session behind this person, if anything */
+  html+='<div class="card"><div class="card-head"><h3>'+esc(tr('Account'))+'</h3></div>';
+  if(u){
+    html+='<p style="font-size:var(--f2);color:var(--text-2)"><b>'+esc(u.email)+'</b><br>'+
+      esc(u.provider==='google'?tr('Signed in with Google'):tr('Signed in with an email and password'))+
+      (u.verified?'':' · '+esc(tr('email not verified yet')))+'</p>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">'+
+        (u.provider==='password'?'<button class="btn btn-ghost btn-sm" data-action="auth-change-password">'+icon('shield',13)+' '+esc(tr('Change password'))+'</button>':'')+
+        '<button class="btn btn-ghost btn-sm" data-action="auth-signout">'+icon('signout',13)+' '+esc(tr('Sign out'))+'</button>'+
+      '</div>';
+  }else if(meIsIn()){
+    html+='<p style="font-size:var(--f2);color:var(--text-2)">'+
+      esc(tr('No account is connected to this copy, so this profile lives on this device and nowhere else. Everything works exactly the same; signing in would only let other people you invite see the same books.'))+'</p>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">'+
+        '<button class="btn btn-ghost btn-sm" data-action="settings-go" data-tab="data">'+icon('cloud',13)+' '+esc(tr('Set up sign-in'))+'</button>'+
+        '<button class="btn btn-ghost btn-sm" data-action="auth-signout">'+icon('signout',13)+' '+esc(tr('Sign out'))+'</button>'+
+      '</div>';
+  }else{
+    html+='<p style="font-size:var(--f2);color:var(--text-2)">'+esc(tr('Nobody is signed in on this copy.'))+'</p>'+
+      '<div style="margin-top:14px"><button class="btn btn-primary btn-sm" data-action="auth-signin-email">'+icon('signin',13)+' '+esc(tr('Sign in'))+'</button></div>';
+  }
+  html+='</div></div>';
+  return html;
 }
 
 /* THE TOP BAR (spec 2). Title at the left, one wide search field with a filter
@@ -11597,7 +11651,7 @@ document.addEventListener('click',function(e){
   }
   if(action==='auth-signup'){ acctMenuClose(true); signInOpen('up'); return; }
   if(action==='auth-change-password'){ authPasswordModal(); return; }
-  if(action==='auth-profile'){ authProfileModal(); return; }
+  if(action==='auth-profile'){ acctMenuClose(true); nav('profile'); return; }
   /* Google sends the reset mail, not this app. Success is reported the same way whether
      or not the address has an account, because saying "no account with that email" to
      anyone who types one is a way of listing the owner's users. */
@@ -13986,6 +14040,23 @@ document.addEventListener('submit',function(e){
   }
   /* The project keys. Both are public values that ship in every web app, so they live in
      settings like any other preference and are stripped out of anything that syncs. */
+  if(kind==='profile'){
+    var nm=String(fv(form,'name')||'').trim().slice(0,60);
+    state.settings.profile={ name:nm, position:String(fv(form,'position')||'').trim().slice(0,60),
+      rate:Math.max(0,Number(fv(form,'rate'))||0), ratePer:(fv(form,'ratePer')==='hour'?'hour':'month') };
+    /* the greeting has always used displayName; keep the two from drifting apart rather
+       than asking for the same name in two places */
+    if(nm) state.settings.displayName=nm;
+    commit(); renderSidebar();
+    /* with a real session the display name belongs to the account too, so the workspace
+       sees the same one. The local save already stands whatever that does. */
+    var pu=(typeof authUser==='function')?authUser():null;
+    if(pu&&typeof authUpdateProfile==='function'&&nm&&nm!==authName()){
+      authUpdateProfile(nm).catch(function(){});
+    }
+    toast(tr('Profile saved.'));
+    return;
+  }
   if(kind==='share-keys'){
     var cfg=shareCfg();
     var key=String(fv(form,'apiKey')||'').trim();

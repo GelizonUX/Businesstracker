@@ -4572,6 +4572,42 @@ async function main() {
         /class="grid grid-2 settings-grid"/.test(html));
     })();
 
+    // ---------- the profile is a page, and the top bar collapses instead of clipping ----------
+    /* A profile is somewhere you go, not a dialog you lose by tapping outside it. It has
+       an address, so it can be linked and bookmarked like anything else. */
+    ok('the profile is a route with a page of its own',
+      /if\(h==='profile'\) return 'profile';/.test(html) &&
+      /profile:viewProfile/.test(html) && /function viewProfile\(\)\{/.test(html));
+    ok('...and the modal it replaced is gone, not left beside it',
+      html.indexOf('function authProfileModal') === -1 &&
+      /action==='auth-profile'\)\{ acctMenuClose\(true\); nav\('profile'\)/.test(html));
+    ok('...carrying the name, the position and the rate, with a way to save them',
+      /data-form="profile"/.test(html) &&
+      /name="position"/.test(html) && /name="rate"/.test(html) && /name="ratePer"/.test(html) &&
+      /kind==='profile'\)\{/.test(html));
+
+    /* THE TOP BAR. The action buttons folded into the overflow menu only below 860px, so
+       between there and ~1100 they stayed inline in a box with overflow:hidden and were
+       cut in half or painted past the right edge: "New invoice" ended 7px outside the
+       window at 1024, "Catalog" 14px outside at 980. */
+    ok('the top bar folds its buttons away before they can be clipped',
+      /@media \(max-width:1100px\)\{[^@]{0,400}?\.topbar-more\{display:inline-flex/.test(html) &&
+      !/@media \(max-width:860px\)\{[^@]{0,3000}?\.topbar-more\{display:inline-flex/.test(html));
+    /* A search box whose placeholder reads "tr…" has stopped being a search box. The
+       override has to match .topbar .tb-search or the 240px floor wins: a media query
+       buys no specificity of its own, which is why the first attempt did nothing. */
+    ok('...and the search becomes its glyph rather than a truncated stub',
+      /\.topbar \.tb-search\{flex:0 0 auto;min-width:0;width:40px/.test(html) &&
+      /\.topbar \.tb-search \.tb-ph,\.topbar \.tb-search \.tb-filter\{display:none\}/.test(html));
+    /* The chip is who you are. With flex-shrink:1 it was the FIRST thing squeezed, so on
+       routes carrying a few more buttons the name went to zero width while everything
+       else kept its size: 186px and readable on the dashboard, 84px with the name
+       invisible on Products, both at 1440px. */
+    ok('...and the account chip is the last thing squeezed, not the first',
+      /\.topbar \.tb-acct\{flex-shrink:0;min-width:40px/.test(html));
+    ok('the stock stepper clears the 24px floor on a mouse too',
+      /\.step-btn\{width:26px;height:26px\}/.test(html));
+
     // ---------- the collapsed rail, and who is using this copy ----------
     /* THE COLLAPSED RAIL. Two separate faults met here. The selector list that is supposed
        to hide every label was missing its {display:none} and ran straight into the rule
