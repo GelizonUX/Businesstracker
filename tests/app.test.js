@@ -3334,10 +3334,19 @@ async function main() {
         said.some((m) => /USD/.test(m) && /replac/i.test(m)), said);
 
       // a live rate landing on top of another LIVE rate is not worth a toast
+      //
+      // Drain before capturing. enter() waits a fixed 40ms, but a refresh resolves two
+      // .then hops after that, so on a slower or faster runner the PREVIOUS case's
+      // "replaced your manual rate" toast lands here instead of there, and this
+      // assertion fails for something it is not testing. That is exactly what happened
+      // in CI on Node 24 while three local runs on Node 22 passed: 884/1 there, 885/0
+      // here. The bug was the fixed sleep standing in for "the app has gone quiet".
+      await wait(160);
       setFx({ updated: minsAgo(3 * 60), phpPer: { USD: 55 }, src: { USD: { by: 'live', at: minsAgo(120) } } });
       const quiet = [];
       window.toast = function (m) { quiet.push(m); };
       await enter('invoices');
+      await wait(160);   // and let THIS refresh finish before deciding it said nothing
       window.toast = function () {};
       ok('a live rate refreshing another live rate says nothing — that is just it working',
         quiet.length === 0, quiet);
