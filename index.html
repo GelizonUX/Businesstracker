@@ -2652,16 +2652,18 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
    A single column held to a reading width cannot be ragged. The per-widget
    drag handles stay: the customize feature survives, only its top-right
    affordance moves (§2.3). */
-/* The money column is held to a measure instead of running to whatever width the
-   monitor happens to be, so at 1440 the ledger reads as a column of a page rather
-   than a line of text stretched across a monitor.
-   It is CENTRED, not left-aligned. Left-aligned, the column sat against the edge
-   with six hundred pixels of nothing beside it while the backup banner above ran
-   the full width, and that mismatch reads as a layout that failed to load rather
-   than as deliberate restraint. Centred, the empty space falls either side as a
-   margin, which is what a page looks like. The everything-else rows (banner,
-   page title) keep the full width on purpose: they are chrome, not ledger. */
-.ledger{max-width:760px;margin-inline:auto}
+/* Full width, sharing the content edge with the banner and the page title above it.
+   This carried a 760px measure and margin-inline:auto, which was correct for the
+   previous design: there the dashboard was a single column of prose-width rows, it
+   sat against the left edge with six hundred pixels of nothing beside it, and
+   centring turned that dead space into a margin.
+   Neither half of that reasoning survives here. The content is no longer a column
+   of rows, it is a card grid, and a card grid has no measure to respect; and the
+   sidebar already takes the width the old centring was compensating for. All the
+   centring did was indent the dashboard 146px from the banner directly above it,
+   so the two disagreed about where the page begins. Nothing above or below is
+   centred, so neither is this. */
+.ledger{max-width:none;margin-inline:0}
 .ledger>.led-sec:first-child{border-top:0;margin-top:0;padding-top:8px}
 .dash-grid.led-grid{display:block;margin-top:0}
 .led-grid .dash-widget{display:block;border-radius:0}
