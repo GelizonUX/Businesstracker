@@ -1762,9 +1762,14 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:po
    readable: the widest of them needs just over 1000px once tightened. Above it they stay
    real tables, which is what a ledger wants on a desktop. */
 @container (max-width:1000px){
-  .table-wrap table,.table-wrap tbody,.table-wrap tr,.table-wrap td{display:block;width:auto}
+  .table-wrap table,.table-wrap tbody,.table-wrap td{display:block;width:auto}
   .table-wrap thead{position:absolute;left:-9999px;top:-9999px}
-  .table-wrap tr{border:none;border-bottom:1px solid var(--border);padding:11px 16px}
+  /* The row becomes a record card. A grid rather than a single stacked column, because
+     the same rule has to serve a 320px phone and a 900px laptop column: auto-fit puts as
+     many fields on a line as fit and collapses to one when there is only room for one, so
+     the card never ends up with a caption on the far left and its value a screen away. */
+  .table-wrap tr{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));
+    gap:2px 20px;border:none;border-bottom:1px solid var(--border);padding:11px 16px}
   .table-wrap tr:last-child{border-bottom:none}
   /* detail card. HYBRID: long-text fields stack (caption above full-width value); short
      scalar fields ([data-inline]) sit on one row (caption left, value right) to stay compact.
@@ -1773,11 +1778,16 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:po
   .table-wrap td:first-child{padding-top:0}
   .table-wrap td[data-label]::before{content:attr(data-label);display:block;margin-bottom:1px;font-weight:550;color:var(--text-3);text-transform:uppercase;font-size:var(--f1);letter-spacing:.05em;line-height:1.4}
   .table-wrap td[data-label]{text-align:left!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important}
-  /* inline short scalars: label left, value right on the same row */
-  .table-wrap td[data-inline]{display:flex;justify-content:space-between;align-items:baseline;gap:14px}
-  .table-wrap td[data-inline]::before{display:inline-block;margin-bottom:0;flex:0 0 auto;align-self:center}
-  .table-wrap td[data-inline]>*{text-align:right!important}
-  .table-wrap td:not([data-label]){padding:10px 0 0;text-align:right} /* action-button cell on its own line, right-aligned */
+  /* Short scalars read label-left / value-right ONLY when the card is a single column.
+     Spread across a multi-column grid that pattern puts a caption at one end of a 340px
+     cell and its value at the other, which looks like a mistake rather than a pairing. */
+  @container (max-width:560px){
+    .table-wrap td[data-inline]{display:flex;justify-content:space-between;align-items:baseline;gap:14px}
+    .table-wrap td[data-inline]::before{display:inline-block;margin-bottom:0;flex:0 0 auto;align-self:center}
+    .table-wrap td[data-inline]>*{text-align:right!important}
+  }
+  /* the action buttons get the full width of the card, on their own line at the end */
+  .table-wrap td:not([data-label]){grid-column:1/-1;padding:10px 0 0;text-align:right}
   /* cards want the FULL value: override any desktop ellipsis/nowrap/max-width/right-align */
   .table-wrap td span,.table-wrap td div,.table-wrap td b,.table-wrap td a,.table-wrap td p{max-width:none!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;text-align:left!important;float:none!important}
   .table-wrap td:empty,.table-wrap td[data-mobempty]{display:none}

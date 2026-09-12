@@ -549,6 +549,14 @@ async function main() {
       /@container \(max-width:1000px\)\{\s*\.table-wrap table/.test(html));
     ok('...and the stacking rules are no longer inside the 560px media query',
       !/@media \(max-width:560px\)\{[\s\S]{0,4000}?\.table-wrap thead\{position:absolute/.test(html));
+    /* The stacked row is a GRID, not a single column. The one-column card is built for a
+       phone; stretched across a 1300px laptop it puts a caption at the far left and its
+       value a screen away, which looks broken. auto-fit gives as many fields per line as
+       fit and collapses to one when only one fits, so the same rule serves both. */
+    ok('a stacked row lays its fields out in a grid, not one stretched column',
+      /\.table-wrap tr\{display:grid;grid-template-columns:repeat\(auto-fit,minmax\(168px,1fr\)\)/.test(html));
+    ok('...and the label-left/value-right pairing is confined to single-column cards',
+      /@container \(max-width:560px\)\{\s*\.table-wrap td\[data-inline\]\{display:flex/.test(html));
     ok('...with a tightening band above it so the widest table still fits',
       /@container \(max-width:1150px\)\{[\s\S]{0,300}?\.table-wrap \.cell-clamp\{max-width:/.test(html));
     /* Orders are flex rows, not a table, so the rule above cannot reach them and they need
