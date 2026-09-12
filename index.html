@@ -2532,6 +2532,16 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .cta-beta{font-size:var(--f1);font-weight:550;letter-spacing:.06em;text-transform:uppercase;background:var(--bg-card);border:1px solid var(--border);padding:1px 6px;border-radius:99px;flex-shrink:0}
 /* the two quiet rows under the spacer (Help, Settings, Edit menu) */
 .sidebar-tail{display:flex;flex-direction:column;gap:4px;padding:8px 16px 0;flex:0 0 auto}
+/* the disclosure row that folds help, settings, edit menu and the backup card into
+   one. Same row as the three it hides, so folding does not change the rhythm of the
+   column; only the chevron says which way it is. */
+.sidebar-tail-body{display:flex;flex-direction:column;gap:4px}
+/* An author `display:flex` outranks the browser's own [hidden]{display:none}, so the
+   hidden attribute on this element would otherwise set state and hide nothing. */
+.sidebar-tail-body[hidden]{display:none}
+.sb-tail-toggle .nav-chev{margin-left:auto;color:var(--text-3)}
+/* in the icon rail there is no label to hide behind, so the chevron goes with it */
+.app.nav-collapsed .sb-tail-toggle .nav-chev{display:none}
 .nav-item-quiet{color:var(--text-3)}
 .nav-item-quiet:hover{color:var(--sidebar-text-active)}
 /* the promo card: a very light blue panel with a sparkle, a title, two lines of
@@ -4258,7 +4268,7 @@ var DEFAULT_STATE={
     share:{ enabled:false, wsId:'', wsName:'', role:'', apiKey:'', clientId:'' },
     productCats:['Candle','Keychain','Gift Box'], productAttrs:['Scent','Color'],
     moduleLabels:{}, bizAddress:'', bizPhone:'', onboarded:false, lang:'en', payQR:'', payQRLabel:'',
-    collapsedNav:[], taskLanes:['To do','Doing','Done'], bizLogo:'', tourDone:false, favorites:[], sectionOrder:[],
+    collapsedNav:[], footCollapsed:false, taskLanes:['To do','Doing','Done'], bizLogo:'', tourDone:false, favorites:[], sectionOrder:[],
     country:'', taxLabel:'', locale:'', sectionColors:{}, sectionLabels:{}, navScale:1,
     /* fx.phpPer holds the seeded FALLBACK rates (see FX_SEED_PHP_PER). They are a last
        resort for rough on-screen estimates only: fx.src has no entry for them, so
@@ -5716,20 +5726,42 @@ function renderSidebar(){
   html+='</nav>';
   /* The two rows the reference parks under the spacer: help, then settings. Same
      row treatment as the nav above, one step muted, outside the scrolling list so
-     they stay reachable however long the menu gets. */
+     they stay reachable however long the menu gets.
+
+     COLLAPSIBLE, because the owner asked for it: "THE HELP TOUR DOWNWARD SHOULD BE
+     COLLAPSABLE". Help, Settings, Edit menu and the backup card are four blocks that
+     never change and sit permanently between the working menu and the account chip. A
+     disclosure row folds all four into one and remembers the answer in settings, the
+     way collapsedNav already remembers which sections are folded. The account chip is
+     NOT inside it: it is the thing the owner most wants to reach, so it stays put in
+     both states. */
+  var footOpen=!state.settings.footCollapsed;
   html+='<div class="sidebar-tail">'+
-    '<button class="nav-item nav-item-quiet" data-action="show-tour" title="Replay the one-minute tour">'+icon('insights')+'<span>'+esc(tr('Help & tour'))+'</span></button>'+
-    '<button class="nav-item nav-item-quiet'+(route==='settings'?' active':'')+'" data-action="nav" data-route="settings" title="'+esc(tr('Settings'))+'">'+icon('settings')+'<span>'+esc(tr('Settings'))+'</span></button>'+
-    '<button class="nav-item nav-item-quiet" data-action="nav-edit-toggle" title="Resize text and reorder the menu">'+icon('edit')+'<span>'+esc(tr('Edit menu'))+'</span></button>'+
-    '</div>';
+    '<button class="nav-item nav-item-quiet sb-tail-toggle" data-action="sidebar-foot-toggle"'+
+      ' aria-expanded="'+(footOpen?'true':'false')+'" aria-controls="sidebar-tail-body sidebar-backup"'+
+      ' title="'+esc(tr(footOpen?'Hide help, settings and backup':'Show help, settings and backup'))+'">'+
+      icon('sliders')+'<span>'+esc(tr('Help & settings'))+'</span>'+
+      '<span class="nav-chev'+(footOpen?'':' closed')+'">'+icon('down-chev',10)+'</span></button>'+
+    '<div class="sidebar-tail-body" id="sidebar-tail-body"'+(footOpen?'':' hidden')+'>'+
+      '<button class="nav-item nav-item-quiet" data-action="show-tour" title="Replay the one-minute tour">'+icon('insights')+'<span>'+esc(tr('Help & tour'))+'</span></button>'+
+      '<button class="nav-item nav-item-quiet'+(route==='settings'?' active':'')+'" data-action="nav" data-route="settings" title="'+esc(tr('Settings'))+'">'+icon('settings')+'<span>'+esc(tr('Settings'))+'</span></button>'+
+      '<button class="nav-item nav-item-quiet" data-action="nav-edit-toggle" title="Resize text and reorder the menu">'+icon('edit')+'<span>'+esc(tr('Edit menu'))+'</span></button>'+
+    '</div></div>';
   /* The promo card. In the reference this slot sells a plan. This app is bought once,
      so an upsell there would be a lie, and a permanent "import a spreadsheet" pitch is
      an onboarding prompt that never stops onboarding: on the four hundredth launch it
      is still selling a feature the owner either used months ago or does not want.
      The slot carries the one thing that is genuinely urgent and genuinely changes:
      whether their books would survive losing this device. It reads differently in each
-     state, and when everything is safe it says so quietly instead of inventing a task. */
-  html+=sidebarBackupCardHTML();
+     state, and when everything is safe it says so quietly instead of inventing a task.
+
+     It folds with the rows above it rather than on its own, because "collapse the
+     bottom of the sidebar" means one control, not two. The one state it is NOT allowed
+     to be silent in is the alarming one: with real books and no backup at all, a folded
+     card would hide the only warning that the owner is one cleared cache from losing
+     everything, so that card stays out. */
+  var backupCard=sidebarBackupCardHTML();
+  if(footOpen||/sb-risk/.test(backupCard)) html+=backupCard;
   html+='<div class="sidebar-foot"><button class="biz-chip" data-action="acct-menu" aria-haspopup="menu" aria-expanded="false" title="'+appNameEsc()+'">'+
     (bl?'<img src="'+esc(bl)+'" alt="" style="width:36px;height:36px;border-radius:10px;object-fit:cover;flex-shrink:0">'
        :'<div class="avatar">'+esc(appName().charAt(0).toUpperCase())+'</div>')+
@@ -6169,7 +6201,7 @@ function sidebarBackupCardHTML(){
     line=tr('Your last backup was')+' '+esc(fmtDate(s.lastBackup))+'.';
     label=tr('Back up now'); ghost=false;
   }
-  return '<div class="sb-promo sb-'+tone+'">'+icon(tone==='accent'?'shield':'alert',18)+
+  return '<div class="sb-promo sb-'+tone+'" id="sidebar-backup">'+icon(tone==='accent'?'shield':'alert',18)+
     '<b>'+esc(title)+'</b><p>'+line+'</p>'+
     '<button class="sb-promo-btn'+(ghost?' ghost':'')+'" data-action="export-json">'+esc(label)+'</button></div>';
 }
@@ -11216,6 +11248,13 @@ document.addEventListener('click',function(e){
   if(action==='go-import'){ ui.settingsTab='data'; nav('settings'); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); setTimeout(function(){ var c=document.querySelector('[data-action="csv-import"]'); if(c&&c.scrollIntoView) c.scrollIntoView({behavior:'smooth',block:'center'}); },120); return; }
   if(action==='open-sidebar'){ byId('sidebar').classList.add('open'); byId('scrim').classList.add('show'); document.body.classList.add('drawer-open'); return; }
   if(action==='toggle-nav-collapse'){ state.settings.navCollapsed=!state.settings.navCollapsed; if(state.settings.navCollapsed) ui.navEdit=false; save(); applyNavCollapse(); renderSidebar(); var _tg=document.querySelector('.nav-toggle'); if(_tg){ _tg.innerHTML=icon(state.settings.navCollapsed?'collapseR':'collapseL'); _tg.setAttribute('title',state.settings.navCollapsed?'Expand sidebar':'Collapse sidebar'); } return; }
+  /* The bottom of the sidebar folds to one row and stays folded across launches. It
+     redraws the sidebar rather than toggling hidden in place, because the backup card
+     that folds with it is a sibling and its own state depends on the books. */
+  if(action==='sidebar-foot-toggle'){
+    state.settings.footCollapsed=!state.settings.footCollapsed;
+    save(); renderSidebar(); return;
+  }
   if(action==='pin-set'){ pinModal('set'); return; }
   if(action==='pin-change'){ pinModal('change'); return; }
   if(action==='pin-remove'){ pinModal('remove'); return; }

@@ -4372,6 +4372,66 @@ async function main() {
       }
     })();
 
+    // ---------- the sidebar footer folds, and stays folded ----------
+    // "THE HELP TOUR DOWNWARD SHOULD BE COLLAPSABLE". Help, Settings, Edit menu and the
+    // backup card fold into one row; the account chip never does, because it is the
+    // control the owner most wants to reach.
+    (function sidebarFoot() {
+      const savedFoot = window.state.settings.footCollapsed;
+      const savedBackup = window.state.settings.lastBackup;
+      try {
+        // a backed-up copy, so the card is in its quiet state and free to fold
+        window.state.settings.lastBackup = window.todayISO();
+        window.state.settings.footCollapsed = false;
+        window.renderSidebar();
+        ok('expanded, the tail carries help, settings and edit menu',
+          d.querySelectorAll('#sidebar-tail-body .nav-item').length === 3);
+        ok('expanded, the backup card is on screen', !!d.getElementById('sidebar-backup'));
+        const toggle = d.querySelector('.sb-tail-toggle');
+        ok('there is one disclosure row for all of it', !!toggle && toggle.getAttribute('aria-expanded') === 'true');
+
+        click(toggle);
+        ok('clicking it folds the block', window.state.settings.footCollapsed === true);
+        ok('...the three rows go', !d.querySelector('#sidebar-tail-body .nav-item') ||
+          d.getElementById('sidebar-tail-body').hidden === true);
+        /* The hidden attribute only hides what the stylesheet lets it hide. This element
+           carries an author display:flex, which outranks the browser's own
+           [hidden]{display:none} at equal specificity — so without an explicit override
+           the attribute above sets state and hides nothing on screen. jsdom does no
+           layout and cannot catch that, so the rule itself is the assertion. */
+        ok('...and the stylesheet actually lets [hidden] hide them',
+          /\.sidebar-tail-body\[hidden\]\s*\{[^}]*display\s*:\s*none/.test(html));
+        ok('...the backup card goes with them', !d.getElementById('sidebar-backup'));
+        ok('...the disclosure row itself stays, so it can be undone',
+          !!d.querySelector('.sb-tail-toggle') &&
+          d.querySelector('.sb-tail-toggle').getAttribute('aria-expanded') === 'false');
+        ok('...and the account chip is still reachable, which is the whole point',
+          !!d.querySelector('.biz-chip[data-action="acct-menu"]'));
+
+        // it is a setting, not a session flag: the choice survives a reload
+        const stored = JSON.parse(window.localStorage.getItem('bizpilot.v1') || '{}');
+        ok('the choice is written to settings, the way collapsedNav is',
+          stored.settings && stored.settings.footCollapsed === true, stored.settings && stored.settings.footCollapsed);
+
+        click(d.querySelector('.sb-tail-toggle'));
+        ok('clicking it again brings the block back', window.state.settings.footCollapsed === false &&
+          d.querySelectorAll('#sidebar-tail-body .nav-item').length === 3 && !!d.getElementById('sidebar-backup'));
+
+        // the one card that is not allowed to be silent
+        window.state.settings.lastBackup = null;
+        window.state.settings.footCollapsed = true;
+        window.renderSidebar();
+        const risky = window.dataRecordCount() >= 5 && !(window.state.settings.sync || {}).lastSync;
+        ok('a folded footer still shows the backup warning when the books really are at risk',
+          !risky || !!d.getElementById('sidebar-backup'), { risky });
+      } finally {
+        window.state.settings.footCollapsed = savedFoot;
+        window.state.settings.lastBackup = savedBackup;
+        window.save();
+        window.renderSidebar();
+      }
+    })();
+
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
   } catch (e) {
