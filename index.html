@@ -1226,6 +1226,20 @@ body.rm-shift .rm-canvas{cursor:crosshair}
 @media (max-width:860px){
   .tb-search,.tb-bell,.tb-acct{display:none}
   .topbar{min-height:0;padding-block:14px 12px;margin-bottom:16px}
+  /* A swept measure of every route at 390px found interactive controls 14 to 20px tall:
+     .btn-icon on Products, .led-link on the dashboard and Invoices, the row overflow
+     buttons, the favourite stars on Clients. WCAG 2.5.8 puts the floor at 24px and Apple
+     asks for 44; 14px is a control you stab at three times outdoors, and it is the kind
+     of thing that only shows up when somebody actually holds the phone.
+     The hit area is grown with a centred pseudo-element rather than by resizing the
+     control, so every one of them keeps the size and rhythm the design intends and
+     nothing reflows. pointer-events stay on the overlay only. */
+  .btn-icon,.led-link,.topbar-more,.nav-fav,.more,
+  .list-row [data-action],.rows [data-action]{position:relative}
+  .btn-icon::after,.led-link::after,.topbar-more::after,.nav-fav::after,.more::after,
+  .list-row [data-action]::after,.rows [data-action]::after{
+    content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:max(100%,44px);height:max(100%,44px)}
 }
 .topbar-actions{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .topbar-more{display:none;width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);box-shadow:var(--shadow-sm);color:var(--text-2);align-items:center;justify-content:center;flex-shrink:0;cursor:pointer}
