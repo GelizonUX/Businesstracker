@@ -1,5 +1,3 @@
-# Seller-only tools must never be reachable from the deployed site. A static host
-# publishes every file in the folder it deploys, so these are refused at the edge
-# rather than relying on nobody guessing the filename.
-/trakora-keygen.html  /  404
-/license.html         /  404
+# Reserved for edge rules. The two seller-only tools that used to be 404'd here
+# (the licence key generator and the licence landing page) are gone from the repo,
+# so there is nothing left to refuse.

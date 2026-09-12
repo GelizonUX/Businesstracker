@@ -19,7 +19,8 @@ npm test
    - the app boots and **all 18 views render** without error;
    - **security**: no unescaped image `src`, CSP present, `safeColor` rejects injection, malicious logo is escaped;
    - **Smart CSV import**: entity detection + money/date normalization;
-   - **activation gate** diagnostics (locked-rules vs valid key, mocked fetch);
+   - **the retired licence gate**: every gate symbol is gone, the app opens with no wall, and a forged `bizpilot.activation` in `localStorage` grants nothing;
+   - **no licence artefact** survives anywhere in the repo: no keygen, no licence page, no signing key, no embedded public key;
    - **App Lock (PIN)**: PBKDF2 set/verify, boot-gate, unlock;
    - **dashboard**: 13 per-card widgets + single-card reorder;
    - **onboarding carousel**: all 6 slides render with mockups + dots, advancing reuses the same card (no blink rebuild) and applies a directional slide;

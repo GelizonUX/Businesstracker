@@ -18,7 +18,7 @@
   # The app is one HTML file plus data: URIs. Nothing it serves should ever be
   # re-typed by a browser guessing at content.
   X-Content-Type-Options: nosniff
-  # A license key, a device id and an invoice number can all end up in a URL. Send no
+  # A device id, an invite token and an invoice number can all end up in a URL. Send no
   # Referer anywhere, which also matches the <meta name="referrer"> already in the page.
   Referrer-Policy: no-referrer
   # Nothing here is meant to be framed.

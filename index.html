@@ -8,8 +8,8 @@
      instances), and the product supports no other backend, so the wildcard can be those
      suffixes instead of the whole web. That is the difference that matters if script
      ever does run in this origin: a wide-open `https:` lets it post the owner's books
-     and licence key to any host an attacker owns, while this confines it to Firebase and
-     the rate API. It is a narrowing, not a cure, and it is cheap.
+     and sign-in token to any host an attacker owns, while this confines it to Firebase
+     and the rate API. It is a narrowing, not a cure, and it is cheap.
      upgrade-insecure-requests rewrites any http:// asset request to https:// before it
      leaves the browser, which is the half of "force HTTPS" that a redirect cannot do.
      identitytoolkit and securetoken are Firebase Auth's REST API: sign-up, sign-in,
@@ -2357,8 +2357,12 @@ body.dragging-active .kb-col{transition:outline-color .12s var(--ease)}
   td .row-actions,.dash-handle{opacity:1 !important}
 }
 
-/* ============ activation gate ============ */
-#gate-root:empty,#lock-root:empty{display:none}
+/* ============ lock screen ============
+   These .gate-* classes are the full-screen PIN prompt. They were written for the
+   licence gate, which is gone; the lock screen is the only thing that renders them
+   now, and the names are left alone because renaming CSS to match a deleted feature
+   is churn that breaks tests asserting on class names. */
+#lock-root:empty,#signin-root:empty{display:none}
 .gate{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;
   background:#0d0f17;font-family:var(--font)}
 .gate-card{position:relative;width:100%;max-width:380px;background:#15171f;
@@ -2375,8 +2379,6 @@ body.dragging-active .kb-col{transition:outline-color .12s var(--ease)}
 .gate-input::placeholder{color:#6a7095}
 .gate-input:focus{outline:none;border-color:#8b8cf6;box-shadow:0 0 0 3px rgba(124,124,246,.22)}
 .gate-input.key{font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;text-align:center;font-size:var(--f4)}
-/* the license key field accepts long signed tokens too. Don't upper-case / space them */
-#gate-key{text-transform:none;letter-spacing:normal;text-align:left;font-size:var(--f2)}
 .gate-btn{width:100%;margin-top:8px;padding:12px;border:none;border-radius:11px;cursor:pointer;
   background:var(--accent-cta);color:var(--accent-cta-ink);font-size:var(--f3);font-weight:550;font-family:var(--font);
   letter-spacing:.01em;transition:background .15s,transform .12s}
@@ -2391,9 +2393,6 @@ body.dragging-active .kb-col{transition:outline-color .12s var(--ease)}
 .gate-foot a{color:#aab0ff;text-decoration:none;font-weight:550}
 .gate-spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:gatespin .7s linear infinite;vertical-align:-2px;margin-right:8px}
 @keyframes gatespin{to{transform:rotate(360deg)}}
-.gate-steps{display:flex;gap:8px;justify-content:center;margin:0 0 20px;font-size:var(--f1);color:#8087aa}
-.gate-steps span{display:flex;align-items:center;gap:4px}
-.gate-steps .dot{width:5px;height:5px;border-radius:50%;background:var(--accent)}
 
 /* ============================================================
    welcome tour: refined card + "why it matters" highlight
@@ -2974,7 +2973,7 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
       box-shadow:var(--shadow-lg),inset 0 1px 0 rgba(255,255,255,.5),inset 0 0 0 1px rgba(255,255,255,.16)}
   }
 }
-/* never show the mobile shell over the gate/lock or greeting overlays */
+/* never show the mobile shell over the lock screen or greeting overlays */
 body.greeting-on .tabbar,body.greeting-on .fab{display:none!important}
 /* KPI + wallet tiles are clean hairline surfaces in the Ledger design. No glass */
 /* small floating per-card drag handle (appears on hover) */
@@ -3284,7 +3283,7 @@ body.greeting-on{overflow:hidden}
 <div class="toast-root" id="toast-root"></div>
 <div id="print-area"></div>
 <div id="lightbox-root"></div>
-<div id="gate-root"></div>
+<div id="signin-root"></div>
 <div id="lock-root"></div>
 <div id="greet-root"></div>
 <div id="consent-root"></div>
@@ -3307,7 +3306,7 @@ function todayISO(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMo
    customer could ever see carries THEIR name: the tab title, the brand in the
    island and sidebar, printed invoices, quotes, orders, the pay-me QR, export
    filenames. The product name survives only where the software itself is the
-   subject and swapping in a business name would be a lie: the licence gate, the
+   subject and swapping in a business name would be a lie: the sign-in card, the
    About block, the privacy page, backup-format errors and console diagnostics.
 
    Before a name is set there is nothing truthful to print, so the fallback is
@@ -3542,240 +3541,6 @@ function icoStroke(size){
 function icon(name,size){
   var st=size?' style="width:'+size+'px;height:'+size+'px;--ics:'+icoStroke(size)+'"':'';
   return '<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"'+st+'>'+(ICONS[name]||'')+'</svg>';
-}
-
-/* ---------- license (Tier 0: stamp + key, injected per buyer by the generator) ---------- */
-var EMBEDDED_LICENSE=null;/*@LICENSE@*/
-/* The key-derivation secret/algorithm intentionally does NOT ship in the
-   buyer's app: keys are generated only by the seller tool and verified
-   server-side (Firebase). The embedded stamp below is display-only. */
-function licenseInfo(){
-  if(!EMBEDDED_LICENSE||!EMBEDDED_LICENSE.name) return null;
-  var l=EMBEDDED_LICENSE;
-  return {name:l.name,email:l.email||'',key:l.key||'',valid:!!(l.key&&l.name)};
-}
-function licTag(){ return ''; } /* documents carry no ownership/licensee watermark */
-
-/* ---------- activation gate (Firebase-verified paid key) ----------
-   Only keys the seller registers in Firebase can unlock the app.
-   Once a device activates, it works offline forever (re-verifies online when it can).
-   Set GATE.enabled=false to ship an un-gated build.
-
-   WHAT THIS APP ASKS OF THE LICENSE DATABASE. The whole contract is three requests,
-   and the database rules should allow exactly these and nothing else:
-     GET    /licenses/<KEY>.json                   read one record, by exact key
-     PUT    /licenses/<KEY>/devices/<DEVICE>.json  claim a device slot, body {at,ua}
-     DELETE /licenses/<KEY>/devices/<DEVICE>.json  free that slot again
-   Never GET /licenses.json, and never a query: no key is ever listed or ordered, so
-   the rules need no .indexOn. The URL below is public by nature (it ships in every
-   copy of the app and cannot be hidden in a static page), which is exactly why the
-   rules have to carry the weight. Settings ▸ Data & Sync has the rules to paste,
-   and the two checks that prove they took. */
-var GATE={
-  enabled:true,
-  url:'https://trakora-30796-default-rtdb.firebaseio.com',
-  node:'licenses',
-  deviceLimit:2,                 // fallback if a license record has none
-  sellerContact:'the seller'     // shown on the gate ("don't have a key?")
-};
-var ACT_KEY='bizpilot.activation';
-function getActivation(){ try{ return JSON.parse(localStorage.getItem(ACT_KEY)||'null'); }catch(_){ return null; } }
-function setActivation(a){ try{ localStorage.setItem(ACT_KEY,JSON.stringify(a)); }catch(_){ } }
-function isActivated(){ if(!GATE.enabled) return true; var a=getActivation(); return !!(a&&a.key&&a.email); }
-function normKey(k){ return String(k||'').toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/(.{4})(.{4})(.{4}).*/,'$1-$2-$3'); }
-function gateEndpoint(key){ return GATE.url.replace(/\/+$/,'')+'/'+GATE.node+'/'+encodeURIComponent(key)+'.json'; }
-/* once a key is verified, mirror it into the license stamp so documents carry the buyer name */
-function applyActivationStamp(){
-  var a=getActivation();
-  if(a&&a.name){ EMBEDDED_LICENSE={name:a.name,email:a.email||'',key:a.key||''}; }
-}
-/* fetch with a timeout so a dead connection fails fast instead of hanging.
-   Only a rejected promise (no HTTP response at all) is a true "can't reach". */
-function gateFetch(url,opts,ms){
-  ms=ms||12000;
-  return new Promise(function(resolve,reject){
-    var settled=false, ctrl=(typeof AbortController!=='undefined')?new AbortController():null;
-    var t=setTimeout(function(){
-      if(settled) return; settled=true;
-      if(ctrl){ try{ ctrl.abort(); }catch(_){ } }
-      reject({code:'timeout',msg:'The activation server took too long to respond. Check your internet connection and try again.'});
-    },ms);
-    fetch(url,ctrl?Object.assign({},opts||{},{signal:ctrl.signal}):(opts||{}))
-      .then(function(r){ if(settled) return; settled=true; clearTimeout(t); resolve(r); })
-      .catch(function(){ if(settled) return; settled=true; clearTimeout(t);
-        reject({code:'net',msg:'Could not reach the activation server. Check your internet connection and try again.'}); });
-  });
-}
-/* GET the license record, with one automatic retry on a transient network error.
-   Distinguishes locked rules / missing database / server errors from a real outage.
-
-   EVERY exit from here that is not a real license record is a rejection, and the gate
-   only opens on a resolved verifyActivation(). Traced once per branch: a dead network
-   and a timeout reject from gateFetch; 401/403/404/5xx reject above; a body that will
-   not parse leaves data null; and null, a bare string, a number and true all fail the
-   `typeof lic!=='object'` test in verifyActivation. An object shaped like neither
-   (say {error:'...'}) carries no emailHash and no email, so the email proof compares
-   against '' and fails. There is no path where the network misbehaving lets someone
-   in. Keep it that way: a fail-open activation check is worth nothing. */
-function gateReadLicense(key,attempt){
-  return gateFetch(gateEndpoint(key)).then(function(r){
-    return r.text().then(function(body){
-      var data=null; try{ data=body?JSON.parse(body):null; }catch(_){ data=null; }
-      if(!r.ok){
-        var ferr=(data&&data.error)?String(data.error):'';
-        if(r.status===401||r.status===403||/permission denied/i.test(ferr))
-          throw {code:'rules',msg:'The activation database is locked. The seller needs to allow public read on the “'+GATE.node+'” path in the Firebase Realtime Database rules.'};
-        if(r.status===404)
-          throw {code:'nodb',msg:'Activation database not found. The database URL or region looks misconfigured. Please contact '+esc(GATE.sellerContact)+'.'};
-        throw {code:'http',msg:'Activation server error (HTTP '+r.status+'). Please try again in a moment.'};
-      }
-      if(data&&typeof data==='object'&&data.error&&!data.email&&!data.devices)
-        throw {code:'rules',msg:'The activation database denied access (“'+esc(String(data.error))+'”). The seller must allow read on the “'+GATE.node+'” path.'};
-      return data;
-    });
-  }).catch(function(err){
-    if(err&&(err.code==='net'||err.code==='timeout')&&!attempt) return gateReadLicense(key,1);
-    throw err;
-  });
-}
-/* verify a key+email against Firebase, claim a device slot, store activation locally */
-/* Privacy-preserving email proof: the license DB stores only a SHA-256 hash of
-   (key|email), never the plaintext email, so even a readable record leaks no PII.
-   Canonical input must match the keygen exactly. */
-function licEmailHash(key,email){
-  var msg=normKey(key)+'|'+String(email||'').trim().toLowerCase();
-  var data=new TextEncoder().encode(msg);
-  return window.crypto.subtle.digest('SHA-256',data).then(function(buf){
-    return Array.prototype.map.call(new Uint8Array(buf),function(b){return ('0'+b.toString(16)).slice(-2);}).join('');
-  });
-}
-function licEmailMatches(key,email,lic){
-  // prefer the hashed proof; fall back to legacy plaintext email for records issued before hashing
-  if(lic&&lic.emailHash) return licEmailHash(key,email).then(function(h){ return h===lic.emailHash; });
-  return Promise.resolve(((lic&&lic.email)||'').trim().toLowerCase()===String(email||'').trim().toLowerCase());
-}
-/* ---- offline signed licenses (ZERO backend) ----
-   The keygen signs {eh:emailHash, d:deviceLimit, i:issued} with an ECDSA P-256 private key
-   held only in the seller's private keygen. The app verifies it with this PUBLIC key: fully
-   offline: no database, no Firebase rules, no network. A signed key is a long
-   "payloadBase64url.signatureBase64url" token. Short XXXX-XXXX-XXXX keys still use the cloud path. */
-var LICENSE_PUBKEY={"kty":"EC","crv":"P-256","x":"ehXZYwQBYbP8HhHKZ6_hvK1Yp3e2fgQyzqJTXCqdXBc","y":"tyv_vdWFYP84K8O3gYfpLR5RIYQx_s0rm6jmySyysFg"};
-var _licPubKey=null;
-function importLicensePub(){ if(_licPubKey) return Promise.resolve(_licPubKey); return window.crypto.subtle.importKey('jwk',LICENSE_PUBKEY,{name:'ECDSA',namedCurve:'P-256'},false,['verify']).then(function(k){ _licPubKey=k; return k; }); }
-function b64uToBytes(s){ s=String(s||'').replace(/-/g,'+').replace(/_/g,'/'); while(s.length%4) s+='='; var bin=atob(s),a=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++) a[i]=bin.charCodeAt(i); return a; }
-function sha256Hex(str){ var d=new TextEncoder().encode(String(str||'')); return window.crypto.subtle.digest('SHA-256',d).then(function(buf){ return Array.prototype.map.call(new Uint8Array(buf),function(b){return ('0'+b.toString(16)).slice(-2);}).join(''); }); }
-function isSignedKey(raw){ raw=String(raw||'').trim(); return raw.length>=60 && /^[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+$/.test(raw); }
-function keyShow(t){ t=String(t||''); return t.length>18?t.slice(0,10)+'…'+t.slice(-4):t; }
-function verifySignedKey(token,email){
-  token=String(token||'').trim(); email=String(email||'').trim().toLowerCase();
-  var parts=token.split('.'), payloadBytes, sig;
-  if(parts.length!==2) return Promise.reject({code:'nokey',msg:'That license key wasn’t recognized. Paste the full key exactly as it appears in your purchase email.'});
-  try{ payloadBytes=b64uToBytes(parts[0]); sig=b64uToBytes(parts[1]); }catch(_){ return Promise.reject({code:'nokey',msg:'That license key looks corrupted. Copy it again from your email.'}); }
-  return importLicensePub().then(function(pk){ return window.crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},pk,sig,payloadBytes); }).then(function(okSig){
-    if(!okSig) throw {code:'nokey',msg:'This license key is invalid or was altered. Use the exact key from your purchase.'};
-    var payload; try{ payload=JSON.parse(new TextDecoder().decode(payloadBytes)); }catch(_){ throw {code:'nokey',msg:'This license key is invalid.'}; }
-    if(payload.exp && Date.now()>payload.exp) throw {code:'revoked',msg:'This license has expired. Please contact '+GATE.sellerContact+'.'};
-    return sha256Hex(email).then(function(eh){
-      if(payload.eh && payload.eh!==eh) throw {code:'email',msg:'This key is registered to a different email address. Use the email from your purchase.'};
-      var act={key:keyShow(token),fullKey:token,email:email,name:email,activatedAt:Date.now(),device:DEVICE_ID,offline:true};
-      setActivation(act); return act;
-    });
-  });
-}
-function verifyActivation(key,email){
-  var raw=String(key||'').trim();
-  if(isSignedKey(raw)) return verifySignedKey(raw,email);   // offline signed token: no network
-  key=normKey(raw); email=String(email||'').trim().toLowerCase();
-  return gateReadLicense(key,0).then(function(lic){
-    if(!lic||typeof lic!=='object') throw {code:'nokey',msg:'That license key wasn’t found. Double-check the key from your purchase email, and that it was issued on the current activation database.'};
-    if(lic.status&&lic.status!=='active') throw {code:'revoked',msg:'This license has been disabled. Please contact '+esc(GATE.sellerContact)+'.'};
-    return licEmailMatches(key,email,lic).then(function(okEmail){
-      if(!okEmail) throw {code:'email',msg:'This key is registered to a different email address. Use the email from your purchase.'};
-      var devices=lic.devices||{};
-      var limit=lic.deviceLimit||GATE.deviceLimit;
-      var mine=DEVICE_ID;
-      if(!devices[mine] && Object.keys(devices).length>=limit){
-        throw {code:'limit',msg:'This license is already active on its maximum of '+limit+' device'+(limit>1?'s':'')+'. Contact '+esc(GATE.sellerContact)+' to move it.'};
-      }
-      // claim this device (create-only write under devices)
-      return gateFetch(gateEndpoint(key).replace('.json','/devices/'+encodeURIComponent(mine)+'.json'),{
-        method:'PUT',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({at:Date.now(),ua:String(navigator.userAgent||'').slice(0,120)})
-      }).then(function(r){
-        /* A non-OK PUT (write denied by rules) is not a real claim. Mark it so we don't
-           free a slot we never took. This does let the copy run without occupying a
-           slot, so a refused claim is a device-limit gap, deliberately: the key and the
-           email were both proved against the database a moment ago, and locking out a
-           paying customer because their seller has not published the rules yet is the
-           worse failure of the two. The limit is still enforced twice, on the count
-           above and by the rules themselves. */
-        var act={key:key,email:email,name:lic.name||email,activatedAt:Date.now(),device:mine};
-        if(!(r&&r.ok)) act.unclaimed=true;
-        setActivation(act);
-        return act;
-      }).catch(function(){
-        // device-claim write failed (network): still let them in; the key & email are verified
-        var act={key:key,email:email,name:lic.name||email,activatedAt:Date.now(),device:mine,unclaimed:true};
-        setActivation(act);
-        return act;
-      });
-    });
-  });
-}
-function renderGate(){
-  var root=byId('gate-root');
-  if(!root) return;
-  root.innerHTML=
-    '<div class="gate"><div class="gate-card">'+
-      '<h1>Activate your Business Tracker</h1>'+
-      '<p class="gate-sub">Enter the <b>license key</b> from your purchase to unlock your copy. One-time setup on this device.</p>'+
-      '<div class="gate-steps"><span><i class="dot"></i>Enter key</span><span><i class="dot"></i>Verify</span><span><i class="dot"></i>You’re in</span></div>'+
-      '<form id="gate-form" autocomplete="off">'+
-        '<div class="gate-field"><label>License key</label>'+
-          '<input class="gate-input key" id="gate-key" placeholder="Paste your license key" maxlength="800" autocomplete="off" spellcheck="false"></div>'+
-        '<div class="gate-field"><label>Email used at purchase</label>'+
-          '<input class="gate-input" id="gate-email" type="email" placeholder="you@email.com" autocomplete="off"></div>'+
-        '<button class="gate-btn" id="gate-go" type="submit">Activate &amp; open →</button>'+
-        '<div class="gate-msg" id="gate-msg"></div>'+
-      '</form>'+
-      '<div class="gate-foot">Don’t have a key yet? Get one from '+esc(GATE.sellerContact)+'.<br>Your business data stays private on this device.</div>'+
-    '</div></div>';
-  var keyEl=byId('gate-key'), emailEl=byId('gate-email'), btn=byId('gate-go'), msg=byId('gate-msg');
-  // pretty-format SHORT keys as they type, but leave long signed tokens (which contain ".") untouched
-  keyEl.addEventListener('input',function(){
-    if(this.value.indexOf('.')>=0||this.value.length>20) return; // signed offline token: don't reformat
-    var c=this.selectionStart, raw=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,12);
-    var out=raw.replace(/(.{4})(.{4})(.{1,4})/,'$1-$2-$3').replace(/(.{4})(.{1,4})$/,function(m){return m;});
-    if(raw.length>4&&raw.length<=8) out=raw.slice(0,4)+'-'+raw.slice(4);
-    else if(raw.length>8) out=raw.slice(0,4)+'-'+raw.slice(4,8)+'-'+raw.slice(8);
-    else out=raw;
-    this.value=out;
-  });
-  function showMsg(text,kind){ msg.className='gate-msg show '+kind; msg.innerHTML=text; }
-  byId('gate-form').addEventListener('submit',function(e){
-    e.preventDefault();
-    var key=keyEl.value.trim(), email=emailEl.value.trim();
-    if(!key||!email){ showMsg('Enter both your license key and email.','err'); return; }
-    btn.disabled=true; msg.className='gate-msg'; btn.innerHTML='<span class="gate-spin"></span>Verifying…';
-    verifyActivation(key,email).then(function(act){
-      showMsg(icon('check',15)+' Welcome, <b>'+esc(act.name)+'</b>! Opening your dashboard…','ok');
-      setTimeout(function(){ root.innerHTML=''; applyActivationStamp(); bootApp(); },700);
-    }).catch(function(err){
-      btn.disabled=false; btn.innerHTML='Activate &amp; open →';
-      showMsg(icon('x',15)+' '+esc((err&&err.msg)||'Activation failed. Please try again.'),'err');
-    });
-  });
-  setTimeout(function(){ keyEl.focus(); },120);
-}
-function deactivateDevice(){
-  if(!confirm('Sign out this device?\n\nYou can re-activate anytime with the same key. This also frees a device slot so you can use Trakora on another computer.')) return;
-  var a=getActivation();
-  if(a&&a.key&&!a.unclaimed){
-    fetch(gateEndpoint(a.key).replace('.json','/devices/'+encodeURIComponent(a.device||DEVICE_ID)+'.json'),{method:'DELETE'}).catch(function(){});
-  }
-  try{ localStorage.removeItem(ACT_KEY); }catch(_){}
-  location.reload();
 }
 
 /* ============================================================
@@ -4032,10 +3797,14 @@ function authRandom(n){
   var a=new Uint8Array(n||24); window.crypto.getRandomValues(a);
   return Array.prototype.map.call(a,function(b){ return ('0'+b.toString(16)).slice(-2); }).join('');
 }
+/* The exact string Google demands be registered as an authorised redirect URI. Shown in
+   Settings because getting it wrong is the single most common reason the Google button
+   fails, and the message Google returns for it names nothing the owner can act on. */
+function authRedirectUri(){ return location.origin+'/oauth-callback.html'; }
 function authGoogleUrl(state,nonce){
   var q=[
     'client_id='+encodeURIComponent(authClientId()),
-    'redirect_uri='+encodeURIComponent(location.origin+'/oauth-callback.html'),
+    'redirect_uri='+encodeURIComponent(authRedirectUri()),
     'response_type=id_token',
     'scope='+encodeURIComponent('openid email profile'),
     'prompt=select_account',        // always offer the chooser: shared devices are normal here
@@ -4104,6 +3873,55 @@ function authGoogleResume(){
   if(err) return Promise.reject({code:err,msg:authErrMsg(err)});
   var tok=p.get('id_token'); if(!tok) return Promise.resolve(null);
   return authGoogleExchange(tok,nonce);
+}
+
+/* The one place an email form is turned into a session, shared by the sharing card in
+   Settings and by the sign-in wall, so there is exactly one version of what "Sign in"
+   and "Create an account" mean. Returns a promise so both callers can say what happened
+   in their own way. */
+function authSubmitEmail(email,password,mode){
+  email=String(email||'').trim(); password=String(password||'');
+  if(!email||!password) return Promise.reject({code:'empty',msg:'Enter an email address and a password.'});
+  return (mode==='up'?authSignUp(email,password):authSignIn(email,password));
+}
+
+/* The wall REQUIRE_SIGNIN puts up. It is deliberately plain about what it is: an owner
+   who turned the flag on wants their staff to sign in, and the honest thing to say is
+   that this copy was set that way, not that the app is locked. It is not locked, as its
+   own flag comment explains at length. */
+function renderSignInWall(){
+  var root=byId('signin-root'); if(!root) return;
+  root.innerHTML=
+    '<div class="gate"><div class="gate-card">'+
+      '<div style="text-align:center;margin-bottom:6px">'+icon('users',30)+'</div>'+
+      '<h1>Sign in to continue</h1>'+
+      '<p class="gate-sub">This copy has been set to ask for an account before it opens.</p>'+
+      (authConfigured()
+        ? (authClientId()?'<button class="gate-btn" type="button" data-action="auth-google" style="margin-bottom:10px">Continue with Google</button>':'')+
+          '<form id="signin-form" autocomplete="off">'+
+            '<div class="gate-field"><label>Email</label>'+
+              '<input class="gate-input" id="signin-email" type="email" autocomplete="username" placeholder="you@email.com"></div>'+
+            '<div class="gate-field"><label>Password</label>'+
+              '<input class="gate-input" id="signin-pass" type="password" autocomplete="current-password" placeholder="at least 6 characters"></div>'+
+            '<button class="gate-btn" id="signin-go" type="submit">Sign in →</button>'+
+            '<div class="gate-msg" id="signin-msg"></div>'+
+          '</form>'
+        : '<div class="gate-msg show err">This copy was set to require an account, but no Firebase project has been configured for it, so there is nothing to sign in to. Whoever deployed it has to paste a Web API key, or set REQUIRE_SIGNIN back to false.</div>')+
+      '<div class="gate-foot">Your data on this device is not touched either way.</div>'+
+    '</div></div>';
+  var form=byId('signin-form'); if(!form) return;
+  var msg=byId('signin-msg'), btn=byId('signin-go');
+  form.addEventListener('submit',function(e){
+    e.preventDefault();
+    btn.disabled=true; msg.className='gate-msg'; btn.innerHTML='<span class="gate-spin"></span>Signing in…';
+    authSubmitEmail(byId('signin-email').value,byId('signin-pass').value,'in').then(function(){
+      root.innerHTML=''; bootApp();
+    },function(err){
+      btn.disabled=false; btn.innerHTML='Sign in →';
+      msg.className='gate-msg show err'; msg.textContent=(err&&err.msg)||'Could not sign in.';
+    });
+  });
+  setTimeout(function(){ var el=byId('signin-email'); if(el) el.focus(); },120);
 }
 
 /* ---------- state ---------- */
@@ -7799,7 +7617,7 @@ function rmNodeHTML(d){ return '<div class="'+rmDescCls(d)+'" data-nid="'+esc(d.
    and importData() deep-merges whatever JSON it is handed while cloudMerge() takes
    records off a database anyone holding the URL can write to. A colour of
    `red" onmouseover="…` therefore closed the attribute and installed a live handler, in
-   the same origin as the owner's books and their stored licence key, on a backup someone
+   the same origin as the owner's books and their stored sign-in token, on a backup someone
    sent them. Geometry was injectable the same way. Colours go through safeColor(), the
    numbers through rmNum(), ids and path data through esc(). */
 function rmNum(v,fb){ v=parseFloat(v); return isFinite(v)?v:(fb||0); }
@@ -9966,14 +9784,6 @@ function viewSettings(){
   html+=fxCardHTML();
   html+='<div class="card"><div class="card-head"><h3>About</h3></div>'+
     '<p style="font-size:var(--f2);color:var(--text-2)">Trakora is one HTML file. It records income and expenses, invoices, orders, stock, staff pay and unpaid balances, and it keeps all of it in this browser. There is no account and no server. Turning cloud sync on is the only thing that sends a copy anywhere. It keeps working with the network off.</p>'+
-    (function(){ var l=licenseInfo(); if(!l) return '';
-      var act=getActivation();
-      return '<div style="margin-top:12px;padding:12px 16px;border-radius:11px;background:var(--accent-soft)">'+
-        '<b style="font-size:var(--f2)">'+icon('shield',13)+' Licensed to '+esc(l.name)+'</b>'+
-        '<div style="font-size:var(--f1);color:var(--text-2);margin-top:2px">'+esc(l.email)+' · key <span class="mono">'+esc(l.key)+'</span> '+(l.valid?'<span class="badge good" style="font-size:var(--f1)">valid</span>':'<span class="badge risk" style="font-size:var(--f1)">invalid key</span>')+'</div>'+
-        (act?'<div style="font-size:var(--f1);color:var(--good);margin-top:4px">'+icon('check',11)+' Activated on this device'+(act.activatedAt?' · '+fmtDate(new Date(act.activatedAt).toISOString().slice(0,10)):'')+'</div>':'')+
-        '<div style="font-size:var(--f1);color:var(--text-2);margin-top:4px">This copy is registered to the name above. It appears on all printed documents.</div>'+
-        (act&&GATE.enabled?'<button class="btn btn-ghost btn-sm" data-action="deactivate-device" style="margin-top:8px">Sign out / move to another device</button>':'')+'</div>'; })()+
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'+
       '<button class="btn btn-ghost btn-sm" data-action="show-tour">'+icon('spark')+' Replay the welcome tour</button>'+
       '<button class="btn btn-ghost btn-sm" data-action="nav" data-route="privacy">'+icon('shield')+' Privacy</button>'+
@@ -9989,6 +9799,7 @@ function settingsDataHTML(){
   html+=connectionsCardHTML();
   html+=storageCardHTML();
   html+=cloudSyncCardHTML();
+  html+=authAccountCardHTML();
   html+=databaseRulesCardHTML();
   html+='<div class="card"><div class="card-head"><h3>Backup & restore</h3></div>'+
     '<p style="font-size:var(--f2);color:var(--text-2);margin-bottom:16px">'+entryCount+' records in this browser. Export a backup regularly. Clearing browser data would erase everything.'+
@@ -10035,7 +9846,8 @@ function viewPrivacy(){
     '<p style="font-size:var(--f3);color:var(--text-2)">Your books live in this browser, on this device. There is no Trakora account and no Trakora server holding them, which means nobody here can read your numbers, and nobody here can get them back for you either. Four things reach the internet, all of them listed below, none of them carrying your business data unless you switch cloud sync on yourself.</p></div>';
 
   html+='<div class="sec"><div class="card-head"><h3>Where your data lives</h3></div>'+
-    '<p style="font-size:var(--f3);color:var(--text-2)">Your browser stores it under three names on this device: <span class="mono">bizpilot.v1</span> for everything you have typed in, <span class="mono">bizpilot.device</span> for a random id that counts this device against your license, and <span class="mono">bizpilot.activation</span> for the license itself. Receipt photos are saved inside that same record as image data, not as files.</p>'+
+    '<p style="font-size:var(--f3);color:var(--text-2)">Your browser stores it under <span class="mono">bizpilot.v1</span> for everything you have typed in and <span class="mono">bizpilot.device</span> for a random id that tells this device\'s edits apart from another device\'s when records are merged. Receipt photos are saved inside that same record as image data, not as files.'+
+      (authSignedIn()?' Because you are signed in, a third name, <span class="mono">bizpilot.auth</span>, holds your session token. It holds no books, and signing out removes it and nothing else.':'')+'</p>'+
     '<p style="font-size:var(--f3);color:var(--text-2)">That is the whole storage story, and it cuts both ways. Clearing site data, a browser reset, a private window, a new laptop: any of those and it is gone, because there is no copy anywhere else. Export a backup and keep it somewhere that is not this browser.</p>'+
     (enc?'<p style="font-size:var(--f3);color:var(--good)">'+icon('shield',13)+' Your saved data is encrypted with AES-256 on this device and cannot be read without your PIN.</p>'
         :'<p style="font-size:var(--f3);color:var(--text-2)">Anyone who can open this browser profile can read it. The PIN lock in Settings encrypts what is stored, so a borrowed laptop is not a copy of your books.</p>')+
@@ -10048,16 +9860,17 @@ function viewPrivacy(){
     '<p style="font-size:var(--f3);color:var(--text-2)">Adding an entry, printing an invoice, running a report and every calculator work entirely offline. Nothing below is sent while you do any of that.</p>'+
 
     privacyConnectionHTML('Exchange rates','open.er-api.com · automatic, on money screens',
-      'Opening the app, or a money screen whose saved rate is more than '+FX_ROUTE_REFRESH_MIN+' minutes old, fetches the day\'s rates. The request asks for one thing: the peso against a fixed list of currencies. It carries no license key, no device id and nothing you have typed. Like any web request it does reveal your IP address to that service, and therefore the fact that a copy of Trakora asked for rates.',
+      'Opening the app, or a money screen whose saved rate is more than '+FX_ROUTE_REFRESH_MIN+' minutes old, fetches the day\'s rates. The request asks for one thing: the peso against a fixed list of currencies. It carries no account, no device id and nothing you have typed. Like any web request it does reveal your IP address to that service, and therefore the fact that a copy of Trakora asked for rates.',
       'Turn it off with <b>Auto-update rates daily</b> in Settings &#9656; Currency, or by choosing essential connections only. Rates you type in yourself keep working offline.')+
 
     privacyConnectionHTML('Receipt scanning','cdn.jsdelivr.net · only when you press Scan',
       'Your receipt photo is never uploaded. It goes from the file you picked straight into this page and no further, and whatever the scan reads lands in the form for you to check before anything is saved. What the scanner does reach for is its own engine, about 2MB from that CDN, which would show your IP address there. As this build ships, the app\'s security policy refuses to load code from anywhere but itself, so that download is stopped inside your browser and the request never goes out. Pressing Scan today ends in an error rather than a scan.',
       'Nothing is downloaded unless you press Scan. Choosing essential connections only blocks the attempt outright.')+
 
-    privacyConnectionHTML('License activation','the license database · once per device',
-      'Activating sends your license key and that random device id, so a paid copy can be told from an unpaid one and so the device limit means something. Your email address is not sent: the app hashes it here and compares the hash with the record, which is also why the record itself holds no readable email. After activation the app runs offline forever.',
-      'Signing out from Settings &#9656; Data removes this device from that record and frees the slot.')+
+    privacyConnectionHTML('Signing in','Firebase Auth (Google) &#183; only if you turn sharing on',
+      'There is no account until you make one. If you do, your email address and password, or the Google account you pick, go to Google\'s identity service, which hands back a token this device stores. That token is what the shared database checks before it answers anybody. None of your books go through it.'+
+      (authSignedIn()?' <b>You are signed in right now</b>, as '+esc((authUser()||{}).email||'')+'.':' You are not signed in.'),
+      'Sign out at any time from Settings &#9656; Data &#9656; Sharing. Signing out removes the token from this device and leaves every record where it is.')+
 
     privacyConnectionHTML('Cloud sync','your own database · off unless you set it up',
       'This is the only connection that carries your business data, and it goes to a Firebase database <b>you</b> create, address and control. Trakora has no access to it. Turned on, it pushes your whole file: entries, clients, invoices, notes, receipt photos.'+
@@ -10067,7 +9880,10 @@ function viewPrivacy(){
 
   html+='<div class="sec"><div class="card-head"><h3>What Trakora does not do</h3></div>'+
     '<p style="font-size:var(--f3);color:var(--text-2)">No cookies. Not "essential cookies only": the app never touches <span class="mono">document.cookie</span>, and the storage it does use is listed above. No analytics of any kind, no advertising, no third-party trackers or pixels, no crash or usage reporting, no A/B testing, no email list. The fonts are built into the file rather than pulled from a font CDN, which is why the app still looks right with the internet off.</p>'+
-    '<p style="font-size:var(--f3);color:var(--text-2)">There is no account to create, so there is nothing to profile. The seller learns that a license was activated and on how many devices. Not what you sell, not who your customers are, not a peso of it.</p></div>';
+    '<p style="font-size:var(--f3);color:var(--text-2)">'+
+      (authSignedIn()
+        ? 'The account you made exists to prove to your own database who is asking. Whoever runs the Firebase project it points at can see that the account exists and when it last signed in. What you sell, who your customers are and every peso of it sit in the database you chose, under rules you publish.'
+        : 'You have made no account, so there is nothing to profile: nobody learns that this copy exists, let alone what you sell, who your customers are or a peso of it.')+'</p></div>';
 
   html+='<div class="sec"><div class="card-head"><h3>The people in your records</h3></div>'+
     '<p style="font-size:var(--f3);color:var(--text-2)">Client names, contact details, credit ledgers, order addresses: you put those in, and under your own country\'s data protection law they are your responsibility, not Trakora\'s. Practically, that means the backup file you export is a full copy of your customer list, so treat it like one. The PIN lock encrypts what is stored on this device, and deleting a client here deletes them everywhere Trakora keeps them.</p></div>';
@@ -10751,6 +10567,18 @@ document.addEventListener('click',function(e){
     authSignOut(); toast('Signed out. Everything on this device is untouched.');
     save(); render(); return;
   }
+  /* Google sends the reset mail, not this app. Success is reported the same way whether
+     or not the address has an account, because saying "no account with that email" to
+     anyone who types one is a way of listing the owner's users. */
+  if(action==='auth-reset'){
+    var rf=el.closest('form')||document.querySelector('form[data-form="auth-email"]');
+    var rmail=rf&&rf.elements['email']?String(rf.elements['email'].value||'').trim():'';
+    if(!rmail){ toast('Type your email address first, then press Forgot password.','warn'); return; }
+    authSendReset(rmail).then(function(){
+      toast('If that address has an account, a reset link is on its way to it.');
+    },function(err){ toast((err&&err.msg)||'Could not send a reset email.','error'); });
+    return;
+  }
 
   /* charts: switch the graph style the user wants to see */
   if(action==='chart-style'){ chartStyleSet(el.getAttribute('data-chart'), el.getAttribute('data-style')); render(); return; }
@@ -11110,7 +10938,6 @@ document.addEventListener('click',function(e){
   if(action==='csv-cancel'){ closeCsvImport(); return; }
   if(action==='csv-commit'){ commitCsvImport(); return; }
   if(action==='reset-data'){ resetData(); return; }
-  if(action==='deactivate-device'){ deactivateDevice(); return; }
   if(action==='load-sample'){
     if(state.finance.length===0||confirm('Loading sample data replaces your current data. Continue?')) loadSampleData();
     return;
@@ -11976,7 +11803,7 @@ function printInvoice(iv){
     '<p style="margin-top:16px">Status: <b>'+esc(iv.status)+(iv.status==='Paid'&&iv.paidDate?' on '+fmtDate(iv.paidDate):'')+'</b></p>'+
     (iv.payDetails?'<h2>Payment details</h2><p>'+esc(iv.payDetails).replace(/\n/g,'<br>')+'</p>':'')+
     (qr?'<img class="pr-qr pr-qr-'+pos+'" src="'+esc(qr)+'" alt="Payment QR">':'')+
-    '<div class="pr-foot">'+appNameEsc()+' · Thank you for your business! · '+fmtDate(todayISO())+licTag()+'</div>'+
+    '<div class="pr-foot">'+appNameEsc()+' · Thank you for your business! · '+fmtDate(todayISO())+'</div>'+
     '</div>';
   printDoc(html);
 }
@@ -12072,7 +11899,7 @@ function buildReportDoc(selected){
     '<h2>Expenses by category</h2>'+catTable('expense',d.expenses)+
     (clientKeys.length?'<h2>Top clients</h2><table><thead><tr><th>Client</th><th class="num">Revenue</th></tr></thead><tbody>'+
       clientKeys.map(function(k){return '<tr><td>'+esc(k)+'</td><td class="num">'+fmtMoney(byClient[k])+'</td></tr>';}).join('')+'</tbody></table>':'')+
-    '<div class="pr-foot">'+appNameEsc()+' · prepared from the owner\'s records'+licTag()+'</div>'+
+    '<div class="pr-foot">'+appNameEsc()+' · prepared from the owner\'s records</div>'+
     '</div>';
 }
 
@@ -12689,10 +12516,9 @@ function authAccountCardHTML(){
 
 /* ---------- database rules ----------
    Both databases Trakora can reach are Firebase Realtime Databases over REST with no
-   sign-in, so their rules are the whole of their security. These blocks are written
-   against the requests the app actually makes, which are listed above gateEndpoint()
-   and cloudRoot(): read one license by exact key, claim and release one device slot,
-   and read/write one sync path. The per-record layout lives entirely UNDER that sync
+   sign-in, so their rules are the whole of their security. This block is written
+   against the requests the app actually makes, which are listed above cloudRoot():
+   read and write one sync path. The per-record layout lives entirely UNDER that sync
    path, so the rules did not have to change for it. Nothing here needs .indexOn,
    because nothing here is ever a query.
    Paste-ready means paste-ready: no comments inside the JSON (Firebase rejects them),
@@ -12710,37 +12536,12 @@ function syncRulesJSON(){
     '  }\n'+
     '}';
 }
-function licenseRulesJSON(){
-  var n=String(GATE.node||'licenses').replace(/[^A-Za-z0-9_-]/g,'')||'licenses';
-  return '{\n'+
-    '  "rules": {\n'+
-    '    ".read": false,\n'+
-    '    ".write": false,\n'+
-    '    "'+n+'": {\n'+
-    '      "$key": {\n'+
-    '        ".read": true,\n'+
-    '        ".write": false,\n'+
-    '        "devices": {\n'+
-    '          "$device": {\n'+
-    '            ".write": "(!data.exists() && newData.exists() && root.child(\''+n+'\').child($key).exists() && root.child(\''+n+'\').child($key).child(\'devices\').numChildren() < (root.child(\''+n+'\').child($key).child(\'deviceLimit\').exists() ? root.child(\''+n+'\').child($key).child(\'deviceLimit\').val() : '+(GATE.deviceLimit||2)+')) || (data.exists() && !newData.exists())",\n'+
-    '            ".validate": "newData.hasChildren([\'at\'])",\n'+
-    '            "at": { ".validate": "newData.isNumber()" },\n'+
-    '            "ua": { ".validate": "newData.isString() && newData.val().length <= 200" },\n'+
-    '            "$other": { ".validate": false }\n'+
-    '          }\n'+
-    '        }\n'+
-    '      }\n'+
-    '    }\n'+
-    '  }\n'+
-    '}';
-}
 function databaseRulesCardHTML(){
   var s=state.settings.sync||{};
   var host=String(s.url||'').replace(/\/+$/,'')||'https://your-project-default-rtdb.firebaseio.com';
   var p=(s.path||'bizpilot');
-  var gateHost=GATE.url.replace(/\/+$/,'');
-  return '<div class="card"><div class="card-head"><h3>'+icon('shield',16)+' Database rules</h3><span class="sub">paste into Firebase, then check the two lines</span></div>'+
-    '<p style="font-size:var(--f2);color:var(--text-2)">A Realtime Database is open to the whole internet until its rules say otherwise, and a URL in a web app is never a secret: anyone can read it out of the page. Publish these in the Firebase console under <b>Realtime Database ▸ Rules</b>, press Publish, then run the checks underneath. Both blocks deny everything by default and open only the exact paths Trakora uses.</p>'+
+  return '<div class="card"><div class="card-head"><h3>'+icon('shield',16)+' Database rules</h3><span class="sub">paste into Firebase, then check the lines underneath</span></div>'+
+    '<p style="font-size:var(--f2);color:var(--text-2)">A Realtime Database is open to the whole internet until its rules say otherwise, and a URL in a web app is never a secret: anyone can read it out of the page. Publish these in the Firebase console under <b>Realtime Database ▸ Rules</b>, press Publish, then run the checks underneath. Every block denies everything by default and opens only the exact paths Trakora uses.</p>'+
 
     '<div class="code-head"><h4>Your cloud sync database</h4><span class="spacer"></span>'+
       '<button class="btn btn-ghost btn-sm" type="button" data-action="copy-code" data-target="rules-sync">'+icon('copy',13)+' Copy</button></div>'+
@@ -12748,11 +12549,6 @@ function databaseRulesCardHTML(){
     '<p style="font-size:var(--f1);color:var(--text-2)">Only <span class="mono">'+esc(p)+'</span> is reachable; the rest of the database is closed. There is still no password on that one path, because Trakora sends no login, so keep the URL and the path to yourself and set a long random path above. If you want more than that, use the PIN lock, which encrypts what is stored on this device.</p>'+
     '<p style="font-size:var(--f1);color:var(--text-3)"><b>Check it worked.</b> Open <span class="mono">'+esc(host)+'/some-other-name.json</span> in a browser: it must answer <span class="mono">{"error":"Permission denied"}</span>. Then press Push my changes above; it must still say the push went through.</p>'+
 
-    '<div class="code-head"><h4>License database</h4><span class="badge neutral">for whoever sells Trakora</span><span class="spacer"></span>'+
-      '<button class="btn btn-ghost btn-sm" type="button" data-action="copy-code" data-target="rules-license">'+icon('copy',13)+' Copy</button></div>'+
-    '<div class="code-block" id="rules-license">'+esc(licenseRulesJSON())+'</div>'+
-    '<p style="font-size:var(--f1);color:var(--text-2)">This is the database the activation screen checks, and it only concerns you if you issue the keys. A key can be looked up one at a time by anyone who already has it, the list of keys cannot be read, nobody can create or edit a key from a browser, and the only public write is a device claiming or releasing its own slot, capped at the license’s own device limit. Issue keys with the offline signed-key generator, or with the database admin secret if you use the cloud path.</p>'+
-    '<p style="font-size:var(--f1);color:var(--text-3)"><b>Check it worked.</b> <span class="mono">'+esc(gateHost)+'/'+esc(GATE.node)+'.json</span> must answer <span class="mono">Permission denied</span>, and <span class="mono">'+esc(gateHost)+'/'+esc(GATE.node)+'/AAAA-BBBB-CCCC.json</span> must answer <span class="mono">null</span> rather than an error. The first says your key list is private; the second says a real buyer can still activate.</p>'+
     '</div>';
 }
 
@@ -12918,6 +12714,28 @@ document.addEventListener('submit',function(e){
     state.settings.sync.path=np||state.settings.sync.path||'bizpilot';
     commit();
     toast(state.settings.sync.enabled?'Auto-sync enabled. Changed records push to your Firebase database on their own.':'Sync settings saved.');
+    return;
+  }
+  /* The project keys. Both are public values that ship in every web app, so they live in
+     settings like any other preference and are stripped out of anything that syncs. */
+  if(kind==='share-keys'){
+    var cfg=shareCfg();
+    cfg.apiKey=String(fv(form,'apiKey')||'').trim();
+    cfg.clientId=String(fv(form,'clientId')||'').trim();
+    commit();
+    toast(cfg.apiKey?'Project keys saved. You can sign in now.':'Project keys cleared.');
+    return;
+  }
+  if(kind==='auth-email'){
+    /* Which button was pressed. A submit button's value only reaches the form through
+       the submitter, and jsdom and older Safari both leave e.submitter undefined, so
+       fall back to the button the user was last on rather than guessing "sign in". */
+    var mode=(e.submitter&&e.submitter.value)||(document.activeElement&&document.activeElement.name==='mode'&&document.activeElement.value)||'in';
+    authSubmitEmail(fv(form,'email'),form.elements['password']?form.elements['password'].value:'',mode)
+      .then(function(){
+        toast(mode==='up'?'Account created. You are signed in as '+authName()+'.':'Signed in as '+authName()+'.');
+        save(); render();
+      },function(err){ toast((err&&err.msg)||'Could not sign in.','error'); });
     return;
   }
 });
@@ -13371,7 +13189,7 @@ function printOrderSlip(o){
     '</tbody></table>'+
     (o.note?'<h2>Note</h2><p>'+esc(o.note)+'</p>':'')+
     (o.payStatus!=='Paid'?payQRDocHTML():'')+
-    '<div class="pr-foot">Thank you for your order! · '+appNameEsc()+licTag()+'</div></div>';
+    '<div class="pr-foot">Thank you for your order! · '+appNameEsc()+'</div></div>';
   printDoc(html);
 }
 
@@ -14396,7 +14214,7 @@ function catalogDocHTML(){
         '<div style="font-size:var(--f4);font-weight:bold;margin-top:4px">'+fmtMoney(p.price)+'</div></div>';
     }).join('')+'</div>'+
     payQRDocHTML()+
-    '<div class="pr-foot">Message us to order! · '+appNameEsc()+licTag()+'</div></div>';
+    '<div class="pr-foot">Message us to order! · '+appNameEsc()+'</div></div>';
 }
 function copyCatalogText(){
   var prods=(state.products||[]).filter(function(p){return p.active!==false&&p.stock>0;});
@@ -15081,7 +14899,7 @@ function buildYearReportDoc(year){
     '</tbody></table>'+
     (yd.topIncomeCats.length?'<h2>Top income sources</h2><table><tbody>'+yd.topIncomeCats.map(function(x){return '<tr><td>'+esc(x.label)+'</td><td class="num">'+fmtMoney(x.value)+'</td></tr>';}).join('')+'</tbody></table>':'')+
     (yd.topClients.length?'<h2>Top clients</h2><table><tbody>'+yd.topClients.map(function(x){return '<tr><td>'+esc(x.label)+'</td><td class="num">'+fmtMoney(x.value)+'</td></tr>';}).join('')+'</tbody></table>':'')+
-    '<div class="pr-foot">'+appNameEsc()+licTag()+'</div></div>';
+    '<div class="pr-foot">'+appNameEsc()+'</div></div>';
 }
 
 /* ---------- v11 wiring ---------- */
@@ -17157,7 +16975,7 @@ document.addEventListener('visibilitychange',function(){
 });
 function pinModal(mode){
   var body, title, label;
-  if(mode==='set'){ title='Set a privacy PIN'; body='<p style="font-size:var(--f2);color:var(--text-2);margin-bottom:12px">Choose a 4–8 digit PIN. You’ll enter it each time you open the app on this device. <b>There is no recovery.</b> If you forget it you can still re-activate, but keep it safe.</p>'+
+  if(mode==='set'){ title='Set a privacy PIN'; body='<p style="font-size:var(--f2);color:var(--text-2);margin-bottom:12px">Choose a 4–8 digit PIN. You’ll enter it each time you open the app on this device. <b>There is no recovery.</b> If you forget it, a JSON backup is the only way back in, so keep both safe.</p>'+
     '<div class="field"><label>New PIN</label><input class="input" name="newpin" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password"></div>'+
     '<div class="field"><label>Confirm PIN</label><input class="input" name="confirmpin" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password"></div>'+
     (cryptoOK()?'<label class="checkrow" style="margin-top:2px"><input type="checkbox" name="encrypt" checked> Also <b>encrypt my data</b> on this device (AES‑256)</label>'+
@@ -17222,13 +17040,13 @@ function privacyLockCardHTML(){
    the notice is about.
 
    Declining does something. "Essential only" stops the automatic rate fetch and refuses
-   the OCR download, which are the two calls the owner does not initiate by hand. The
-   license check stays, because it is the lock on the door, and cloud sync is untouched
-   because it is off until the owner sets it up and points it at their own database.
+   the OCR download, which are the two calls the owner does not initiate by hand. Sign-in
+   and cloud sync are untouched, because neither happens until the owner asks for it by
+   hand: an owner who never signs in never makes either call.
    A decline that changed nothing would be theatre.
 
    Where it sits in the launch sequence: last, and it waits. A new owner already meets
-   the activation gate, the onboarding carousel, the setup wizard, the greeting and a
+   the onboarding carousel, the setup wizard, the greeting and a
    backup toast. This one holds back until every overlay is gone, so it is a quiet bar
    in the corner after the introductions rather than a fifth thing in the pile. */
 function privacySettings(){
@@ -17268,7 +17086,7 @@ function showConsentNotice(){
      it after the page, and Escape closes it without answering for the owner. */
   root.innerHTML='<div class="consent" role="alert" aria-live="polite" aria-label="How Trakora handles your data">'+
     '<h4>'+icon('shield',15)+' Your books stay on this device</h4>'+
-    '<p>Trakora has no account and no server holding your numbers. Three things do reach the internet: exchange rates while you are on a money screen, the receipt scanner\'s engine when you press Scan, and your license check. No cookies, no analytics, no trackers.</p>'+
+    '<p>Trakora keeps your numbers in this browser. Two things reach the internet on their own: exchange rates while you are on a money screen, and the receipt scanner\'s engine when you press Scan. No cookies, no analytics, no trackers.</p>'+
     '<div class="consent-acts">'+
       '<button class="btn btn-primary btn-sm" data-action="consent-set" data-choice="all">Keep them on</button>'+
       '<button class="btn btn-ghost btn-sm" data-action="consent-set" data-choice="essential">Essential only</button>'+
@@ -17283,8 +17101,7 @@ function showConsentNotice(){
    next launch, rather than a timer living forever in the background. */
 var consentTries=0;
 function consentBusy(){
-  return !!((byId('gate-root')&&byId('gate-root').innerHTML)||
-            (byId('lock-root')&&byId('lock-root').innerHTML)||
+  return !!((byId('lock-root')&&byId('lock-root').innerHTML)||
             (byId('greet-root')&&byId('greet-root').innerHTML)||
             (byId('modal-root')&&byId('modal-root').innerHTML)||
             (byId('lightbox-root')&&byId('lightbox-root').innerHTML));
@@ -17316,7 +17133,7 @@ function connectionsCardHTML(){
   var off=p.consent==='essential';
   return '<div class="card"><div class="card-head"><h3>'+icon('shield',16)+' Outside connections</h3><span class="spacer"></span>'+
       (off?'<span class="badge neutral">Essential only</span>':(p.consent==='all'?'<span class="badge good">On</span>':'<span class="badge neutral">Not set</span>'))+'</div>'+
-    '<p style="font-size:var(--f2);color:var(--text-2)">Two of the four things Trakora can reach out to are optional: the daily exchange rates and the receipt scanner\'s engine. Turning them off leaves every screen, calculation and document working exactly as before, offline included. Your license check and cloud sync are not affected.</p>'+
+    '<p style="font-size:var(--f2);color:var(--text-2)">Two of the things Trakora can reach out to are optional: the daily exchange rates and the receipt scanner\'s engine. Turning them off leaves every screen, calculation and document working exactly as before, offline included. Sign-in and cloud sync are not affected, because neither one happens unless you ask for it.</p>'+
     (off?'<p style="font-size:var(--f2);color:var(--text-3)">Off since '+esc(p.at?fmtDate(String(p.at).slice(0,10)):'you chose it')+'. Rates now only change when you type one in under Currency.</p>':'')+
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'+
       '<button class="btn '+(off?'btn-ghost':'btn-primary')+' btn-sm" data-action="consent-set" data-choice="all">'+icon('check')+' Allow them</button>'+
@@ -17382,9 +17199,7 @@ function greetSaveName(){
 }
 function maybeGreet(){
   if(greetShownThisSession) return;
-  if(typeof isActivated==='function' && !isActivated()) return;
   if(byId('lock-root')&&byId('lock-root').innerHTML) return;
-  if(byId('gate-root')&&byId('gate-root').innerHTML) return;
   if(byId('modal-root')&&byId('modal-root').innerHTML) return;
   if(byId('lightbox-root')&&byId('lightbox-root').querySelector('.onb-card')) return; // onboarding is up: greet after
   greetShownThisSession=true;
@@ -17467,10 +17282,11 @@ function backupReminder(){
 }
 
 loadState();
-applyActivationStamp();
-if(GATE.enabled && !isActivated()){
+/* REQUIRE_SIGNIN is off by default, so this is a straight bootApp() in every shipped
+   copy. See the flag's own comment for why turning it on buys less than it looks. */
+if(REQUIRE_SIGNIN && !authSignedIn()){
   applyTheme();
-  renderGate();
+  renderSignInWall();
 } else {
   bootApp();
 }

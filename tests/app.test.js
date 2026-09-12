@@ -37,10 +37,8 @@ function resp(status, body) { return Promise.resolve({ ok: status >= 200 && stat
 
 async function main() {
   try {
-    window.GATE.enabled = false;
     window.bootApp();
     await wait(60);
-    if (d.getElementById('gate-root')) d.getElementById('gate-root').innerHTML = ''; // simulate post-activation (gate bypassed in tests)
 
     // ---------- boot + every view renders ----------
     ok('app boots (state present)', !!window.state);
@@ -281,52 +279,81 @@ async function main() {
     ok('money EU format parses', window.csvMoney('1.234,50') === 1234.5);
     ok('money parentheses negative', window.csvMoney('(500)') === -500);
 
-    // ---------- activation diagnostics (mocked fetch) ----------
-    const K = 'RAVZ-1J1W-7WYQ', E = 'buyer@x.com';
-    window.fetch = () => resp(401, '{"error":"Permission denied"}');
-    await window.verifyActivation(K, E).then(() => ok('locked rules rejected', false)).catch((e) => ok('locked rules -> rules code', e.code === 'rules', e));
-    window.fetch = (u, o) => { const m = (o && o.method) || 'GET'; if (m === 'PUT') return resp(200, '{}'); return resp(200, JSON.stringify({ email: E, name: 'Buyer', devices: {} })); };
-    await window.verifyActivation(K, E).then((a) => ok('valid key activates', a && a.key === K)).catch((e) => ok('valid key activates', false, e));
-    // privacy: a PII-free record (emailHash only, no plaintext email) still activates, and rejects a wrong email
-    const eh = await window.licEmailHash(K, E);
-    window.fetch = (u, o) => { const m = (o && o.method) || 'GET'; if (m === 'PUT') return resp(200, '{}'); return resp(200, JSON.stringify({ emailHash: eh, devices: {} })); };
-    await window.verifyActivation(K, E).then((a) => ok('hashed-email license activates (no PII in DB)', a && a.key === K)).catch((e) => ok('hashed-email license activates', false, e));
-    window.fetch = () => resp(200, JSON.stringify({ emailHash: eh, devices: {} }));
-    await window.verifyActivation(K, 'attacker@evil.com').then(() => ok('hashed-email rejects wrong email', false)).catch((e) => ok('hashed-email rejects wrong email', e.code === 'email', e));
+    // ---------- the licence gate is GONE, and cannot come back ----------
+    // This block used to mint licence keys. The gate it tested was never enforceable:
+    // an audit of this repo forged a working key out of the repo's own contents, and
+    // separately walked past isActivated() with one localStorage.setItem, because
+    // isActivated() only ever checked the SHAPE of that value. What replaced it is an
+    // account, which is enforceable only because Firebase's rules check the token on
+    // their server. So what is asserted here is the removal, not a replacement gate.
+    (function licenceGateRetired() {
+      // 1. nothing in the app implements a gate any more
+      const goneFromApp = ['GATE', 'gateEndpoint', 'gateReadLicense', 'gateFetch', 'verifyActivation',
+        'verifySignedKey', 'LICENSE_PUBKEY', '_licPubKey', 'importLicensePub', 'isActivated',
+        'getActivation', 'setActivation', 'renderGate', 'keyShow', 'normKey', 'licEmailHash',
+        'licTag', 'deactivateDevice', 'applyActivationStamp', 'licenseInfo', 'licenseRulesJSON'];
+      const left = goneFromApp.filter((n) => typeof window[n] !== 'undefined');
+      ok('every licence-gate symbol is gone from the app', left.length === 0, left);
+      ok('the gate root element is gone from the document', d.getElementById('gate-root') === null);
 
-    // ---------- OFFLINE signed license: verifies with ZERO network (no Firebase) ----------
-    // This block used to hard-code the PRODUCTION signing key so it could mint tokens the
-    // shipped LICENSE_PUBKEY would accept. That put the live private key in the working
-    // tree of a repo whose host publishes the folder, and an audit used it to forge an
-    // unlimited, non-expiring licence that verifyActivation() accepted. The mechanism is
-    // what needs testing, not that one keypair: generate a throwaway pair per run and
-    // point the app at its public half.
-    const TESTPAIR = await webcrypto.subtle.generateKey({ name:'ECDSA', namedCurve:'P-256' }, true, ['sign','verify']);
-    window.LICENSE_PUBKEY = await webcrypto.subtle.exportKey('jwk', TESTPAIR.publicKey);
-    delete window.LICENSE_PUBKEY.key_ops; delete window.LICENSE_PUBKEY.ext;
-    window._licPubKey = null;   // drop the cached CryptoKey so the new public half is imported
-    const b64u = (a) => Buffer.from(a).toString('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-    async function makeToken(email, limit) {
-      const pk = TESTPAIR.privateKey;
-      const ehBuf = await webcrypto.subtle.digest('SHA-256', new TextEncoder().encode(email.toLowerCase()));
-      const eh = [...new Uint8Array(ehBuf)].map((b) => ('0'+b.toString(16)).slice(-2)).join('');
-      const pb = new TextEncoder().encode(JSON.stringify({ eh, d: limit, i: '2026-06-19' }));
-      const sig = await webcrypto.subtle.sign({ name:'ECDSA', hash:'SHA-256' }, pk, pb);
-      return b64u(pb) + '.' + b64u(new Uint8Array(sig));
-    }
-    const tok = await makeToken('buyer@x.com', 2);
-    let netHit = false; window.fetch = () => { netHit = true; return resp(500, '{}'); };
-    await window.verifyActivation(tok, 'buyer@x.com')
-      .then((a) => ok('offline signed key activates with NO network', a && a.offline === true && netHit === false, { netHit }))
-      .catch((e) => ok('offline signed key activates with NO network', false, e));
-    await window.verifyActivation(tok, 'someone@else.com').then(() => ok('offline key rejects wrong email', false)).catch((e) => ok('offline key rejects wrong email', e.code === 'email'));
-    await window.verifyActivation(tok.slice(0, -4) + 'AAAA', 'buyer@x.com').then(() => ok('tampered offline key rejected', false)).catch((e) => ok('tampered offline key rejected', !!e));
-    // the gate input must NOT mangle a pasted long signed token
-    window.GATE.enabled = true; window.renderGate(); window.GATE.enabled = false;
-    const gk = d.getElementById('gate-key');
-    if (gk) { gk.value = tok; gk.dispatchEvent(new window.Event('input', { bubbles: true })); ok('gate input preserves a pasted signed token (no mangling)', gk.value === tok, { len: gk.value.length }); }
-    else ok('gate input preserves a pasted signed token (no mangling)', false, 'no gate-key');
-    if (d.getElementById('gate-root')) d.getElementById('gate-root').innerHTML = '';
+      // 2. the app opens with no gate at all: boot renders the dashboard, not a wall
+      window.location.hash = '#/dashboard';
+      window.bootApp();
+      ok('the app opens straight into itself with no gate', d.getElementById('main').innerHTML.length > 50
+        && (d.getElementById('signin-root') === null || d.getElementById('signin-root').innerHTML === ''));
+
+      // 3. the one-line bypass the audit used. It used to be a skeleton key; now it is
+      //    a stray localStorage entry that grants exactly nothing, because nothing reads it.
+      window.localStorage.setItem('bizpilot.activation', '{"key":"x","email":"a@b"}');
+      window.bootApp();
+      ok('a forged activation record in localStorage grants nothing (nothing reads it)',
+        !/bizpilot\.activation/.test(html) && d.getElementById('main').innerHTML.length > 50);
+      window.localStorage.removeItem('bizpilot.activation');
+
+      // 4. sign-in is not a paywall: the flag exists, defaults off, and says so
+      ok('REQUIRE_SIGNIN ships off, so local use needs no account', window.REQUIRE_SIGNIN === false);
+      ok('the flag admits in writing that it stops nobody determined',
+        /REQUIRE_SIGNIN[\s\S]{0,80}=false/.test(html) && /stops nobody/.test(html));
+    })();
+
+    // ---------- no licence artefact survives ANYWHERE in the repo ----------
+    // The ECDSA signing key behind the old offline keys was an open security item for
+    // the life of this project: a key that ships can be extracted, and one that is
+    // extracted can forge every licence ever issued. Retiring the gate retires the key.
+    // This assertion exists so it cannot quietly return.
+    (function noLicenceArtefacts() {
+      const root = path.join(__dirname, '..');
+      const skip = new Set(['node_modules', '.git']);
+      const files = [];
+      (function walk(dir) {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+          if (skip.has(entry.name)) continue;
+          const full = path.join(dir, entry.name);
+          if (entry.isDirectory()) walk(full); else files.push(full);
+        }
+      })(root);
+
+      const named = files.filter((f) => /keygen|license\.html|licence\.html/i.test(path.basename(f)));
+      ok('no licence key generator or licence page is left in the repo', named.length === 0, named);
+
+      // A P-256 public key in JWK form is what LICENSE_PUBKEY was. Any private half
+      // ("d") alongside a curve is worse. Neither may appear in any tracked file.
+      const offenders = [];
+      for (const f of files) {
+        let text;
+        try { text = fs.readFileSync(f, 'utf8'); } catch (_) { continue; }
+        if (f === path.join(root, 'tests', 'app.test.js')) continue;  // this file names them to forbid them
+        if (/LICENSE_PUBKEY/.test(text)) offenders.push(path.relative(root, f) + ': LICENSE_PUBKEY');
+        if (/"kty"\s*:\s*"EC"/.test(text) || /'kty'\s*:\s*'EC'/.test(text)) offenders.push(path.relative(root, f) + ': JWK EC key');
+        if (/"crv"\s*:\s*"P-256"[\s\S]{0,200}"d"\s*:/.test(text)) offenders.push(path.relative(root, f) + ': EC PRIVATE key');
+        if (/BEGIN (EC |RSA )?PRIVATE KEY/.test(text)) offenders.push(path.relative(root, f) + ': PEM private key');
+      }
+      ok('no signing key and no LICENSE_PUBKEY remains anywhere in the repo', offenders.length === 0, offenders);
+
+      // and the deploy config no longer pretends to hide files that no longer exist
+      const redirects = fs.readFileSync(path.join(root, '_redirects'), 'utf8');
+      ok('_redirects no longer routes the seller-only licence tools', !/keygen|license\.html/i.test(redirects));
+    })();
 
     // ---------- PIN lock (PBKDF2) ----------
     ok('no lock initially', window.hasLock() === false);
@@ -423,7 +450,7 @@ async function main() {
     window.state.settings.sectionOrder = []; window.moveSidebarSection('Shop', -1);
     ok('moving a section persists a custom order', Array.isArray(window.state.settings.sectionOrder) && window.state.settings.sectionOrder.length > 0 && window.state.settings.sectionOrder.indexOf('Shop') < window.state.settings.sectionOrder.indexOf('Money'));
     window.state.settings.favorites = []; window.state.settings.sectionOrder = [];
-    // foundation polish: independent sidebar scroll, full-readable labels, no licensee watermark
+    // foundation polish: independent sidebar scroll, full-readable labels
     ok('sidebar scrolls independently (overscroll contained)', /\.nav\{[^}]*overscroll-behavior:contain/.test(html));
     (function () {
       const m = html.match(/\.nav-item>span:not\(\.nav-badge\):not\(\.nav-fav\)\{([^}]*)\}/);
@@ -592,7 +619,7 @@ async function main() {
       ok('clicking Manpower routes to the manpower view', window.currentRoute() === 'manpower');
       window.location.hash = '#/dashboard';
     })();
-    ok('documents carry no "Licensed to" watermark', window.licTag() === '' && !/· Licensed to /.test((function(){ try { return document.getElementById('sidebar').innerHTML; } catch(_) { return ''; } })()));
+    ok('documents carry no "Licensed to" watermark', !/Licensed to /.test(html) && typeof window.licTag !== 'function');
     // Tailwind-compatible utility layer ships IN-FILE (no CDN/build) and stays CSP/offline-safe
     ok('in-file Tailwind-style utility layer present', /\.flex\{display:flex\}/.test(html) && /\.gap-2\{gap:8px\}/.test(html) && /\.items-center\{align-items:center\}/.test(html) && /\.truncate\{overflow:hidden;text-overflow:ellipsis;white-space:nowrap\}/.test(html));
     ok('no external CSS/JS framework introduced (CSP + offline intact)', !/cdn\.tailwindcss|tailwindcss\.com|<script[^>]+src=|<link[^>]+stylesheet|@import/i.test(html));
