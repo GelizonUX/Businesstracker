@@ -11835,9 +11835,6 @@ function cloudRoot(){
   var path=(s.path||'bizpilot').replace(/^\/+|\/+$/g,'');
   return s.url.replace(/\/+$/,'')+'/'+path;
 }
-/* the pre-v2 address: one document holding the whole state. Only the migration
-   reads it now, but it is still what the old build wrote, so it stays named. */
-function cloudEndpoint(){ var r=cloudRoot(); return r?r+'.json':null; }
 
 /* A cheap content fingerprint. The ledger stores this instead of the record, so
    knowing what changed costs a few bytes per record rather than a second copy of
@@ -12011,7 +12008,6 @@ function cloudSend(root,silent,migrated){
   })).then(function(){
     syncConfirm(led,batch,done);
     state.settings.sync.lastSync=new Date().toISOString();
-    state.settings.sync.lastSyncStamp=Date.now();
     syncPersist();
     if(!silent){ toast(batch.count+(batch.count===1?' change pushed':' changes pushed')+' to the cloud.'); render(); }
     return batch.count;
