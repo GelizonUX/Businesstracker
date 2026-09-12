@@ -4005,6 +4005,107 @@ function authTokenQuiet(){
   });
 }
 
+/* ============================================================
+   Sign in with Google, the familiar way, without Google's script
+   ============================================================
+   The owner asked for the normal thing: click the button, the account chooser appears,
+   pick an account, it closes, you are in. Google ships a library that does exactly that
+   and this page cannot load it, because script-src is 'self' and the library is on a
+   CDN. Loading it would also put a third-party script in the same origin as the books,
+   which is the argument that already keeps the OCR library out.
+
+   So the popup is opened here instead. Google has no idea it is not talking to its own
+   widget: it is ordinary OAuth, returned to a page on this origin, which hands the
+   credential back through postMessage. window.open is a navigation, so the CSP never
+   enters into it, and the token exchange is a fetch to a host already named there.
+
+   THE THREE CHECKS, none of which is optional. Popup auth goes wrong in exactly one
+   place: believing a message that arrives. So a message is ignored unless
+     1. it came from this exact origin,
+     2. it came from the window we opened,
+     3. it carries back the random `state` minted before the popup opened.
+   Without (3) any page that can reach this window can hand the app a credential of its
+   own choosing, and the app would adopt someone else's account. */
+var GOOGLE_AUTH='https://accounts.google.com/o/oauth2/v2/auth';
+var _gsiPending=null;
+function authRandom(n){
+  var a=new Uint8Array(n||24); window.crypto.getRandomValues(a);
+  return Array.prototype.map.call(a,function(b){ return ('0'+b.toString(16)).slice(-2); }).join('');
+}
+function authGoogleUrl(state,nonce){
+  var q=[
+    'client_id='+encodeURIComponent(authClientId()),
+    'redirect_uri='+encodeURIComponent(location.origin+'/oauth-callback.html'),
+    'response_type=id_token',
+    'scope='+encodeURIComponent('openid email profile'),
+    'prompt=select_account',        // always offer the chooser: shared devices are normal here
+    'state='+encodeURIComponent(state),
+    'nonce='+encodeURIComponent(nonce)
+  ];
+  return GOOGLE_AUTH+'?'+q.join('&');
+}
+/* Trade Google's id_token for a Firebase session. */
+function authGoogleExchange(idToken,nonce){
+  return authPost('signInWithIdp',{
+    postBody:'id_token='+encodeURIComponent(idToken)+'&providerId=google.com',
+    requestUri:location.origin,
+    returnIdpCredential:true,
+    returnSecureToken:true
+  }).then(function(d){ return authAdopt(d,'google'); });
+}
+function authGoogle(){
+  if(!authClientId()) return Promise.reject({code:'noconfig',
+    msg:'This copy has no Google client ID, so there is nothing to sign in to yet.'});
+  var st=authRandom(16), nonce=authRandom(16), url=authGoogleUrl(st,nonce);
+  var win=null;
+  try{ win=window.open(url,'trakora-google','width=480,height=640,menubar=no,toolbar=no'); }catch(_){ win=null; }
+  /* Blocked popup, or an in-app webview (Facebook and Instagram both open links in one,
+     and popups there are unreliable). Same endpoints, same exchange, so this is a branch
+     and not a second implementation: the page leaves and comes back signed in. */
+  if(!win||win.closed||typeof win.closed==='undefined'){
+    try{ sessionStorage.setItem('trakora.gstate',st); sessionStorage.setItem('trakora.gnonce',nonce); }catch(_){ }
+    location.href=url;
+    return Promise.resolve(null);
+  }
+  return new Promise(function(resolve,reject){
+    var done=false;
+    var finish=function(fn,arg){ if(done) return; done=true;
+      window.removeEventListener('message',onMsg); clearInterval(poll); fn(arg); };
+    var onMsg=function(e){
+      if(e.origin!==location.origin) return;              // 1. this origin only
+      if(e.source!==win) return;                          // 2. the window we opened
+      var d=e.data; if(!d||d.type!=='trakora-oauth') return;
+      if(d.state!==st) return;                            // 3. our own state, or nothing
+      try{ win.close(); }catch(_){ }
+      if(d.error) return finish(reject,{code:d.error,msg:authErrMsg(d.error)});
+      if(!d.idToken) return finish(reject,{code:'nokey',msg:'Google did not return a sign-in. Try again.'});
+      authGoogleExchange(d.idToken,nonce).then(function(s){ finish(resolve,s); },
+        function(err){ finish(reject,err); });
+    };
+    window.addEventListener('message',onMsg);
+    /* A closed popup is a cancellation, not an error to shout about. */
+    var poll=setInterval(function(){
+      if(win.closed) finish(reject,{code:'cancelled',msg:''});
+    },600);
+    _gsiPending={state:st,nonce:nonce};
+  });
+}
+/* The redirect branch lands back here on boot. */
+function authGoogleResume(){
+  var h=location.hash||'';
+  if(h.indexOf('id_token=')<0&&h.indexOf('gauth_error=')<0) return Promise.resolve(null);
+  var p=new URLSearchParams(h.replace(/^#/,''));
+  var st=''; try{ st=sessionStorage.getItem('trakora.gstate')||''; }catch(_){ }
+  var nonce=''; try{ nonce=sessionStorage.getItem('trakora.gnonce')||''; }catch(_){ }
+  try{ sessionStorage.removeItem('trakora.gstate'); sessionStorage.removeItem('trakora.gnonce'); }catch(_){ }
+  history.replaceState(null,'',location.pathname+location.search);
+  if(!st||p.get('state')!==st) return Promise.resolve(null);   // same check as the popup
+  var err=p.get('gauth_error')||p.get('error');
+  if(err) return Promise.reject({code:err,msg:authErrMsg(err)});
+  var tok=p.get('id_token'); if(!tok) return Promise.resolve(null);
+  return authGoogleExchange(tok,nonce);
+}
+
 /* ---------- state ---------- */
 var LS_KEY='bizpilot.v1';
 var APP_BUILD='2026.08.16a'; // bump per release: shown in Settings + console so "did it update?" is a 2-second check
@@ -10635,6 +10736,21 @@ document.addEventListener('click',function(e){
   if(!el) return;
   var action=el.getAttribute('data-action');
   var id=el.getAttribute('data-id');
+
+  /* accounts. A cancelled popup is silent on purpose: the owner closed it, they know. */
+  if(action==='auth-google'){
+    authGoogle().then(function(s){
+      if(s){ toast('Signed in as '+authName()+'.'); save(); render(); }
+    },function(err){
+      if(err&&err.code==='cancelled') return;
+      toast((err&&err.msg)||'Could not sign in with Google.','error');
+    });
+    return;
+  }
+  if(action==='auth-signout'){
+    authSignOut(); toast('Signed out. Everything on this device is untouched.');
+    save(); render(); return;
+  }
 
   /* charts: switch the graph style the user wants to see */
   if(action==='chart-style'){ chartStyleSet(el.getAttribute('data-chart'), el.getAttribute('data-style')); render(); return; }

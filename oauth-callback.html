@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<!-- Where Google sends the sign-in popup back to. It exists so the credential lands on
+     THIS origin instead of arriving through somebody else's script: the app's CSP is
+     script-src 'self', so Google's own library cannot run here, and would not be welcome
+     in the origin that holds the books even if it could.
+
+     This page holds nothing, reads nothing, and stores nothing. It takes what is in the
+     URL fragment, hands it to the window that opened it, and closes. If it was reached
+     by a full-page redirect instead (blocked popup, or an in-app webview), there is no
+     opener, so it forwards to the app and lets authGoogleResume() pick it up. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signing you in</title>
+<style>
+  :root{color-scheme:light dark}
+  body{margin:0;min-height:100vh;display:grid;place-items:center;background:#e9eff6;
+    font:500 15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#3c3a37}
+  @media (prefers-color-scheme:dark){body{background:#080d15;color:#b9b3ab}}
+  p{margin:0;padding:0 24px;text-align:center}
+</style>
+</head>
+<body>
+<p id="msg">Signing you in…</p>
+<script>
+(function(){
+  /* The fragment never leaves the browser, which is why response_type=id_token puts the
+     credential there rather than in the query string. */
+  var p = new URLSearchParams((location.hash || '').replace(/^#/, ''));
+  var payload = {
+    type: 'trakora-oauth',
+    state: p.get('state') || '',
+    idToken: p.get('id_token') || '',
+    error: p.get('error') || ''
+  };
+
+  /* Opened as a popup: hand it back and go. postMessage names this exact origin as the
+     target, never '*'. With '*' the credential would be readable by whatever else the
+     opener happens to be embedded in. */
+  if (window.opener && window.opener !== window) {
+    try {
+      window.opener.postMessage(payload, window.location.origin);
+    } catch (e) { /* opener gone: fall through and let the user close this */ }
+    setTimeout(function(){ try { window.close(); } catch (e) {} }, 60);
+    return;
+  }
+
+  /* Reached by a full-page redirect, so there is nobody to message. Carry the fragment
+     back to the app, which re-checks the state before trusting any of it. */
+  var back = location.origin + '/#' + (location.hash || '').replace(/^#/, '');
+  if (payload.error) back = location.origin + '/#gauth_error=' + encodeURIComponent(payload.error);
+  location.replace(back);
+}());
+</script>
+</body>
+</html>
