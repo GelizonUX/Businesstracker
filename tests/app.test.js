@@ -214,9 +214,10 @@ async function main() {
     })();
 
     // ---------- security: escaping + CSP + safeColor ----------
-    // Every roadmap object reaches an HTML ATTRIBUTE, and importData()/cloudPull()
-    // deepMerge whatever JSON they are handed, so a backup someone sends you is the
-    // delivery path. A first fix hardened frames, stamps and edges and left notes,
+    // Every roadmap object reaches an HTML ATTRIBUTE, and importData() deep-merges
+    // whatever JSON it is handed while cloudMerge() takes records off a database
+    // anyone with the URL can write to, so a backup someone sends you is the
+    // delivery path, and so is a shared database. A first fix hardened frames, stamps and edges and left notes,
     // tables, comments and nodes wide open; there were zero assertions here, which is
     // exactly why that survived. Test the RULE, on every renderer, forever.
     //
@@ -3784,12 +3785,58 @@ async function main() {
           calls.filter((c) => c.method === 'PATCH').length === 0, calls.filter((c) => c.method === 'PATCH').map((c) => c.path));
         ok('...and changes neither the database nor the device',
           JSON.stringify(db.legacy.v2) === afterFirst && dataOf(devs.C) === stateAfterFirst);
-        delete db.legacy.v2._meta;                   // a conversion that died before it could mark the format
-        clock = T(62);
+        // a conversion that died before it could mark the format. The records are
+        // already here, so the marker is simply restored: the old document must NOT
+        // be copied back over everything that has happened since.
+        delete db.legacy.v2._meta;
+        db.legacy.finance.push({ id: 'L9', type: 'income', amount: 1, category: 'Sales', date: '2026-05-03', note: 'only in the old copy' });
+        db.legacy.v2.finance.L1.rec.amount = 1234;   // something newer than the old copy
+        db.legacy.v2.finance.L1.updatedAt = T(70);
+        calls.length = 0;
+        clock = T(71);
         await pull('C');
-        ok('a conversion interrupted before it marked the format is safe to simply repeat',
-          JSON.stringify(db.legacy.v2.finance) === JSON.stringify(JSON.parse(afterFirst).finance) &&
-          db.legacy.v2._meta.format === 2 && dataOf(devs.C) === stateAfterFirst);
+        ok('a lost format marker is restored without re-copying the old document over newer records',
+          db.legacy.v2.finance.L1.rec.amount === 1234 && db.legacy.v2.finance.L9 === undefined &&
+          db.legacy.v2._meta.format === 2,
+          [db.legacy.v2.finance.L1.rec.amount, !!db.legacy.v2.finance.L9]);
+        ok('...and the only write it makes is the marker itself',
+          calls.filter((c) => c.method === 'PATCH').map((c) => c.path).join(',') === 'legacy/v2',
+          calls.filter((c) => c.method === 'PATCH').map((c) => c.path));
+        ok('...and the newer record is what the device ends up with',
+          one('C', 'finance', 'L1').amount === 1234, rows('C').map((r) => r.id + ':' + r.amount));
+        // a database that cannot be read must not be mistaken for a database with no records
+        const goodFetch = window.fetch;
+        window.fetch = (u, o) => (/legacy\/v2\/_meta\.json$/.test(String(u))
+          ? Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve(null), text: () => Promise.resolve('') })
+          : goodFetch(u, o));
+        const treeBefore = JSON.stringify(db.legacy.v2);
+        window.cloudFormatKnown = false;
+        toasts.length = 0;
+        await pull('C');
+        window.fetch = goodFetch;
+        ok('a read that fails is a merge that does not happen, not a migration that does',
+          JSON.stringify(db.legacy.v2) === treeBefore && /Could not merge/.test(toasts[toasts.length - 1].msg),
+          toasts[toasts.length - 1]);
+
+        // ---------- offline is still the normal case, not an error case ----------
+        const netless = window.fetch;
+        window.fetch = () => Promise.reject(new Error('offline'));
+        use('A');
+        devs.A.settings.sync.enabled = true;          // auto-push on, and no network at all
+        clock = T(80);
+        devs.A.finance.push({ id: 'off1', type: 'expense', amount: 42, category: 'Fuel', date: '2026-06-04', note: 'logged on the road' });
+        toasts.length = 0;
+        window.save();
+        const pushed = await window.cloudPush(true);
+        ok('with no network the record is still saved, still pending, and nobody is shouted at',
+          pushed === 0 && !!one('A', 'finance', 'off1') && devs.A.meta.sync.recs['finance/off1'].sy === 0 && toasts.length === 0,
+          [pushed, toasts]);
+        window.fetch = netless;
+        devs.A.settings.sync.enabled = false;
+        await push('A');
+        ok('...and it goes up on its own the moment the network is back',
+          !!db.p.v2.finance.off1 && db.p.v2.finance.off1.rec.amount === 42 && devs.A.meta.sync.recs['finance/off1'].sy === T(80),
+          db.p.v2.finance.off1);
 
         // ---------- a device that never enabled sync is untouched ----------
         const offline = blank();
@@ -3806,6 +3853,7 @@ async function main() {
           console.log('--- cloud tree ---\n' + JSON.stringify(db, null, 1).slice(0, 4000));
         }
       } finally {
+        window.clearTimeout(window.cloudTimer);   // one scenario turned auto-push on
         window.fetch = realFetch; window.toast = realToast; window.render = realRender;
         window.state = realState; window.DEVICE_ID = realDev; window.cryptoKey = realKey;
         window.Date.now = realNow; window.cloudFormatKnown = realFmt;

@@ -7453,7 +7453,8 @@ function rmNodeInnerHTML(d){
 }
 function rmNodeHTML(d){ return '<div class="'+rmDescCls(d)+'" data-nid="'+esc(d.nid)+'" data-kind="'+esc(d.kind)+'"'+(d.kind!=='center'?' data-id="'+esc(String(d.nid).slice(2))+'"':'')+' style="left:'+rmNum(d.left)+'px;top:'+rmNum(d.top)+'px;--nc:'+d.nc+';--nc-ink:'+inkOnFill(d.nc)+'">'+rmNodeInnerHTML(d)+'</div>'; }
 /* Roadmap objects are the one place state reaches an ATTRIBUTE rather than a text node,
-   and importData()/cloudPull() deepMerge whatever JSON they are handed. A colour of
+   and importData() deep-merges whatever JSON it is handed while cloudMerge() takes
+   records off a database anyone holding the URL can write to. A colour of
    `red" onmouseover="…` therefore closed the attribute and installed a live handler, in
    the same origin as the owner's books and their stored licence key, on a backup someone
    sent them. Geometry was injectable the same way. Colours go through safeColor(), the
@@ -12162,26 +12163,51 @@ function cloudReap(root,keys){
   Object.keys(byPath).forEach(function(p){ cloudPatch(root,p,byPath[p]).catch(function(){ }); });
 }
 /* Migration, run once before the first push or pull of a session.
-   _meta.format === 2 means the per-record tree exists and the old blob is history.
-   Until it does, the old blob is read, folded into this device record by record,
-   and written back out one address each. Marking the format LAST is what makes a
-   half-finished conversion safe: it simply runs again. */
+   _meta.format === 2 means the per-record tree exists and the old whole-blob copy
+   is history. Until it says so, the old copy is read, folded into this device
+   record by record, and written back out one address each.
+   Every read here is allowed to FAIL LOUDLY rather than fall back to null. A read
+   that quietly returned null would read "there is no per-record tree", and the
+   answer to that is to copy a month-old document over this month's records. A
+   database that cannot be read is a push that does not happen, not a migration. */
 function cloudEnsureFormat(root){
   if(cloudFormatKnown) return Promise.resolve(0);
   return fetch(root+'/v2/_meta.json')
-    .then(function(r){ return r.ok?r.json():null; }).catch(function(){ return null; })
+    .then(function(r){ if(!r.ok) throw cloudErr(r,'read'); return r.json(); })
     .then(function(m){
       if(m&&+m.format===2){ cloudFormatKnown=true; return 0; }
-      return fetch(root+'.json')
-        .then(function(r){ return r.ok?r.json():null; }).catch(function(){ return null; })
+      /* No marker. Before going anywhere near the old copy, check that records are
+         not already here: a marker lost to a conversion that died halfway must not
+         be licence to write the old copy back over everything since. */
+      return fetch(root+'/v2.json')
+        .then(function(r){ if(!r.ok) throw cloudErr(r,'read'); return r.json(); })
+        .then(function(have){
+          var live=have&&typeof have==='object'&&Object.keys(have).some(function(k){ return k!=='_meta'; });
+          if(live) return null;
+          return fetch(root+'.json').then(function(r){ if(!r.ok) throw cloudErr(r,'read'); return r.json(); });
+        })
         .then(function(blob){
           var tree=(blob&&typeof blob==='object'&&blob.settings)?cloudAdoptLegacy(blob):null;
           return (tree?cloudWriteTree(root,tree):Promise.resolve(0)).then(function(n){
+            if(tree) syncMarkTree(tree,true);
             return cloudPatch(root,'v2',{_meta:{format:2,migratedAt:Date.now(),migratedBy:DEVICE_ID}})
               .then(function(){ cloudFormatKnown=true; return n; });
           });
         });
     });
+}
+/* Mark the records a conversion touched as confirmed by the cloud, or not. They go
+   in unconfirmed, so a conversion whose write fails halfway leaves them pending and
+   the device's own next push carries them. Nothing the old copy held can end up
+   living only on one laptop because a PATCH timed out. */
+function syncMarkTree(tree,confirmed){
+  var led=syncLedger();
+  Object.keys(tree).forEach(function(coll){
+    Object.keys(tree[coll]).forEach(function(id){
+      var e=led.recs[coll+'/'+id];
+      if(e) e.sy=confirmed?e.at:0;
+    });
+  });
 }
 /* Writes the converted tree exactly as it was read out of the old document, one
    PATCH per collection. Deliberately NOT a normal push: the records keep the time
@@ -12226,6 +12252,7 @@ function cloudAdoptLegacy(blob){
   if(Array.isArray(blob.phases)&&blob.phases.length&&!(state.phases||[]).length&&!(state.roadmaps||[]).length) state.phases=blob.phases;
   cloudMerge(tree);
   migrateState();
+  syncMarkTree(tree,false);
   return tree;
 }
 function cloudSyncCardHTML(){
@@ -12256,9 +12283,10 @@ function cloudSyncCardHTML(){
    Both databases Trakora can reach are Firebase Realtime Databases over REST with no
    sign-in, so their rules are the whole of their security. These blocks are written
    against the requests the app actually makes, which are listed above gateEndpoint()
-   and cloudEndpoint(): read one license by exact key, claim and release one device
-   slot, and read/write one sync path. Nothing here needs .indexOn, because nothing
-   here is ever a query.
+   and cloudRoot(): read one license by exact key, claim and release one device slot,
+   and read/write one sync path. The per-record layout lives entirely UNDER that sync
+   path, so the rules did not have to change for it. Nothing here needs .indexOn,
+   because nothing here is ever a query.
    Paste-ready means paste-ready: no comments inside the JSON (Firebase rejects them),
    real newlines, and the sync block filled in with the owner's own path. */
 function syncRulesJSON(){
