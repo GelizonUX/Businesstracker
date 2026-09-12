@@ -4161,6 +4161,84 @@ async function main() {
       }
     })();
 
+    // ================= the rules are the access control, and the pages say so =================
+    (function rulesAndHonesty() {
+      const share = window.state.settings.share;
+      const saved = JSON.parse(JSON.stringify(share));
+      try {
+        // ---------- the rules ship as text somebody can actually paste ----------
+        const txt = window.shareRulesJSON();
+        let parsed = null, parseErr = '';
+        try { parsed = JSON.parse(txt); } catch (e) { parseErr = e.message; }
+        ok('the workspace rules are valid JSON, so they can be pasted as they are', !!parsed, parseErr);
+        ok('...with no comments in them, which Firebase rejects', !/\/\*|\/\//.test(txt.replace(/https?:\/\//g, '')));
+
+        const r = parsed && parsed.rules;
+        const ws = r && r.workspaces && r.workspaces.$ws;
+        ok('deny by default at the root', r && r['.read'] === false && r['.write'] === false);
+        ok('the owner’s own sync path is still open, so sharing is added and nothing is taken away',
+          !!r && r[(window.state.settings.sync.path || 'bizpilot')] &&
+          r[(window.state.settings.sync.path || 'bizpilot')]['.read'] === true);
+        ok('only a member reads a workspace', !!ws && /members'\)\.child\(auth\.uid\)\.exists\(\)/.test(ws['.read']));
+        // The correction that matters: a blanket ".write" at $ws would GRANT write to
+        // everything under it, and rules can only ever grant, so the owner-only rules
+        // below would be decoration. Write is attached per child instead.
+        ok('there is NO blanket write at the workspace level (rules grant, they never take back)',
+          !!ws && ws['.write'] === undefined);
+        ok('a member writes the books', !!ws && /members'\)\.child\(auth\.uid\)\.exists\(\)/.test(ws.data['.write']));
+        ok('only the owner changes membership', !!ws && /role'\)\.val\(\) === 'owner'/.test(ws.members['.write']));
+        ok('only the owner creates an invitation', !!ws && /role'\)\.val\(\) === 'owner'/.test(ws.invites.$token['.write']));
+        ok('an invite is readable by anybody holding its token, and listable by nobody',
+          !!ws && ws.invites.$token['.read'] === 'auth != null' && ws.invites['.read'] === undefined);
+        // single use and expiry are enforced by the rules, not only by the app
+        const claim = ws && ws.members.$uid['.write'];
+        ok('claiming a membership needs a verified email that matches the invitation',
+          !!claim && /auth\.token\.email_verified === true/.test(claim) && /\.child\('email'\)\.val\(\) === auth\.token\.email/.test(claim));
+        ok('...and an invitation that has not expired', !!claim && /expiresAt'\)\.val\(\) > now/.test(claim));
+        ok('...and it can only ever write your own row, once', !!claim && /\$uid === auth\.uid/.test(claim) && /!data\.exists\(\)/.test(claim));
+        ok('a user’s own workspace list is their own', !!r && r.users.$uid['.read'] === "auth != null && auth.uid === $uid");
+        // and it is on screen, next to the sync rules, as copyable text
+        ok('the rules are shipped in Settings as copyable text',
+          window.databaseRulesCardHTML().indexOf(window.esc(txt)) > -1);
+
+        // ---------- pages that describe the product tell the truth about BOTH states ----------
+        const sharingOff = () => { share.enabled = false; share.wsId = ''; share.wsName = ''; share.role = ''; };
+        const sharingOn = () => { share.enabled = true; share.wsId = 'ws_test'; share.wsName = 'Shared Books'; share.role = 'member'; };
+
+        sharingOff();
+        ok('shareOn() is false with sharing off', window.shareOn() === false);
+        const privOff = window.viewPrivacy();
+        sharingOn();
+        ok('shareOn() is true once this copy has joined a workspace', window.shareOn() === true);
+        const privOn = window.viewPrivacy();
+
+        ok('with sharing off the privacy page says there is no account, which is true then',
+          /There is no account and no server holding them/.test(privOff));
+        ok('with sharing on it stops saying that, because it stops being true',
+          !/There is no account and no server holding them/.test(privOn));
+        ok('...and says what is true instead: an account, a workspace, and other people in it',
+          /shared workspace you joined/.test(privOn) && /every one of them can read and write everything/.test(privOn));
+        ok('the privacy page no longer promises a fixed number of connections it does not have',
+          !/four connections/.test(privOff) && !/four connections/.test(privOn));
+
+        // the consent notice gets the same treatment, because it is the first thing a
+        // customer ever reads and a wrong notice is worse than none
+        const root = d.getElementById('consent-root');
+        sharingOff(); window.showConsentNotice(); const consentOff = root.innerHTML;
+        sharingOn(); window.showConsentNotice(); const consentOn = root.innerHTML;
+        window.dismissConsent();
+        ok('the consent notice claims no account only while there is no account',
+          /There is no account/.test(consentOff) && !/There is no account/.test(consentOn));
+        ok('...and names the workspace once there is one',
+          /workspace you are sharing/.test(consentOn) && !/workspace you are sharing/.test(consentOff));
+      } finally {
+        Object.keys(share).forEach((k) => { delete share[k]; });
+        Object.assign(share, saved);
+        const cr = d.getElementById('consent-root'); if (cr) cr.innerHTML = '';
+        d.body.classList.remove('consent-on');
+      }
+    })();
+
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
   } catch (e) {

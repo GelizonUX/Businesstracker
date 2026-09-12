@@ -4143,7 +4143,7 @@ var APP_BUILD='2026.08.16a'; // bump per release: shown in Settings + console so
    moves when the list of connections moves and not for a typo. PRIVACY_CONTACT is where
    questions go: left empty, the page tells the reader to ask whoever sold them the copy,
    which is true for a buyer but is not what belongs on the copy being sold. */
-var PRIVACY_UPDATED='2026-09-07';
+var PRIVACY_UPDATED='2026-09-12';
 var PRIVACY_CONTACT='';   // e.g. 'support@yourdomain.com'
 var DEFAULT_STATE={
   v:2,
@@ -9999,7 +9999,11 @@ function viewSettings(){
     '<button class="btn btn-primary" type="submit">'+icon('check')+' Save settings</button></form></div>';
   html+=fxCardHTML();
   html+='<div class="card"><div class="card-head"><h3>About</h3></div>'+
-    '<p style="font-size:var(--f2);color:var(--text-2)">Trakora is one HTML file. It records income and expenses, invoices, orders, stock, staff pay and unpaid balances, and it keeps all of it in this browser. There is no account and no server. Turning cloud sync on is the only thing that sends a copy anywhere. It keeps working with the network off.</p>'+
+    '<p style="font-size:var(--f2);color:var(--text-2)">Trakora is one HTML file. It records income and expenses, invoices, orders, stock, staff pay and unpaid balances, and it keeps all of it in this browser. '+
+      (shareOn()
+        ? 'You are sharing it: this copy is signed in to a workspace, so the books also live in the database you pointed it at and everyone in that workspace sees them. Turn sharing off under Data and sync and this device goes back to being the only place they are.'
+        : 'There is no account and no server. Turning cloud sync or sharing on is the only thing that sends a copy anywhere.')+
+      ' It keeps working with the network off.</p>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'+
       '<button class="btn btn-ghost btn-sm" data-action="show-tour">'+icon('spark')+' Replay the welcome tour</button>'+
       '<button class="btn btn-ghost btn-sm" data-action="nav" data-route="privacy">'+icon('shield')+' Privacy</button>'+
@@ -10059,7 +10063,11 @@ function viewPrivacy(){
   var html=topbar('Privacy','What stays on this device, what leaves it, and how to stop each one.');
   html+='<div class="card"><div class="card-head"><h3>'+icon('shield',16)+' The short version</h3>'+
       '<span class="spacer"></span><span class="badge neutral">Updated '+esc(fmtDate(PRIVACY_UPDATED))+'</span></div>'+
-    '<p style="font-size:var(--f3);color:var(--text-2)">Your books live in this browser, on this device. There is no Trakora account and no Trakora server holding them, which means nobody here can read your numbers, and nobody here can get them back for you either. Four things reach the internet, all of them listed below, none of them carrying your business data unless you switch cloud sync on yourself.</p></div>';
+    '<p style="font-size:var(--f3);color:var(--text-2)">'+
+      (shareOn()
+        ? 'Your books live in this browser, on this device, <b>and in the shared workspace you joined</b>. You have an account and so does everyone else in it, and every one of them can read and write everything you see. The workspace is in a Firebase database you set up and control; there is still no Trakora server, and nobody here can read your numbers or get them back for you. The connections below are all of them.'
+        : 'Your books live in this browser, on this device. There is no account and no server holding them, which means nobody here can read your numbers, and nobody here can get them back for you either. The connections below are all of them, and none carries your business data unless you switch cloud sync or sharing on yourself.')+'</p>'+
+    (shareOn()?'<p style="font-size:var(--f3);color:var(--text-2)">This paragraph changes when you turn sharing off, because turning it off changes what is true. It is off by default.</p>':'')+'</div>';
 
   html+='<div class="sec"><div class="card-head"><h3>Where your data lives</h3></div>'+
     '<p style="font-size:var(--f3);color:var(--text-2)">Your browser stores it under <span class="mono">bizpilot.v1</span> for everything you have typed in and <span class="mono">bizpilot.device</span> for a random id that tells this device\'s edits apart from another device\'s when records are merged. Receipt photos are saved inside that same record as image data, not as files.'+
@@ -10072,7 +10080,7 @@ function viewPrivacy(){
       '<button class="btn btn-ghost btn-sm" data-action="settings-go" data-tab="data">'+icon('settings')+' Backup, sync &amp; lock settings</button>'+
     '</div></div>';
 
-  html+='<div class="sec"><div class="card-head"><h3>What leaves this device</h3><span class="sub">four connections, and no others</span></div>'+
+  html+='<div class="sec"><div class="card-head"><h3>What leaves this device</h3><span class="sub">these connections, and no others</span></div>'+
     '<p style="font-size:var(--f3);color:var(--text-2)">Adding an entry, printing an invoice, running a report and every calculator work entirely offline. Nothing below is sent while you do any of that.</p>'+
 
     privacyConnectionHTML('Exchange rates','open.er-api.com · automatic, on money screens',
@@ -12747,6 +12755,16 @@ function cloudSyncCardHTML(){
    a setting, and an owner who never wants it should be able to scroll past it once and
    never think about it again. Nothing here blocks anything; with sharing off the app is
    byte for byte the local-only app it was. */
+/* Everything that has to describe this app honestly asks here, so the privacy page,
+   the consent notice and the About block can never drift apart from each other. Sharing
+   OFF is the shipped default and the two answers are genuinely different products: with
+   it off there is no account and nothing but the owner's own device; with it on there is
+   an account, a workspace and other people. A page that claims the first while doing the
+   second is a lie, and this app is not going to tell it. */
+function shareOn(){
+  var sh=(state&&state.settings&&state.settings.share)||null;
+  return !!(sh&&sh.enabled&&sh.wsId);
+}
 function shareCfg(){
   var s=state.settings;
   if(!s.share||typeof s.share!=='object') s.share={enabled:false,wsId:'',wsName:'',role:'',apiKey:'',clientId:''};
@@ -12875,6 +12893,81 @@ function syncRulesJSON(){
     '  }\n'+
     '}';
 }
+/* The workspace rules, and they are not a formality. THE RULES ARE THE ACCESS CONTROL.
+   Hiding the Remove button from a member is a courtesy; what actually keeps a removed
+   partner out is this document, evaluated on Firebase's server, on a machine the user
+   cannot open the console of. An audit in this project already forged a licence and
+   walked past a client-side gate in one line, so the UI here is written as if the user
+   can read the code, because they can.
+
+   One correction to note, because it looks like a detail and is not: there is NO
+   blanket ".write" at the workspace level. Realtime Database rules only ever GRANT,
+   never take back, so a ".write" that says "any member" at $ws would hand every member
+   the members list and the invitations too, and the owner-only rules underneath would
+   be decoration. Write permission is therefore attached to each child on its own:
+   data to members, meta and members to the owner, invites to the owner plus the one
+   person an invite names.
+
+   What each line is for:
+     $ws/.read          a member reads the workspace. Nobody else reads anything.
+     data/.write        a member writes the books. That is the whole of "sees everything".
+     meta/.write        the owner renames it; or anybody, while the workspace has no
+                        members at all, which is the only way one can ever be created.
+     members/.write     the owner adds and removes people.
+     members/$uid       plus: you may write YOUR OWN row, once, if a live invitation
+                        names your verified email. That is the claim, and this is where
+                        single-use and expiry are actually enforced.
+     invites/$token     anyone signed in who HOLDS a token can read that one invite;
+                        nobody can list them, because reading the parent needs
+                        membership. The owner writes them. The person an invite names
+                        deletes it, which is what spends it.
+     users/$uid         your own list of workspaces, and nobody else's. */
+function shareRulesJSON(){
+  var p=((state.settings.sync&&state.settings.sync.path)||'bizpilot').replace(/[^A-Za-z0-9_-]/g,'')||'bizpilot';
+  var member="auth != null && root.child('workspaces').child($ws).child('members').child(auth.uid).exists()";
+  var owner="auth != null && root.child('workspaces').child($ws).child('members').child(auth.uid).child('role').val() === 'owner'";
+  var unclaimed="!root.child('workspaces').child($ws).child('members').exists()";
+  var invite="root.child('workspaces').child($ws).child('invites').child(newData.child('viaInvite').val())";
+  return '{\n'+
+    '  "rules": {\n'+
+    '    ".read": false,\n'+
+    '    ".write": false,\n'+
+    '    "'+p+'": {\n'+
+    '      ".read": true,\n'+
+    '      ".write": true\n'+
+    '    },\n'+
+    '    "workspaces": {\n'+
+    '      "$ws": {\n'+
+    '        ".read": "'+member+'",\n'+
+    '        "data": {\n'+
+    '          ".write": "'+member+'"\n'+
+    '        },\n'+
+    '        "meta": {\n'+
+    '          ".write": "('+owner+') || (auth != null && '+unclaimed+')"\n'+
+    '        },\n'+
+    '        "members": {\n'+
+    '          ".write": "'+owner+'",\n'+
+    '          "$uid": {\n'+
+    '            ".write": "($uid === auth.uid && !data.exists() && newData.exists() && auth.token.email_verified === true) && ((newData.child(\'role\').val() === \'owner\' && '+unclaimed+') || ('+invite+'.child(\'email\').val() === auth.token.email && '+invite+'.child(\'expiresAt\').val() > now))"\n'+
+    '          }\n'+
+    '        },\n'+
+    '        "invites": {\n'+
+    '          "$token": {\n'+
+    '            ".read": "auth != null",\n'+
+    '            ".write": "('+owner+') || (data.exists() && !newData.exists() && auth != null && auth.token.email_verified === true && data.child(\'email\').val() === auth.token.email)"\n'+
+    '          }\n'+
+    '        }\n'+
+    '      }\n'+
+    '    },\n'+
+    '    "users": {\n'+
+    '      "$uid": {\n'+
+    '        ".read": "auth != null && auth.uid === $uid",\n'+
+    '        ".write": "auth != null && auth.uid === $uid"\n'+
+    '      }\n'+
+    '    }\n'+
+    '  }\n'+
+    '}';
+}
 function databaseRulesCardHTML(){
   var s=state.settings.sync||{};
   var host=String(s.url||'').replace(/\/+$/,'')||'https://your-project-default-rtdb.firebaseio.com';
@@ -12888,6 +12981,12 @@ function databaseRulesCardHTML(){
     '<p style="font-size:var(--f1);color:var(--text-2)">Only <span class="mono">'+esc(p)+'</span> is reachable; the rest of the database is closed. There is still no password on that one path, because Trakora sends no login, so keep the URL and the path to yourself and set a long random path above. If you want more than that, use the PIN lock, which encrypts what is stored on this device.</p>'+
     '<p style="font-size:var(--f1);color:var(--text-3)"><b>Check it worked.</b> Open <span class="mono">'+esc(host)+'/some-other-name.json</span> in a browser: it must answer <span class="mono">{"error":"Permission denied"}</span>. Then press Push my changes above; it must still say the push went through.</p>'+
 
+    '<div class="code-head"><h4>Sharing: workspaces, members and invitations</h4><span class="badge neutral">publish this one instead, if you share</span><span class="spacer"></span>'+
+      '<button class="btn btn-ghost btn-sm" type="button" data-action="copy-code" data-target="rules-share">'+icon('copy',13)+' Copy</button></div>'+
+    '<div class="code-block" id="rules-share">'+esc(shareRulesJSON())+'</div>'+
+    '<p style="font-size:var(--f2);color:var(--text-2)">This one is the block above <b>plus</b> sharing, so publish it in place of the first, not underneath it: a database has one rules document. <b>These rules are the access control.</b> Trakora hides a Remove button from a member as a courtesy; what actually stops a removed partner is this document, checked by Firebase on its own servers. Everything the app does before it makes a request is a message in plain English, not a lock.</p>'+
+    '<p style="font-size:var(--f1);color:var(--text-2)">Read out loud: a member reads the workspace and writes the books. Only the owner renames it, adds people or removes them, and only the owner creates an invitation. An invitation can be read by anybody who holds its token, which is the point of the token, but it cannot be listed by anyone who is not already in. Claiming one writes exactly one row, your own, and only while the invitation is live and names the email address Google or a verification link has proved is yours. Deleting that invitation is what spends it.</p>'+
+    '<p style="font-size:var(--f1);color:var(--text-3)"><b>Check it worked.</b> Open <span class="mono">'+esc(host)+'/workspaces.json</span> signed out: it must answer <span class="mono">{"error":"Permission denied"}</span>. Then have someone you have <i>not</i> invited open your workspace link; they must be refused too. If either one answers with data, the rules did not publish.</p>'+
     '</div>';
 }
 
@@ -17440,8 +17539,11 @@ function showConsentNotice(){
      no focus trap and no stolen focus. It is the last thing in the DOM, so Tab reaches
      it after the page, and Escape closes it without answering for the owner. */
   root.innerHTML='<div class="consent" role="alert" aria-live="polite" aria-label="How Trakora handles your data">'+
-    '<h4>'+icon('shield',15)+' Your books stay on this device</h4>'+
-    '<p>Trakora keeps your numbers in this browser. Two things reach the internet on their own: exchange rates while you are on a money screen, and the receipt scanner\'s engine when you press Scan. No cookies, no analytics, no trackers.</p>'+
+    '<h4>'+icon('shield',15)+' '+(shareOn()?'Where your books are kept':'Your books stay on this device')+'</h4>'+
+    '<p>'+(shareOn()
+      ? 'Trakora keeps your numbers in this browser and in the workspace you are sharing, which is a database you set up yourself. Two other things reach the internet on their own: exchange rates while you are on a money screen, and the receipt scanner\'s engine when you press Scan.'
+      : 'Trakora keeps your numbers in this browser. There is no account. Two things reach the internet on their own: exchange rates while you are on a money screen, and the receipt scanner\'s engine when you press Scan.')+
+      ' No cookies, no analytics, no trackers.</p>'+
     '<div class="consent-acts">'+
       '<button class="btn btn-primary btn-sm" data-action="consent-set" data-choice="all">Keep them on</button>'+
       '<button class="btn btn-ghost btn-sm" data-action="consent-set" data-choice="essential">Essential only</button>'+
