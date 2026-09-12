@@ -3924,6 +3924,9 @@ function save(){
   try{
     state.meta.updatedAt=Date.now();
     state.meta.deviceId=DEVICE_ID;
+    /* Note down what actually changed BEFORE the write, so the ledger is stored
+       with the data it describes. No-ops when no database URL has been entered. */
+    syncScan();
     if(cryptoKey){
       var seq=++saveSeq;
       var p=encryptJSON(state).then(function(blob){
@@ -3963,7 +3966,9 @@ function snapshotForUndo(){ try{ undoBuf=JSON.stringify(state); }catch(_){ undoB
 function doUndo(){
   if(!undoBuf){ toast('Nothing to undo.','warn'); return; }
   try{
+    var led=state.meta&&state.meta.sync;
     state=deepMerge(JSON.parse(JSON.stringify(DEFAULT_STATE)),JSON.parse(undoBuf));
+    syncCarryLedger(led);
     undoBuf=null;
     commit(); applyTheme();
     toast('Restored.');
@@ -8556,7 +8561,8 @@ var rmRedoBuf=null, rmClip=null;
 var rmHist={u:[],r:[]};
 function rmSnapshot(){ try{ var s=JSON.stringify(state); rmHist.u.push(s); if(rmHist.u.length>80) rmHist.u.shift(); rmHist.r.length=0; undoBuf=s; }catch(_){} }
 /* restore a state snapshot, softly (patch the board, no full-page render → no blink) when the map is up */
-function rmRestore(snap,msg){ try{ state=deepMerge(JSON.parse(JSON.stringify(DEFAULT_STATE)),JSON.parse(snap)); save();
+function rmRestore(snap,msg){ try{ var led=state.meta&&state.meta.sync;
+  state=deepMerge(JSON.parse(JSON.stringify(DEFAULT_STATE)),JSON.parse(snap)); syncCarryLedger(led); save();
   if(byId('rm-board')) rmPatchBoard(); else render(); toast(msg,'info'); }catch(e){ toast('Could not undo that. Your data is unchanged, so the last action still stands. ('+e.message+')','error'); } }
 function rmUndoRoad(){ if(!rmHist.u.length){ toast('Nothing to undo.','warn'); return; } try{ rmHist.r.push(JSON.stringify(state)); }catch(_){} rmRestore(rmHist.u.pop(),'Undone.'); }
 function rmRedo(){ if(!rmHist.r.length){ toast('Nothing to redo.','warn'); return; } try{ rmHist.u.push(JSON.stringify(state)); }catch(_){} rmRestore(rmHist.r.pop(),'Redone.'); }
@@ -10044,7 +10050,9 @@ function importData(file){
     try{
       var data=JSON.parse(reader.result);
       if(!data||typeof data!=='object'||!data.settings||(!Array.isArray(data.finance))) throw new Error('This file is not a Trakora backup.');
+      var led=state.meta&&state.meta.sync;
       state=deepMerge(JSON.parse(JSON.stringify(DEFAULT_STATE)),data);
+      syncCarryLedger(led);
       state.settings.onboarded=true;
       commit();
       applyTheme();
@@ -11790,82 +11798,416 @@ function customizationExtrasCardHTML(){
   return html;
 }
 
-/* ---------- cloud sync (Firebase Realtime Database via REST) ---------- */
-function cloudEndpoint(){
+/* ---------- cloud sync (Firebase Realtime Database via REST) ----------
+   Sync is per record, not per snapshot. Every keyed list in state is written to
+   <path>/v2/<collection>/<id>, so two people editing different invoices write to
+   two different addresses and neither can flatten the other. A pull MERGES record
+   by record (newest updatedAt wins for the same record) instead of replacing the
+   device, because the old "replace everything" model lost a day's work by design
+   the moment a second person used it.
+   The pre-v2 whole-blob copy still sitting at <path> is converted exactly once by
+   cloudEnsureFormat(); see cloudAdoptLegacy() for why it is then left alone. */
+
+/* The keyed lists: the state key doubles as the path segment and each record is
+   addressed by its own id. Lists nested INSIDE a record (a roadmap's phases, an
+   account's adjustments, a debt's payments, an employee's contracts) travel with
+   their parent: the parent record is the smallest unit that merges. */
+var SYNC_COLLECTIONS=['invoices','recurring','recurringInvoices','offers','products','orders','customModules',
+  'materials','utang','accounts','transfers','finance','goals','roadmaps','tasks','notes','clients',
+  'employees','hrAdvances','hrPayouts','chat'];
+/* Not keyed lists, so there is no id to merge by: these go up as whole documents
+   under <path>/v2/doc/<name> and the newest copy of the WHOLE document wins.
+   settings.sync is stripped on the way out, because the database address and the
+   auto-push switch belong to the device, not to the shared books. state.meta never
+   goes up at all: it holds this device's id and this device's sync ledger. */
+var SYNC_DOCS=['settings','metrics','reviews','assistant'];
+/* A tombstone is kept for 90 days AFTER it has reached the cloud, then dropped at
+   both ends. Without a reap the graveyard grows forever; with one, a device that
+   has been offline longer than the window can re-upload a record someone deleted.
+   90 days is far longer than any believable offline gap for a phone or a laptop,
+   and it is the same order as the backup nudge, so it is the trade taken here. */
+var SYNC_TOMB_TTL=90*24*60*60*1000;
+
+function cloudRoot(){
   var s=state.settings.sync||{};
   if(!s.url) return null;
   var path=(s.path||'bizpilot').replace(/^\/+|\/+$/g,'');
-  return s.url.replace(/\/+$/,'')+'/'+path+'.json';
+  return s.url.replace(/\/+$/,'')+'/'+path;
 }
-var cloudTimer=null,cloudBusy=false;
+/* the pre-v2 address: one document holding the whole state. Only the migration
+   reads it now, but it is still what the old build wrote, so it stays named. */
+function cloudEndpoint(){ var r=cloudRoot(); return r?r+'.json':null; }
+
+/* A cheap content fingerprint. The ledger stores this instead of the record, so
+   knowing what changed costs a few bytes per record rather than a second copy of
+   the books in localStorage. A collision means one push is skipped, not data loss,
+   and two independent mixes over the same string make that vanishingly unlikely. */
+function syncHash(v){
+  var s=JSON.stringify(v===undefined?null:v),a=0x811c9dc5,b=0x1000193,i,c;
+  for(i=0;i<s.length;i++){
+    c=s.charCodeAt(i);
+    a=((a^c)*16777619)>>>0;
+    b=(b+c+(b<<5)+(b>>>2))>>>0;
+  }
+  return a.toString(36)+b.toString(36)+s.length.toString(36);
+}
+/* The ledger: for every record this device knows about, when it last changed HERE
+   (at), the stamp the cloud has confirmed (sy) and a fingerprint of its content (h).
+   at !== sy is the whole definition of "not yet pushed". */
+function syncLedger(){
+  if(!state.meta||typeof state.meta!=='object') state.meta={};
+  var l=state.meta.sync;
+  if(!l||typeof l!=='object') l=state.meta.sync={recs:{},tombs:{}};
+  if(!l.recs||typeof l.recs!=='object') l.recs={};
+  if(!l.tombs||typeof l.tombs!=='object') l.tombs={};
+  return l;
+}
+function syncDocValue(name){
+  if(name!=='settings') return state[name];
+  var c=Object.assign({},state.settings);
+  delete c.sync;
+  return c;
+}
+/* Walks state once per save and writes down what moved. Nothing here touches the
+   network. It runs only when a database URL has been entered, so an owner who
+   never switched sync on pays nothing for it. */
+function syncScan(){
+  var s=state.settings&&state.settings.sync;
+  if(!s||!s.url) return null;
+  var led=syncLedger(),now=Date.now(),seen={};
+  function stamp(key,value){
+    seen[key]=1;
+    var h=syncHash(value),e=led.recs[key];
+    if(!e) e=led.recs[key]={at:now,sy:0,h:h};
+    else if(e.h!==h){ e.h=h; e.at=now; }
+    if(led.tombs[key]){ delete led.tombs[key]; e.at=now; e.sy=0; } // deleted, then brought back
+  }
+  SYNC_COLLECTIONS.forEach(function(coll){
+    var list=state[coll];
+    if(!Array.isArray(list)) return;
+    list.forEach(function(rec){ if(rec&&rec.id) stamp(coll+'/'+rec.id,rec); });
+  });
+  SYNC_DOCS.forEach(function(name){ stamp('doc/'+name,syncDocValue(name)); });
+  Object.keys(led.recs).forEach(function(key){
+    if(seen[key]) return;
+    /* Gone from state. If the cloud never saw it there is nothing to tell anyone;
+       if it did, a tombstone has to go up or the next pull hands the record back. */
+    if(led.recs[key].sy) led.tombs[key]={at:now,sy:0};
+    delete led.recs[key];
+  });
+  Object.keys(led.tombs).forEach(function(key){
+    var t=led.tombs[key];
+    if(t&&t.sy&&now-t.at>SYNC_TOMB_TTL) delete led.tombs[key];
+  });
+  return led;
+}
+/* A wholesale state replacement (undo, roadmap history, importing a backup) keeps
+   the LIVE ledger instead of the snapshot's copy of it. The ledger records what the
+   cloud has already been told; rolling that back would hide a delete that has
+   already gone up, and the record would walk straight back in on the next merge. */
+function syncCarryLedger(led){
+  if(!led) return;
+  if(!state.meta||typeof state.meta!=='object') state.meta={};
+  state.meta.sync=led;
+}
+function syncMarkAllDirty(){
+  var led=syncLedger();
+  Object.keys(led.recs).forEach(function(k){ led.recs[k].sy=0; });
+  Object.keys(led.tombs).forEach(function(k){ led.tombs[k].sy=0; });
+}
+/* Everything the cloud has not confirmed, grouped by the path it will be PATCHed
+   to. One PATCH per collection: Firebase replaces the children named in the body
+   and leaves every other child of that collection untouched, so a push of one
+   invoice writes one invoice. */
+function syncPending(led){
+  var index={},byPath={},marks=[],count=0;
+  SYNC_COLLECTIONS.forEach(function(coll){
+    var m=index[coll]={};
+    (Array.isArray(state[coll])?state[coll]:[]).forEach(function(r){ if(r&&r.id) m[r.id]=r; });
+  });
+  function put(coll,id,body,mark){
+    var p='v2/'+coll;
+    (byPath[p]||(byPath[p]={}))[id]=body;
+    marks.push(mark);
+    count++;
+  }
+  Object.keys(led.recs).forEach(function(key){
+    var e=led.recs[key];
+    if(e.at===e.sy) return;
+    var cut=key.indexOf('/'),coll=key.slice(0,cut),id=key.slice(cut+1);
+    var rec=coll==='doc'?syncDocValue(id):(index[coll]||{})[id];
+    if(rec===undefined||rec===null) return;
+    put(coll,id,{updatedAt:e.at,updatedBy:DEVICE_ID,rec:rec},{kind:'rec',key:key,at:e.at,coll:coll});
+  });
+  Object.keys(led.tombs).forEach(function(key){
+    var t=led.tombs[key];
+    if(!t||t.at===t.sy) return;
+    var cut=key.indexOf('/'),coll=key.slice(0,cut),id=key.slice(cut+1);
+    put(coll,id,{deleted:true,updatedAt:t.at,updatedBy:DEVICE_ID},{kind:'tomb',key:key,at:t.at,coll:coll});
+  });
+  return {byPath:byPath,marks:marks,count:count};
+}
+/* Only mark what the server actually took, and only if it has not moved since the
+   body was built: a save landing mid-flight must stay pending, not be written off. */
+function syncConfirm(led,batch,donePaths){
+  var ok={};
+  donePaths.forEach(function(p){ ok[p]=1; });
+  batch.marks.forEach(function(m){
+    if(!ok['v2/'+m.coll]) return;
+    var e=m.kind==='tomb'?led.tombs[m.key]:led.recs[m.key];
+    if(e&&e.at===m.at) e.sy=m.at;
+  });
+}
+/* Writes state without scheduling another push. save() would loop. */
+function syncPersist(){
+  if(cryptoKey){
+    var seq=++saveSeq;
+    encryptJSON(state).then(function(blob){
+      if(seq!==saveSeq) return;
+      try{ localStorage.setItem(LS_KEY,blob); }catch(_){ }
+    }).catch(function(){ });
+    return;
+  }
+  try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }
+  catch(_){ toast('Not saved. This browser is out of storage. Export a backup from Settings ▸ Data, then remove old receipt photos to free space.','error'); }
+}
+
+var cloudTimer=null,cloudBusy=false,cloudFormatKnown=false;
 function scheduleCloudPush(){
   var s=state.settings&&state.settings.sync;
   if(!s||!s.enabled||!s.url) return;
   clearTimeout(cloudTimer);
   cloudTimer=setTimeout(function(){ cloudPush(true); },4000);
 }
-var cloudConflictWarned=false;
+function cloudErr(r,verb){
+  return new Error('HTTP '+r.status+((r.status===401||r.status===403)?'. Your Firebase database rules denied the '+(verb||'write')+'. Open Firebase console → Realtime Database → Rules.':''));
+}
+function cloudPatch(root,path,body){
+  return fetch(root+'/'+path+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+    .then(function(r){ if(!r.ok) throw cloudErr(r); return r; });
+}
+/* "Push my changes": only the records this device has touched since its last
+   confirmed write, each to its own address. */
 function cloudPush(silent){
-  var ep=cloudEndpoint();
-  if(!ep){ if(!silent) toast('Enter your database URL first, then save sync settings.','warn'); return; }
-  if(cloudBusy) return;
+  var root=cloudRoot();
+  if(!root){ if(!silent) toast('Enter your database URL first, then save sync settings.','warn'); return Promise.resolve(0); }
+  if(cloudBusy) return Promise.resolve(0);
   cloudBusy=true;
-  // conflict guard: don't silently overwrite newer changes from another device
-  fetch(ep.replace(/\.json$/,'/meta.json')).then(function(r){ return r.ok?r.json():null; }).catch(function(){ return null; })
-  .then(function(cloudMeta){
-    if(cloudMeta&&cloudMeta.updatedAt&&cloudMeta.deviceId&&cloudMeta.deviceId!==DEVICE_ID&&cloudMeta.updatedAt>(state.settings.sync.lastSyncStamp||0)){
-      cloudBusy=false;
-      if(silent){
-        if(!cloudConflictWarned){ cloudConflictWarned=true; toast('Cloud has newer changes from another device, so auto-push is paused. Go to Settings → Cloud sync to Pull (or Push to overwrite).','warn'); }
-        return;
-      }
-      if(!confirm('The cloud copy has NEWER changes from another device. Overwrite it with THIS device’s data?')){ return; }
-    }
-    cloudBusy=true;
-    doCloudPut(ep,silent);
+  return cloudEnsureFormat(root)
+    .then(function(migrated){ return cloudSend(root,silent,migrated); })
+    .catch(function(e){
+      if(!silent) toast('Could not push to the cloud. Your changes are saved on this device and will go up on the next successful push. Check your connection and the database URL in Settings ▸ Cloud sync. ('+e.message+')','error');
+      return 0;
+    })
+    .then(function(n){ cloudBusy=false; return n; });
+}
+function cloudSend(root,silent,migrated){
+  var led=syncScan();
+  if(!led) return Promise.resolve(0);
+  var batch=syncPending(led);
+  if(!batch.count){
+    if(!silent) toast(migrated?('Cloud copy converted. '+migrated+' records now sync one at a time.'):'Everything on this device is already in the cloud.');
+    return Promise.resolve(0);
+  }
+  var done=[];
+  return Promise.all(Object.keys(batch.byPath).map(function(p){
+    return cloudPatch(root,p,batch.byPath[p]).then(function(){ done.push(p); });
+  })).then(function(){
+    syncConfirm(led,batch,done);
+    state.settings.sync.lastSync=new Date().toISOString();
+    state.settings.sync.lastSyncStamp=Date.now();
+    syncPersist();
+    if(!silent){ toast(batch.count+(batch.count===1?' change pushed':' changes pushed')+' to the cloud.'); render(); }
+    return batch.count;
   });
 }
-function doCloudPut(ep,silent){
-  fetch(ep,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(state)})
-    .then(function(r){
-      if(!r.ok) throw new Error('HTTP '+r.status+((r.status===401||r.status===403)?'. Your Firebase database rules denied the write. Open Firebase console → Realtime Database → Rules.':''));
-      state.settings.sync.lastSync=new Date().toISOString();
-      state.settings.sync.lastSyncStamp=state.meta.updatedAt;
-      cloudConflictWarned=false;
-      try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(_){ toast("Not saved. This browser is out of storage. Export a backup from Settings ▸ Data, then remove old receipt photos to free space.","error"); }
-      if(!silent){ toast('Pushed to cloud.'); render(); }
-    })
-    .catch(function(e){ if(!silent) toast('Could not push to the cloud. Your changes are saved on this device and will go up on the next successful push. Check your connection and the database URL in Settings ▸ Cloud sync. ('+e.message+')','error'); })
-    .finally(function(){ cloudBusy=false; });
-}
+/* "Merge from cloud": one read of the per-record tree, then a record-by-record
+   merge. Nothing local is thrown away without being counted and said out loud. */
 function cloudPull(){
-  var ep=cloudEndpoint();
-  if(!ep){ toast('Enter your database URL first, then save sync settings.','warn'); return; }
-  fetch(ep)
-    .then(function(r){
-      if(!r.ok) throw new Error('HTTP '+r.status+((r.status===401||r.status===403)?'. Your Firebase database rules denied the read.':''));
-      return r.json();
-    })
-    .then(function(data){
-      if(!data||typeof data!=='object'||!data.settings){ toast('No backup found in the cloud yet. Push first.','warn'); return; }
-      if(!confirm('Replace the data on THIS device with the cloud copy? Local changes not yet pushed will be lost.')) return;
-      if(state.meta&&state.meta.updatedAt&&data.meta&&data.meta.updatedAt&&state.meta.updatedAt>data.meta.updatedAt){
-        if(!confirm('Heads up: THIS device has newer changes than the cloud copy. Pulling will lose them. Continue?')) return;
-      }
-      var sync=JSON.parse(JSON.stringify(state.settings.sync));
-      state=deepMerge(JSON.parse(JSON.stringify(DEFAULT_STATE)),data);
-      state.settings.sync=Object.assign(state.settings.sync||{},sync,{lastSync:new Date().toISOString(),lastSyncStamp:(data.meta&&data.meta.updatedAt)||Date.now()});
-      try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(_){ toast("Not saved. This browser is out of storage. Export a backup from Settings ▸ Data, then remove old receipt photos to free space.","error"); }
+  var root=cloudRoot();
+  if(!root){ toast('Enter your database URL first, then save sync settings.','warn'); return Promise.resolve(); }
+  return cloudEnsureFormat(root)
+    .then(function(){ return fetch(root+'/v2.json'); })
+    .then(function(r){ if(!r.ok) throw cloudErr(r,'read'); return r.json(); })
+    .then(function(tree){
+      if(!tree||typeof tree!=='object'){ toast('Nothing in the cloud yet. Push first.','warn'); return; }
+      var sum=cloudMerge(tree);
+      state.settings.sync.lastSync=new Date().toISOString();
+      syncPersist();
+      if(sum.reap.length) cloudReap(root,sum.reap);
       applyTheme(); render();
-      toast('Pulled from cloud. '+state.finance.length+' finance entries on this device now.');
+      toast(syncSummaryText(sum),sum.conflicts.length?'warn':'good');
     })
-    .catch(function(e){ toast('Could not pull from the cloud. The data on this device is unchanged. Check your connection and the database URL in Settings ▸ Cloud sync, then try again. ('+e.message+')','error'); });
+    .catch(function(e){ toast('Could not merge from the cloud. The data on this device is unchanged. Check your connection and the database URL in Settings ▸ Cloud sync, then try again. ('+e.message+')','error'); });
+}
+function syncSummaryText(s){
+  var bits=[];
+  if(s.added) bits.push(s.added+' added');
+  if(s.updated) bits.push(s.updated+' updated');
+  if(s.removed) bits.push(s.removed+' removed');
+  var t='Merged from cloud: '+(bits.length?bits.join(', '):'nothing new')+'.';
+  if(s.conflicts.length) t+=' '+s.conflicts.length+(s.conflicts.length===1?' record was':' records were')+' edited in both places; the newest edit was kept.';
+  return t;
+}
+function syncApplyDoc(name,val){
+  if(name==='settings'){
+    var mine=state.settings.sync;   // the database address stays this device's own
+    state.settings=deepMerge(JSON.parse(JSON.stringify(DEFAULT_STATE.settings)),val);
+    state.settings.sync=mine;
+    return;
+  }
+  state[name]=val;
+}
+/* The merge. Per record, in order of cheapness:
+     identical content       nothing to do, just agree on the stamp
+     only the cloud moved    take the cloud copy
+     only this device moved  keep it; the next push carries it
+     both moved              newest updatedAt wins, and it is reported, never silent
+   Records this device has that the cloud has never seen are not touched at all,
+   which is what makes an offline-created invoice survive somebody else's pull. */
+function cloudMerge(tree){
+  var led=syncScan()||syncLedger();
+  var sum={added:0,updated:0,removed:0,conflicts:[],reap:[]},now=Date.now();
+  SYNC_COLLECTIONS.forEach(function(coll){
+    var cloudColl=tree[coll];
+    if(!cloudColl||typeof cloudColl!=='object') return;
+    if(!Array.isArray(state[coll])) state[coll]=[];
+    var list=state[coll],byId={},order=[],loose=[];
+    list.forEach(function(r){
+      if(!r||!r.id){ loose.push(r); return; }
+      if(byId[r.id]) return;            // an id addresses one record; a second copy is a duplicate
+      byId[r.id]=r; order.push(r.id);
+    });
+    Object.keys(cloudColl).forEach(function(id){
+      var env=cloudColl[id];
+      if(!env||typeof env!=='object') return;
+      var key=coll+'/'+id,cAt=+env.updatedAt||0,local=byId[id]||null,e=led.recs[key],tomb=led.tombs[key];
+      if(env.deleted===true){
+        if(cAt&&now-cAt>SYNC_TOMB_TTL){   // past the window: the tombstone has done its job
+          sum.reap.push(key);
+          delete led.tombs[key];
+          return;
+        }
+        if(local&&e&&e.at>cAt){           // edited here after it was deleted there: it stays, and re-pushes
+          sum.conflicts.push({key:key,kept:'this device'});
+          return;
+        }
+        if(local){ delete byId[id]; sum.removed++; }
+        delete led.recs[key];
+        led.tombs[key]={at:cAt,sy:cAt};
+        return;
+      }
+      var rec=env.rec;
+      if(!rec||typeof rec!=='object') return;
+      if(rec.id!==id) rec.id=id;          // the path is the identity
+      if(tomb&&tomb.at>=cAt) return;      // deleted here more recently than it was touched there
+      if(tomb) delete led.tombs[key];     // touched there after it was deleted here: it comes back
+      var h=syncHash(rec);
+      if(!local){
+        byId[id]=rec; order.push(id);
+        led.recs[key]={at:cAt,sy:cAt,h:h};
+        sum.added++;
+        return;
+      }
+      if(e&&e.h===h){ e.at=cAt||e.at; e.sy=e.at; return; }
+      var dirty=!!(e&&e.at!==e.sy);
+      if(dirty&&e.sy!==cAt){
+        if(cAt>e.at){ byId[id]=rec; led.recs[key]={at:cAt,sy:cAt,h:h}; sum.updated++; sum.conflicts.push({key:key,kept:'the cloud'}); }
+        else sum.conflicts.push({key:key,kept:'this device'});
+        return;
+      }
+      if(dirty) return;
+      byId[id]=rec; led.recs[key]={at:cAt,sy:cAt,h:h}; sum.updated++;
+    });
+    var out=[];
+    order.forEach(function(id){ if(byId[id]) out.push(byId[id]); });
+    state[coll]=out.concat(loose);
+  });
+  var docs=(tree.doc&&typeof tree.doc==='object')?tree.doc:{};
+  SYNC_DOCS.forEach(function(name){
+    var env=docs[name];
+    if(!env||typeof env!=='object'||env.deleted||!env.rec||typeof env.rec!=='object') return;
+    var key='doc/'+name,cAt=+env.updatedAt||0,e=led.recs[key],h=syncHash(env.rec);
+    if(e&&e.h===h){ e.at=cAt||e.at; e.sy=e.at; return; }
+    var dirty=!!(e&&e.at!==e.sy);
+    if(dirty&&e.sy===cAt) return;               // only this device moved
+    if(dirty&&cAt<=e.at){ sum.conflicts.push({key:key,kept:'this device'}); return; }
+    syncApplyDoc(name,env.rec);
+    led.recs[key]={at:cAt,sy:cAt,h:syncHash(syncDocValue(name))};
+    sum.updated++;
+    if(dirty) sum.conflicts.push({key:key,kept:'the cloud'});
+  });
+  return sum;
+}
+/* Hard-delete tombstones that are past the window. Fire and forget: a failed reap
+   costs a few bytes in the database and is retried on the next merge. */
+function cloudReap(root,keys){
+  var byPath={};
+  keys.forEach(function(k){
+    var cut=k.indexOf('/'),p='v2/'+k.slice(0,cut);
+    (byPath[p]||(byPath[p]={}))[k.slice(cut+1)]=null;
+  });
+  Object.keys(byPath).forEach(function(p){ cloudPatch(root,p,byPath[p]).catch(function(){ }); });
+}
+/* Migration, run once before the first push or pull of a session.
+   _meta.format === 2 means the per-record tree exists and the old blob is history.
+   Until it does, the old blob is read, folded into this device record by record,
+   and written back out one address each. Marking the format LAST is what makes a
+   half-finished conversion safe: it simply runs again. */
+function cloudEnsureFormat(root){
+  if(cloudFormatKnown) return Promise.resolve(0);
+  return fetch(root+'/v2/_meta.json')
+    .then(function(r){ return r.ok?r.json():null; }).catch(function(){ return null; })
+    .then(function(m){
+      if(m&&+m.format===2){ cloudFormatKnown=true; return 0; }
+      return fetch(root+'.json')
+        .then(function(r){ return r.ok?r.json():null; }).catch(function(){ return null; })
+        .then(function(blob){
+          var n=0;
+          if(blob&&typeof blob==='object'&&blob.settings){ cloudAdoptLegacy(blob); n=1; }
+          return (n?cloudSend(root,true,0):Promise.resolve(0)).then(function(sent){
+            return cloudPatch(root,'v2',{_meta:{format:2,migratedAt:Date.now(),migratedBy:DEVICE_ID}})
+              .then(function(){ cloudFormatKnown=true; return sent; });
+          });
+        });
+    });
+}
+/* The pre-v2 copy was ONE document holding the whole app state. Fold it in the way
+   a pull does, record by record and newest wins, then mark everything dirty so the
+   push that follows writes each record to its own address.
+   The old document is left exactly where it is. It is the only copy of the data
+   that predates the conversion, and deleting it on the strength of a write that has
+   not been confirmed yet is how migrations lose people's books. Nothing reads it
+   again once _meta says format 2; the owner can delete it from the Firebase console
+   whenever they are satisfied. */
+function cloudAdoptLegacy(blob){
+  var at=+(blob.meta&&blob.meta.updatedAt)||Date.now();
+  var by=(blob.meta&&blob.meta.deviceId)||'legacy';
+  var tree={doc:{}};
+  SYNC_COLLECTIONS.forEach(function(coll){
+    var list=blob[coll],m={};
+    if(!list||typeof list!=='object') return;
+    // Firebase hands arrays back as objects keyed 0,1,2 when a slot was empty
+    (Array.isArray(list)?list:Object.keys(list).map(function(k){ return list[k]; })).forEach(function(rec){
+      if(rec&&rec.id) m[rec.id]={updatedAt:at,updatedBy:by,rec:rec};
+    });
+    if(Object.keys(m).length) tree[coll]=m;
+  });
+  SYNC_DOCS.forEach(function(name){
+    if(blob[name]&&typeof blob[name]==='object') tree.doc[name]={updatedAt:at,updatedBy:by,rec:blob[name]};
+  });
+  // roadmaps lived in state.phases before v15; migrateState() below moves them across
+  if(Array.isArray(blob.phases)&&blob.phases.length&&!(state.phases||[]).length&&!(state.roadmaps||[]).length) state.phases=blob.phases;
+  var sum=cloudMerge(tree);
+  migrateState();
+  syncMarkAllDirty();
+  return sum;
 }
 function cloudSyncCardHTML(){
   var s=state.settings.sync||{};
   var html='<div class="card"><div class="card-head"><h3>'+icon('cloud',16)+' Cloud sync</h3><span class="spacer"></span>'+
     (s.enabled?'<span class="badge good">Auto-sync on</span>':'<span class="badge neutral">Off</span>')+'</div>'+
-    '<p style="font-size:var(--f2);color:var(--text-2);margin-bottom:12px">Sync your data to your own cloud Database so it survives browser resets and follows you across devices. '+
+    '<p style="font-size:var(--f2);color:var(--text-2);margin-bottom:12px">Sync your data to your own cloud database so it survives browser resets and follows you across devices. Every invoice, expense and task is stored under its own address, so two people can work at once: pushing sends only what you changed, and merging keeps the newest version of each record rather than replacing anybody. '+
     (s.lastSync?'Last sync: <b>'+fmtDate(s.lastSync.slice(0,10))+'</b>.':'Never synced.')+'</p>'+
     '<form data-form="sync-settings">'+
     '<div class="field"><label>Realtime Database URL</label><input class="input" name="url" value="'+esc(s.url||'')+'" placeholder="https://your-project-default-rtdb.firebaseio.com"></div>'+
@@ -11874,11 +12216,11 @@ function cloudSyncCardHTML(){
        only part of the address an outsider has to guess: it deserved a box. */
     '<div class="field"><label>Path inside the database</label><input class="input" name="path" value="'+esc(s.path||'bizpilot')+'" placeholder="bizpilot" maxlength="64">'+
       '<p style="font-size:var(--f1);color:var(--text-3);margin-top:4px">Your data is stored under this name. A long random one (say <span class="mono">bizpilot-7fq2xk9m</span>) is worth setting: it is the only part of the address a stranger cannot read off this app. Changing it starts an empty copy, so push once afterwards.</p></div>'+
-    '<label class="checkrow" style="margin-bottom:12px"><input type="checkbox" name="enabled"'+(s.enabled?' checked':'')+'> Auto-push to cloud after every change</label>'+
+    '<label class="checkrow" style="margin-bottom:12px"><input type="checkbox" name="enabled"'+(s.enabled?' checked':'')+'> Auto-push changed records to the cloud after every change</label>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
     '<button class="btn btn-primary btn-sm" type="submit">'+icon('check')+' Save sync settings</button>'+
-    '<button class="btn btn-ghost btn-sm" type="button" data-action="cloud-push">'+icon('upload')+' Push now</button>'+
-    '<button class="btn btn-ghost btn-sm" type="button" data-action="cloud-pull">'+icon('download')+' Pull from cloud</button>'+
+    '<button class="btn btn-ghost btn-sm" type="button" data-action="cloud-push">'+icon('upload')+' Push my changes</button>'+
+    '<button class="btn btn-ghost btn-sm" type="button" data-action="cloud-pull">'+icon('download')+' Merge from cloud</button>'+
     '</div></form>'+
     '<p style="font-size:var(--f1);color:var(--text-3);margin-top:12px">'+icon('alert',12)+' Anyone who can read your database can read your books. Trakora talks to it over plain REST and signs in to nothing, so a rule like <span class="mono">auth != null</span> will simply stop sync working. Publish the rules below instead, and treat the URL and path together as the password they are.</p>'+
     '</div>';
@@ -11943,7 +12285,7 @@ function databaseRulesCardHTML(){
       '<button class="btn btn-ghost btn-sm" type="button" data-action="copy-code" data-target="rules-sync">'+icon('copy',13)+' Copy</button></div>'+
     '<div class="code-block" id="rules-sync">'+esc(syncRulesJSON())+'</div>'+
     '<p style="font-size:var(--f1);color:var(--text-2)">Only <span class="mono">'+esc(p)+'</span> is reachable; the rest of the database is closed. There is still no password on that one path, because Trakora sends no login, so keep the URL and the path to yourself and set a long random path above. If you want more than that, use the PIN lock, which encrypts what is stored on this device.</p>'+
-    '<p style="font-size:var(--f1);color:var(--text-3)"><b>Check it worked.</b> Open <span class="mono">'+esc(host)+'/some-other-name.json</span> in a browser: it must answer <span class="mono">{"error":"Permission denied"}</span>. Then press Push now above; it must still say the push went through.</p>'+
+    '<p style="font-size:var(--f1);color:var(--text-3)"><b>Check it worked.</b> Open <span class="mono">'+esc(host)+'/some-other-name.json</span> in a browser: it must answer <span class="mono">{"error":"Permission denied"}</span>. Then press Push my changes above; it must still say the push went through.</p>'+
 
     '<div class="code-head"><h4>License database</h4><span class="badge neutral">for whoever sells Trakora</span><span class="spacer"></span>'+
       '<button class="btn btn-ghost btn-sm" type="button" data-action="copy-code" data-target="rules-license">'+icon('copy',13)+' Copy</button></div>'+
@@ -12114,7 +12456,7 @@ document.addEventListener('submit',function(e){
     var np=String(form.elements['path']?fv(form,'path'):'').replace(/[^A-Za-z0-9_-]/g,'').slice(0,64);
     state.settings.sync.path=np||state.settings.sync.path||'bizpilot';
     commit();
-    toast(state.settings.sync.enabled?'Auto-sync enabled. Every change pushes to your Firebase database.':'Sync settings saved.');
+    toast(state.settings.sync.enabled?'Auto-sync enabled. Changed records push to your Firebase database on their own.':'Sync settings saved.');
     return;
   }
 });
