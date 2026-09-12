@@ -4486,42 +4486,45 @@ async function main() {
        site was .code-block on the Data & Sync tab, 3,377px wider than a 320px phone. It
        was also the codes. One cause, both complaints. */
     (function signInAndSettings() {
-      ok('the sign-in screen is built to the reference: panel, artwork, form',
-        /\.si-panel\{[^}]*grid-template-columns/.test(html) && html.indexOf('si-art') > 0 &&
-        html.indexOf('class="si-card"') > 0);
-      ok('...with the parts the reference has',
+      /* Plain white, one column, centred. It started as a copy of a supplied reference:
+         a blue page, a hairline frame, a white panel split down the middle with artwork
+         beside the form. That was a lot of chrome around six controls, so the chrome went
+         and the form stayed. */
+      ok('the screen is a plain centred column, not a framed split panel',
+        /\.si-wrap\{[^}]*place-items:center/.test(html) &&
+        /\.si-card\{width:100%;max-width:\d+px\}/.test(html));
+      ok('...with the frame, the panel and the artwork gone, not just hidden',
+        ['si-frame', 'si-panel', 'si-art', 'si-side', 'siArtSVG'].every((c) => html.indexOf(c) === -1));
+      ok('...and the parts that matter still there',
         ['si-oauth', 'si-or', 'si-field', 'si-eye', 'si-remember', 'si-cta', 'si-foot']
           .every((c) => html.indexOf(c) > 0));
       ok('...and the business name, not a hardcoded one',
         /si-name">'\+appNameEsc\(\)/.test(html));
-      /* Two things in the reference are deliberately absent, and both would be a lie:
-         a gradient the owner ruled out, and a Facebook button this app cannot honour. */
       /* Two things in the reference are deliberately absent, and both would be a lie: a
-         gradient the owner ruled out, and a Facebook button this app cannot honour. The
-         screen offers exactly one federated sign-in, and it is the one that works. */
+         gradient the owner ruled out, and a Facebook button this app cannot honour. */
       ok('...with no gradient, and no federated button it cannot honour',
         !/\.si-[a-z-]*\{[^}]*linear-gradient/.test(html) &&
-        /class="si-oauth" data-action="auth-google"/.test(html) &&
+        /class="si-oauth" data-action/.test(html) &&
         html.indexOf('auth-facebook') === -1);
-      /* The design is a page first. It used to replace itself with a one-line apology when
-         no project was connected, which meant it could not be opened, shown to anyone or
-         worked on until the auth behind it was finished. Every part must render either
-         way; what changes is what the buttons DO, not whether they exist. */
-      ok('the whole screen renders with no project connected, as a preview',
-        /if\(!authConfigured\(\)\)\{[\s\S]{0,400}?si-msg show ok/.test(html) &&
-        !/if\(!authConfigured\(\)\)\{[\s\S]{0,600}?return h;/.test(html));
-      ok('...and the Google button is no longer hidden when the client id is missing',
-        !/if\(authClientId\(\)\)\{\s*h\+='<button type="button" class="si-oauth"/.test(html));
-      /* An address of its own, so the page can be opened and linked on its own. It is not
-         a route: it opens OVER the shell rather than rendering inside it. */
-      ok('#/signin opens the screen without redrawing the app underneath',
-        /function signInRouteCheck\(\)\{[\s\S]{0,200}?location\.hash\|\|''\)!=='#\/signin'/.test(html) &&
-        /if\(signInRouteCheck\(\)\) return;/.test(html));
-      ok('...and dismissing it leaves the address behind too',
-        /if\(location\.hash==='#\/signin'\) location\.hash='#\/dashboard';/.test(html));
-      /* Buttons that cannot work say why, in the panel, rather than failing quietly. */
-      ok('submitting with nothing connected explains itself in the form',
-        /Nothing to sign in to yet: this copy is not connected to a sign-in project/.test(html));
+
+      /* PREVIEW. With no project connected there is nothing to check anything against, so
+         rather than a dead form the fields come pre-filled and Login opens the books. The
+         line that keeps this honest: no session is written, so nothing downstream believes
+         anyone signed in. */
+      ok('with no project connected the form is pre-filled for a tester',
+        /var SI_DEMO=\{email:'[^']+',password:'[^']+'\}/.test(html) &&
+        /preview\?' value="'\+esc\(SI_DEMO\.email\)/.test(html) &&
+        /preview\?' value="'\+esc\(SI_DEMO\.password\)/.test(html));
+      ok('...and Login takes them into the books instead of failing',
+        /if\(!authConfigured\(\)\)\{[\s\S]{0,420}?signInClose\(\);/.test(html));
+      ok('...and the Google button goes the same way rather than opening a dead popup',
+        /data-action="'\+\(preview\?'signin-preview':'auth-google'\)/.test(html) &&
+        html.indexOf("action==='signin-preview'") > 0);
+      /* The whole point of the honesty: a preview must not leave the app believing a
+         session exists, or every screen downstream lies about who is signed in. */
+      ok('...without writing a session, so nothing downstream thinks anyone signed in',
+        !/action==='signin-preview'[\s\S]{0,400}?authStore\(/.test(html) &&
+        /Preview\. No account is connected to this copy yet/.test(html));
       ok('sign in, create an account and forgot password all lead to the one screen',
         /action==='auth-signin-email'\)\{ acctMenuClose\(true\); signInOpen\('in'\)/.test(html) &&
         /action==='auth-signup'\)\{ acctMenuClose\(true\); signInOpen\('up'\)/.test(html) &&

@@ -2517,27 +2517,18 @@ body.dragging-active .kb-col{transition:outline-color .12s var(--ease)}
 /* ============================================================
    the sign-in screen
    ============================================================
-   Built to a supplied reference: a tinted page, a white panel inset inside a hairline
-   frame, artwork on the left and the form on the right. Two things from the reference
-   are deliberately not copied. There is no gradient anywhere (the owner ruled them out
-   early and has not changed their mind), and there is no Facebook button, because this
-   app has no Facebook sign-in to offer and a button that cannot work is a lie.
+   Plain white, one column, centred. It began as a copy of a supplied reference: a blue
+   page, a hairline frame, a white panel split down the middle with artwork on the left.
+   That was a lot of chrome around six controls, and the artwork was decoration standing
+   where the form should be. What is left is the form.
 
    It is a SCREEN, not a wall, in every case but one. The books work with no account at
    all, so unless this copy was deliberately set to require sign-in there is always a way
    past it that does not involve signing in to anything. */
-.si-wrap{position:fixed;inset:0;z-index:300;background:var(--accent);padding:clamp(10px,2.2vw,30px);
-  overflow:auto;display:flex;-webkit-overflow-scrolling:touch}
-.si-frame{border:1px solid rgba(255,255,255,.42);border-radius:18px;padding:clamp(6px,1.1vw,14px);
-  flex:1;display:flex;min-height:0}
-.si-panel{flex:1;display:grid;grid-template-columns:1.05fr .95fr;background:var(--bg-card);
-  border-radius:13px;overflow:hidden;min-height:0}
-/* the artwork half. Below 900px it is the first thing to go: it is decoration, and the
-   form is the reason anyone opened this. */
-.si-art{background:var(--bg-sunken);display:grid;place-items:center;padding:34px}
-.si-art svg{width:min(100%,430px);height:auto}
-.si-side{display:flex;align-items:center;justify-content:center;padding:clamp(22px,3.4vw,52px)}
-.si-card{width:100%;max-width:430px}
+.si-wrap{position:fixed;inset:0;z-index:300;background:var(--bg-card);
+  overflow:auto;-webkit-overflow-scrolling:touch;
+  display:grid;place-items:center;padding:32px 24px}
+.si-card{width:100%;max-width:388px}
 .si-kicker{font-size:var(--f4);color:var(--text-2);line-height:1.2}
 .si-name{font-family:var(--font-display);font-size:var(--f7);font-weight:700;color:var(--accent);
   line-height:1.15;letter-spacing:-.02em;margin:2px 0 26px;overflow-wrap:anywhere}
@@ -2582,15 +2573,9 @@ body.dragging-active .kb-col{transition:outline-color .12s var(--ease)}
 .si-skip{display:block;width:100%;margin-top:10px;text-align:center;font-size:var(--f2);
   color:var(--text-3);padding:9px;border-radius:9px}
 .si-skip:hover{color:var(--text);background:var(--bg-sunken)}
-@media (max-width:900px){
-  .si-panel{grid-template-columns:1fr}
-  .si-art{display:none}
-  .si-side{padding:clamp(20px,5vw,34px) clamp(18px,5vw,30px)}
-}
 @media (max-width:560px){
-  .si-wrap{padding:0}
-  .si-frame{border:0;border-radius:0;padding:0}
-  .si-panel{border-radius:0}
+  .si-wrap{padding:24px 18px;align-content:start}
+}
 }
 .gate{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;
   background:#0d0f17;font-family:var(--font)}
@@ -4207,25 +4192,6 @@ function authSubmitEmail(email,password,mode){
 
    ui.signin holds the mode ('in' or 'up') and whether the password is showing, because a
    re-render must not silently retype the password field or throw away what was typed. */
-function siArtSVG(){
-  /* Flat shapes only: the brand blue, its soft tint, and the page's own surfaces. No
-     gradient, by standing instruction. It says "your books, locked to you" without a
-     stock illustration and without a single raster byte. */
-  return '<svg viewBox="0 0 420 330" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A locked ledger">'+
-    '<rect x="120" y="52" width="196" height="240" rx="16" fill="var(--bg-card)" stroke="var(--border)" stroke-width="2"/>'+
-    '<rect x="96" y="76" width="196" height="240" rx="16" fill="var(--accent-soft)"/>'+
-    '<rect x="96" y="76" width="196" height="240" rx="16" stroke="var(--accent)" stroke-width="2"/>'+
-    '<circle cx="194" cy="140" r="26" fill="var(--accent)"/>'+
-    '<path d="M194 130a7 7 0 0 1 7 7v5h-14v-5a7 7 0 0 1 7-7Z" fill="var(--bg-card)"/>'+
-    '<rect x="182" y="142" width="24" height="18" rx="4" fill="var(--bg-card)"/>'+
-    '<rect x="126" y="192" width="136" height="13" rx="6.5" fill="var(--bg-card)"/>'+
-    '<rect x="126" y="216" width="136" height="13" rx="6.5" fill="var(--bg-card)"/>'+
-    '<rect x="126" y="240" width="82" height="13" rx="6.5" fill="var(--bg-card)"/>'+
-    '<circle cx="332" cy="104" r="17" fill="var(--accent)" opacity=".18"/>'+
-    '<circle cx="72" cy="246" r="11" fill="var(--accent)" opacity=".18"/>'+
-    '<path d="M36 120h30M36 136h18" stroke="var(--accent)" stroke-width="4" stroke-linecap="round" opacity=".35"/>'+
-    '</svg>';
-}
 function siGoogleMark(){
   /* Google's own four-colour mark, which their branding terms require on a button that
      signs a person in with Google. Inline, because script-src and img-src both refuse
@@ -4240,13 +4206,15 @@ function siGoogleMark(){
 function siFieldHTML(o){
   return '<div class="si-field"><label for="'+o.id+'">'+esc(o.label)+'</label></div>';
 }
+/* The pair the preview fills in. Not credentials: there is nothing for them to be
+   credentials TO. They exist so a tester opening the page can press Login and be looking
+   at the app a second later, instead of staring at an empty form that cannot submit. */
+var SI_DEMO={email:'tester@example.com',password:'preview1234'};
 function signInHTML(){
   var st=ui.signin||(ui.signin={mode:'in',show:false});
   var up=st.mode==='up';
   var dismissible=!REQUIRE_SIGNIN;
-  var h='<div class="si-wrap"><div class="si-frame"><div class="si-panel">'+
-    '<div class="si-art">'+siArtSVG()+'</div>'+
-    '<div class="si-side"><div class="si-card">'+
+  var h='<div class="si-wrap"><div class="si-card">'+
     '<p class="si-kicker">'+esc(tr(up?'Create an account for':'Welcome to'))+'</p>'+
     '<h1 class="si-name">'+appNameEsc()+'</h1>';
 
@@ -4255,22 +4223,31 @@ function signInHTML(){
      to anyone or worked on until the auth was finished. That is backwards: the page is a
      page first. When nothing is wired up the form is still all here and says so quietly;
      what changes is what the buttons do, not whether they exist. */
-  if(!authConfigured()){
+  /* PREVIEW MODE: no project connected, so there is no account to check anything against.
+     Rather than a dead form, the fields come pre-filled and Login lets the tester straight
+     through to the books. It does NOT pretend to have signed anybody in: no session is
+     written, the account menu still says "Not signed in", and the notice says so in as
+     many words. The moment a real project is connected this whole branch stops applying
+     and the form is empty and real. */
+  var preview=!authConfigured();
+  if(preview){
     h+='<div class="si-msg show ok" style="margin-bottom:18px">'+
-      esc(tr('Preview: no sign-in project is connected to this copy yet, so these buttons have nothing to sign in to. Your books on this device work exactly as they do now.'))+'</div>';
+      esc(tr('Preview. No account is connected to this copy yet, so these details are filled in for you and Login just opens the books. Nothing is checked and nobody is signed in.'))+'</div>';
   }
 
-  h+='<button type="button" class="si-oauth" data-action="auth-google">'+siGoogleMark()+
+  h+='<button type="button" class="si-oauth" data-action="'+(preview?'signin-preview':'auth-google')+'">'+siGoogleMark()+
     '<span>'+esc(tr(up?'Sign up with Google':'Login with Google'))+'</span></button>'+
     '<div class="si-or"><span>'+esc(tr('OR'))+'</span></div>';
 
   h+='<form id="si-form" autocomplete="on" novalidate>'+
     '<div class="si-field">'+icon('mail',18)+'<div class="si-field-body">'+
       '<label for="si-email">'+esc(tr('Email'))+'</label>'+
-      '<input id="si-email" type="email" name="email" autocomplete="username" placeholder="example@gmail.com"></div></div>'+
+      '<input id="si-email" type="email" name="email" autocomplete="username" placeholder="example@gmail.com"'+
+        (preview?' value="'+esc(SI_DEMO.email)+'"':'')+'></div></div>'+
     '<div class="si-field">'+icon('key',18)+'<div class="si-field-body">'+
       '<label for="si-pass">'+esc(tr('Password'))+'</label>'+
-      '<input id="si-pass" type="'+(st.show?'text':'password')+'" name="password" autocomplete="'+(up?'new-password':'current-password')+'" placeholder="'+esc(tr('at least 6 characters'))+'"></div>'+
+      '<input id="si-pass" type="'+(st.show?'text':'password')+'" name="password" autocomplete="'+(up?'new-password':'current-password')+'" placeholder="'+esc(tr('at least 6 characters'))+'"'+
+        (preview?' value="'+esc(SI_DEMO.password)+'"':'')+'></div>'+
       '<button type="button" class="si-eye" data-action="signin-eye" aria-pressed="'+(st.show?'true':'false')+'"'+
         ' aria-label="'+esc(tr(st.show?'Hide password':'Show password'))+'">'+icon(st.show?'eyeoff':'eye',17)+'</button></div>'+
     '<div class="si-row">'+
@@ -4292,7 +4269,7 @@ function signInHTML(){
   }else{
     h+='<p class="si-note">'+esc(tr('This copy was set to ask for an account before it opens. Your data on this device is not touched either way.'))+'</p>';
   }
-  return h+'</div></div></div></div></div>';
+  return h+'</div></div>';
 }
 function signInIsOpen(){ var r=byId('signin-root'); return !!(r&&r.firstChild); }
 function signInClose(){
@@ -4317,9 +4294,12 @@ function signInRender(){
     btn.disabled=true; msg.className='si-msg';
     btn.innerHTML='<span class="si-spin"></span>'+esc(tr(st.mode==='up'?'Creating your account…':'Signing in…'));
     if(!authConfigured()){
-      btn.disabled=false; btn.textContent=was;
-      msg.className='si-msg show err';
-      msg.textContent=tr('Nothing to sign in to yet: this copy is not connected to a sign-in project. The screen is here and working; the account behind it is the part still to come.');
+      /* Preview: let them in. No session is stored, so nothing downstream believes a
+         sign-in happened; this only takes the screen away. */
+      signInClose();
+      if(location.hash==='#/signin') location.hash='#/dashboard';
+      if(typeof bootApp==='function'&&!appBooted) bootApp(); else { render(); renderSidebar(); }
+      toast(tr('Opened in preview. No account is connected yet, so nobody is signed in.'),'good',{ms:5200});
       return;
     }
     authSubmitEmail(byId('si-email').value,byId('si-pass').value,st.mode).then(function(){
@@ -11526,6 +11506,15 @@ document.addEventListener('click',function(e){
      to be true: the only full-page thing in the app was a licence gate that no longer
      exists. */
   if(action==='auth-signin-email'){ acctMenuClose(true); signInOpen('in'); return; }
+  /* Google, in preview, goes the same way as Login: into the books, signing in to nothing.
+     Opening a real Google popup with no client id behind it would only fail. */
+  if(action==='signin-preview'){
+    signInClose();
+    if(location.hash==='#/signin') location.hash='#/dashboard';
+    if(!appBooted) bootApp(); else { render(); renderSidebar(); }
+    toast(tr('Opened in preview. No account is connected yet, so nobody is signed in.'),'good',{ms:5200});
+    return;
+  }
   if(action==='signin-dismiss'){
     signInClose();
     if(location.hash==='#/signin') location.hash='#/dashboard';
