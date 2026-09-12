@@ -19,8 +19,12 @@ npm test
    - the app boots and **all 18 views render** without error;
    - **security**: no unescaped image `src`, CSP present, `safeColor` rejects injection, malicious logo is escaped;
    - **Smart CSV import**: entity detection + money/date normalization;
-   - **activation gate** diagnostics (locked-rules vs valid key, mocked fetch);
+   - **the retired licence gate**: every gate symbol is gone, the app opens with no wall, and a forged `bizpilot.activation` in `localStorage` grants nothing;
+   - **no licence artefact** survives anywhere in the repo: no keygen, no licence page, no signing key, no embedded public key;
    - **App Lock (PIN)**: PBKDF2 set/verify, boot-gate, unlock;
+   - **workspaces and invites**: create, invite, claim, single use, expiry, email mismatch, an unverified address, and a removed member refused by the database rather than by the UI — against a stub that enforces the same rules the app ships;
+   - **the rules themselves**: the workspace rules parse as JSON, deny by default, carry no blanket workspace-level write, and enforce single use and expiry on the server;
+   - **honest copy**: the privacy page and the consent notice say one thing with sharing off and another with it on, and neither claims there is no account while there is one;
    - **dashboard**: 13 per-card widgets + single-card reorder;
    - **onboarding carousel**: all 6 slides render with mockups + dots, advancing reuses the same card (no blink rebuild) and applies a directional slide;
    - **Advisor page + floating bubble**: narrative read, prioritized actions, and the bubble that cycles 3–5 typed prompts off the Advisor page;

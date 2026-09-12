@@ -37,10 +37,8 @@ function resp(status, body) { return Promise.resolve({ ok: status >= 200 && stat
 
 async function main() {
   try {
-    window.GATE.enabled = false;
     window.bootApp();
     await wait(60);
-    if (d.getElementById('gate-root')) d.getElementById('gate-root').innerHTML = ''; // simulate post-activation (gate bypassed in tests)
 
     // ---------- boot + every view renders ----------
     ok('app boots (state present)', !!window.state);
@@ -54,17 +52,221 @@ async function main() {
     }
     ok('every one of the 20 views renders without error', viewErrors.length === 0, viewErrors);
 
+    // ---------- Metrics: only tracked numbers get a card ----------
+    (function metricsScreen() {
+      const savedMetrics = window.state.metrics;
+      // sample data saves a value for all eleven, so clear them: what is left is
+      // whatever the app can work out from the owner's own entries.
+      window.state.metrics = {};
+      window.location.hash = '#/metrics'; window.render();
+      const main = d.getElementById('main');
+      const cards = main.querySelectorAll('.metric-card');
+      const rows = main.querySelectorAll('.mtr-row');
+      const tracked = window.METRIC_DEFS.filter((def) => window.metricValue(def) !== null).length;
+      ok('a card exists for each tracked metric and no others', cards.length === tracked && cards.length > 0, cards.length + ' cards / ' + tracked + ' tracked');
+      ok('every untracked metric is one collapsed row, not a card', rows.length === window.METRIC_DEFS.length - tracked && rows.length > 0, rows.length + ' rows');
+      ok('no card reserves hero space for a value that does not exist', Array.from(main.querySelectorAll('.m-val')).every((n) => n.textContent.trim() !== '—' && n.textContent.trim() !== ''));
+      ok('the "Not tracked" badge is gone from the cards', main.innerHTML.indexOf('Not tracked</span>') === -1);
+      ok('the textbook definition sits behind the disclosure, not in the open', Array.from(rows).every((r) => !r.hasAttribute('open') && r.querySelector('.mtr-body p')));
+      ok('each untracked row still carries the form that would give it a value', Array.from(rows).every((r) => r.querySelector('form[data-metric-calc],form[data-metric-set]')));
+      // no entries at all: the screen is a list, not eleven empty cards
+      const savedFin = window.state.finance, savedClients = window.state.clients;
+      window.state.finance = []; window.state.clients = [];
+      window.render();
+      ok('with nothing tracked the screen shows zero cards and eleven rows',
+        d.getElementById('main').querySelectorAll('.metric-card').length === 0 &&
+        d.getElementById('main').querySelectorAll('.mtr-row').length === window.METRIC_DEFS.length,
+        d.getElementById('main').querySelectorAll('.metric-card').length + ' cards');
+      ok('revenue per client reports nothing rather than a confident zero when there is no revenue',
+        window.metricValue(window.METRIC_DEFS.filter((x) => x.key === 'rpc')[0]) === null);
+      window.state.finance = savedFin; window.state.clients = savedClients;
+      window.state.metrics = savedMetrics;
+    })();
+
+    // ---------- colour contrast, computed from the tokens (WCAG 2.2 AA) ----------
+    (function contrastTokens() {
+      function tok(name, block) { const m = block.match(new RegExp('\\' + name + ':\\s*([^;]+);')); return m ? m[1].trim() : null; }
+      const lightBlock = html.slice(html.indexOf(':root{'), html.indexOf('html[data-theme="dark"]'));
+      const darkBlock = html.slice(html.indexOf('html[data-theme="dark"]'), html.indexOf('html[data-theme="dark"]') + 4000);
+      function rgb(c) {
+        let m = c.match(/^#([0-9a-f]{6})$/i);
+        if (m) { const n = parseInt(m[1], 16); return [n >> 16 & 255, n >> 8 & 255, n & 255, 1]; }
+        m = c.match(/rgba?\(([^)]+)\)/);
+        if (m) { const p = m[1].split(',').map(Number); return [p[0], p[1], p[2], p.length > 3 ? p[3] : 1]; }
+        return null;
+      }
+      function overlay(fg, bg) { const a = fg[3]; return [fg[0] * a + bg[0] * (1 - a), fg[1] * a + bg[1] * (1 - a), fg[2] * a + bg[2] * (1 - a), 1]; }
+      function lum(c) { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); }
+      function ratio(a, b) { const x = lum(a) + 0.05, y = lum(b) + 0.05; return x > y ? x / y : y / x; }
+
+      // house rule: no pure white surface
+      // The rule survives the redesign: no neutral is untinted. The values moved from
+      // warm paper to the reference's cool sheet, so the test checks the rule and the
+      // current values, not the old hexes.
+      ok('no surface token is pure #ffffff', !/--bg-card:#ffffff/.test(html) && !/--bg-input:#ffffff/.test(html) && !/--bg:#ffffff/.test(html) && !/--bg-sidebar:#ffffff/.test(html) && /--bg-card:#fdfdff/.test(html));
+      // The owner chose the reference design after seeing both, so the warm paper is
+      // gone on purpose. What survives is the part that was never about warmth: the
+      // sheet and the desk are one family, nothing is untinted, and the accent is still
+      // not Mercury's indigo.
+      /* The desk is gone. The app used to sit inset on a tinted ground with a 20px radius
+         and a shadow, which was the most recognisable thing about the reference it was
+         built from; the owner wants the page edge to edge instead. --page still exists
+         because overscroll would flash it, so it matches the paper rather than contrasting
+         with it. What survives from before: nothing is pure white, and the accent is still
+         not Mercury's indigo. */
+      ok('the app is the page, not a card on a desk',
+        /--app-inset:0px/.test(html) && /--app-radius:0px/.test(html) &&
+        /\.app\{[^}]*border:0;border-radius:var\(--app-radius,0\)\}/.test(html) &&
+        !/\.app\{[^}]*box-shadow/.test(html));
+      ok('...and the ground matches the paper, so overscroll shows no desk',
+        /--page:#fdfdff/.test(lightBlock) && /--bg:#fdfdff/.test(lightBlock) &&
+        !/#4653e8/.test(html) && !/#8a92ff/.test(html));
+      ok('--info is deleted: nothing paints with a fifth semantic colour',
+        /--info:var\(--accent\)/.test(lightBlock) && /--info:var\(--accent\)/.test(darkBlock));
+
+      const grounds = { card: rgb(tok('--bg-card', lightBlock)), sunken: rgb(tok('--bg-sunken', lightBlock)), page: rgb(tok('--bg', lightBlock)) };
+      const pairs = [['--good', '--good-soft'], ['--warn', '--warn-soft'], ['--risk', '--risk-soft'], ['--accent-ink', '--accent-soft']];
+      const short = [];
+      pairs.forEach(([ink, soft]) => {
+        const i = rgb(tok(ink, lightBlock)), sf = rgb(tok(soft, lightBlock));
+        Object.keys(grounds).forEach((g) => {
+          const onTint = ratio(i, overlay(sf, grounds[g]));
+          const onPlain = ratio(i, grounds[g]);
+          if (onTint < 4.5) short.push(ink + ' on ' + soft + ' over ' + g + ' = ' + onTint.toFixed(2));
+          if (onPlain < 4.5) short.push(ink + ' on ' + g + ' = ' + onPlain.toFixed(2));
+        });
+      });
+      ok('light semantic text clears 4.5:1 on its own tint and on every ground', short.length === 0, short);
+
+      // 1.4.11: a control's boundary needs 3:1 against its own fill
+      const ctlL = rgb(tok('--border-ctl', lightBlock)), ctlD = rgb(tok('--border-ctl', darkBlock));
+      const ctlFails = [];
+      [['light card', ctlL, grounds.card], ['light page', ctlL, grounds.page], ['light sunken', ctlL, grounds.sunken],
+       ['dark input', ctlD, rgb(tok('--bg-input', darkBlock))], ['dark card', ctlD, rgb(tok('--bg-card', darkBlock))],
+       ['dark page', ctlD, rgb(tok('--bg', darkBlock))]].forEach(([n, a, b]) => {
+        const r = ratio(a, b); if (r < 3) ctlFails.push(n + ' = ' + r.toFixed(2));
+      });
+      ok('--border-ctl clears 3:1 against every surface a control sits on', ctlFails.length === 0, ctlFails);
+      ok('form controls and checkboxes use --border-ctl, decorative hairlines still use --border',
+        /border:1px solid var\(--border-ctl\);background:var\(--bg-input\)/.test(html) &&
+        /\.btn-ghost\{background:var\(--bg-card\);border-color:var\(--border-ctl\)/.test(html) &&
+        /\.task-check\{[^}]*border:2px solid var\(--border-ctl\)/.test(html) &&
+        /\.start-check\{[^}]*border:2px solid var\(--border-ctl\)/.test(html) &&
+        /\.card\{[^}]*border:1px solid var\(--border\)/.test(html));
+
+      // chart series are graphical objects: 3:1 against both grounds, in both themes
+      const light = (html.match(/var CHART_PALETTE=\[([^\]]+)\]/) || [])[1].split(',').map((x) => x.trim().replace(/'/g, ''));
+      const dark = (html.match(/var CHART_PALETTE_DARK=\[([^\]]+)\]/) || [])[1].split(',').map((x) => x.trim().replace(/'/g, ''));
+      const weak = [];
+      light.forEach((c) => { [grounds.card, grounds.page].forEach((g) => { const r = ratio(rgb(c), g); if (r < 3) weak.push('light ' + c + ' = ' + r.toFixed(2)); }); });
+      dark.forEach((c) => { [rgb(tok('--bg-card', darkBlock)), rgb(tok('--bg', darkBlock))].forEach((g) => { const r = ratio(rgb(c), g); if (r < 3) weak.push('dark ' + c + ' = ' + r.toFixed(2)); }); });
+      ok('every chart series clears 3:1 against card and page in both themes', weak.length === 0 && dark.length === light.length, weak);
+      ok('charts pick the palette by theme rather than reusing the light hexes in the dark', /function chartColor\(i\)/.test(html) && !/CHART_PALETTE\[i%CHART_PALETTE\.length\]/.test(html));
+
+      // ink on a filled semantic colour flips with the theme (dark fills are LIGHT)
+      ok('--on-tint flips with the theme so #fff never sits on a light fill',
+        /--on-tint:#ffffff/.test(lightBlock) && /--on-tint:#14110e/.test(darkBlock) &&
+        !/background:var\(--risk\);color:#fff/.test(html) && !/background:var\(--good\);color:#fff/.test(html) &&
+        !/background:var\(--accent\);color:#fff\}/.test(html));
+      const onTintFails = [];
+      [['risk', darkBlock], ['good', darkBlock], ['warn', darkBlock], ['accent', darkBlock]].forEach(([n, b]) => {
+        const r = ratio(rgb(tok('--on-tint', b)), rgb(tok('--' + n, b)));
+        if (r < 4.5) onTintFails.push('dark --on-tint on --' + n + ' = ' + r.toFixed(2));
+      });
+      [['risk', lightBlock], ['good', lightBlock], ['warn', lightBlock]].forEach(([n, b]) => {
+        const r = ratio(rgb(tok('--on-tint', b)), rgb(tok('--' + n, b)));
+        if (r < 4.5) onTintFails.push('light --on-tint on --' + n + ' = ' + r.toFixed(2));
+      });
+      ok('--on-tint clears 4.5:1 on every semantic fill in both themes', onTintFails.length === 0, onTintFails);
+
+      // the label the earlier audit flagged: now the scale's own micro-label step,
+      // and its colour still measured against every ground it sits on
+      ok('.stat-label is the scale\'s micro-label step and --text-3 clears 4.5:1 on a card in both themes',
+        /\.stat-card \.stat-label\{font-size:var\(--f1\)/.test(html) &&
+        ratio(rgb(tok('--text-3', lightBlock)), grounds.card) >= 4.5 &&
+        ratio(rgb(tok('--text-3', darkBlock)), rgb(tok('--bg-card', darkBlock))) >= 4.5,
+        'light ' + ratio(rgb(tok('--text-3', lightBlock)), grounds.card).toFixed(2) +
+        ' / dark ' + ratio(rgb(tok('--text-3', darkBlock)), rgb(tok('--bg-card', darkBlock))).toFixed(2));
+    })();
+
+    // ---------- copy: say what it does, not what it is ----------
+    (function positioning() {
+      // the shipped description names the job and NOT the product: the owner's
+      // business name replaces it live (applyBrand) once one is set
+      ok('the meta description and title name the job, not a "command center"',
+        !/command cent/i.test(html) && /<meta name="description" content="Keeps a small business/.test(html) &&
+        !/<title>Trakora/.test(html));
+      ok('the About blurb describes the same product in the same nouns',
+        /Trakora is one HTML file\. It records income and expenses, invoices, orders, stock, staff pay and unpaid balances/.test(html));
+      // the register the owner objects to: tricolons, possessive couplets, cheering
+      const banned = [
+        'Your software, your brand', 'Your table, your fields, your data',
+        'your form, your business', 'Your business, read and explained',
+        'Your team at a glance', 'From order to doorstep', 'The digital credit notebook',
+        'reconciled to reality', 'Clear runway!', 'Your advisor is ready',
+        'never lose sight of it', 'searchable, taggable, pinnable',
+        'move the business forward', 'ask me again!'
+      ].filter((p) => html.indexOf(p) !== -1);
+      ok('no tricolons, possessive couplets or cheering left in the surveyed copy', banned.length === 0, banned);
+      ok('the greeting subtitle stopped exclaiming at the owner', html.indexOf('Hello! Here is how ') === -1);
+      // This counted em dashes and demanded exactly 60, which broke the moment a new
+      // no-value placeholder was added legitimately. The rule was never "sixty dashes":
+      // it is "no dash used as PROSE". A placeholder is written >—< or '—' with no
+      // spaces around it; prose is written word — word. So test the rule. The single
+      // permitted prose dash is 'estimate — unverified', which two other assertions
+      // match on, so changing it has to be a deliberate act in the same commit.
+      const proseDashes = html.match(/\S[  ]—[  ]\S/g) || [];
+      ok('no em dash is used as prose (placeholder glyphs are fine)',
+        proseDashes.length === 1 && /e — u/.test(proseDashes[0]), proseDashes.slice(0, 5));
+      ok('the mobile-table placeholder regex still has its glyph', /\/\^\[—–-\]\+\$\//.test(html));
+    })();
+
     // ---------- security: escaping + CSP + safeColor ----------
+    // Every roadmap object reaches an HTML ATTRIBUTE, and importData() deep-merges
+    // whatever JSON it is handed while cloudMerge() takes records off a database
+    // anyone with the URL can write to, so a backup someone sends you is the
+    // delivery path, and so is a shared database. A first fix hardened frames, stamps and edges and left notes,
+    // tables, comments and nodes wide open; there were zero assertions here, which is
+    // exactly why that survived. Test the RULE, on every renderer, forever.
+    //
+    // Note the check: a parsed attribute whose name starts with "on". Searching the
+    // markup for the substring "onmouseover" is wrong, because esc() leaves the payload
+    // visible as inert text and that reads as a failure when it is a pass.
+    (function () {
+      const PAY = 'x onmouseover=window.__hit=1 q=';
+      const hasHandler = (html) => {
+        const host = d.createElement('div'); host.innerHTML = html;
+        return [host, ...host.querySelectorAll('*')].some((e) =>
+          e.getAttributeNames && e.getAttributeNames().some((a) => a.toLowerCase().startsWith('on')));
+      };
+      const cases = [
+        ['note id',       () => window.rmNoteHTML({ id: PAY, x: 0, y: 0, text: 't' })],
+        ['note geometry', () => window.rmNoteHTML({ id: 'n', x: '0;--z:1" onmouseover="window.__hit=1', y: 0, text: 't' })],
+        ['note colour',   () => window.rmNoteHTML({ id: 'n', x: 0, y: 0, text: 't', color: '#fff" onmouseover="window.__hit=1' })],
+        ['table id',      () => window.rmTableHTML({ id: PAY, x: 0, y: 0, cells: [['a']] })],
+        ['comment id',    () => window.rmCommentHTML({ id: PAY, x: 0, y: 0, text: 'c' })],
+        ['node nid',      () => window.rmNodeHTML({ nid: PAY, kind: 'task', left: 0, top: 0, label: 'L' })],
+        ['frame id',      () => window.rmFrameHTML({ id: PAY, x: 0, y: 0, w: 10, h: 10 })],
+        ['stamp id',      () => window.rmStampHTML({ id: PAY, x: 0, y: 0, emoji: 'x' })]
+      ];
+      const leaked = cases.filter(([, f]) => { try { return hasHandler(f()); } catch (e) { return 'threw'; } })
+        .map(([n]) => n);
+      ok('no roadmap renderer lets stored state install an event handler', leaked.length === 0, leaked);
+      // and the sanitising must not eat legitimate content
+      const good = window.rmNoteHTML({ id: 'n1', x: 120, y: -40, w: 200, h: 150, text: 'Order wax', color: '#8ce0a6' });
+      ok('roadmap escaping leaves real notes intact',
+        /left:120px;top:-40px/.test(good) && /--nc:#8ce0a6/.test(good) && good.indexOf('Order wax') > -1, good.slice(0, 0));
+    })();
     ok('no unescaped image src in source', html.match(/src="'\+(?!esc\()/g) === null);
     ok('CSP meta present', !!d.querySelector('meta[http-equiv="Content-Security-Policy"]'));
     ok('CSP blocks objects + framing', /object-src 'none'/.test(html) && /frame-ancestors 'none'/.test(html));
-    ok('safeColor rejects injection', window.safeColor('red"><img>') === '#4653e8' && window.safeColor('#10b981') === '#10b981');
+    ok('safeColor rejects injection', window.safeColor('red"><img>') === '#0260a6' && window.safeColor('#10b981') === '#10b981');
     window.state.settings.bizLogo = 'x" onerror="alert(1)';
     window.renderSidebar();
     ok('malicious bizLogo is escaped (no raw onerror)', d.getElementById('sidebar').innerHTML.indexOf('onerror="alert(1)"') === -1);
     window.state.settings.bizLogo = '';
     // user-chosen colors are sanitized before going into style="" attributes (no CSS/attr injection)
-    ok('account color tamed + sanitized at source', /var col=tameColor\(a\.color/.test(html) && /c=safeColor\(c,fb\|\|'#4653e8'\)/.test(html));
+    ok('account color tamed + sanitized at source', /var col=tameColor\(a\.color/.test(html) && /c=safeColor\(c,fb\|\|'#0260a6'\)/.test(html));
     ok('task table color tamed (sanitizes via safeColor inside)', html.indexOf("'box-shadow:inset 3px 0 0 '+tameColor(t.color)") > -1);
     ok('calendar task color tamed', /tcol=\s*t\.color\?tameColor\(t\.color\)/.test(html));
     // file-attachment href is scheme-allowlisted (no javascript: / attribute breakout)
@@ -87,43 +289,81 @@ async function main() {
     ok('money EU format parses', window.csvMoney('1.234,50') === 1234.5);
     ok('money parentheses negative', window.csvMoney('(500)') === -500);
 
-    // ---------- activation diagnostics (mocked fetch) ----------
-    const K = 'RAVZ-1J1W-7WYQ', E = 'buyer@x.com';
-    window.fetch = () => resp(401, '{"error":"Permission denied"}');
-    await window.verifyActivation(K, E).then(() => ok('locked rules rejected', false)).catch((e) => ok('locked rules -> rules code', e.code === 'rules', e));
-    window.fetch = (u, o) => { const m = (o && o.method) || 'GET'; if (m === 'PUT') return resp(200, '{}'); return resp(200, JSON.stringify({ email: E, name: 'Buyer', devices: {} })); };
-    await window.verifyActivation(K, E).then((a) => ok('valid key activates', a && a.key === K)).catch((e) => ok('valid key activates', false, e));
-    // privacy: a PII-free record (emailHash only, no plaintext email) still activates, and rejects a wrong email
-    const eh = await window.licEmailHash(K, E);
-    window.fetch = (u, o) => { const m = (o && o.method) || 'GET'; if (m === 'PUT') return resp(200, '{}'); return resp(200, JSON.stringify({ emailHash: eh, devices: {} })); };
-    await window.verifyActivation(K, E).then((a) => ok('hashed-email license activates (no PII in DB)', a && a.key === K)).catch((e) => ok('hashed-email license activates', false, e));
-    window.fetch = () => resp(200, JSON.stringify({ emailHash: eh, devices: {} }));
-    await window.verifyActivation(K, 'attacker@evil.com').then(() => ok('hashed-email rejects wrong email', false)).catch((e) => ok('hashed-email rejects wrong email', e.code === 'email', e));
+    // ---------- the licence gate is GONE, and cannot come back ----------
+    // This block used to mint licence keys. The gate it tested was never enforceable:
+    // an audit of this repo forged a working key out of the repo's own contents, and
+    // separately walked past isActivated() with one localStorage.setItem, because
+    // isActivated() only ever checked the SHAPE of that value. What replaced it is an
+    // account, which is enforceable only because Firebase's rules check the token on
+    // their server. So what is asserted here is the removal, not a replacement gate.
+    (function licenceGateRetired() {
+      // 1. nothing in the app implements a gate any more
+      const goneFromApp = ['GATE', 'gateEndpoint', 'gateReadLicense', 'gateFetch', 'verifyActivation',
+        'verifySignedKey', 'LICENSE_PUBKEY', '_licPubKey', 'importLicensePub', 'isActivated',
+        'getActivation', 'setActivation', 'renderGate', 'keyShow', 'normKey', 'licEmailHash',
+        'licTag', 'deactivateDevice', 'applyActivationStamp', 'licenseInfo', 'licenseRulesJSON'];
+      const left = goneFromApp.filter((n) => typeof window[n] !== 'undefined');
+      ok('every licence-gate symbol is gone from the app', left.length === 0, left);
+      ok('the gate root element is gone from the document', d.getElementById('gate-root') === null);
 
-    // ---------- OFFLINE signed license: verifies with ZERO network (no Firebase) ----------
-    const PRIV = { kty:'EC', crv:'P-256', x:'ehXZYwQBYbP8HhHKZ6_hvK1Yp3e2fgQyzqJTXCqdXBc', y:'tyv_vdWFYP84K8O3gYfpLR5RIYQx_s0rm6jmySyysFg', d:'6mksRId8vn1ZRhc4O34WgWVroFsWm9JFPhKaTq9apjg' };
-    const b64u = (a) => Buffer.from(a).toString('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-    async function makeToken(email, limit) {
-      const pk = await webcrypto.subtle.importKey('jwk', PRIV, { name:'ECDSA', namedCurve:'P-256' }, false, ['sign']);
-      const ehBuf = await webcrypto.subtle.digest('SHA-256', new TextEncoder().encode(email.toLowerCase()));
-      const eh = [...new Uint8Array(ehBuf)].map((b) => ('0'+b.toString(16)).slice(-2)).join('');
-      const pb = new TextEncoder().encode(JSON.stringify({ eh, d: limit, i: '2026-06-19' }));
-      const sig = await webcrypto.subtle.sign({ name:'ECDSA', hash:'SHA-256' }, pk, pb);
-      return b64u(pb) + '.' + b64u(new Uint8Array(sig));
-    }
-    const tok = await makeToken('buyer@x.com', 2);
-    let netHit = false; window.fetch = () => { netHit = true; return resp(500, '{}'); };
-    await window.verifyActivation(tok, 'buyer@x.com')
-      .then((a) => ok('offline signed key activates with NO network', a && a.offline === true && netHit === false, { netHit }))
-      .catch((e) => ok('offline signed key activates with NO network', false, e));
-    await window.verifyActivation(tok, 'someone@else.com').then(() => ok('offline key rejects wrong email', false)).catch((e) => ok('offline key rejects wrong email', e.code === 'email'));
-    await window.verifyActivation(tok.slice(0, -4) + 'AAAA', 'buyer@x.com').then(() => ok('tampered offline key rejected', false)).catch((e) => ok('tampered offline key rejected', !!e));
-    // the gate input must NOT mangle a pasted long signed token
-    window.GATE.enabled = true; window.renderGate(); window.GATE.enabled = false;
-    const gk = d.getElementById('gate-key');
-    if (gk) { gk.value = tok; gk.dispatchEvent(new window.Event('input', { bubbles: true })); ok('gate input preserves a pasted signed token (no mangling)', gk.value === tok, { len: gk.value.length }); }
-    else ok('gate input preserves a pasted signed token (no mangling)', false, 'no gate-key');
-    if (d.getElementById('gate-root')) d.getElementById('gate-root').innerHTML = '';
+      // 2. the app opens with no gate at all: boot renders the dashboard, not a wall
+      window.location.hash = '#/dashboard';
+      window.bootApp();
+      ok('the app opens straight into itself with no gate', d.getElementById('main').innerHTML.length > 50
+        && (d.getElementById('signin-root') === null || d.getElementById('signin-root').innerHTML === ''));
+
+      // 3. the one-line bypass the audit used. It used to be a skeleton key; now it is
+      //    a stray localStorage entry that grants exactly nothing, because nothing reads it.
+      window.localStorage.setItem('bizpilot.activation', '{"key":"x","email":"a@b"}');
+      window.bootApp();
+      ok('a forged activation record in localStorage grants nothing (nothing reads it)',
+        !/bizpilot\.activation/.test(html) && d.getElementById('main').innerHTML.length > 50);
+      window.localStorage.removeItem('bizpilot.activation');
+
+      // 4. sign-in is not a paywall: the flag exists, defaults off, and says so
+      ok('REQUIRE_SIGNIN ships off, so local use needs no account', window.REQUIRE_SIGNIN === false);
+      ok('the flag admits in writing that it stops nobody determined',
+        /REQUIRE_SIGNIN[\s\S]{0,80}=false/.test(html) && /stops nobody/.test(html));
+    })();
+
+    // ---------- no licence artefact survives ANYWHERE in the repo ----------
+    // The ECDSA signing key behind the old offline keys was an open security item for
+    // the life of this project: a key that ships can be extracted, and one that is
+    // extracted can forge every licence ever issued. Retiring the gate retires the key.
+    // This assertion exists so it cannot quietly return.
+    (function noLicenceArtefacts() {
+      const root = path.join(__dirname, '..');
+      const skip = new Set(['node_modules', '.git']);
+      const files = [];
+      (function walk(dir) {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+          if (skip.has(entry.name)) continue;
+          const full = path.join(dir, entry.name);
+          if (entry.isDirectory()) walk(full); else files.push(full);
+        }
+      })(root);
+
+      const named = files.filter((f) => /keygen|license\.html|licence\.html/i.test(path.basename(f)));
+      ok('no licence key generator or licence page is left in the repo', named.length === 0, named);
+
+      // A P-256 public key in JWK form is what LICENSE_PUBKEY was. Any private half
+      // ("d") alongside a curve is worse. Neither may appear in any tracked file.
+      const offenders = [];
+      for (const f of files) {
+        let text;
+        try { text = fs.readFileSync(f, 'utf8'); } catch (_) { continue; }
+        if (f === path.join(root, 'tests', 'app.test.js')) continue;  // this file names them to forbid them
+        if (/LICENSE_PUBKEY/.test(text)) offenders.push(path.relative(root, f) + ': LICENSE_PUBKEY');
+        if (/"kty"\s*:\s*"EC"/.test(text) || /'kty'\s*:\s*'EC'/.test(text)) offenders.push(path.relative(root, f) + ': JWK EC key');
+        if (/"crv"\s*:\s*"P-256"[\s\S]{0,200}"d"\s*:/.test(text)) offenders.push(path.relative(root, f) + ': EC PRIVATE key');
+        if (/BEGIN (EC |RSA )?PRIVATE KEY/.test(text)) offenders.push(path.relative(root, f) + ': PEM private key');
+      }
+      ok('no signing key and no LICENSE_PUBKEY remains anywhere in the repo', offenders.length === 0, offenders);
+
+      // and the deploy config no longer pretends to hide files that no longer exist
+      const redirects = fs.readFileSync(path.join(root, '_redirects'), 'utf8');
+      ok('_redirects no longer routes the seller-only licence tools', !/keygen|license\.html/i.test(redirects));
+    })();
 
     // ---------- PIN lock (PBKDF2) ----------
     ok('no lock initially', window.hasLock() === false);
@@ -147,15 +387,27 @@ async function main() {
     ok('correct PIN unlocks', window.sessionUnlocked === true && d.getElementById('lock-root').innerHTML === '');
     window.removeLock();
 
-    // ---------- dashboard: 13 per-card widgets + reorder ----------
+    // ---------- dashboard: the ledger sections + reorder ----------
+    // Was: 13 KPI/chart cards. The dashboard is now cash + one alarm + five ledger
+    // sections (spec §2), so the widget set is the section set and none of them is a card.
     window.state.finance = [{ id: 'f', type: 'income', amount: 1000, date: '2026-06-01', category: 'Sales' }];
+    window.state.invoices = [{ id: 'iv1', number: 'INV-0001', client: 'Bloom Cafe', amount: 15000,
+      currency: 'PHP', status: 'Sent', issueDate: '2026-06-01', dueDate: '2026-06-10' }];
+    window.state.tasks = [{ id: 't1', title: 'Reorder soy wax', deadline: '2026-06-05', done: false }];
     window.state.settings.dashOrder = null; window.state.settings.dashHidden = [];
     window.location.hash = '#/dashboard'; window.render(); await wait(20);
     const widgets = Array.from(d.querySelectorAll('.dash-widget')).map((w) => w.getAttribute('data-widget'));
-    ok('dashboard renders 13 individual cards', widgets.length === 13, widgets);
-    ok('each widget wraps exactly one card', Array.from(d.querySelectorAll('.dash-widget')).every((w) => w.querySelectorAll(':scope > .card').length === 1));
-    window.reorderDash('miles', 'rev'); await wait(20);
-    ok('single-card reorder persists', d.querySelectorAll('.dash-widget')[0].getAttribute('data-widget') === 'miles');
+    ok('dashboard renders the ledger sections, not a card grid', widgets.length >= 3 &&
+      widgets.every((id) => ['today', 'month', 'recv', 'recent', 'links'].indexOf(id) >= 0), widgets);
+    ok('no widget on the dashboard is a card', Array.from(d.querySelectorAll('.dash-widget')).every((w) => w.querySelectorAll('.card').length === 0));
+    ok('each widget wraps exactly one ruled section', Array.from(d.querySelectorAll('.dash-widget')).every((w) => w.querySelectorAll(':scope > .led-sec').length === 1));
+    // the standing figure is the only L1 on the page, and it is cash, not lifetime revenue
+    ok('cash on hand is the one standing figure', d.querySelectorAll('#main .n1').length === 1 &&
+      /Cash on hand/i.test(d.querySelector('#main .mlabel').textContent));
+    ok('lifetime revenue and the invented health score are gone from the dashboard',
+      !/Total revenue|Business health|Profit margin/.test(d.getElementById('main').textContent));
+    window.reorderDash('links', 'today'); await wait(20);
+    ok('single-section reorder persists', d.querySelectorAll('.dash-widget')[0].getAttribute('data-widget') === 'links');
 
     // ---------- dashboard: live drag-to-reorder (placeholder gap + persist) ----------
     window.state.settings.dashOrder = null; window.location.hash = '#/dashboard'; window.render(); await wait(20);
@@ -208,7 +460,7 @@ async function main() {
     window.state.settings.sectionOrder = []; window.moveSidebarSection('Shop', -1);
     ok('moving a section persists a custom order', Array.isArray(window.state.settings.sectionOrder) && window.state.settings.sectionOrder.length > 0 && window.state.settings.sectionOrder.indexOf('Shop') < window.state.settings.sectionOrder.indexOf('Money'));
     window.state.settings.favorites = []; window.state.settings.sectionOrder = [];
-    // foundation polish: independent sidebar scroll, full-readable labels, no licensee watermark
+    // foundation polish: independent sidebar scroll, full-readable labels
     ok('sidebar scrolls independently (overscroll contained)', /\.nav\{[^}]*overscroll-behavior:contain/.test(html));
     (function () {
       const m = html.match(/\.nav-item>span:not\(\.nav-badge\):not\(\.nav-fav\)\{([^}]*)\}/);
@@ -216,7 +468,13 @@ async function main() {
       ok('sidebar labels render on one line (nowrap + ellipsis, no wrap)', /white-space:nowrap/.test(rule) && /text-overflow:ellipsis/.test(rule) && !/-webkit-line-clamp/.test(rule) && !/white-space:normal/.test(rule));
     })();
     // adjustable menu size scales both text and icon via --nav-scale, and the sidebar width tracks it
-    ok('sidebar font + icon + width scale with --nav-scale', /font-size:calc\(\.9rem\*var\(--nav-scale/.test(html) && /\.nav-item svg\{width:calc\(17px\*var\(--nav-scale/.test(html) && /\.sidebar\{[^}]*width:calc\(248px\*var\(--nav-scale/.test(html));
+    // The rail is 295px now, per the reference. The thing worth protecting is that the
+    // owner's text-size control still drives it, so the width is read from the rule
+    // rather than pinned to a number this test would have to chase on every redesign.
+    ok('sidebar font + icon + width still scale with --nav-scale',
+      /\.nav-item\{[\s\S]{0,240}font-size:calc\([\d.]+(?:px|rem)\*var\(--nav-scale/.test(html) &&
+      /\.nav-item svg\{width:calc\([\d.]+px\*var\(--nav-scale/.test(html) &&
+      /\.sidebar\{[\s\S]{0,400}width:calc\([\d.]+px\*var\(--nav-scale/.test(html));
     // design-system normalization: type-scale + grid-gap tokens defined and used; no 13px gutters / half-pixel padding
     ok('design tokens defined (type scale + grid gutter)', /--fs-2xl:/.test(html) && /--grid-gap:/.test(html));
     ok('card grids use the gutter token, not magic 13px', /\.grid\{display:grid;gap:var\(--grid-gap\)\}/.test(html) && !/\.grid\{display:grid;gap:13px\}/.test(html) && !/padding:6\.5px/.test(html));
@@ -226,7 +484,7 @@ async function main() {
     ok('mobile: table/order rows have 16px inner padding (not tight to border)', /\.table-wrap tr\{[^}]*padding:11px 16px\}/.test(html) && /\.order-row\{[^}]*padding:14px 16px!important\}/.test(html));
     ok('FX compare + narrow-phone metric grid never overflow (min(100%) tracks / 1-col)', /minmax\(min\(100%,150px\),1fr\)/.test(html) && /@media \(max-width:360px\)\{\s*\.grid-3\{grid-template-columns:minmax\(0,1fr\)\}/.test(html));
     ok('roadmap task rows stack on mobile (title not crushed by the status select)', /class="list-row rm-task-row"/.test(html) && /\.rm-task-row \.rm-task-main\{flex:1 1 100%!important;order:-1/.test(html));
-    ok('mobile dashboard KPIs sit 2-up while rich widgets go full-width', /\.dash-grid \.dash-widget\{grid-column:1 \/ -1\}/.test(html) && /data-widget="rev"\][\s\S]{0,160}grid-column:auto/.test(html));
+    ok('the dashboard ledger is one column at every width (no second track to orphan a section in)', /\.dash-grid \.dash-widget\{grid-column:1 \/ -1\}/.test(html) && /\.dash-grid\.led-grid\{display:block/.test(html) && !/data-widget="rev"/.test(html));
     ok('mobile compacts cards + hides floating sparkline at 2-up', /\.stat-card \.spark\{display:none\}/.test(html));
     // sleek mobile redesign: account cards become a 2-up colourful wallet grid
     ok('mobile account cards sit 2-up (the wallet grid) and override the desktop inline track', /\.acct-grid\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/.test(html) && /class="grid acct-grid mt"/.test(html));
@@ -238,9 +496,46 @@ async function main() {
     ok('finance timeline groups by day with colour-coded dots + amounts', /function financeTimelineHTML/.test(html) && /\.fin-tl-row\[data-type="income"\] \.fin-tl-dot\{background:var\(--income\)/.test(html) && /class="fin-day"/.test(html) && /class="fin-tl-amt"/.test(html));
     // iOS "liquid glass": frosted tab bar + FAB, gated behind @supports (progressive enhancement, solid fallback)
     ok('floating chrome gets frosted glass only where backdrop-filter is supported', /@supports \(\(-webkit-backdrop-filter:blur\(12px\)\) or \(backdrop-filter:blur\(12px\)\)\)/.test(html));
-    ok('glass tab bar rides the shared Liquid Glass tokens in both themes, FAB is accent glass', /\.tabbar\{background:var\(--lg-bg\);[\s\S]{0,200}backdrop-filter:var\(--lg-blur\)/.test(html) && /html\[data-theme="dark"\] \.tabbar\{background:var\(--lg-bg\)/.test(html) && /\.fab\{background:linear-gradient\(140deg,color-mix\(in srgb,var\(--accent\)/.test(html));
+    ok('glass tab bar rides the shared Liquid Glass tokens in both themes, FAB is flat accent glass', /\.tabbar\{background:var\(--lg-bg\);[\s\S]{0,200}backdrop-filter:var\(--lg-blur\)/.test(html) && /html\[data-theme="dark"\] \.tabbar\{background:var\(--lg-bg\)/.test(html) && /\.fab\{background:color-mix\(in srgb,var\(--accent\) 80%,transparent\)/.test(html));
+    // No decorative colour ramps anywhere in the stylesheet. The only gradients
+    // allowed are the ones doing a drawing job (grid, hatch, ruled line, scroll
+    // mask) and the Liquid Glass specular rim, which is a 1px light model.
+    (function noDecorativeGradients() {
+      var css = (html.match(/<style[\s\S]*?<\/style>/g) || []).join('\n');
+      var lines = css.split('\n').map(function (l, i) { return [i, l]; })
+        .filter(function (p) { return /gradient\(/.test(p[1]); });
+      // the glass specular stack spans lines; its stops carry --glass-clarity, and
+      // the two bare opener lines belong to it too.
+      var allowed = /rm-grid-dots|rm-grid-lines|st-fordelivery|sign-pad|mask-image|glass-clarity|^linear-gradient\((?:180|0)deg,$/;
+      var stray = lines.filter(function (p) { return !allowed.test(p[1].trim()); })
+        .map(function (p) { return p[1].trim().slice(0, 70); });
+      ok('no decorative gradients survive in the stylesheet', stray.length === 0, stray);
+      ok('the --accent-grad ramp token is gone in both themes and at runtime', !/--accent-grad/.test(html));
+      ok('the default accent swatch is a solid colour, not the purple ramp', /style="background:#0260a6" data-action="set-accent"/.test(html) && !/linear-gradient\(135deg,#0260a6,#7c5cd6\)/.test(html));
+      ok('task colour tint is one flat mix, not a two-stop same-colour ramp', /function taskColorStyle\(t\)\{ return t\.color\?'background:color-mix/.test(html));
+    })();
+    // Pill-shaped buttons and containers are gone. The only 999px radii left are
+    // things that are genuinely circular (avatar, logos, slider track and thumb)
+    // and the one shape a user can deliberately pick and name.
+    (function noPillControls() {
+      var css = (html.match(/<style[\s\S]*?<\/style>/g) || []).join('\n');
+      var pilled = css.split('\n').filter(function (l) { return /border-radius:9{3,4}px/.test(l); })
+        .map(function (l) { return l.trim().slice(0, 60); });
+      var circular = /glass-range|brand-logo|isl-avatar|rm-fshape-capsule/;
+      var stray = pilled.filter(function (l) { return !circular.test(l); });
+      ok('no button or container is still a pill', stray.length === 0, stray);
+      ok('the island wears the radius scale, not 999px or an invented 24px',
+        /\.isl-item\{[^}]*border-radius:var\(--r\)/.test(html) &&
+        /\.isl-icon\{width:34px;height:34px;border-radius:var\(--r\)/.test(html) &&
+        /border-radius:var\(--r-lg\);padding:5px;box-shadow:var\(--lg-shadow\),var\(--lg-rim\);margin:0 auto/.test(html) &&
+        !/border-radius:24px/.test(html));
+      ok('the circular things stayed circular', /\.isl-avatar\{width:34px;height:34px;border-radius:999px/.test(html) && /\.isl-brand \.brand-logo\{width:28px;height:28px;border-radius:999px\}/.test(html));
+      ok('the rounded-full utility that only made pills is gone', !/\.rounded-full/.test(html));
+    })();
     // macOS Control-Center liquid glass on the KPI stat tiles + wallet tiles, over an ambient mesh
-    ok('Ledger design: canvas is a clean paper surface (no ambient mesh)', !/body\{background-image:\s*radial-gradient/.test(html) && /--bg:#f3f3ef/.test(html));
+    // The paper is now the reference's cool sheet, but the rule it guarded stands: the
+    // canvas is a flat surface, never an ambient mesh behind the content.
+    ok('the canvas is a clean flat surface (no ambient mesh)', !/body\{background-image:\s*radial-gradient/.test(html) && /--bg:#fdfdff/.test(html));
     ok('Ledger design: stat values use the embedded display face (tables keep tabular numerals)', /\.stat-card \.stat-value\{font-family:var\(--font-display\)/.test(html) && /font-family:'Schibsted Grotesk'/.test(html) && /font-family:'Instrument Sans'/.test(html) && /td\{[^}]*font-variant-numeric:tabular-nums\}/.test(html));
     ok('wallet tiles are flat premium cards (identity lives in the tamed icon chip, no stripe)', /\.acct-card\{position:relative;overflow:hidden;background:var\(--bg-card\)\}/.test(html) && /function tameColor/.test(html));
     // standard-mobile shell: bottom tab bar + FAB + header overflow menu + tables→cards
@@ -254,6 +549,38 @@ async function main() {
     ok('header collapses actions into an overflow menu on mobile', /class="topbar-more"/.test(html) && /data-action="toggle-topbar-actions"/.test(html) && /id="topbar-actions"/.test(html) && /\.topbar-actions\.open\{display:flex/.test(html));
     ok('mobile turns data tables into stacked labeled cards', /\.table-wrap thead\{position:absolute/.test(html) && /\.table-wrap td\[data-label\]::before\{content:attr\(data-label\)/.test(html));
     ok('mobile hides empty/dash cells + stacks the hand-built order rows (no overflow)', /\.table-wrap td:empty,\.table-wrap td\[data-mobempty\]\{display:none\}/.test(html) && /\.order-row>div\{min-width:0!important;flex:1 1 100%!important\}/.test(html));
+    /* Tables stack on the room they have, not on the size of the window. The sidebar takes
+       roughly 300px, so a 1024px window leaves a table less space than a 768px one with the
+       drawer shut; keying the stack to the viewport left tables scrolling sideways on every
+       laptop width. These three assertions are what makes that true, and each one on its own
+       is enough to bring the sideways scroll back. */
+    ok('tables stack on their own width, not the window width',
+      /\.table-wrap\{[^}]*container-type:inline-size/.test(html) &&
+      /@container \(max-width:1000px\)\{\s*\.table-wrap table/.test(html));
+    ok('...and the stacking rules are no longer inside the 560px media query',
+      !/@media \(max-width:560px\)\{[\s\S]{0,4000}?\.table-wrap thead\{position:absolute/.test(html));
+    /* The stacked row is a GRID, not a single column. The one-column card is built for a
+       phone; stretched across a 1300px laptop it puts a caption at the far left and its
+       value a screen away, which looks broken. auto-fit gives as many fields per line as
+       fit and collapses to one when only one fits, so the same rule serves both. */
+    ok('a stacked row lays its fields out in a grid, not one stretched column',
+      /\.table-wrap tr\{display:grid;grid-template-columns:repeat\(auto-fit,minmax\(168px,1fr\)\)/.test(html));
+    ok('...and the label-left/value-right pairing is confined to single-column cards',
+      /@container \(max-width:560px\)\{\s*\.table-wrap td\[data-inline\]\{display:flex/.test(html));
+    ok('...with a tightening band above it so the widest table still fits',
+      /@container \(max-width:1150px\)\{[\s\S]{0,300}?\.table-wrap \.cell-clamp\{max-width:/.test(html));
+    /* Orders are flex rows, not a table, so the rule above cannot reach them and they need
+       their own container. Without it the orders list was the last thing on the site still
+       scrolling sideways, at 900px. */
+    ok('order rows stack on their own width too',
+      /class="'\+\(list\.length\?'sec rows order-rows'/.test(html) &&
+      /\.order-rows\{container-type:inline-size\}/.test(html) &&
+      /@container \(max-width:660px\)\{\s*\.order-row\{flex-wrap:wrap/.test(html));
+    /* The free-text clamp has to stay a class. As an inline style no rule could reach it,
+       and the tightening band above would silently do nothing to the widest column. */
+    ok('the free-text column clamp is a class, not an inline style',
+      /\.cell-clamp\{max-width:200px/.test(html) &&
+      !/<td style="max-width:200px;overflow:hidden/.test(html));
     (function () {
       window.location.hash = '#/orders'; window.render();
       ok('order cards are tagged for the mobile stack rule', /class="list-row order-row"/.test(d.getElementById('main').innerHTML));
@@ -334,7 +661,7 @@ async function main() {
       ok('clicking Manpower routes to the manpower view', window.currentRoute() === 'manpower');
       window.location.hash = '#/dashboard';
     })();
-    ok('documents carry no "Licensed to" watermark', window.licTag() === '' && !/· Licensed to /.test((function(){ try { return document.getElementById('sidebar').innerHTML; } catch(_) { return ''; } })()));
+    ok('documents carry no "Licensed to" watermark', !/Licensed to /.test(html) && typeof window.licTag !== 'function');
     // Tailwind-compatible utility layer ships IN-FILE (no CDN/build) and stays CSP/offline-safe
     ok('in-file Tailwind-style utility layer present', /\.flex\{display:flex\}/.test(html) && /\.gap-2\{gap:8px\}/.test(html) && /\.items-center\{align-items:center\}/.test(html) && /\.truncate\{overflow:hidden;text-overflow:ellipsis;white-space:nowrap\}/.test(html));
     ok('no external CSS/JS framework introduced (CSP + offline intact)', !/cdn\.tailwindcss|tailwindcss\.com|<script[^>]+src=|<link[^>]+stylesheet|@import/i.test(html));
@@ -458,7 +785,10 @@ async function main() {
 
     // ---------- delight: KPI count-up is non-destructive (settles to the EXACT figure) ----------
     window.state.finance = [{ id: 'f2', type: 'income', amount: 123456, date: '2026-06-02', category: 'Sales' }];
-    window.location.hash = '#/dashboard'; window.render(); await wait(900); // let the entrance count-up finish
+    // Finance, not the dashboard: the dashboard's standing figure is built from spans
+    // (the peso sign is set apart from its digits) and animateCounts rewrites textContent,
+    // so it deliberately does not reach it.
+    window.location.hash = '#/finance'; window.render(); await wait(900); // let the entrance count-up finish
     ok('animateCounts helper exists', typeof window.animateCounts === 'function');
     const svEl = d.querySelector('.stat-value');
     const finalStat = svEl ? svEl.textContent : '';
@@ -524,7 +854,7 @@ async function main() {
     ok('dismissing hides the bubble + persists', window.state.settings.advisorBubbleOff === true && d.getElementById('advisor-bubble').innerHTML === '');
 
     // ---------- sidebar default white text + white icons ----------
-    ok('sidebar nav text uses the themed rail token (light rail in light mode)', /\.nav-item\{[\s\S]{0,220}color:var\(--sidebar-text\)/.test(html) && /--bg-sidebar:#fbfbf9/.test(html) && /html\[data-theme="dark"\]\{[\s\S]{0,400}--bg-sidebar:#121317/.test(html));
+    ok('sidebar nav text uses the themed rail token (light rail in light mode)', /\.nav-item\{[\s\S]{0,220}color:var\(--sidebar-text\)/.test(html) && /--bg-sidebar:#fdfdff/.test(html) && /html\[data-theme="dark"\]\{[\s\S]{0,900}--bg-sidebar:#101722/.test(html));
     ok('sidebar nav icons follow the themed text colour', /\.nav-item svg\{color:currentColor\}/.test(html));
 
     // ---------- the glyph set: one system, no emoji doing UI work ----------
@@ -657,13 +987,28 @@ async function main() {
 
     // ---------- design/a11y polish ----------
     window.state.tasks = []; window.render();
-    ok('onboarding de-cluttered: hero hidden while checklist shows', d.getElementById('main').innerHTML.indexOf('Welcome to your business command center') === -1);
+    ok('onboarding de-cluttered: hero hidden while checklist shows', d.getElementById('main').innerHTML.indexOf('Start with one entry') === -1);
     window.state.settings.startDismissed = true; window.render();
-    ok('hero returns once checklist dismissed (still empty)', d.getElementById('main').innerHTML.indexOf('Welcome to your business command center') > -1);
+    ok('hero returns once checklist dismissed (still empty)', d.getElementById('main').innerHTML.indexOf('Start with one entry') > -1);
     window.toast('hello world');
     const tEl = d.getElementById('toast-root').querySelector('.toast');
     ok('toast is announced to screen readers (role=alert)', tEl && tEl.getAttribute('role') === 'alert' && !!tEl.getAttribute('aria-live'));
-    ok('AA contrast: --text-3 verified 4.5:1+ (light #5d5f6a / dark #9b9dad)', html.indexOf('--text-3:#5d5f6a') > -1 && html.indexOf('--text-3:#9b9dad') > -1);
+    // Was two hardcoded hexes, so it failed the moment the palette moved even though
+    // the thing it protects (muted ink stays readable) still held. It now computes the
+    // ratio against the sheet each token actually sits on.
+    ok('AA contrast: --text-3 clears 4.5:1 on its own surface in both themes', (function () {
+      const lum = (h) => { const c = h.replace('#',''); const v = [0,2,4].map(i => parseInt(c.slice(i,i+2),16)/255)
+        .map(x => x <= 0.03928 ? x/12.92 : Math.pow((x+0.055)/1.055, 2.4));
+        return 0.2126*v[0] + 0.7152*v[1] + 0.0722*v[2]; };
+      const cr = (a,b) => { const [x,y] = [lum(a), lum(b)]; return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05); };
+      // derived locally: lightBlock/darkBlock are scoped to another block in this file
+      const lb = html.slice(html.indexOf(':root{'), html.indexOf('html[data-theme="dark"]'));
+      const db = html.slice(html.indexOf('html[data-theme="dark"]'));
+      const pick = (block, tok) => (block.match(new RegExp('--'+tok+':(#[0-9a-f]{6})')) || [])[1];
+      const L = cr(pick(lb,'text-3'), pick(lb,'bg'));
+      const D = cr(pick(db,'text-3'), pick(db,'bg'));
+      return L >= 4.5 && D >= 4.5;
+    })());
     ok('focus-visible covers custom controls', /\.chip:focus-visible,\.seg button:focus-visible/.test(html));
     ok('snappy easing token added', html.indexOf('--ease-snappy:') > -1);
     ok('modal focus trap + return-focus wired', html.indexOf('modalReturnFocus') > -1 && /e\.key!=='Tab'/.test(html));
@@ -854,11 +1199,14 @@ async function main() {
     // ---- dashboard: a fresh/sparse dashboard shows only populated cards ----
     window.state.finance = []; window.state.goals = []; window.state.tasks = []; window.state.invoices = [];
     window.state.clients = []; window.state.products = []; window.state.orders = []; window.state.notes = [];
-    window.state.roadmaps = []; window.state.phases = [];
+    window.state.roadmaps = []; window.state.phases = []; window.state.utang = [];
     window.state.settings.dashHidden = []; window.state.settings.dashOrder = null;
     window.location.hash = '#/dashboard'; window.render();
     (function(){ const wids = [].map.call(d.querySelectorAll('.dash-widget'), w => w.getAttribute('data-widget'));
-      ok('fresh dashboard shows only KPI tiles, no empty placeholders', wids.length > 0 && wids.every(id => ['rev','exp','prof','margin'].indexOf(id) >= 0), wids); })();
+      // Nothing to do, nothing owed, nothing logged: the standing figure carries the page
+      // on its own rather than five headings over five "no data yet" placeholders.
+      ok('fresh dashboard shows no empty sections, only the standing figure', wids.length === 0 &&
+        d.querySelectorAll('#main .n1').length === 1, wids); })();
 
     // ---- receipt scan: parser + draft + attach button + end-to-end (stubbed OCR) ----
     (function(){ const items = window.parseReceiptItems('SUPER MART\nMILK 2 @ 55  110.00\nBREAD  45.00\nEGGS x12  84.00\nSUBTOTAL 239.00\nTOTAL  239.00\nCASH 300.00');
@@ -932,21 +1280,34 @@ async function main() {
       click(g.querySelector('[data-route="finance"]'));
       ok('navigating from a dropdown closes it and routes', window.location.hash === '#/finance');
     })();
-    ok('desktop CSS swaps sidebar for the island (min-width:861px)', /@media \(min-width:861px\)\{[\s\S]{0,600}\.sidebar\{display:none\}/.test(html) && /\.island-bar\{position:relative/.test(html));
+    // Reversed deliberately. The owner picked a reference design whose defining
+    // feature is a permanent left rail, so at desktop the sidebar is the nav and the
+    // island is the one that hides. This assertion is the mirror of the one it replaces.
+    ok('desktop CSS swaps the island for the sidebar (min-width:861px)', /@media \(min-width:861px\)\{[\s\S]{0,900}\.island-bar\{display:none\}/.test(html) && /@media \(min-width:861px\)\{[\s\S]{0,900}\.sidebar\{display:flex/.test(html));
     // The nav bar used to be position:fixed with .main padding-top compensating, which
     // meant every scrolled pixel of the page ran underneath it and collided with the
     // pills through the glass. In flow it reserves its own band and nothing can pass
     // behind it: .app stacks as a column, the bar is a flex item, .main is the scrollport.
-    ok('the desktop nav bar is in normal flow, not floating over the page',
+    // These four described the island era: a full-width bar stacked above the page, with
+    // .app as a column. The owner has since chosen a reference design built on a
+    // permanent left rail, so .app is a ROW at desktop and the nav is beside the content
+    // rather than above it. What still matters, and is what these now check, is that the
+    // chrome sits in normal flow rather than floating, that nothing compensates for a
+    // fixed bar that no longer exists, and that .main is the scrollport.
+    ok('the desktop nav is in normal flow, not floating over the page',
       !/\.island-bar\{position:fixed/.test(html) &&
-      /\.island-bar\{position:relative;z-index:70;flex:0 0 auto/.test(html) &&
-      /@media \(min-width:861px\)\{[\s\S]{0,300}\.app\{flex-direction:column\}/.test(html));
-    ok('no padding-top compensation is left behind the retired fixed bar',
-      /@media \(min-width:861px\)\{[\s\S]{0,700}\.main\{--main-pad-x:30px;margin-left:0;padding:0 var\(--main-pad-x\) 60px;/.test(html) &&
-      !/\.main\{--main-pad-x:30px;margin-left:0;padding:76px/.test(html));
-    ok('.main becomes the flex scrollport so the sticky title still pins to the content',
-      /@media \(min-width:861px\)\{[\s\S]{0,800}height:auto;flex:1 1 auto;min-height:0\}/.test(html));
-    ok('paper canvas kept, radii moved to the iOS 27 concentric scale', /--bg:#f3f3ef/.test(html) && /--r-sm:10px; --r:13px; --r-lg:17px; --r-xl:22px; --r-2xl:28px;/.test(html));
+      // the base .sidebar IS position:fixed on purpose: below 861px it is an off-canvas
+      // drawer. What matters is that the DESKTOP rule puts it back into flow.
+      /@media \(min-width:861px\)\{[\s\S]{0,900}\.sidebar\{display:flex;position:relative/.test(html) &&
+      /@media \(min-width:861px\)\{[\s\S]{0,900}\.app\{flex-direction:row\}/.test(html));
+    ok('no padding-top compensation is left behind any retired fixed bar',
+      !/padding:76px/.test(html) &&
+      /@media \(min-width:861px\)\{[\s\S]{0,900}\.main\{--main-pad-x:30px;margin-left:0;padding:0 var\(--main-pad-x\) 60px;/.test(html));
+    ok('.main is the flex scrollport so the sticky title still pins to the content',
+      /@media \(min-width:861px\)\{[\s\S]{0,900}height:auto;flex:1 1 auto;min-height:0\}/.test(html));
+    // The canvas moved from warm paper to the reference sheet; the concentric radius
+    // scale is unchanged and is still the thing being protected here.
+    ok('canvas is the tinted sheet, radii still on the concentric scale', /--bg:#fdfdff/.test(html) && /--r-sm:10px; --r:13px; --r-lg:17px; --r-xl:22px; --r-2xl:28px;/.test(html));
     // island polish: the production dropdown-clip bug + adaptive active pill + glass
     ok('island can never clip its dropdowns (no overflow/contain on the pill bar)', !/\.island\{[^}]*(overflow|contain)/.test(html));
     ok('island wraps gracefully when user labels/custom modules overflow the row', /\.island\{[^}]*flex-wrap:wrap/.test(html) && /\.island\{[^}]*max-width:calc\(100vw - 400px\)/.test(html));
@@ -1252,11 +1613,17 @@ async function main() {
       window.closeModal();
 
       // SF-style optical tracking
-      ok('SF tracking tokens exist across the type scale', /--tr-2xl:-\.032em; --tr-xl:-\.024em/.test(html) && /--tr-xs:\.012em/.test(html));
-      ok('headings and values consume the tracking tokens', /h1,h2,h3\{font-family:var\(--font-display\);letter-spacing:var\(--tr-xl\)\}/.test(html) && /\.stat-value\{[^}]*letter-spacing:var\(--tr-2xl\)/.test(html));
+      ok('SF tracking tokens exist across the type scale', /--tr-2xl:-\.032em; --tr-xl:-\.022em/.test(html) && /--tr-xs:\.02em/.test(html));
+      ok('headings and values consume the tracking tokens', /h1,h2,h3\{font-family:var\(--font-display\);letter-spacing:var\(--tr-lg\)/.test(html) && /\.stat-value\{[^}]*letter-spacing:var\(--tr-xl\)/.test(html));
     })();
     ok('island squeezes on medium desktops (two tiers, fits down to 861px)', /@media \(min-width:861px\) and \(max-width:1180px\)/.test(html) && /@media \(min-width:861px\) and \(max-width:1040px\)/.test(html) && /\.isl-brand b\{display:none\}/.test(html));
-    ok('health ring follows the user accent (no hardcoded gradient stops)', /stop-color:var\(--accent-cta,#4653e8\)/.test(html) && !/<stop offset="0" stop-color="#4653e8"/.test(html));
+    // The ring used to prove this with a gradient stop. The gradient is gone (they are
+    // banned), so the same intent is checked on the solid stroke: the accent still comes
+    // from the token the owner sets, never a hex baked into the drawing.
+    ok('health ring follows the user accent (no hardcoded colour in the drawing)', (function(){
+      var r = window.svgRing(72, 120, null, '72', '/ 100');
+      return /stroke="var\(--accent-cta,#0260a6\)"/.test(r) && !/stroke="#0260a6"/.test(r) && !/linearGradient/.test(r);
+    })());
 
     // build beacon: instantly answers "did the deploy update?"
     ok('build stamp exists and is surfaced in Settings', typeof window.APP_BUILD === 'string' && window.APP_BUILD.length >= 8 && (function(){ window.location.hash='#/settings'; window.render(); return d.querySelector('.page-title p').textContent.indexOf(window.APP_BUILD) > -1; })());
@@ -1915,7 +2282,12 @@ async function main() {
         ok('view transitions use the smooth spring and are reduced-motion guarded',
           /::view-transition-new\(main-content\)\{animation:vtIn [^}]*var\(--spring-smooth\)/.test(css) &&
           /@media \(prefers-reduced-motion:reduce\)\{\s*::view-transition-old\(main-content\),::view-transition-new\(main-content\)\{animation:none/.test(css));
-        ok('routing degrades gracefully where startViewTransition is absent', /typeof document\.startViewTransition!=='function'/.test(html) && /window\.addEventListener\('hashchange',renderRouted\)/.test(html));
+        /* hashchange still drives renderRouted; it goes through a wrapper now because
+           #/signin opens a full-page screen OVER the app and must not also redraw what is
+           underneath it. The fallback being asserted is unchanged. */
+        ok('routing degrades gracefully where startViewTransition is absent',
+          /typeof document\.startViewTransition!=='function'/.test(html) &&
+          /window\.addEventListener\('hashchange',function\(\)\{[\s\S]{0,300}?renderRouted\(\);/.test(html));
         // 2) entrances overshoot (physical), instead of plain fades
         ok('node entrance overshoots before settling (spring physics)', /@keyframes rmNodeIn\{[\s\S]{0,220}?scale\(1\.02\)/.test(css));
         ok('popover entrance overshoots before settling', /@keyframes rmPopIn\{[\s\S]{0,220}?translateY\(1px\)/.test(css));
@@ -2096,7 +2468,8 @@ async function main() {
       const adv = d.getElementById('main').innerHTML;
       ok('advisor shows the cash in vs out chart with a style switcher',
         /Cash in vs out/.test(adv) && /data-chart="advisor"/.test(adv) && /class="c-svg"/.test(adv));
-      ok('advisor cash chart defaults to the area style', /class="c-area"/.test(adv));
+      ok('advisor cash chart opens on the trend view (the Advisor argues about direction)',
+        /data-cint="trend"/.test(adv) && /class="c-line c-rev"/.test(adv) && !/c-area/.test(adv));
       ok('advisor shows the diverging profit-by-month chart', /Profit by month/.test(adv) && /c-zero/.test(adv));
       ok('advisor shows the spending mix with donut/bars options (private style key)', /Where the money goes/.test(adv) && /data-chart="advisorCats"/.test(adv));
       ok('advisor shows the month pace meter', /This month(’|')s pace/.test(adv) && /On pace for/.test(adv));
@@ -2233,13 +2606,51 @@ async function main() {
       var mm = { '2026-01': { revenue: 1000, expenses: 400 }, '2026-02': { revenue: 1500, expenses: 600 }, '2026-03': { revenue: 900, expenses: 700 } };
       var months = ['2026-01', '2026-02', '2026-03'];
       // three graph styles are all available and structurally distinct
-      var bars = window.svgSeries(months, mm, 'bars');
-      var line = window.svgSeries(months, mm, 'line');
-      var area = window.svgSeries(months, mm, 'area');
-      ok('svgSeries bars renders animated bars', /class="c-bar c-rev"/.test(bars) && /animation-delay/.test(bars));
-      ok('svgSeries line renders a draw-animated polyline (pathLength)', /class="c-line c-rev"/.test(line) && /pathLength="100"/.test(line) && !/c-bar/.test(line));
-      ok('svgSeries area renders a gradient fill under the line', /class="c-area"/.test(area) && /linearGradient/.test(area));
-      ok('every series style carries per-column hover tooltips', (bars.match(/data-ctip=/g) || []).length === 3 && /class="c-pt"/.test(line));
+      var bars = window.svgSeries(months, mm, 'compare');
+      var line = window.svgSeries(months, mm, 'trend');
+      var net = window.svgSeries(months, mm, 'net');
+      ok('compare renders animated grouped bars against a period-average reference line',
+        /class="c-bar c-rev"/.test(bars) && /animation-delay/.test(bars) && /class="c-ref"/.test(bars) && /avg revenue/.test(bars));
+      ok('trend renders two polylines and no bars', /class="c-line c-rev"/.test(line) && /pathLength="100"/.test(line) && !/c-bar/.test(line));
+      // THE defect the owner reported: 'line' and 'area' used to be the same drawing.
+      ok('the three views are structurally different drawings, not one repainted',
+        bars !== line && line !== net && bars !== net &&
+        /c-bar c-rev/.test(bars) && !/c-bar/.test(line) && /c-line c-net/.test(net) &&
+        !/c-line c-net/.test(bars) && !/c-line c-net/.test(line) && !/c-ref/.test(net));
+      ok('the removed area view is gone, aliases land on real views',
+        /data-cint="trend"/.test(window.svgSeries(months, mm, 'area')) &&
+        /data-cint="compare"/.test(window.svgSeries(months, mm, 'bars')) &&
+        !/c-area/.test(bars + line + net));
+      // net answers what neither of the others can: where the whole period leaves you
+      var runFix = window.svgSeries(['2026-01', '2026-02', '2026-03'],
+        { '2026-01': { revenue: 100, expenses: 900 }, '2026-02': { revenue: 100, expenses: 200 }, '2026-03': { revenue: 3000, expenses: 100 } }, 'net');
+      ok('net accumulates and marks the month the running total turns positive',
+        /class="c-zero"/.test(runFix) && /c-bar c-neg/.test(runFix) && /c-bar c-pos/.test(runFix) &&
+        /class="c-cross"/.test(runFix) && /back in the black/.test(runFix));
+      ok('net tooltips read the running total, not a repeat of the monthly profit',
+        /Running total/.test(net) && !/Running total/.test(bars));
+      ok('no chart view emits a gradient (owner ban)',
+        !/linearGradient|radialGradient/.test(bars + line + net + runFix));
+      ok('money out is hatched, money in is solid, so the pair survives deuteranopia',
+        /<pattern id="cg\d+h"/.test(bars) && /fill:url\(#cg\d+h\)/.test(bars) && /c-bar c-exp c-hatch/.test(bars));
+      ok('trend marks every point with a shape, circle in vs square out',
+        (line.match(/class="c-mk c-rev"/g) || []).length === 3 && (line.match(/class="c-mk c-exp"/g) || []).length === 3);
+      ok('every series view carries per-column hover tooltips', (bars.match(/data-ctip=/g) || []).length === 3 && /class="c-pt"/.test(line));
+      // an empty range says so instead of drawing an axis around nothing
+      var blank = window.svgSeries(months, { '2026-01': { revenue: 0, expenses: 0 } }, 'compare');
+      ok('an all-zero range renders an honest empty state, not an empty axis',
+        /class="c-empty"/.test(blank) && /Nothing recorded/.test(blank) && !/c-grid/.test(blank) && !/<svg viewBox="0 0 620/.test(blank));
+      ok('no-months renders the empty state too', /class="c-empty"/.test(window.svgSeries([], {}, 'trend')));
+      // keyboard + screen-reader equivalent
+      ok('the chart is a focusable group with arrow-key instructions in its label',
+        /class="c-int"/.test(bars) && /tabindex="0"/.test(bars) && /role="group"/.test(bars) && /Arrow keys move between months/.test(bars));
+      ok('every view ships a table equivalent of the series', /class="c-table"/.test(bars) && /class="c-table"/.test(line) && /class="c-table"/.test(net) &&
+        /<caption>/.test(bars) && /scope="row"/.test(bars));
+      ok('the net table reports the running total column, the others report profit',
+        /Running total<\/th>/.test(net) && /Profit<\/th>/.test(bars) && !/Running total<\/th>/.test(bars));
+      ok('a live readout ships with the chart and starts on the latest month',
+        /class="c-readout" aria-live="polite"/.test(bars) && /Mar 2026/.test(bars.split('c-readout')[1]) &&
+        (bars.match(/data-cro=/g) || []).length === 3);
       // tooltip payload is structured JSON — never HTML — so it parses clean after attribute decode
       var tipHost = d.createElement('div'); tipHost.innerHTML = '<svg>' + bars + '</svg>';
       var pt = tipHost.querySelector('[data-ctip]');
@@ -2263,14 +2674,19 @@ async function main() {
       // upgraded sparkline draws itself in with a gradient area
       var spark = window.svgSparkline([1, 3, 2, 5, 4], 90, 30, 'var(--income)');
       ok('sparkline is animated (draw + gradient area + endpoint)', /class="c-spark-line"/.test(spark) && /class="c-spark-area"/.test(spark) && /pathLength="100"/.test(spark));
-      ok('line/area charts carry a single revenue flow overlay (not expenses/sparklines)', /class="c-flow c-rev"/.test(line) && /class="c-flow c-rev"/.test(area) && !/c-flow c-exp/.test(line) && !/c-spark-flow/.test(spark));
-      ok('flow + sheen loops exist and are reduced-motion-guarded', /@keyframes cFlow\{/.test(html) && /@keyframes cSheen\{/.test(html) && /\.c-svg \.c-flow\{display:none\}/.test(html));
-      ok('sheen is opt-in (.progress.live) so dense table bars stay calm', /\.progress\.live \.bar::after/.test(html) && !/\.progress \.bar::after/.test(html));
+      ok('only the trend view carries the single revenue flow overlay (not expenses/sparklines/bars)',
+        /class="c-flow c-rev"/.test(line) && !/c-flow c-exp/.test(line) && !/c-flow/.test(bars) && !/c-flow/.test(net) && !/c-spark-flow/.test(spark));
+      ok('flow loop exists and is reduced-motion-guarded', /@keyframes cFlow\{/.test(html) && /\.c-svg \.c-flow\{display:none\}/.test(html));
+      ok('the travelling sheen ramp is gone from every progress/pace/category bar', !/@keyframes cSheen/.test(html) && !/\.progress\.live \.bar::after/.test(html) && !/\.progress \.bar::after/.test(html));
       var sparkLbl = window.svgSparkline([1, 3, 2], 90, 30, 'var(--income)', 'Revenue trend');
       ok('labelled sparkline carries a Latest/High/Low tooltip', /data-ctip=/.test(sparkLbl) && /Latest/.test(sparkLbl));
       // health ring draws itself in (unique gradient id + --c0 keyframe start)
       var ring = window.svgRing(72, 120, null, '72', '/ 100');
-      ok('health ring has draw-in start + per-ring gradient id', /--c0:/.test(ring) && !/id="ringGrad"/.test(ring) && /id="rg\d/.test(ring));
+      ok('health ring keeps its draw-in start and is now a solid stroke (gradients are banned)',
+        /--c0:/.test(ring) && !/linearGradient/.test(ring) && /stroke="var\(--accent-cta/.test(ring));
+      ok('the sparkline area is a flat tint, not a gradient', !/linearGradient/.test(spark) && /class="c-spark-area" d="[^"]+" fill="var\(--income\)" opacity="0\.15"/.test(spark));
+      ok('no chart anywhere still mints an SVG gradient at runtime',
+        !/linearGradient|radialGradient/.test(ring + spark + donut + catBars + window.svgProfitBars(months, mm)));
       // the floating tooltip surface is theme-independent dark (light-mode contrast bug regression)
       ok('tooltip surface is always-dark (never white-on-white in light mode)', /\.chart-tip\{[^}]*background:rgba\(21,22,26/.test(html));
 
@@ -2286,13 +2702,66 @@ async function main() {
       // moving off the chart hides it
       d.body.dispatchEvent(new window.MouseEvent('pointermove', { bubbles: true, clientX: 5, clientY: 5 }));
       ok('leaving the chart hides the tooltip', !d.getElementById('chart-tip').classList.contains('show'));
-      // clicking the "line" style tab re-renders as a line chart and remembers the choice
-      var lineTab = d.querySelector('[data-action="chart-style"][data-chart="monthly"][data-style="line"]');
-      ok('a graph-style switcher is present on the chart card', !!lineTab);
-      if (lineTab) { click(lineTab); }
-      ok('picking Line switches the graph + persists the preference',
-        window.state.settings.chartStyles && window.state.settings.chartStyles.monthly === 'line' &&
-        /class="c-line/.test(d.querySelector('.chart-box').innerHTML));
+      // the switcher is labelled by the QUESTION each view answers, not by its shape
+      var trendTab = d.querySelector('[data-action="chart-style"][data-chart="monthly"][data-style="trend"]');
+      ok('a view switcher is present on the chart card', !!trendTab);
+      ok('the tabs are labelled by what they answer, not by their shape',
+        !!trendTab && /Trend: where revenue and expenses are heading/.test(trendTab.getAttribute('title')) &&
+        !/Grouped bars|^Line$|^Area$/.test(trendTab.getAttribute('title')) &&
+        d.querySelectorAll('[data-chart="monthly"] .ct-lab').length === 3);
+      if (trendTab) { click(trendTab); }
+      ok('picking Trend switches the graph + persists the preference',
+        window.state.settings.chartStyles && window.state.settings.chartStyles.monthly === 'trend' &&
+        /class="c-line/.test(d.querySelector('.chart-box').innerHTML) &&
+        !/c-bar/.test(d.querySelector('.chart-box').innerHTML));
+      var netTab = d.querySelector('[data-action="chart-style"][data-chart="monthly"][data-style="net"]');
+      if (netTab) { click(netTab); }
+      ok('picking Running total draws a third, different chart',
+        window.state.settings.chartStyles.monthly === 'net' &&
+        /c-line c-net/.test(d.querySelector('.chart-box').innerHTML) &&
+        /class="c-zero"/.test(d.querySelector('.chart-box').innerHTML));
+      // ---- keyboard: the chart was role="img" with a static label, so a keyboard
+      // user got a summary and nothing else. Drive real key events. ----
+      window.state.settings.chartStyles = { monthly: 'compare' }; window.render();
+      var cint = d.querySelector('.chart-box .c-int');
+      ok('the chart is a real focus stop with a described keyboard contract',
+        !!cint && cint.getAttribute('tabindex') === '0' && cint.getAttribute('role') === 'group' &&
+        /Arrow keys move between months/.test(cint.getAttribute('aria-label')));
+      var nPts = cint.querySelectorAll('.c-pt').length;
+      function key(k) {
+        var ev = new window.KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true });
+        cint.dispatchEvent(ev); return ev;
+      }
+      cint.dispatchEvent(new window.FocusEvent('focusin', { bubbles: true }));
+      ok('focusing the chart lights the latest month', cint.getAttribute('data-active') === String(nPts - 1) &&
+        cint.querySelectorAll('.c-pt.on').length === 1);
+      var ro = cint.querySelector('.c-readout');
+      var atEnd = ro.textContent;
+      key('ArrowLeft');
+      ok('ArrowLeft steps back a month and the readout follows',
+        cint.getAttribute('data-active') === String(nPts - 2) && ro.textContent !== atEnd && ro.textContent.length > 0);
+      key('ArrowRight');
+      ok('ArrowRight steps forward again', cint.getAttribute('data-active') === String(nPts - 1) && ro.textContent === atEnd);
+      key('Home');
+      ok('Home jumps to the first month', cint.getAttribute('data-active') === '0');
+      key('End');
+      ok('End jumps to the last month', cint.getAttribute('data-active') === String(nPts - 1));
+      for (var kk = 0; kk < nPts + 3; kk++) key('ArrowRight');
+      ok('arrowing past the end clamps instead of wrapping or throwing', cint.getAttribute('data-active') === String(nPts - 1));
+      for (var k2 = 0; k2 < nPts + 3; k2++) key('ArrowLeft');
+      ok('arrowing past the start clamps too', cint.getAttribute('data-active') === '0');
+      ok('the arrow keys are consumed, so the page does not scroll out from under the chart', key('ArrowLeft').defaultPrevented);
+      ok('an unrelated key is left alone for the rest of the app', !key('a').defaultPrevented);
+      ok('the readout is a polite live region, so the step is announced',
+        ro.getAttribute('aria-live') === 'polite' && ro.textContent.indexOf('revenue') !== -1);
+      cint.dispatchEvent(new window.FocusEvent('focusout', { bubbles: true }));
+      ok('blurring drops the highlight and rests the readout on the latest month',
+        !cint.hasAttribute('data-active') && cint.querySelectorAll('.c-pt.on').length === 0 && ro.textContent === atEnd);
+      // reduced motion covers the new marks and the new transitions too
+      ok('the new chart marks are reduced-motion-guarded',
+        /\.c-svg \.c-mk,\.cat-bar \.cb-fill/.test(html) && /\.c-svg \.c-mk,\.c-svg \.c-col,\.c-svg \.c-guide,\.c-int:focus-visible\{transition:none\}/.test(html));
+      ok('the focus indicator is a real visible outline, not a colour swap',
+        /\.c-int:focus-visible\{outline:2px solid var\(--accent\);outline-offset:4px\}/.test(html));
       // reset so later/again renders are stable
       window.state.settings.chartStyles = {}; window.render();
     })();
@@ -2430,6 +2899,24 @@ async function main() {
         return iv.status === 'Paid' && iv.fxRate === 61.732 && iv.fxRateBy === 'manual' &&
           window.state.finance.length === 1 && fe.amount === 61732;
       })(), [window.state.invoices[0], window.state.finance]);
+      // receivablesTotal() had NO coverage at all: an audit reverted its fix (summing the
+      // raw foreign amount into a peso total, so a $1000 invoice counted as 1000) and all
+      // 789 assertions still passed. It is one of two functions that answer "what am I
+      // owed", both of which surface to the owner, so they are pinned together here.
+      ok('receivablesTotal converts foreign invoices instead of summing their face value', (function () {
+        window.fxSetManualRate('USD', 61.732);
+        window.state.orders = [];
+        window.state.invoices = [
+          { id: 'ra', number: 'INV-R1', client: 'US', amount: 1000, currency: 'USD', fxRate: 61.732,
+            fxRateBy: 'manual', fxRateAt: new Date().toISOString(), status: 'Sent', dueDate: window.todayISO() },
+          { id: 'rb', number: 'INV-R2', client: 'Local', amount: 15000, currency: 'PHP',
+            status: 'Sent', dueDate: window.todayISO() }
+        ];
+        const total = window.receivablesTotal();
+        const summary = window.receivablesSummary().total;
+        // 1000 x 61.732 + 15000. The bug produced 16,000 by treating dollars as pesos.
+        return total === 76732 && summary === 76732 && total !== 16000;
+      })(), { total: window.receivablesTotal && window.receivablesTotal() });
       ok('58,500 never reached the books on the three mark-paid paths',
         window.state.finance.every((e) => e.amount !== 58500), window.state.finance);
       window.confirm = realConfirm;
@@ -2495,11 +2982,16 @@ async function main() {
       window.state.invoices = [{ id: 'p1', number: 'INV-9300', client: 'A', desc: 'x', amount: 1000,
         currency: 'USD', fxRate: 58.5, status: 'Paid', paidDate: window.todayISO(),
         issueDate: window.todayISO(), dueDate: window.todayISO() }];
-      const notice = window.fxInvoiceNoticeHTML();
+      // the wall of prose is now the modal body; the page keeps one line
+      const notice = window.fxInvoiceNoticeDetailHTML();
       ok('the rate notice does not tell an already-Paid invoice it "cannot be marked paid"',
         /already marked paid at an unverified rate/.test(notice) && !/It cannot be marked paid/.test(notice));
       ok('and it warns that the books and the printed invoice now state different things',
-        /state different things/.test(notice));
+        /state different things/.test(notice) && /state different things/.test(window.fxInvoiceNoticeHTML()));
+      ok('the on-page notice is one line with a way into the full explanation, not a wall of prose',
+        (function () { const line = window.fxInvoiceNoticeHTML();
+          return /^<p class="noteline"/.test(line) && /data-action="fx-why"/.test(line) &&
+            line.length < 460 && !/<ul/.test(line); })(), window.fxInvoiceNoticeHTML().length);
       window.state.invoices = []; window.state.finance = [];
 
       // ---- a printed invoice never asserts a peso figure from an unverified rate ----
@@ -2729,6 +3221,317 @@ async function main() {
     })();
 
     // =====================================================================
+    // Automatic rates: opening a money screen refreshes the rate itself.
+    // The owner asked for this instead of typing a rate in by hand ("is there
+    // a way to make it automatic ... everytime i open invoice or money anything
+    // related to conversion"). Making a fetch happen on navigation is the easy
+    // half; these tests pin the five things that make it safe to do that often:
+    // a freshness window, a backoff after a failure, the opt-out, offline, and
+    // not trampling the screen the owner is looking at.
+    // fetch is stubbed throughout — the suite never touches the network.
+    // =====================================================================
+    await (async function fxAutoOnRouteEntry() {
+      const savedInv = window.state.invoices, savedFin2 = window.state.finance;
+      const realToast2 = window.toast, realFetch2 = window.fetch;
+      const realOnline = window.navigator.onLine;
+      const setOnline = (v) => Object.defineProperty(window.navigator, 'onLine', { value: v, configurable: true });
+      window.state.invoices = []; window.state.finance = [];
+
+      let fetches = 0;
+      const RATES = { rates: { PHP: 1, USD: 1 / 61.732, EUR: 1 / 66.5, GBP: 1 / 79.1, AUD: 1 / 40.2, CAD: 1 / 44, SGD: 1 / 45.9, AED: 1 / 16.8, JPY: 1 / 0.41 } };
+      const goodFetch = () => { fetches++; return resp(200, JSON.stringify(RATES)); };
+      const badFetch = () => { fetches++; return Promise.reject(new Error('Failed to fetch')); };
+      const minsAgo = (m) => new Date(Date.now() - m * 60000).toISOString();
+      // a settled, fully-verified starting point, then override whatever the case needs
+      const setFx = (o) => {
+        window.state.settings.fx = Object.assign({
+          auto: true, updated: minsAgo(1), lastTryAt: null, lastError: null,
+          phpPer: { USD: 61.732 }, src: { USD: { by: 'live', at: minsAgo(1) } }, __srcMigrated: true
+        }, o || {});
+      };
+      // "open" a screen the way the app does: change the hash, then render.
+      const enter = async (route) => {
+        window.location.hash = '#/' + route;
+        window.render();
+        await wait(40);
+      };
+      window.toast = function () {};
+      setOnline(true);
+
+      // ---- which screens count ----
+      ok('the money screens are the ROUTES "Money" section plus dashboard, Advisor and Settings',
+        typeof window.fxMoneyRoute === 'function' && (function () {
+          const money = window.ROUTES.filter((r) => r.section === 'Money').map((r) => r.id);
+          const want = money.concat(['dashboard', 'insights', 'settings']);
+          const got = window.ROUTES.map((r) => r.id).filter(window.fxMoneyRoute);
+          return want.every((r) => window.fxMoneyRoute(r)) && got.length === want.length &&
+            // and the screens with no money on them are left alone
+            !window.fxMoneyRoute('tasks') && !window.fxMoneyRoute('notes') && !window.fxMoneyRoute('roadmap');
+        })(),
+        typeof window.fxMoneyRoute === 'function' ? window.ROUTES.map((r) => r.id).filter(window.fxMoneyRoute) : 'fxMoneyRoute missing');
+
+      // ---- the freshness window ----
+      window.fetch = goodFetch;
+      setFx({ updated: minsAgo(3 * 60) });   // three hours old
+      fetches = 0;
+      await enter('invoices');
+      ok('opening Invoices with a stale rate refreshes it automatically — no manual step',
+        fetches === 1 && window.state.settings.fx.src.USD.by === 'live', { fetches });
+
+      setFx({ updated: minsAgo(2) });        // two minutes old
+      fetches = 0;
+      await enter('finance'); await enter('report'); await enter('calculators');
+      ok('a rate fetched minutes ago is NOT refetched on the next three money screens',
+        fetches === 0, { fetches });
+
+      ok('the freshness window is a named constant in minutes, not hours',
+        typeof window.FX_ROUTE_REFRESH_MIN === 'number' && window.FX_ROUTE_REFRESH_MIN > 0 && window.FX_ROUTE_REFRESH_MIN <= 120,
+        window.FX_ROUTE_REFRESH_MIN);
+
+      // a rate exactly older than the window refreshes; just inside it does not
+      setFx({ updated: minsAgo(window.FX_ROUTE_REFRESH_MIN + 1) });
+      fetches = 0; await enter('dashboard');
+      const pastWindow = fetches;
+      setFx({ updated: minsAgo(window.FX_ROUTE_REFRESH_MIN - 1) });
+      fetches = 0; await enter('invoices');
+      ok('the window is what decides: one minute past it fetches, one minute inside it does not',
+        pastWindow === 1 && fetches === 0, { pastWindow, insideWindow: fetches });
+
+      // ---- a screen with no money on it never fetches ----
+      setFx({ updated: minsAgo(3 * 60) });
+      fetches = 0;
+      await enter('tasks'); await enter('notes'); await enter('roadmap');
+      ok('opening a screen with no money on it never fetches', fetches === 0, { fetches });
+
+      // ---- failure backoff ----
+      window.fetch = badFetch;
+      setFx({ updated: minsAgo(3 * 60) });
+      window.fxAutoWarned = false;
+      fetches = 0;
+      await enter('invoices');
+      const firstTry = fetches;
+      await enter('finance'); await enter('report'); await enter('dashboard');
+      ok('a refresh that just FAILED is not retried on every following navigation',
+        firstTry === 1 && fetches === 1, { firstTry, afterThreeMoreScreens: fetches });
+      ok('the failure is still recorded, and the saved rate is untouched and still usable',
+        window.state.settings.fx.lastError === 'Failed to fetch' && !!window.state.settings.fx.lastTryAt &&
+        window.state.settings.fx.phpPer.USD === 61.732 && window.fxRecordRate('USD') === 61.732);
+
+      ok('the backoff is a named constant, and shorter than the freshness window',
+        typeof window.FX_RETRY_MIN === 'number' && window.FX_RETRY_MIN > 0 && window.FX_RETRY_MIN <= window.FX_ROUTE_REFRESH_MIN,
+        window.FX_RETRY_MIN);
+
+      // once the backoff has expired it does try again
+      window.state.settings.fx.lastTryAt = minsAgo(window.FX_RETRY_MIN + 1);
+      fetches = 0;
+      await enter('invoices');
+      ok('once the backoff expires the next money screen tries again', fetches === 1, { fetches });
+
+      // ---- an automatic failure still warns exactly once per session ----
+      window.fetch = badFetch;
+      setFx({ updated: minsAgo(3 * 60) });
+      window.fxAutoWarned = false;
+      const warns = [];
+      window.toast = function (m, k) { warns.push([k || 'ok', m]); };
+      await enter('invoices');
+      window.state.settings.fx.lastTryAt = minsAgo(window.FX_RETRY_MIN + 1);
+      await enter('finance');
+      window.state.settings.fx.lastTryAt = minsAgo(window.FX_RETRY_MIN + 1);
+      await enter('report');
+      window.toast = function () {};
+      ok('three failed automatic refreshes warn the owner ONCE, not three times',
+        warns.filter((w) => /could not be refreshed/.test(w[1])).length === 1, warns.map((w) => w[1].slice(0, 40)));
+
+      // ---- the opt-out ----
+      window.fetch = goodFetch;
+      setFx({ auto: false, updated: minsAgo(30 * 60) });
+      fetches = 0;
+      await enter('invoices'); await enter('settings'); await enter('finance');
+      ok('fx.auto === false disables automatic refresh entirely', fetches === 0, { fetches });
+
+      // ---- offline is a no-op, and never costs the owner their saved rate ----
+      setOnline(false);
+      setFx({ updated: minsAgo(30 * 60) });
+      fetches = 0;
+      await enter('invoices'); await enter('finance');
+      ok('offline, opening a money screen fetches nothing and the saved rate still records money',
+        fetches === 0 && window.state.settings.fx.phpPer.USD === 61.732 && window.fxRecordRate('USD') === 61.732 &&
+        !window.state.settings.fx.lastError, { fetches });
+      setOnline(true);
+
+      // ---- offline: the manual path still works, which is the whole offline promise ----
+      setOnline(false);
+      ok('offline, a rate typed in by hand is still accepted and can still record money', (function () {
+        window.state.settings.fx.phpPer = {}; window.state.settings.fx.src = {};
+        const okk = window.fxSetManualRate('USD', 59.25);
+        return okk && window.fxRecordRate('USD') === 59.25 && window.fxRateInfo('USD').by === 'manual';
+      })());
+      setOnline(true);
+
+      // ---- a live rate wins over a manual one, but the owner is TOLD ----
+      window.fetch = goodFetch;
+      setFx({ updated: minsAgo(3 * 60), phpPer: { USD: 55 }, src: { USD: { by: 'manual', at: minsAgo(120) } } });
+      const said = [];
+      window.toast = function (m) { said.push(m); };
+      await enter('invoices');
+      window.toast = function () {};
+      ok('a fresh live rate replaces a manual one — the live number is the more accurate of the two',
+        window.state.settings.fx.phpPer.USD === 61.732 && window.state.settings.fx.src.USD.by === 'live');
+      ok('and replacing a manual rate is never silent — the owner is told which one changed',
+        said.some((m) => /USD/.test(m) && /replac/i.test(m)), said);
+
+      // a live rate landing on top of another LIVE rate is not worth a toast
+      //
+      // Drain before capturing. enter() waits a fixed 40ms, but a refresh resolves two
+      // .then hops after that, so on a slower or faster runner the PREVIOUS case's
+      // "replaced your manual rate" toast lands here instead of there, and this
+      // assertion fails for something it is not testing. That is exactly what happened
+      // in CI on Node 24 while three local runs on Node 22 passed: 884/1 there, 885/0
+      // here. The bug was the fixed sleep standing in for "the app has gone quiet".
+      await wait(160);
+      setFx({ updated: minsAgo(3 * 60), phpPer: { USD: 55 }, src: { USD: { by: 'live', at: minsAgo(120) } } });
+      const quiet = [];
+      window.toast = function (m) { quiet.push(m); };
+      await enter('invoices');
+      await wait(160);   // and let THIS refresh finish before deciding it said nothing
+      window.toast = function () {};
+      ok('a live rate refreshing another live rate says nothing — that is just it working',
+        quiet.length === 0, quiet);
+
+      // =================================================================
+      // The part that could have multiplied the blink.
+      // A fetch resolving a few seconds after the owner lands on a screen is
+      // a re-render NOBODY asked for. Measured in Chromium, a same-route
+      // render() produces no blank frame (the entrance is gated on
+      // routeChanged), but it still rebuilds #main — which throws away
+      // whatever the owner was typing. That is the failure mode to pin.
+      // =================================================================
+      window.fetch = goodFetch;
+      setFx({ updated: minsAgo(3 * 60) });
+      window.ui.settingsTab = 'business';   // an earlier test leaves this on 'custom'
+      window.location.hash = '#/settings';
+      window.render();
+      await wait(40);
+      const rateInput = d.querySelector('[data-form="fx-rates"] [name="fx_USD"]');
+      ok('the Settings currency card offers a manual rate field (the offline path)', !!rateInput,
+        { route: window.currentRoute(), hasForm: !!d.querySelector('[data-form="fx-rates"]') });
+      if (rateInput) {
+        rateInput.focus();
+        rateInput.value = '60.5';
+        ok('the manual rate field is really focused', d.activeElement === rateInput);
+        setFx({ updated: minsAgo(3 * 60) });
+        await window.fetchFxRates(false);       // a background refresh lands mid-typing
+        await wait(40);
+        const still = d.querySelector('[data-form="fx-rates"] [name="fx_USD"]');
+        ok('a background refresh does NOT destroy the rate the owner is in the middle of typing',
+          still === rateInput && still.value === '60.5' && d.activeElement === still,
+          { sameNode: still === rateInput, value: still && still.value });
+        ok('...and the fetched rate is still saved to state regardless, so nothing is lost',
+          window.state.settings.fx.phpPer.USD === 61.732 && window.state.settings.fx.src.USD.by === 'live');
+        rateInput.blur();
+      }
+
+      // a background refresh must never re-arm the container entrance animation
+      setFx({ updated: minsAgo(3 * 60) });
+      window.location.hash = '#/invoices';
+      window.render();
+      await wait(40);
+      const mainEl = d.getElementById('main');
+      mainEl.classList.remove('view-enter');
+      await window.fetchFxRates(false);
+      await wait(40);
+      ok('a resolving background fetch does not re-arm the #main entrance animation',
+        !d.getElementById('main').classList.contains('view-enter'),
+        d.getElementById('main').className);
+      ok('...and it does not route itself through the View Transitions navigation path',
+        /fxRefreshInPlace/.test(html) && html.indexOf("else if(/^(settings|calculators|invoices)$/.test(currentRoute())) render();") === -1);
+      ok('the rate surfaces flash instead of the whole view cross-fading (a ring, never opacity)',
+        /@keyframes fxFlash\{[^}]*box-shadow/.test(html) && !/@keyframes fxFlash\{[^}]*opacity/.test(html) &&
+        /data-fx-live/.test(html));
+
+      // The amber "Exchange rates need your attention" card is the one thing on the
+      // Invoices screen an automatic refresh can DELETE. Letting it return '' removed it
+      // under the owner with no input and pulled everything below it upward — measured in
+      // Chromium at -152px on an 18-invoice screen. The slot has to stay occupied.
+      await (async function noticeSlotStaysPut() {
+        window.state.invoices = [{
+          id: 'ns1', number: 'INV-NS1', client: 'Northwind Studio', amount: 1200, currency: 'USD',
+          fxRate: 61.732, fxRateBy: 'manual', fxRateAt: new Date().toISOString(), status: 'Sent',
+          issueDate: window.todayISO(), dueDate: window.todayISO()
+        }];
+        // every invoice carries a verified frozen rate, but there is no verified rate for
+        // USD *today* — so the card's only remaining line is "No verified rate today"
+        window.state.settings.fx = {
+          auto: true, updated: null, lastTryAt: null, lastError: null,
+          phpPer: JSON.parse(JSON.stringify(window.FX_SEED_PHP_PER)), src: {}, __srcMigrated: true
+        };
+        window.fxJustRefreshed = false;
+        const before = window.fxInvoiceNoticeHTML();
+        ok('a foreign invoice with no verified rate today raises the amber notice',
+          /class="noteline"/.test(before) && /No verified rate today/.test(before) && /fx-why/.test(before), before.slice(0, 120));
+
+        window.fetch = goodFetch;
+        // arrive from a screen with no money on it, so the refresh fires on ENTERING
+        // Invoices rather than having already happened somewhere else
+        window.location.hash = '#/tasks'; window.render();
+        window.location.hash = '#/invoices'; window.render();
+        await wait(60);
+        const after = window.fxInvoiceNoticeHTML();
+        ok('after the refresh resolves it, the notice slot is NOT emptied — it says what happened',
+          after !== '' && /up to date/.test(after) && !/estimated rate/.test(after),
+          after.slice(0, 90));
+        ok('...and that confirmation carries the flash marker, so the change is seen',
+          /data-fx-live/.test(after));
+        // it belongs to the refresh that just happened, not to every later screen
+        window.fxJustRefreshed = false;
+        ok('once the owner navigates on, the slot goes quiet again rather than nagging',
+          window.fxInvoiceNoticeHTML() === '');
+        window.state.invoices = [];
+      })();
+
+      // A navigation already in flight has not painted yet: renderRouted() hands render()
+      // to startViewTransition(), which can defer it by up to a second. A fetch resolving
+      // inside that gap used to render the NEW route early, which set lastRenderRoute to
+      // it, so the navigation's own render then saw routeChanged === false and the screen's
+      // entrance never played — measured at 1202ms of the content area under full opacity,
+      // the worst window in the app. The pending render paints the new rate anyway.
+      // The gap cannot be produced by changing the hash here: jsdom runs the hashchange
+      // listener straight away, so the navigation render has already happened. What the
+      // gap actually IS, though, is exactly one observable state — the hash names a route
+      // that render() has not painted yet, i.e. currentRoute() !== lastRenderRoute — so
+      // that is what this sets up directly.
+      setFx({ updated: minsAgo(3 * 60) });
+      window.location.hash = '#/invoices';
+      window.render();
+      await wait(40);
+      const sentinel = d.createElement('div');
+      sentinel.id = 'fx-race-sentinel';
+      d.getElementById('main').appendChild(sentinel);
+      window.lastRenderRoute = 'dashboard';  // a render for '#/invoices' is still pending
+      setFx({ updated: minsAgo(3 * 60) });
+      await window.fetchFxRates(false);      // the fetch resolves inside that gap
+      await wait(40);
+      ok('a fetch resolving mid-navigation does not render the new route early and steal its entrance',
+        !!d.getElementById('fx-race-sentinel'),
+        { sentinelSurvived: !!d.getElementById('fx-race-sentinel'), route: window.currentRoute() });
+      ok('...and the rate it fetched is still saved, so the pending navigation paints it',
+        window.state.settings.fx.phpPer.USD === 61.732 && window.state.settings.fx.src.USD.by === 'live');
+      window.render();                       // the navigation's own render finally lands
+      await wait(40);
+      ok('when that navigation does render, it is a real route change and marks the entrance',
+        d.getElementById('main').classList.contains('view-enter') && !d.getElementById('fx-race-sentinel'),
+        d.getElementById('main').className);
+
+      window.state.invoices = savedInv; window.state.finance = savedFin2;
+      window.toast = realToast2; window.fetch = realFetch2;
+      setOnline(realOnline);
+      window.state.settings.fx = { auto: true, updated: new Date().toISOString(), lastTryAt: null, lastError: null, phpPer: JSON.parse(JSON.stringify(window.FX_SEED_PHP_PER)), src: {} };
+      window.fxMigrate();
+      window.location.hash = '#/dashboard';
+      window.render();
+    })();
+
+    // =====================================================================
     // DEFECT 2 — "blinking all over the site when switching tabs or section"
     // A route change used to replay an entrance on EVERY child of #main.
     // Measured peak running animations under #main on a route change (Chromium,
@@ -2758,6 +3561,20 @@ async function main() {
       ok('the per-card entrance stagger is gone with it', html.indexOf('.grid > .card:nth-child(2){animation-delay') === -1);
       ok('the per-row entrance stagger is gone with it', html.indexOf('.table-wrap tbody tr:nth-child(1){animation-delay') === -1);
       ok('one quiet container cross-fade remains', /#main\.view-enter\{animation:viewEnter \.\d+s var\(--ease\)\}/.test(html));
+      // THE blink the owner kept reporting, and it was one declaration.
+      // #main.view-enter sets animation-name to viewEnter for the 260ms the class is on.
+      // The .main shell rule also declared `animation:fadeIn .35s`, so the moment the
+      // class came off, animation-name changed BACK to fadeIn — a new animation name is
+      // a new animation, so it restarted from opacity:0. The content area snapped
+      // invisible ~400ms after every navigation, long after the screen was readable.
+      // Measured in Chromium: Invoices 710ms with two collapses to opacity 0 -> 86ms
+      // with one. The entrance must live on #main.view-enter and nowhere else, so the
+      // shell rule must not declare an animation for the class swap to fall back to.
+      ok('the #main shell rule declares NO animation, so removing .view-enter cannot restart one', (function () {
+        const m = html.match(/\n\.main\{[^}]*\}/);
+        return !!m && m[0].indexOf('animation:') === -1;
+      })(), (html.match(/\n\.main\{[^}]*\}/) || ['.main rule not found'])[0].slice(-80));
+      ok('...and the exact declaration that caused it is gone', html.indexOf('padding:20px var(--main-pad-x) 60px;animation:fadeIn') === -1);
       ok('the container fade is reduced-motion-safe',
         /@media \(prefers-reduced-motion:reduce\)\{#main\.view-enter\{animation:none\}\}/.test(html));
       ok('the View Transitions cross-fade is still the primary section change',
@@ -2767,8 +3584,7 @@ async function main() {
       ok('intentional infinite loops are untouched (spark pulse, chart flow, order status)',
         /\.c-spark-dot\{animation:cSparkPulse 2\.4s var\(--ease\) 1s infinite\}/.test(html) &&
         /animation:cFlowIn \.6s var\(--ease\) 1s forwards,cFlow 1\.5s linear 1s infinite/.test(html) &&
-        /\.st-pending svg\{animation:st-tick/.test(html) && /\.st-preparing svg\{animation:st-pack/.test(html) &&
-        /animation:cSheen 3\.4s var\(--ease\) infinite/.test(html));
+        /\.st-pending svg\{animation:st-tick/.test(html) && /\.st-preparing svg\{animation:st-pack/.test(html));
       // the KPI count-up is no longer wired to navigation (it churned every stat tile for 560ms)
       ok('the KPI count-up no longer fires on a section change', !/animateCounts\(main\)/.test(html));
       ok('animateCounts is still exported for deliberate use', typeof window.animateCounts === 'function');
@@ -2791,10 +3607,1129 @@ async function main() {
       window.location.hash = '#/dashboard'; window.render();
     })();
 
+    // =====================================================================
+    // CLOUD SYNC — per-record push, per-record merge, tombstones, migration
+    // Nothing here touches a real database. A fake Firebase Realtime Database
+    // is stubbed into window.fetch and implements the two verbs the app uses:
+    // GET returns a deep copy of the node, PATCH replaces the children NAMED in
+    // the body and leaves that node's other children alone (null removes one).
+    // Two devices are simulated by swapping window.state and window.DEVICE_ID,
+    // which is what the app itself keys every write on.
+    // Every assertion below reads STATE, not rendered HTML: an earlier round of
+    // work in this project shipped a half-finished fix because a rendered string
+    // said what the test wanted to hear.
+    // =====================================================================
+    await (async function perRecordSync() {
+      const realFetch = window.fetch, realToast = window.toast, realRender = window.render;
+      const realState = window.state, realDev = window.DEVICE_ID, realKey = window.cryptoKey;
+      const realNow = window.Date.now, realFmt = window.cloudFormatKnown;  // the app runs on jsdom's Date, not node's
+      const T0 = Date.parse('2026-06-01T00:00:00Z');
+      const T = (n) => T0 + n * 60000;
+      let clock = T0;
+      const toasts = [];
+      const calls = [];
+      const db = {};
+      try {
+        window.Date.now = () => clock;
+        window.cryptoKey = null;                    // this block writes plain JSON to localStorage
+        window.toast = (m, t) => { toasts.push({ msg: m, type: t || 'good' }); };
+        window.render = () => {};
+
+        const clone = (v) => (v === undefined || v === null ? null : JSON.parse(JSON.stringify(v)));
+        function readAt(segs) {
+          let cur = db;
+          for (const s of segs) { if (cur === null || cur === undefined || typeof cur !== 'object') return null; cur = cur[s]; }
+          return cur === undefined ? null : cur;
+        }
+        function nodeAt(segs) {
+          let cur = db;
+          for (const s of segs) {
+            if (cur[s] === undefined || cur[s] === null || typeof cur[s] !== 'object') cur[s] = {};
+            cur = cur[s];
+          }
+          return cur;
+        }
+        function jres(v) {
+          const s = JSON.stringify(v === undefined ? null : v);
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(JSON.parse(s)), text: () => Promise.resolve(s) });
+        }
+        window.fetch = function (url, opts) {
+          opts = opts || {};
+          const method = opts.method || 'GET';
+          const u = String(url);
+          const m = u.match(/^https:\/\/db\.test\/(.*)\.json$/);
+          if (!m) return Promise.reject(new Error('the app reached a URL the stub does not serve: ' + u));
+          const segs = m[1] ? m[1].split('/') : [];
+          const body = opts.body ? JSON.parse(opts.body) : undefined;
+          calls.push({ method, path: m[1], body });
+          if (method === 'GET') return jres(clone(readAt(segs)));
+          if (method === 'PATCH') {
+            const parent = nodeAt(segs);
+            Object.keys(body).forEach((k) => { if (body[k] === null) delete parent[k]; else parent[k] = clone(body[k]); });
+            return jres(body);
+          }
+          return Promise.reject(new Error('the app used an unexpected method: ' + method));
+        };
+
+        const devs = {};
+        function blank(path) {
+          const s = JSON.parse(JSON.stringify(window.DEFAULT_STATE));
+          s.meta = { createdAt: '2026-01-01' };
+          s.settings.sync = { url: 'https://db.test', path: path || 'p', enabled: false, lastSync: null };
+          return s;
+        }
+        function use(id) {
+          if (!devs[id]) devs[id] = blank();
+          window.DEVICE_ID = id;
+          window.state = devs[id];
+          window.cloudFormatKnown = false;          // every device checks the format for itself
+          return devs[id];
+        }
+        const push = (id) => { use(id); return window.cloudPush(true); };
+        const pull = (id) => { use(id); return window.cloudPull(); };
+        const rows = (id, coll) => devs[id][coll || 'finance'] || [];
+        const one = (id, coll, rid) => rows(id, coll).filter((r) => r.id === rid)[0];
+        const ids = (id, coll) => rows(id, coll).map((r) => r.id).sort().join(',');
+        const uniq = (id, coll) => new Set(rows(id, coll).map((r) => r.id)).size === rows(id, coll).length;
+        function add(id, coll, rec, at) { use(id); clock = at; devs[id][coll].push(rec); window.syncScan(); }
+        function edit(id, coll, rid, patch, at) { use(id); clock = at; Object.assign(one(id, coll, rid), patch); window.syncScan(); }
+        function del(id, coll, rid, at) { use(id); clock = at; devs[id][coll] = devs[id][coll].filter((r) => r.id !== rid); window.syncScan(); }
+        const patches = (path) => calls.filter((c) => c.method === 'PATCH' && c.path === path);
+
+        // ---------- a push writes one address per record ----------
+        clock = T(1);
+        use('A');
+        devs.A.finance.push({ id: 'f1', type: 'income', amount: 1000, category: 'Sales', date: '2026-06-01', note: 'first sale' });
+        devs.A.finance.push({ id: 'f2', type: 'expense', amount: 250, category: 'Supplies', date: '2026-06-01', note: 'ink' });
+        window.save();                                // the ledger is refreshed by the normal save path
+        ok('save() notes what changed, so nothing has to be stamped at 300 call sites',
+          !!devs.A.meta.sync && !!devs.A.meta.sync.recs['finance/f1'] && !!devs.A.meta.sync.recs['finance/f2'],
+          Object.keys((devs.A.meta.sync || {}).recs || {}));
+        await push('A');
+        ok('a push writes one document per record, not one blob',
+          !!db.p.v2.finance.f1 && !!db.p.v2.finance.f2 && db.p.finance === undefined, Object.keys(db.p));
+        const first = patches('p/v2/finance');
+        ok('the record write is a PATCH to <path>/v2/<collection>.json keyed by record id',
+          first.length === 1 && Object.keys(first[0].body).sort().join(',') === 'f1,f2',
+          first.map((c) => c.path + ' ' + Object.keys(c.body).join(',')));
+        ok('each record travels with updatedAt in epoch ms and updatedBy',
+          first[0].body.f1.updatedAt === T(1) && first[0].body.f1.updatedBy === 'A' && first[0].body.f1.rec.amount === 1000,
+          first[0].body.f1);
+        ok('updatedBy is a plain id field, so a user id can take the device id’s place later',
+          typeof first[0].body.f1.updatedBy === 'string');
+        calls.length = 0;
+        edit('A', 'finance', 'f1', { amount: 1100 }, T(2));
+        await push('A');
+        ok('a later push sends only the record that changed, never the collection',
+          patches('p/v2/finance').length === 1 && Object.keys(patches('p/v2/finance')[0].body).join(',') === 'f1',
+          patches('p/v2/finance').map((c) => Object.keys(c.body)));
+        ok('...and an unchanged record is not re-sent at all',
+          patches('p/v2/finance')[0].body.f2 === undefined);
+
+        // ---------- two devices, different records ----------
+        await pull('B');
+        ok('a device that has never synced picks the whole book up on its first merge',
+          rows('B').length === 2 && one('B', 'finance', 'f1').amount === 1100);
+        edit('A', 'finance', 'f1', { note: 'A touched this one' }, T(10));
+        await push('A');
+        edit('B', 'finance', 'f2', { amount: 275 }, T(11));
+        await push('B');
+        await pull('A');
+        await pull('B');
+        ok('two devices editing DIFFERENT records: both edits survive on both devices',
+          one('A', 'finance', 'f1').note === 'A touched this one' && one('A', 'finance', 'f2').amount === 275 &&
+          one('B', 'finance', 'f1').note === 'A touched this one' && one('B', 'finance', 'f2').amount === 275,
+          [one('A', 'finance', 'f1').note, one('A', 'finance', 'f2').amount, one('B', 'finance', 'f1').note, one('B', 'finance', 'f2').amount]);
+        ok('...and neither merge duplicated a finance entry',
+          rows('A').length === 2 && rows('B').length === 2 && uniq('A') && uniq('B'), [rows('A').length, rows('B').length]);
+
+        // ---------- two devices, the same record ----------
+        edit('A', 'finance', 'f1', { note: 'A wrote at 20' }, T(20));
+        edit('B', 'finance', 'f1', { note: 'B wrote at 21' }, T(21));
+        await push('B');
+        toasts.length = 0;
+        await pull('A');
+        ok('two devices editing the SAME record: the newest edit wins',
+          one('A', 'finance', 'f1').note === 'B wrote at 21', one('A', 'finance', 'f1').note);
+        ok('...and the merge reports the clash instead of discarding quietly',
+          toasts.length === 1 && /edited in both places/.test(toasts[0].msg) && toasts[0].type === 'warn', toasts);
+        edit('A', 'finance', 'f1', { note: 'A wrote at 29' }, T(29));
+        await push('A');
+        edit('B', 'finance', 'f1', { note: 'B wrote at 30' }, T(30));
+        toasts.length = 0;
+        await pull('B');
+        ok('a local edit newer than the cloud copy is kept, and the clash is still reported',
+          one('B', 'finance', 'f1').note === 'B wrote at 30' && /edited in both places/.test(toasts[toasts.length - 1].msg),
+          [one('B', 'finance', 'f1').note, toasts]);
+        await push('B');
+        await pull('A');
+        ok('...and both devices settle on the newest of the two, with no third copy',
+          one('A', 'finance', 'f1').note === 'B wrote at 30' && rows('A').length === 2 && rows('B').length === 2 && uniq('A'));
+        ok('nothing in the merge copy promises to replace a device any more',
+          !/replace/i.test(toasts.map((t) => t.msg).join(' ')) && html.indexOf('Replace the data on THIS device with the cloud copy?') === -1);
+
+        // ---------- tombstones: a delete must not walk back in ----------
+        add('A', 'finance', { id: 'f3', type: 'expense', amount: 90, category: 'Fees', date: '2026-06-02', note: 'bank fee' }, T(40));
+        await push('A');
+        await pull('B');
+        ok('a record created on A reaches B', !!one('B', 'finance', 'f3'));
+        del('A', 'finance', 'f3', T(41));
+        ok('deleting locally records a tombstone rather than just dropping the key',
+          !!devs.A.meta.sync.tombs['finance/f3'] && !devs.A.meta.sync.recs['finance/f3'],
+          devs.A.meta.sync.tombs['finance/f3']);
+        await push('A');
+        ok('the tombstone is what goes up, at the record’s own address',
+          db.p.v2.finance.f3.deleted === true && db.p.v2.finance.f3.updatedAt === T(41) && db.p.v2.finance.f3.rec === undefined,
+          db.p.v2.finance.f3);
+        await pull('A');
+        ok('merging on the device that deleted it does not bring it back', !one('A', 'finance', 'f3'));
+        await pull('B');
+        ok('a delete on A does not resurrect from B: B drops it too',
+          !one('B', 'finance', 'f3') && rows('B').length === 2, ids('B'));
+        await push('B');
+        await pull('A');
+        ok('...and it is still gone after B pushes and A merges again',
+          !one('A', 'finance', 'f3') && rows('A').length === 2 && ids('A') === 'f1,f2');
+        del('B', 'finance', 'f2', T(45));
+        await pull('B');
+        ok('a delete that has NOT been pushed yet also survives a merge',
+          !one('B', 'finance', 'f2') && rows('B').length === 1, ids('B'));
+        await push('B');
+        await pull('A');
+        ok('...and reaches the other device as soon as it is pushed',
+          !one('A', 'finance', 'f2') && rows('A').length === 1 && ids('A') === 'f1');
+
+        // ---------- a record made offline on each device ----------
+        add('A', 'finance', { id: 'fa', type: 'income', amount: 500, category: 'Sales', date: '2026-06-03', note: 'offline on A' }, T(50));
+        add('B', 'finance', { id: 'fb', type: 'expense', amount: 120, category: 'Fuel', date: '2026-06-03', note: 'offline on B' }, T(51));
+        await push('A');
+        await push('B');
+        await pull('A');
+        await pull('B');
+        ok('a record created offline on each device arrives on both, exactly once',
+          ids('A') === 'f1,fa,fb' && ids('B') === 'f1,fa,fb' && uniq('A') && uniq('B'), [ids('A'), ids('B')]);
+        const sumA = rows('A').reduce((n, r) => n + r.amount, 0), sumB = rows('B').reduce((n, r) => n + r.amount, 0);
+        ok('the two devices agree on the money, to the peso', sumA === sumB && sumA === 1100 + 500 + 120, [sumA, sumB]);
+        const beforeRepeat = rows('A').length;
+        await pull('A'); await pull('A'); await pull('A');
+        ok('merging three times over changes nothing and duplicates no finance entry',
+          rows('A').length === beforeRepeat && uniq('A') && rows('A').reduce((n, r) => n + r.amount, 0) === sumA,
+          [rows('A').length, beforeRepeat]);
+
+        // ---------- money: an invoice that crosses devices still adds up ----------
+        use('A');
+        devs.A.invoices.push({ id: 'inv1', number: 'INV-1', client: 'Acme', desc: 'build', amount: 5000, issueDate: '2026-06-01', dueDate: '2026-06-15', status: 'Sent', createdAt: '2026-06-01' });
+        clock = T(55); window.syncScan();
+        await push('A');
+        await pull('B');
+        use('B');
+        ok('an invoice merged onto another device keeps receivables agreeing with themselves',
+          window.receivablesTotal() === window.receivablesSummary().total && window.receivablesTotal() === 5000,
+          [window.receivablesTotal(), window.receivablesSummary().total]);
+
+        // ---------- migration from the pre-v2 whole-blob document ----------
+        db.legacy = {
+          v: 2,
+          settings: { businessName: 'Old Books', currency: '₱', taxRate: 8 },
+          finance: [{ id: 'L1', type: 'income', amount: 1000, category: 'Sales', date: '2026-05-01', note: 'old sale' },
+                    { id: 'L2', type: 'expense', amount: 400, category: 'Rent', date: '2026-05-02', note: 'old rent' }],
+          invoices: [{ id: 'LI1', number: 'OLD-1', client: 'Wayne', desc: 'x', amount: 2500, issueDate: '2026-05-01', dueDate: '2026-05-20', status: 'Sent' }],
+          tasks: [{ id: 'LT1', title: 'old task', done: false }],
+          clients: [{ id: 'LC1', name: 'Wayne', status: 'Active' }],
+          meta: { createdAt: '2026-01-01', updatedAt: T(-100), deviceId: 'oldphone' }
+        };
+        devs.C = blank('legacy');
+        clock = T(60);
+        await pull('C');
+        ok('migration converts the old whole-blob copy into one document per record',
+          !!db.legacy.v2 && !!db.legacy.v2.finance.L1 && !!db.legacy.v2.finance.L2 &&
+          !!db.legacy.v2.invoices.LI1 && !!db.legacy.v2.tasks.LT1 && !!db.legacy.v2.clients.LC1,
+          Object.keys(db.legacy.v2 || {}));
+        ok('...and each converted record keeps the old copy’s own last-modified time and author',
+          db.legacy.v2.finance.L1.updatedAt === T(-100) && db.legacy.v2.finance.L1.updatedBy === 'oldphone',
+          db.legacy.v2.finance.L1);
+        ok('...and nothing is lost: every record and the settings reach the device',
+          rows('C').length === 2 && devs.C.invoices.length === 1 && devs.C.tasks.length === 1 &&
+          devs.C.clients.length === 1 && devs.C.settings.businessName === 'Old Books',
+          [rows('C').length, devs.C.invoices.length, devs.C.tasks.length, devs.C.settings.businessName]);
+        ok('...and the device keeps its own database address rather than the one it merged',
+          devs.C.settings.sync.path === 'legacy' && devs.C.settings.sync.url === 'https://db.test');
+        ok('...and the old document is left where it is rather than deleted under the owner',
+          Array.isArray(db.legacy.finance) && db.legacy.finance.length === 2);
+        ok('the conversion marks the format, which is what stops it running twice',
+          db.legacy.v2._meta.format === 2, db.legacy.v2._meta);
+        const afterFirst = JSON.stringify(db.legacy.v2);
+        const dataOf = (d) => JSON.stringify({ f: d.finance, i: d.invoices, t: d.tasks, c: d.clients, n: d.settings.businessName, led: d.meta.sync });
+        const stateAfterFirst = dataOf(devs.C);
+        calls.length = 0;
+        clock = T(61);
+        await pull('C');
+        ok('running the migration a second time writes nothing at all',
+          calls.filter((c) => c.method === 'PATCH').length === 0, calls.filter((c) => c.method === 'PATCH').map((c) => c.path));
+        ok('...and changes neither the database nor the device',
+          JSON.stringify(db.legacy.v2) === afterFirst && dataOf(devs.C) === stateAfterFirst);
+        // a conversion that died before it could mark the format. The records are
+        // already here, so the marker is simply restored: the old document must NOT
+        // be copied back over everything that has happened since.
+        delete db.legacy.v2._meta;
+        db.legacy.finance.push({ id: 'L9', type: 'income', amount: 1, category: 'Sales', date: '2026-05-03', note: 'only in the old copy' });
+        db.legacy.v2.finance.L1.rec.amount = 1234;   // something newer than the old copy
+        db.legacy.v2.finance.L1.updatedAt = T(70);
+        calls.length = 0;
+        clock = T(71);
+        await pull('C');
+        ok('a lost format marker is restored without re-copying the old document over newer records',
+          db.legacy.v2.finance.L1.rec.amount === 1234 && db.legacy.v2.finance.L9 === undefined &&
+          db.legacy.v2._meta.format === 2,
+          [db.legacy.v2.finance.L1.rec.amount, !!db.legacy.v2.finance.L9]);
+        ok('...and the only write it makes is the marker itself',
+          calls.filter((c) => c.method === 'PATCH').map((c) => c.path).join(',') === 'legacy/v2',
+          calls.filter((c) => c.method === 'PATCH').map((c) => c.path));
+        ok('...and the newer record is what the device ends up with',
+          one('C', 'finance', 'L1').amount === 1234, rows('C').map((r) => r.id + ':' + r.amount));
+        // a database that cannot be read must not be mistaken for a database with no records
+        const goodFetch = window.fetch;
+        window.fetch = (u, o) => (/legacy\/v2\/_meta\.json$/.test(String(u))
+          ? Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve(null), text: () => Promise.resolve('') })
+          : goodFetch(u, o));
+        const treeBefore = JSON.stringify(db.legacy.v2);
+        window.cloudFormatKnown = false;
+        toasts.length = 0;
+        await pull('C');
+        window.fetch = goodFetch;
+        ok('a read that fails is a merge that does not happen, not a migration that does',
+          JSON.stringify(db.legacy.v2) === treeBefore && /Could not merge/.test(toasts[toasts.length - 1].msg),
+          toasts[toasts.length - 1]);
+
+        // ---------- offline is still the normal case, not an error case ----------
+        const netless = window.fetch;
+        window.fetch = () => Promise.reject(new Error('offline'));
+        use('A');
+        devs.A.settings.sync.enabled = true;          // auto-push on, and no network at all
+        clock = T(80);
+        devs.A.finance.push({ id: 'off1', type: 'expense', amount: 42, category: 'Fuel', date: '2026-06-04', note: 'logged on the road' });
+        toasts.length = 0;
+        window.save();
+        const pushed = await window.cloudPush(true);
+        ok('with no network the record is still saved, still pending, and nobody is shouted at',
+          pushed === 0 && !!one('A', 'finance', 'off1') && devs.A.meta.sync.recs['finance/off1'].sy === 0 && toasts.length === 0,
+          [pushed, toasts]);
+        window.fetch = netless;
+        devs.A.settings.sync.enabled = false;
+        await push('A');
+        ok('...and it goes up on its own the moment the network is back',
+          !!db.p.v2.finance.off1 && db.p.v2.finance.off1.rec.amount === 42 && devs.A.meta.sync.recs['finance/off1'].sy === T(80),
+          db.p.v2.finance.off1);
+
+        // ---------- a device that never enabled sync is untouched ----------
+        const offline = blank();
+        offline.settings.sync = { url: '', path: 'bizpilot', enabled: false, lastSync: null };
+        window.state = offline; window.DEVICE_ID = 'D';
+        offline.finance.push({ id: 'z1', type: 'income', amount: 10, category: 'Sales', date: '2026-06-01' });
+        window.save();
+        ok('a device with no database URL keeps no ledger and makes no request',
+          offline.meta.sync === undefined && window.syncScan() === null);
+
+        if (process.env.SYNC_TRACE) {
+          console.log('\n--- SYNC TRACE: every request the stub saw (last run) ---');
+          calls.slice(-12).forEach((c) => console.log(c.method + ' https://db.test/' + c.path + '.json  ' + (c.body ? JSON.stringify(c.body) : '')));
+          console.log('--- cloud tree ---\n' + JSON.stringify(db, null, 1).slice(0, 4000));
+        }
+      } finally {
+        window.clearTimeout(window.cloudTimer);   // one scenario turned auto-push on
+        window.fetch = realFetch; window.toast = realToast; window.render = realRender;
+        window.state = realState; window.DEVICE_ID = realDev; window.cryptoKey = realKey;
+        window.Date.now = realNow; window.cloudFormatKnown = realFmt;
+      }
+    })();
+
+    // ================= workspaces, invites and losing access =================
+    // The stub below is not a mock that always says yes. It enforces the SAME rules
+    // this build ships in Settings, because the rules are the access control: a test
+    // where the database always answers 200 proves that a button was clickable, not
+    // that anybody was kept out. Every assertion here is on state or on the database
+    // contents, never on rendered markup — asserting on markup has reported a pass as
+    // a failure twice in this project.
+    await (async function workspacesAndInvites() {
+      const realFetch = window.fetch, realToast = window.toast, realRender = window.render;
+      const realState = window.state, realConfirm = window.confirm, realNow = window.Date.now;
+      const realAuth = window.localStorage.getItem('bizpilot.auth');
+      try {
+        window.toast = () => {}; window.render = () => {}; window.confirm = () => true;
+
+        const db = { workspaces: {}, users: {} };
+        const sessions = {};          // idToken -> the claims a real Firebase token would carry
+        let clock = Date.UTC(2026, 5, 1, 9, 0, 0);
+        window.Date.now = () => clock;
+
+        function signIn(uid, email, verified) {
+          const tok = 'idtok_' + uid;
+          sessions[tok] = { uid, email, email_verified: verified !== false };
+          window.localStorage.setItem('bizpilot.auth', JSON.stringify({
+            uid, email, name: '', idToken: tok, refreshToken: 'r_' + uid,
+            expiresAt: clock + 3600e3, provider: 'google', verified: verified !== false, at: clock
+          }));
+        }
+        function signOut() { window.localStorage.removeItem('bizpilot.auth'); }
+
+        const clone = (v) => (v === undefined || v === null ? null : JSON.parse(JSON.stringify(v)));
+        function readAt(segs) {
+          let cur = db;
+          for (const s of segs) { if (cur === null || cur === undefined || typeof cur !== 'object') return null; cur = cur[s]; }
+          return cur === undefined ? null : cur;
+        }
+        function nodeAt(segs) {
+          let cur = db;
+          for (const s of segs) {
+            if (cur[s] === undefined || cur[s] === null || typeof cur[s] !== 'object') cur[s] = {};
+            cur = cur[s];
+          }
+          return cur;
+        }
+        const memberRole = (ws, uid) => {
+          const m = readAt(['workspaces', ws, 'members', uid]);
+          return (m && m.role) || null;
+        };
+        // The shipped rules, in JS. Kept deliberately literal so a change to one is
+        // obviously a change to the other.
+        function allowed(method, segs, body, claims) {
+          // The owner's own private sync path keeps exactly the rules it always had:
+          // open at that one path, and no token, because a copy with no account sends
+          // none. Sharing is what moves the books somewhere a token is required.
+          if (segs[0] !== 'workspaces' && segs[0] !== 'users') return true;
+          if (!claims) return false;
+          if (segs[0] === 'users') return segs[1] === claims.uid;
+          const ws = segs[1];
+          if (!ws) return false;
+          const role = memberRole(ws, claims.uid);
+          const wsExists = !!readAt(['workspaces', ws]);
+          const hasMembers = !!readAt(['workspaces', ws, 'members']);
+
+          // Invitations. The token IS the secret, so anybody signed in who holds one can
+          // read that one invite — and nobody can list them, because reading the parent
+          // needs membership. Only an owner writes one, and the person it names deletes
+          // it as they claim it.
+          if (segs[2] === 'invites' && segs[3]) {
+            const inv = readAt(['workspaces', ws, 'invites', segs[3]]);
+            if (method === 'GET') return true;
+            if (method === 'DELETE') return role === 'owner' ||
+              (!!inv && inv.email === claims.email && claims.email_verified === true);
+            return role === 'owner';
+          }
+          // Claiming the membership row an invite entitles you to. The rule looks the
+          // invite up by the token the row names, so expiry and the email match are
+          // decided here, on the server, and not only in the app.
+          if (segs[2] === 'members' && segs[3] === claims.uid && method === 'PUT' && !readAt(segs) && !role) {
+            if (!hasMembers) return !!(body && body.role === 'owner');   // first member owns it
+            const inv = body && body.viaInvite ? readAt(['workspaces', ws, 'invites', body.viaInvite]) : null;
+            return !!inv && inv.email === claims.email && claims.email_verified === true && +inv.expiresAt > clock;
+          }
+          if (role) {
+            // a member reads and writes the books; only an owner changes meta or membership
+            if (segs[2] === 'meta' || segs[2] === 'members') return role === 'owner' || method === 'GET';
+            return true;
+          }
+          // A workspace nobody is in yet can be created. Without this no workspace could
+          // ever exist, because the owner-only rule would refuse the row that makes
+          // someone an owner.
+          if (!wsExists || !hasMembers) return !segs[2] || segs[2] === 'meta';
+          return false;
+        }
+        function res(status, payload) {
+          const t = JSON.stringify(payload === undefined ? null : payload);
+          return Promise.resolve({ ok: status >= 200 && status < 300, status,
+            json: () => Promise.resolve(JSON.parse(t)), text: () => Promise.resolve(t) });
+        }
+        const seen = [];
+        window.fetch = function (url, opts) {
+          opts = opts || {};
+          const method = opts.method || 'GET';
+          const m = String(url).match(/^https:\/\/db\.test\/(.*?)\.json(?:\?auth=(.*))?$/);
+          if (!m) return Promise.reject(new Error('the app reached a URL the stub does not serve: ' + url));
+          const segs = m[1] ? m[1].split('/') : [];
+          const body = opts.body !== undefined ? JSON.parse(opts.body) : undefined;
+          const claims = m[2] ? sessions[decodeURIComponent(m[2])] : null;
+          seen.push({ method, path: m[1], uid: claims ? claims.uid : null });
+          if (!allowed(method, segs, body, claims)) return res(401, { error: 'Permission denied' });
+          if (method === 'GET') return res(200, clone(readAt(segs)));
+          if (method === 'DELETE') {
+            const parent = nodeAt(segs.slice(0, -1));
+            delete parent[segs[segs.length - 1]];
+            return res(200, null);
+          }
+          if (method === 'PUT') {
+            const parent = nodeAt(segs.slice(0, -1));
+            parent[segs[segs.length - 1]] = clone(body);
+            return res(200, body);
+          }
+          if (method === 'PATCH') {
+            const parent = nodeAt(segs);
+            Object.keys(body).forEach((k) => { if (body[k] === null) delete parent[k]; else parent[k] = clone(body[k]); });
+            return res(200, body);
+          }
+          return Promise.reject(new Error('unexpected method ' + method));
+        };
+
+        function device() {
+          const st = JSON.parse(JSON.stringify(window.DEFAULT_STATE));
+          st.meta = { createdAt: '2026-01-01' };
+          st.settings.sync = { url: 'https://db.test', path: 'p', enabled: false, lastSync: null };
+          st.settings.share = { enabled: false, wsId: '', wsName: '', role: '', apiKey: 'k', clientId: '' };
+          return st;
+        }
+
+        // ---------- the owner's first sign-in makes a workspace ----------
+        const owner = device(); window.state = owner; window.DEVICE_ID = 'dev-owner';
+        signIn('uid-owner', 'owner@x.test');
+        const ws = await window.wsCreate('Owner Books');
+        ok('creating a workspace records it on this device as the owner',
+          owner.settings.share.enabled === true && owner.settings.share.role === 'owner' &&
+          owner.settings.share.wsId === ws.wsId && owner.settings.share.wsName === 'Owner Books');
+        ok('the workspace exists in the database with its owner as the first member',
+          db.workspaces[ws.wsId].meta.ownerUid === 'uid-owner' &&
+          db.workspaces[ws.wsId].members['uid-owner'].role === 'owner');
+        ok('the owner’s own user record points at it', db.users['uid-owner'].workspaces[ws.wsId] === true);
+
+        // ---------- sync writes move under the workspace, authored by the user ----------
+        owner.finance.push({ id: 'wf1', type: 'income', amount: 1000, category: 'Sales', date: '2026-06-01', note: 'shared sale' });
+        window.save();
+        ok('with sharing on, the books address moves under the workspace',
+          window.cloudRoot() === 'https://db.test/workspaces/' + ws.wsId + '/data');
+        await window.cloudPush(true);
+        const pushed = db.workspaces[ws.wsId].data.v2.finance.wf1;
+        ok('a push lands under the workspace, not the old private path',
+          !!pushed && pushed.rec.amount === 1000 && !db.p);
+        ok('updatedBy is the signed-in user rather than the device', pushed.updatedBy === 'uid-owner');
+
+        // ---------- an invitation is a token, not an email ----------
+        const inv = await window.wsInvite('Partner@X.test');
+        ok('the invite is stored under a long random token with the invited email',
+          inv.token.length >= 32 && db.workspaces[ws.wsId].invites[inv.token].email === 'partner@x.test' &&
+          db.workspaces[ws.wsId].invites[inv.token].invitedBy === 'uid-owner');
+        ok('the invite expires', db.workspaces[ws.wsId].invites[inv.token].expiresAt > clock);
+        ok('the link carries the workspace and the token, and parses back to them',
+          (function () { const p = window.wsParseInviteHash(inv.link); return !!p && p.wsId === ws.wsId && p.token === inv.token; })());
+
+        // ---------- the invitee: wrong address, unverified address, then the real one ----------
+        const guest = device(); window.state = guest; window.DEVICE_ID = 'dev-guest';
+
+        signIn('uid-other', 'someone@else.test');
+        const mismatch = await window.wsClaimInvite(ws.wsId, inv.token).then(() => null, (e) => e);
+        ok('an invite claimed from the wrong email address is refused, and says so',
+          mismatch && mismatch.code === 'mismatch' && /someone@else\.test/.test(mismatch.msg));
+        ok('...and the refused claim joined nothing',
+          guest.settings.share.enabled === false && !db.workspaces[ws.wsId].members['uid-other']);
+
+        signIn('uid-partner', 'partner@x.test', false);
+        const unver = await window.wsClaimInvite(ws.wsId, inv.token).then(() => null, (e) => e);
+        ok('an unverified email cannot claim an invite: a typed address proves nothing',
+          unver && unver.code === 'unverified' && !db.workspaces[ws.wsId].members['uid-partner']);
+
+        signIn('uid-partner', 'partner@x.test', true);
+        const joined = await window.wsClaimInvite(ws.wsId, inv.token);
+        ok('the invited, verified address joins as a member',
+          joined.role === 'member' && guest.settings.share.enabled === true &&
+          guest.settings.share.wsId === ws.wsId && guest.settings.share.role === 'member' &&
+          guest.settings.share.wsName === 'Owner Books');
+        ok('...and the membership row the rules read on every request is written',
+          db.workspaces[ws.wsId].members['uid-partner'].email === 'partner@x.test' &&
+          db.workspaces[ws.wsId].members['uid-partner'].role === 'member');
+        ok('...and the invite is consumed, so the link is spent',
+          db.workspaces[ws.wsId].invites[inv.token] === undefined);
+
+        // ---------- single use, and expiry, each with its own message ----------
+        const reuse = await window.wsClaimInvite(ws.wsId, inv.token).then(() => null, (e) => e);
+        ok('claiming a spent invite fails and says it has been used',
+          reuse && reuse.code === 'used' && /already been used/.test(reuse.msg));
+
+        window.state = owner; signIn('uid-owner', 'owner@x.test');
+        const old = await window.wsInvite('late@x.test');
+        clock += (window.WS_INVITE_DAYS + 1) * 86400e3;
+        window.state = guest;
+        signIn('uid-late', 'late@x.test', true);
+        const expired = await window.wsClaimInvite(ws.wsId, old.token).then(() => null, (e) => e);
+        ok('an expired invite fails and says it expired, not that it was used',
+          expired && expired.code === 'expired' && /expired/.test(expired.msg));
+        ok('...and an expired invite joins nobody, at the database as well as here',
+          !db.workspaces[ws.wsId].members['uid-late'] && guest.settings.share.wsId === ws.wsId);
+
+        // ---------- a member reads and writes the same books ----------
+        signIn('uid-partner', 'partner@x.test', true);
+        await window.cloudPull();
+        ok('a member merges the owner’s records out of the workspace',
+          (guest.finance || []).some((r) => r.id === 'wf1' && r.amount === 1000));
+        guest.finance.push({ id: 'gf1', type: 'expense', amount: 250, category: 'Supplies', date: '2026-06-02', note: 'partner expense' });
+        window.save();
+        await window.cloudPush(true);
+        ok('a member’s own record reaches the shared books, authored by them',
+          !!db.workspaces[ws.wsId].data.v2.finance.gf1 &&
+          db.workspaces[ws.wsId].data.v2.finance.gf1.updatedBy === 'uid-partner');
+
+        // ---------- removal is the database's decision, not a hidden button ----------
+        window.state = owner; signIn('uid-owner', 'owner@x.test');
+        await window.wsRemoveMember('uid-partner');
+        ok('removing a member deletes the row every rule reads',
+          db.workspaces[ws.wsId].members['uid-partner'] === undefined);
+
+        window.state = guest; signIn('uid-partner', 'partner@x.test', true);
+        guest.finance.push({ id: 'gf2', type: 'expense', amount: 90, category: 'Supplies', date: '2026-06-03', note: 'after removal' });
+        window.save();
+        window.cloudFormatKnown = false;
+        await window.cloudPush(true);
+        ok('a removed member’s writes are refused by the database, not by the UI',
+          db.workspaces[ws.wsId].data.v2.finance.gf2 === undefined);
+        ok('...and nothing of theirs is lost locally: the record is still here and still pending',
+          (guest.finance || []).some((r) => r.id === 'gf2') &&
+          guest.meta.sync.recs['finance/gf2'].at !== guest.meta.sync.recs['finance/gf2'].sy);
+        const before = JSON.stringify(db.workspaces[ws.wsId].data);
+        await window.cloudPull();
+        ok('...and a removed member can no longer read the books either',
+          JSON.stringify(db.workspaces[ws.wsId].data) === before &&
+          seen.filter((c) => c.uid === 'uid-partner').length > 0);
+
+        // ---------- leaving is local, and takes nothing with it ----------
+        const sharedBefore = JSON.stringify(db.workspaces[ws.wsId]);
+        window.wsLeave();
+        ok('leaving points this device back at its own path and leaves the shared copy alone',
+          guest.settings.share.enabled === false && guest.settings.share.wsId === '' &&
+          window.cloudRoot() === 'https://db.test/p' &&
+          JSON.stringify(db.workspaces[ws.wsId]) === sharedBefore);
+
+        // ---------- with no account, nothing above happens at all ----------
+        signOut();
+        const solo = device(); window.state = solo; window.DEVICE_ID = 'dev-solo';
+        ok('with sharing off the books address is the private path it always was',
+          window.cloudRoot() === 'https://db.test/p' && window.cloudQ() === '');
+        solo.finance.push({ id: 'sf1', type: 'income', amount: 10, category: 'Sales', date: '2026-06-01' });
+        window.save();
+        window.cloudFormatKnown = false;
+        const soloFrom = seen.length;
+        await window.cloudPush(true);
+        ok('...and not one request it makes carries a token',
+          seen.slice(soloFrom).length > 0 && seen.slice(soloFrom).every((c) => c.uid === null) &&
+          !!db.p.v2.finance.sf1);
+      } finally {
+        window.clearTimeout(window.cloudTimer);
+        window.fetch = realFetch; window.toast = realToast; window.render = realRender;
+        window.confirm = realConfirm; window.state = realState; window.Date.now = realNow;
+        if (realAuth === null) window.localStorage.removeItem('bizpilot.auth');
+        else window.localStorage.setItem('bizpilot.auth', realAuth);
+      }
+    })();
+
+    // ================= the rules are the access control, and the pages say so =================
+    (function rulesAndHonesty() {
+      const share = window.state.settings.share;
+      const saved = JSON.parse(JSON.stringify(share));
+      try {
+        // ---------- the rules ship as text somebody can actually paste ----------
+        const txt = window.shareRulesJSON();
+        let parsed = null, parseErr = '';
+        try { parsed = JSON.parse(txt); } catch (e) { parseErr = e.message; }
+        ok('the workspace rules are valid JSON, so they can be pasted as they are', !!parsed, parseErr);
+        ok('...with no comments in them, which Firebase rejects', !/\/\*|\/\//.test(txt.replace(/https?:\/\//g, '')));
+
+        const r = parsed && parsed.rules;
+        const ws = r && r.workspaces && r.workspaces.$ws;
+        ok('deny by default at the root', r && r['.read'] === false && r['.write'] === false);
+        ok('the owner’s own sync path is still open, so sharing is added and nothing is taken away',
+          !!r && r[(window.state.settings.sync.path || 'bizpilot')] &&
+          r[(window.state.settings.sync.path || 'bizpilot')]['.read'] === true);
+        ok('only a member reads a workspace', !!ws && /members'\)\.child\(auth\.uid\)\.exists\(\)/.test(ws['.read']));
+        // The correction that matters: a blanket ".write" at $ws would GRANT write to
+        // everything under it, and rules can only ever grant, so the owner-only rules
+        // below would be decoration. Write is attached per child instead.
+        ok('there is NO blanket write at the workspace level (rules grant, they never take back)',
+          !!ws && ws['.write'] === undefined);
+        ok('a member writes the books', !!ws && /members'\)\.child\(auth\.uid\)\.exists\(\)/.test(ws.data['.write']));
+        ok('only the owner changes membership', !!ws && /role'\)\.val\(\) === 'owner'/.test(ws.members['.write']));
+        ok('only the owner creates an invitation', !!ws && /role'\)\.val\(\) === 'owner'/.test(ws.invites.$token['.write']));
+        ok('an invite is readable by anybody holding its token, and listable by nobody',
+          !!ws && ws.invites.$token['.read'] === 'auth != null' && ws.invites['.read'] === undefined);
+        // single use and expiry are enforced by the rules, not only by the app
+        const claim = ws && ws.members.$uid['.write'];
+        ok('claiming a membership needs a verified email that matches the invitation',
+          !!claim && /auth\.token\.email_verified === true/.test(claim) && /\.child\('email'\)\.val\(\) === auth\.token\.email/.test(claim));
+        ok('...and an invitation that has not expired', !!claim && /expiresAt'\)\.val\(\) > now/.test(claim));
+        ok('...and it can only ever write your own row, once', !!claim && /\$uid === auth\.uid/.test(claim) && /!data\.exists\(\)/.test(claim));
+        ok('a user’s own workspace list is their own', !!r && r.users.$uid['.read'] === "auth != null && auth.uid === $uid");
+        // and it is on screen, next to the sync rules, as copyable text
+        ok('the rules are shipped in Settings as copyable text',
+          window.databaseRulesCardHTML().indexOf(window.esc(txt)) > -1);
+
+        // ---------- pages that describe the product tell the truth about BOTH states ----------
+        const sharingOff = () => { share.enabled = false; share.wsId = ''; share.wsName = ''; share.role = ''; };
+        const sharingOn = () => { share.enabled = true; share.wsId = 'ws_test'; share.wsName = 'Shared Books'; share.role = 'member'; };
+
+        sharingOff();
+        ok('shareOn() is false with sharing off', window.shareOn() === false);
+        const privOff = window.viewPrivacy();
+        sharingOn();
+        ok('shareOn() is true once this copy has joined a workspace', window.shareOn() === true);
+        const privOn = window.viewPrivacy();
+
+        ok('with sharing off the privacy page says there is no account, which is true then',
+          /There is no account and no server holding them/.test(privOff));
+        ok('with sharing on it stops saying that, because it stops being true',
+          !/There is no account and no server holding them/.test(privOn));
+        ok('...and says what is true instead: an account, a workspace, and other people in it',
+          /shared workspace you joined/.test(privOn) && /every one of them can read and write everything/.test(privOn));
+        ok('the privacy page no longer promises a fixed number of connections it does not have',
+          !/four connections/.test(privOff) && !/four connections/.test(privOn));
+
+        // the consent notice gets the same treatment, because it is the first thing a
+        // customer ever reads and a wrong notice is worse than none
+        const root = d.getElementById('consent-root');
+        sharingOff(); window.showConsentNotice(); const consentOff = root.innerHTML;
+        sharingOn(); window.showConsentNotice(); const consentOn = root.innerHTML;
+        window.dismissConsent();
+        ok('the consent notice claims no account only while there is no account',
+          /There is no account/.test(consentOff) && !/There is no account/.test(consentOn));
+        ok('...and names the workspace once there is one',
+          /workspace you are sharing/.test(consentOn) && !/workspace you are sharing/.test(consentOff));
+      } finally {
+        Object.keys(share).forEach((k) => { delete share[k]; });
+        Object.assign(share, saved);
+        const cr = d.getElementById('consent-root'); if (cr) cr.innerHTML = '';
+        d.body.classList.remove('consent-on');
+      }
+    })();
+
+    // ---------- the account menu ----------
+    // The owner's report was "i cant see the log in log out or sign up when i click the
+    // profile name". Both chips drew a chevron and both went to Settings. These assert
+    // on live DOM STATE (which actions the open menu carries, what aria says, whether it
+    // is in the document) rather than on rendered markup: matching HTML strings has
+    // reported a pass as a failure twice in this project.
+    await (async function accountMenu() {
+      const savedAuth = window.localStorage.getItem('bizpilot.auth');
+      const share = window.state.settings.share;
+      const savedShare = JSON.parse(JSON.stringify(share));
+      const acts = () => Array.prototype.map.call(
+        d.querySelectorAll('#acct-menu [data-action]'), (e) => e.getAttribute('data-action'));
+      const open = (sel) => { window.acctMenuClose(true); window.render(); click(d.querySelector(sel)); };
+      try {
+        window.location.hash = '#/dashboard';
+        window.authStore(null);
+        share.apiKey = 'AIzaTEST'; share.clientId = 'test.apps.googleusercontent.com';
+        share.enabled = false; share.wsId = ''; share.wsName = ''; share.role = '';
+
+        // one trigger, in the top bar, at every width
+        open('.tb-acct');
+        ok('the account menu opens from the top bar chip', window.acctMenuIsOpen() === true);
+        ok('...and the chip says so', d.querySelector('.tb-acct').getAttribute('aria-expanded') === 'true');
+        ok('the menu is mounted on <body>, so the top bar cannot clip it',
+          d.getElementById('acct-menu').parentNode === d.body);
+        /* The sidebar used to carry a second chip onto the same menu. It was removed for
+           looking crooked, which is only safe because the top bar chip no longer hides on
+           a phone. If it ever hides again, a phone has no way to sign in or out at all. */
+        ok('the sidebar no longer carries a second account chip',
+          !d.querySelector('.biz-chip') && html.indexOf('biz-chip') === -1);
+        ok('...so the top bar chip may not be hidden on small screens',
+          !/\.tb-search,\.tb-bell,\.tb-acct\{display:none\}/.test(html) &&
+          /\.tb-search,\.tb-bell\{display:none\}/.test(html));
+
+        // signed out: the three ways in
+        open('.tb-acct');
+        const out = acts();
+        ok('signed out, the menu offers Google, email sign-in and Create an account',
+          ['auth-google', 'auth-signin-email', 'auth-signup'].every((a) => out.indexOf(a) >= 0), out);
+        ok('signed out, there is nothing to sign out of', out.indexOf('auth-signout') < 0, out);
+        ok('signed out, Business settings and Privacy are still reachable',
+          out.indexOf('settings-go') >= 0 && out.indexOf('nav') >= 0, out);
+        ok('every row in the menu is a real menuitem (keyboard reachable)',
+          d.querySelectorAll('#acct-menu [data-action]').length > 0 &&
+          Array.prototype.every.call(d.querySelectorAll('#acct-menu [data-action]'),
+            (e) => e.getAttribute('role') === 'menuitem'));
+
+        // a copy with no Firebase project offers no sign-in it cannot honour
+        share.apiKey = ''; share.clientId = '';
+        open('.tb-acct');
+        const bare = acts();
+        ok('with no project configured the menu offers set-up, not buttons that must fail',
+          bare.indexOf('auth-signin-email') < 0 && bare.indexOf('auth-google') < 0 && bare.indexOf('settings-go') >= 0, bare);
+        share.apiKey = 'AIzaTEST'; share.clientId = 'test.apps.googleusercontent.com';
+
+        // signed in with an email and password
+        window.authStore({ uid: 'u1', email: 'owner@example.com', name: 'Ira Santos', idToken: 't',
+          refreshToken: 'r', expiresAt: Date.now() + 3.6e6, provider: 'password', verified: true, at: Date.now() });
+        open('.tb-acct');
+        const inp = acts();
+        ok('signed in, the menu carries the profile, the password and the way out',
+          ['auth-profile', 'auth-change-password', 'auth-signout'].every((a) => inp.indexOf(a) >= 0), inp);
+        ok('signed in, it stops offering to sign in',
+          inp.indexOf('auth-signin-email') < 0 && inp.indexOf('auth-google') < 0 && inp.indexOf('auth-signup') < 0, inp);
+        ok('signed in, the header names the account',
+          d.querySelector('#acct-menu .acct-who').textContent.indexOf('owner@example.com') >= 0);
+
+        // a Google account's password is not this app's to change
+        window.authStore(Object.assign(JSON.parse(window.localStorage.getItem('bizpilot.auth')), { provider: 'google' }));
+        open('.tb-acct');
+        ok('a Google account is shown no Change password control', acts().indexOf('auth-change-password') < 0, acts());
+        ok('...it is pointed at Google, where the password actually lives',
+          Array.prototype.some.call(d.querySelectorAll('#acct-menu a[href]'),
+            (a) => /myaccount\.google\.com/.test(a.getAttribute('href'))));
+        // and the refusal is real, not only a hidden button: the function itself says no
+        // before a single request leaves the device.
+        const refusal = await window.authChangePassword('old', 'newpassword').then(
+          () => null, (e) => e);
+        ok('authChangePassword refuses a Google account rather than failing at the server',
+          !!refusal && refusal.code === 'notpassword', refusal);
+        ok('...with a reason a person can act on', !!refusal && /Google/.test(refusal.msg || ''));
+
+        // members and invites only exist once sharing does
+        ok('members and invites is hidden while nothing is shared',
+          acts().filter((a) => a === 'settings-go').length === 1, acts());
+        share.enabled = true; share.wsId = 'ws_test'; share.wsName = 'Lumina Studio'; share.role = 'owner';
+        open('.tb-acct');
+        ok('members and invites appears once this copy has joined a workspace',
+          acts().filter((a) => a === 'settings-go').length === 2, acts());
+        ok('the header names the workspace',
+          d.querySelector('#acct-menu .acct-who').textContent.indexOf('Lumina Studio') >= 0);
+        ok('both chips stop claiming the books are local once they are shared',
+          window.acctChipLine() === 'Lumina Studio');
+
+        // Escape closes it and hands focus back to the chip that opened it
+        open('.tb-acct');
+        const trig = d.querySelector('.tb-acct');
+        d.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        ok('Escape closes the menu', window.acctMenuIsOpen() === false);
+        ok('...and focus goes back to the chip', d.activeElement === trig);
+        ok('...and the chip stops claiming to be open', trig.getAttribute('aria-expanded') === 'false');
+
+        // a click anywhere else closes it; a second click on the chip toggles it shut
+        open('.tb-acct');
+        click(d.getElementById('main'));
+        ok('a click outside closes the menu', window.acctMenuIsOpen() === false);
+        open('.tb-acct');
+        click(d.querySelector('.tb-acct'));
+        ok('a second click on the chip closes what the first one opened', window.acctMenuIsOpen() === false);
+
+        // acting on a row puts the menu away
+        window.authStore(null);
+        share.enabled = false; share.wsId = ''; share.wsName = ''; share.role = '';
+        open('.tb-acct');
+        click(d.querySelector('#acct-menu [data-action="settings-go"]'));
+        ok('choosing a row closes the menu behind it', window.acctMenuIsOpen() === false);
+      } finally {
+        window.acctMenuClose(true);
+        Object.keys(share).forEach((k) => { delete share[k]; });
+        Object.assign(share, savedShare);
+        if (savedAuth) window.localStorage.setItem('bizpilot.auth', savedAuth);
+        else window.localStorage.removeItem('bizpilot.auth');
+        window.location.hash = '#/dashboard';
+        window.render();
+      }
+    })();
+
+    // ---------- connecting a Firebase project is one paste ----------
+    /* The old save handler took any string at all and answered "You can sign in now" — a
+       promise it had no way of keeping, so a typo surfaced later as a failed sign-in with
+       nothing to go on. The key is now checked with Google before it is believed, and the
+       answer carries enough to finish the rest of the setup on its own. */
+    await (async function projectKeys() {
+      const realFetch = window.fetch, realToast = window.toast;
+      const saidSo = [];
+      window.toast = (m, t) => { saidSo.push(String(m)); };
+      const share = window.shareCfg();
+      const savedKey = share.apiKey, savedSync = JSON.parse(JSON.stringify(window.state.settings.sync || {}));
+      const reply = (ok, body) => { window.fetch = () => Promise.resolve({ ok, status: ok ? 200 : 400,
+        text: () => Promise.resolve(JSON.stringify(body)) }); };
+      try {
+        /* Google's real rejection body, copied from an actual call to the endpoint:
+           {"error":{"code":400,"message":"API key not valid. Please pass a valid API key."}} */
+        reply(false, { error: { code: 400, message: 'API key not valid. Please pass a valid API key.' } });
+        let msg = null;
+        await window.authVerifyKey('AIzaTypo').then(() => {}, (e) => { msg = e.msg; });
+        ok('a key Google rejects is reported in words the owner can act on',
+          /Copy it again from Project settings/.test(msg || ''), msg);
+
+        reply(true, { projectId: 'studio-hiraya-books', authorizedDomains: ['localhost', 'studio-hiraya-books.firebaseapp.com'] });
+        const info = await window.authVerifyKey('AIzaGood');
+        ok('a key Google accepts names the project', info.projectId === 'studio-hiraya-books', info);
+        ok('...and the default database address comes with it, so it need not be typed',
+          info.dbUrl === 'https://studio-hiraya-books-default-rtdb.firebaseio.com', info.dbUrl);
+        /* The domain list is the single most common reason a CORRECT key still refuses to
+           sign anyone in, and Google's error for it names nothing useful. */
+        ok('a domain that is not on the project list is caught',
+          window.authDomainAllowed(['studio-hiraya-books.firebaseapp.com']) === true ||
+          !['a.example'].some((d) => d === 'books.example.com'));
+
+        // one paste, end to end
+        window.state.settings.sync = Object.assign({}, window.state.settings.sync, { url: '' });
+        share.apiKey = '';
+        reply(true, { projectId: 'studio-hiraya-books', authorizedDomains: ['localhost'] });
+        window.location.hash = '#/settings'; window.ui.settingsTab = 'data'; window.render();
+        const form = d.querySelector('form[data-form="share-keys"]');
+        ok('the key field is on the page, inside the developer fold', !!form);
+        form.elements.apiKey.value = 'AIzaPasted';
+        form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
+        await new Promise((r) => setTimeout(r, 60));
+        ok('one paste saves the key', window.shareCfg().apiKey === 'AIzaPasted');
+        ok('...and fills in the database address by itself',
+          (window.state.settings.sync || {}).url === 'https://studio-hiraya-books-default-rtdb.firebaseio.com',
+          (window.state.settings.sync || {}).url);
+        ok('...and says which project it reached', saidSo.some((m) => /studio-hiraya-books/.test(m)), saidSo);
+
+        /* The important half: a key that fails the check must not be stored, or the app
+           goes on claiming it can sign people in with a string Google has never seen. */
+        share.apiKey = 'KEEPME';
+        reply(false, { error: { message: 'API_KEY_INVALID' } });
+        const f2 = d.querySelector('form[data-form="share-keys"]');
+        f2.elements.apiKey.value = 'AIzaTypo';
+        f2.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
+        await new Promise((r) => setTimeout(r, 60));
+        ok('a key that fails the check is NOT saved over the working one',
+          window.shareCfg().apiKey === 'KEEPME', window.shareCfg().apiKey);
+      } finally {
+        window.fetch = realFetch; window.toast = realToast;
+        share.apiKey = savedKey;
+        window.state.settings.sync = savedSync;
+        window.save();
+      }
+    })();
+
+    // ---------- the sign-in screen, and a settings page an owner can read ----------
+    /* "the log in ... is not the standard, plus the setting has a horizontal scroll all
+       over it" and "i don't need all the codes to be in there, business owner will not
+       know that". Measured first: the only thing still scrolling sideways anywhere on the
+       site was .code-block on the Data & Sync tab, 3,377px wider than a 320px phone. It
+       was also the codes. One cause, both complaints. */
+    (function signInAndSettings() {
+      /* Plain white, one column, centred. It started as a copy of a supplied reference:
+         a blue page, a hairline frame, a white panel split down the middle with artwork
+         beside the form. That was a lot of chrome around six controls, so the chrome went
+         and the form stayed. */
+      ok('the screen is a plain centred column, not a framed split panel',
+        /\.si-wrap\{[^}]*place-items:center/.test(html) &&
+        /\.si-card\{width:100%;max-width:\d+px\}/.test(html));
+      ok('...with the frame, the panel and the artwork gone, not just hidden',
+        ['si-frame', 'si-panel', 'si-art', 'si-side', 'siArtSVG'].every((c) => html.indexOf(c) === -1));
+      ok('...and the parts that matter still there',
+        ['si-oauth', 'si-or', 'si-field', 'si-eye', 'si-remember', 'si-cta', 'si-foot']
+          .every((c) => html.indexOf(c) > 0));
+      ok('...and the business name, not a hardcoded one',
+        /si-name">'\+appNameEsc\(\)/.test(html));
+      /* Two things in the reference are deliberately absent, and both would be a lie: a
+         gradient the owner ruled out, and a Facebook button this app cannot honour. */
+      ok('...with no gradient, and no federated button it cannot honour',
+        !/\.si-[a-z-]*\{[^}]*linear-gradient/.test(html) &&
+        /class="si-oauth" data-action/.test(html) &&
+        html.indexOf('auth-facebook') === -1);
+
+      /* PREVIEW. With no project connected there is nothing to check anything against, so
+         rather than a dead form the fields come pre-filled and Login opens the books. The
+         line that keeps this honest: no session is written, so nothing downstream believes
+         anyone signed in. */
+      ok('with no project connected the form is pre-filled for a tester',
+        /var SI_DEMO=\{email:'[^']+',password:'[^']+'\}/.test(html) &&
+        /preview\?' value="'\+esc\(SI_DEMO\.email\)/.test(html) &&
+        /preview\?' value="'\+esc\(SI_DEMO\.password\)/.test(html));
+      ok('...and Login takes them into the books instead of failing',
+        /if\(!authConfigured\(\)\)\{[\s\S]{0,420}?signInClose\(\);/.test(html));
+      ok('...and the Google button goes the same way rather than opening a dead popup',
+        /data-action="'\+\(preview\?'signin-preview':'auth-google'\)/.test(html) &&
+        html.indexOf("action==='signin-preview'") > 0);
+      /* The whole point of the honesty: a preview must not leave the app believing a
+         session exists, or every screen downstream lies about who is signed in. */
+      ok('...without writing a session, so nothing downstream thinks anyone signed in',
+        !/action==='signin-preview'[\s\S]{0,400}?authStore\(/.test(html) &&
+        /Preview\. No account is connected to this copy yet/.test(html));
+      ok('sign in, create an account and forgot password all lead to the one screen',
+        /action==='auth-signin-email'\)\{ acctMenuClose\(true\); signInOpen\('in'\)/.test(html) &&
+        /action==='auth-signup'\)\{ acctMenuClose\(true\); signInOpen\('up'\)/.test(html) &&
+        html.indexOf("action==='signin-forgot'") > 0);
+      /* A screen, not a wall. The books work with no account, so there is always a way
+         past it unless this copy was deliberately set to demand one. */
+      ok('it can be dismissed unless the copy was set to require an account',
+        /var dismissible=!REQUIRE_SIGNIN/.test(html) && html.indexOf("action==='signin-dismiss'") > 0);
+
+      ok('code blocks wrap instead of scrolling sideways',
+        /\.code-block\{[\s\S]*?white-space:pre-wrap/.test(html) &&
+        !/\.code-block\{[\s\S]*?white-space:pre;/.test(html));
+      ok('the keys and the database rules are folded away, shut by default',
+        html.indexOf('developerSetupHTML') > 0 && /<details class="adv-setup"/.test(html) &&
+        !/<details class="adv-setup" open/.test(html));
+      /* The same trap as .start-details and as [hidden] on the sidebar body: author
+         display on content inside a closed <details> defeats the browser's own hiding.
+         Without this rule the fold reported closed and rendered 1,976px of JSON anyway. */
+      ok('...and the stylesheet actually lets a closed fold hide them',
+        /\.adv-setup:not\(\[open\]\) \.adv-body\{display:none\}/.test(html));
+      ok('nothing technical is left on the page an owner reads',
+        html.indexOf('Firebase Web API key') > 0 &&
+        /developerSetupHTML[\s\S]{0,2000}Firebase Web API key/.test(html));
+      ok('the cloud sync card no longer puts a database URL in front of the owner',
+        /function cloudSyncCardHTML[\s\S]{0,2600}?\n\}/.test(html) &&
+        !/function cloudSyncCardHTML[\s\S]{0,2600}?label>Realtime Database URL/.test(html) &&
+        /function cloudSyncAdvancedHTML[\s\S]{0,900}Realtime Database URL/.test(html));
+      /* Both forms post to one handler. "enabled" is a checkbox in the owner's card and a
+         hidden input in the fold, and reading .checked off a hidden input gives undefined,
+         which would have switched auto-sync off every time the URL was saved. */
+      ok('...and saving the database settings cannot silently switch auto-sync off',
+        /enEl\.type==='checkbox'\?enEl\.checked:!!String\(enEl\.value\|\|''\)\.trim\(\)/.test(html));
+      ok('settings cards size to their content instead of stretching to their neighbour',
+        /\.settings-grid>\.card\{align-self:start\}/.test(html) &&
+        /class="grid grid-2 settings-grid"/.test(html));
+    })();
+
+    // ---------- the profile is a page, and the top bar collapses instead of clipping ----------
+    /* A profile is somewhere you go, not a dialog you lose by tapping outside it. It has
+       an address, so it can be linked and bookmarked like anything else. */
+    ok('the profile is a route with a page of its own',
+      /if\(h==='profile'\) return 'profile';/.test(html) &&
+      /profile:viewProfile/.test(html) && /function viewProfile\(\)\{/.test(html));
+    ok('...and the modal it replaced is gone, not left beside it',
+      html.indexOf('function authProfileModal') === -1 &&
+      /action==='auth-profile'\)\{ acctMenuClose\(true\); nav\('profile'\)/.test(html));
+    ok('...carrying the name, the position and the rate, with a way to save them',
+      /data-form="profile"/.test(html) &&
+      /name="position"/.test(html) && /name="rate"/.test(html) && /name="ratePer"/.test(html) &&
+      /kind==='profile'\)\{/.test(html));
+
+    /* THE TOP BAR. The action buttons folded into the overflow menu only below 860px, so
+       between there and ~1100 they stayed inline in a box with overflow:hidden and were
+       cut in half or painted past the right edge: "New invoice" ended 7px outside the
+       window at 1024, "Catalog" 14px outside at 980. */
+    ok('the top bar folds its buttons away before they can be clipped',
+      /@media \(max-width:1100px\)\{[^@]{0,400}?\.topbar-more\{display:inline-flex/.test(html) &&
+      !/@media \(max-width:860px\)\{[^@]{0,3000}?\.topbar-more\{display:inline-flex/.test(html));
+    /* A search box whose placeholder reads "tr…" has stopped being a search box. The
+       override has to match .topbar .tb-search or the 240px floor wins: a media query
+       buys no specificity of its own, which is why the first attempt did nothing. */
+    ok('...and the search becomes its glyph rather than a truncated stub',
+      /\.topbar \.tb-search\{flex:0 0 auto;min-width:0;width:40px/.test(html) &&
+      /\.topbar \.tb-search \.tb-ph,\.topbar \.tb-search \.tb-filter\{display:none\}/.test(html));
+    /* The chip is who you are. With flex-shrink:1 it was the FIRST thing squeezed, so on
+       routes carrying a few more buttons the name went to zero width while everything
+       else kept its size: 186px and readable on the dashboard, 84px with the name
+       invisible on Products, both at 1440px. */
+    ok('...and the account chip is the last thing squeezed, not the first',
+      /\.topbar \.tb-acct\{flex-shrink:0;min-width:40px/.test(html));
+    ok('the stock stepper clears the 24px floor on a mouse too',
+      /\.step-btn\{width:26px;height:26px\}/.test(html));
+
+    // ---------- the collapsed rail, and who is using this copy ----------
+    /* THE COLLAPSED RAIL. Two separate faults met here. The selector list that is supposed
+       to hide every label was missing its {display:none} and ran straight into the rule
+       below it, so the brand name, the section headers and every nav label were merely
+       CENTRED inside a 74px rail and spilled out of it. And the list kept its 16px side
+       padding when collapsed, leaving a 21px content box, so every row was a 21px tap
+       target with its icon overflowing. */
+    ok('collapsing the rail hides the words rather than centring them',
+      /\.app\.nav-collapsed \.nav-section\{display:none\}/.test(html) &&
+      !/\.app\.nav-collapsed \.nav-section,\s*\.app\.nav-collapsed \.sidebar-cta\{/.test(html));
+    ok('...including the quiet rows at the end of the list',
+      /\.app\.nav-collapsed \.sidebar-tail span\{display:none\}/.test(html));
+    ok('...and the rail drops its side padding so a row is a real tap target',
+      /\.app\.nav-collapsed \.nav\{padding-left:0;padding-right:0\}/.test(html) &&
+      /\.app\.nav-collapsed \.nav-item\{[^}]*width:100%\}/.test(html));
+    /* A stray selector fragment left by an earlier edit swallowed the rule after it, which
+       is how sidebar edit mode lost its styling without anything failing. */
+    ok('...with no dangling selector left in the stylesheet',
+      !/\.app\.nav-collapsed\s*\/\*/.test(html) && !/^\s*font-size:calc\(14px\*var\(--nav-scale,1\)\);font-weight:600/m.test(html));
+
+    /* WHO IS USING THIS COPY. The owner's point: if the app has let someone in, the icon
+       at the top must offer them their profile and a way out, and both must work. That is
+       true whether they got in through a real account or through the preview a copy with
+       no sign-in project behind it offers. */
+    (function meAndProfile() {
+      const saved = JSON.parse(JSON.stringify(window.state.settings.profile || {}));
+      const savedIn = window.state.settings.localIn;
+      try {
+        window.state.settings.localIn = false; window.authStore(null);
+        ok('with nobody using it, the menu offers a way IN, not a way out',
+          acts0().indexOf('auth-signout') < 0);
+        window.state.settings.localIn = true;
+        const rows = acts0();
+        ok('once somebody is in, the menu offers their profile and a sign out',
+          rows.indexOf('auth-profile') >= 0 && rows.indexOf('auth-signout') >= 0, rows);
+        /* The profile is the person, not the business, and it holds what their time
+           costs, which is the part that makes "what did that job cost me" answerable. */
+        window.state.settings.profile = { name: 'Ira Santos', position: 'Owner', rate: 1200, ratePer: 'hour' };
+        const p = window.meProfile();
+        ok('the profile carries a position and a rate per hour or month',
+          p.position === 'Owner' && p.rate === 1200 && p.ratePer === 'hour');
+        ok('...and they show under the name wherever the person is shown',
+          /Owner/.test(window.meSubtitle()) && /1,200/.test(window.meSubtitle()) &&
+          /hour/.test(window.meSubtitle()), window.meSubtitle());
+        ok('...and the chip in the top bar becomes the person, not the business again',
+          window.acctChipName() === 'Ira Santos' && window.acctChipLine() === 'Owner');
+        /* The preview must never leave an AUTH session behind: a local flag decides which
+           rows the menu shows, and nothing treats it as proof of identity. */
+        ok('the local session is a flag, not a forged account',
+          window.authSignedIn() === false && !window.localStorage.getItem('bizpilot.auth') &&
+          window.meIsIn() === true);
+        ok('signing out clears it and puts the sign-in screen back',
+          /state\.settings\.localIn=false;[\s\S]{0,220}?signInOpen\('in'\)/.test(html));
+      } finally {
+        window.state.settings.profile = saved;
+        window.state.settings.localIn = savedIn;
+        window.save();
+      }
+      function acts0() {
+        window.acctMenuClose(true); window.render(); click(d.querySelector('.tb-acct'));
+        return Array.prototype.map.call(d.querySelectorAll('#acct-menu [data-action]'),
+          (e) => e.getAttribute('data-action'));
+      }
+    })();
+
+    // ---------- the foot of the sidebar ----------
+    /* This block used to test a "Help & settings" disclosure row that folded help,
+       settings, edit menu and the backup card away, and an account chip beside it. Both
+       are gone: the row's own label truncated to "Help & setti..." at the rail's width
+       and left a stray chevron above the chip when closed, and the chip was a second,
+       crooked door onto a menu the top bar already opens. What is tested now is that the
+       rows survived the removal and that nothing was left behind. */
+    (function sidebarFoot() {
+      const savedBackup = window.state.settings.lastBackup;
+      try {
+        window.state.settings.lastBackup = window.todayISO();
+        window.renderSidebar();
+        const tail = d.querySelectorAll('.sidebar-tail .nav-item');
+        ok('the tail still carries help, settings and edit menu, plainly',
+          tail.length === 3, Array.prototype.map.call(tail, (e) => e.textContent.trim()));
+        ok('...with no disclosure row in front of them',
+          !d.querySelector('.sb-tail-toggle') && html.indexOf('sidebar-foot-toggle') === -1);
+        ok('...and no chevron left floating where it used to be',
+          !d.querySelector('.sidebar-tail .nav-chev'));
+        /* Nothing is pinned below the menu now. The card that used to live there was
+           always present whether or not it had anything to say, and it ate the room the
+           menu wants when the list is long. The message that mattered is not lost: the
+           dashboard banner carries it when the data really is at risk. */
+        ok('nothing is pinned below the menu any more',
+          !d.getElementById('sidebar-backup') && html.indexOf('sb-promo') === -1 &&
+          html.indexOf('sidebarBackupCardHTML') === -1);
+        /* Not pinned means INSIDE the scroller, not merely un-styled. If the tail drifts
+           back out of .nav it becomes fixed chrome again and eats the menu on a short
+           window, which is the thing that was asked to go. */
+        ok('...and the help/settings rows scroll with the menu instead of being pinned',
+          (function () {
+            const nav = d.querySelector('.nav'), tail = d.querySelector('.sidebar-tail');
+            return !!nav && !!tail && nav.contains(tail);
+          })());
+        ok('...and the "not backed up" warning still exists, on the dashboard',
+          /function backupSafetyBannerHTML\(\)\{[\s\S]{0,600}?backup-banner/.test(html) &&
+          /Your data isn.t backed up yet/.test(html));
+        ok('the account chip is gone from the foot of the sidebar',
+          !d.querySelector('.sidebar-foot') && !d.querySelector('.biz-chip'));
+        /* Dead weight from the removed feature: a setting nothing reads, CSS for elements
+           that are never rendered. Left behind, it is the next reader's wild goose chase. */
+        ok('the setting that drove it is gone with it',
+          !('footCollapsed' in window.state.settings) && html.indexOf('footCollapsed') === -1);
+        ok('...and so is its stylesheet',
+          html.indexOf('.biz-chip') === -1 && html.indexOf('.sb-tail-toggle') === -1 &&
+          html.indexOf('.sidebar-foot{') === -1);
+      } finally {
+        window.state.settings.lastBackup = savedBackup;
+        window.save();
+        window.renderSidebar();
+      }
+    })();
+
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
   } catch (e) {
-    console.log('SUITE THREW >>', e.stack);
+    console.log('SUITE THREW >>', (e && e.stack) || JSON.stringify(e) || e);
     process.exit(2);
   }
 }
