@@ -1122,15 +1122,6 @@ body.rm-shift .rm-canvas{cursor:crosshair}
 
 /* the workspace switcher: a dark rounded square, the workspace name, what kind of
    workspace it is, and a chevron, sitting above a hairline at the very bottom */
-.sidebar-foot{padding:14px 16px 16px;border-top:1px solid var(--sidebar-border);margin-top:10px}
-.biz-chip{display:flex;align-items:center;gap:10px;color:var(--text-3);font-size:var(--f1);width:100%;text-align:left;
-  padding:6px;border-radius:10px;transition:background .15s}
-.biz-chip:hover{background:var(--sidebar-hover)}
-.biz-chip>div{flex:1;min-width:0}
-.biz-chip .avatar{width:36px;height:36px;border-radius:10px;background:var(--text);display:grid;place-items:center;color:var(--bg);font-weight:600;font-size:var(--f2);flex-shrink:0}
-.biz-chip b{color:var(--sidebar-text-active);display:block;font-size:calc(14px*var(--nav-scale,1));font-weight:600;line-height:1.25;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.biz-chip span{display:block;font-size:var(--f1);color:var(--text-3)}
-.biz-chip .biz-chev{flex:0 0 auto;display:inline-flex;color:var(--text-3)}
 
 /* NO animation on this rule. It used to carry `animation:fadeIn .35s`, and that one
    declaration was the blinking the owner kept reporting. #main.view-enter (:2402) sets
@@ -1269,8 +1260,8 @@ body.rm-shift .rm-canvas{cursor:crosshair}
 .acct-menu .acct-note{padding:0 12px 10px;font-size:var(--f1);color:var(--text-3);line-height:1.5}
 .acct-menu .acct-sub{margin-left:auto;font-size:var(--f1);color:var(--text-3);flex-shrink:0;font-weight:500}
 /* the chevron finally means something, so it turns over when the menu is open */
-.tb-acct-chev,.biz-chip .biz-chev{transition:transform .18s var(--ease)}
-.tb-acct[aria-expanded="true"] .tb-acct-chev,.biz-chip[aria-expanded="true"] .biz-chev{transform:rotate(180deg)}
+.tb-acct-chev{transition:transform .18s var(--ease)}
+.tb-acct[aria-expanded="true"] .tb-acct-chev{transform:rotate(180deg)}
 /* On a phone every row in here is a thing to tap, and 9px of padding on a 15px label
    is not 44px. The rows grow instead of wearing a pseudo-element, because nothing in a
    list of full-width rows reflows when the rows get taller. */
@@ -1279,7 +1270,11 @@ body.rm-shift .rm-canvas{cursor:crosshair}
 }
 @media (max-width:960px){.tb-search{flex-basis:180px}}
 @media (max-width:860px){
-  .tb-search,.tb-bell,.tb-acct{display:none}
+  /* The search and the bell fold away on a phone; the ACCOUNT does not. It used to,
+     because the sidebar carried a second chip to reach it. That chip is gone, so hiding
+     this one would leave a phone with no way to sign in, sign out or change a password.
+     The name beside it is already hidden below 1240px, so what stays is a 40px avatar. */
+  .tb-search,.tb-bell{display:none}
   .topbar{min-height:0;padding-block:14px 12px;margin-bottom:16px}
   /* A swept measure of every route at 390px found interactive controls 14 to 20px tall:
      .btn-icon on Products, .led-link on the dashboard and Invoices, the row overflow
@@ -2480,6 +2475,84 @@ body.dragging-active .kb-col{transition:outline-color .12s var(--ease)}
    now, and the names are left alone because renaming CSS to match a deleted feature
    is churn that breaks tests asserting on class names. */
 #lock-root:empty,#signin-root:empty{display:none}
+/* ============================================================
+   the sign-in screen
+   ============================================================
+   Built to a supplied reference: a tinted page, a white panel inset inside a hairline
+   frame, artwork on the left and the form on the right. Two things from the reference
+   are deliberately not copied. There is no gradient anywhere (the owner ruled them out
+   early and has not changed their mind), and there is no Facebook button, because this
+   app has no Facebook sign-in to offer and a button that cannot work is a lie.
+
+   It is a SCREEN, not a wall, in every case but one. The books work with no account at
+   all, so unless this copy was deliberately set to require sign-in there is always a way
+   past it that does not involve signing in to anything. */
+.si-wrap{position:fixed;inset:0;z-index:300;background:var(--accent);padding:clamp(10px,2.2vw,30px);
+  overflow:auto;display:flex;-webkit-overflow-scrolling:touch}
+.si-frame{border:1px solid rgba(255,255,255,.42);border-radius:18px;padding:clamp(6px,1.1vw,14px);
+  flex:1;display:flex;min-height:0}
+.si-panel{flex:1;display:grid;grid-template-columns:1.05fr .95fr;background:var(--bg-card);
+  border-radius:13px;overflow:hidden;min-height:0}
+/* the artwork half. Below 900px it is the first thing to go: it is decoration, and the
+   form is the reason anyone opened this. */
+.si-art{background:var(--bg-sunken);display:grid;place-items:center;padding:34px}
+.si-art svg{width:min(100%,430px);height:auto}
+.si-side{display:flex;align-items:center;justify-content:center;padding:clamp(22px,3.4vw,52px)}
+.si-card{width:100%;max-width:430px}
+.si-kicker{font-size:var(--f4);color:var(--text-2);line-height:1.2}
+.si-name{font-family:var(--font-display);font-size:var(--f7);font-weight:700;color:var(--accent);
+  line-height:1.15;letter-spacing:-.02em;margin:2px 0 26px;overflow-wrap:anywhere}
+/* the federated button: white, bordered, centred, the way every other one looks */
+.si-oauth{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;
+  padding:13px 16px;border:1px solid var(--border);border-radius:11px;background:var(--bg-card);
+  font-size:var(--f3);font-weight:550;color:var(--text);box-shadow:var(--shadow-sm);transition:background .16s var(--ease),border-color .16s var(--ease)}
+.si-oauth:hover{background:var(--bg-sunken);border-color:var(--text-3)}
+.si-or{display:flex;align-items:center;gap:14px;margin:22px 0;color:var(--text-3);font-size:var(--f1);letter-spacing:.08em}
+.si-or::before,.si-or::after{content:"";flex:1;height:1px;background:var(--border)}
+/* filled field with the caption sitting above the value inside the same box */
+.si-field{display:flex;align-items:center;gap:12px;background:var(--bg-sunken);
+  border:1px solid transparent;border-radius:11px;padding:9px 14px;margin-bottom:12px;
+  transition:border-color .16s var(--ease),background .16s var(--ease)}
+.si-field:focus-within{border-color:var(--accent);background:var(--bg-card)}
+.si-field>svg{flex:0 0 auto;color:var(--text-3)}
+.si-field-body{flex:1;min-width:0}
+.si-field label{display:block;font-size:var(--f1);color:var(--text-3);line-height:1.3}
+.si-field input{width:100%;border:0;background:transparent;padding:1px 0 0;font-size:var(--f3);
+  font-weight:550;color:var(--text);outline:none}
+.si-field input::placeholder{font-weight:400;color:var(--text-3)}
+.si-eye{flex:0 0 auto;display:inline-flex;color:var(--text-3);padding:4px;border-radius:7px}
+.si-eye:hover{color:var(--text);background:var(--bg-card)}
+.si-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:6px 0 18px}
+.si-remember{display:flex;align-items:center;gap:9px;font-size:var(--f2);color:var(--text-2)}
+.si-link{font-size:var(--f2);color:var(--accent);font-weight:550}
+.si-link:hover{text-decoration:underline}
+.si-cta{width:100%;display:flex;align-items:center;justify-content:center;gap:9px;padding:15px 18px;
+  border-radius:11px;background:var(--accent);color:#fff;font-size:var(--f3);font-weight:600;
+  transition:filter .16s var(--ease)}
+.si-cta:hover{filter:brightness(1.07)}
+.si-cta[disabled]{opacity:.65}
+.si-foot{margin-top:24px;text-align:center;font-size:var(--f2);color:var(--text-2)}
+.si-msg{margin-top:14px;font-size:var(--f2);border-radius:10px;padding:11px 13px;display:none;line-height:1.45}
+.si-msg.show{display:block}
+.si-msg.err{background:var(--risk-soft);color:var(--risk)}
+.si-msg.ok{background:var(--accent-soft);color:var(--accent)}
+.si-note{margin-top:18px;font-size:var(--f1);color:var(--text-3);line-height:1.5;text-align:center}
+.si-spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.45);
+  border-top-color:#fff;animation:gatespin .7s linear infinite;display:inline-block}
+/* the way out, for every case except a copy deliberately set to require an account */
+.si-skip{display:block;width:100%;margin-top:10px;text-align:center;font-size:var(--f2);
+  color:var(--text-3);padding:9px;border-radius:9px}
+.si-skip:hover{color:var(--text);background:var(--bg-sunken)}
+@media (max-width:900px){
+  .si-panel{grid-template-columns:1fr}
+  .si-art{display:none}
+  .si-side{padding:clamp(20px,5vw,34px) clamp(18px,5vw,30px)}
+}
+@media (max-width:560px){
+  .si-wrap{padding:0}
+  .si-frame{border:0;border-radius:0;padding:0}
+  .si-panel{border-radius:0}
+}
 .gate{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;
   background:#0d0f17;font-family:var(--font)}
 .gate-card{position:relative;width:100%;max-width:380px;background:#15171f;
@@ -2612,9 +2685,6 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 /* An author `display:flex` outranks the browser's own [hidden]{display:none}, so the
    hidden attribute on this element would otherwise set state and hide nothing. */
 .sidebar-tail-body[hidden]{display:none}
-.sb-tail-toggle .nav-chev{margin-left:auto;color:var(--text-3)}
-/* in the icon rail there is no label to hide behind, so the chevron goes with it */
-.app.nav-collapsed .sb-tail-toggle .nav-chev{display:none}
 .nav-item-quiet{color:var(--text-3)}
 .nav-item-quiet:hover{color:var(--sidebar-text-active)}
 /* the promo card: a very light blue panel with a sparkle, a title, two lines of
@@ -2902,14 +2972,11 @@ tbody tr:hover .hr-avatar{transform:scale(1.08)}
 .app.nav-collapsed .cta-beta,
 .app.nav-collapsed .nav-item>span:not(.nav-badge),
 .app.nav-collapsed .nav-section,
-.app.nav-collapsed .biz-chip>div:last-child{display:none}
 .app.nav-collapsed .sidebar-cta{justify-content:center;padding:12px 0}
 .app.nav-collapsed .nav-item{justify-content:center;padding:10px 0}
 .app.nav-collapsed .nav-item svg{opacity:1}
 .app.nav-collapsed .nav-item.active::before{left:-10px}
 .app.nav-collapsed .nav-badge{position:absolute;top:2px;right:9px;margin:0;padding:0 4px;min-width:13px;font-size:var(--f1);line-height:1.5}
-.app.nav-collapsed .biz-chip{justify-content:center}
-.app.nav-collapsed .sidebar-foot{padding:12px 0 2px}
 .app.nav-collapsed .nav-edit-open,.app.nav-collapsed .nav-edit-bar{display:none}
 @media (max-width:860px){.app.nav-collapsed .sidebar{width:232px;padding:20px 12px}.app.nav-collapsed .main{margin-left:0}}
 
@@ -3619,6 +3686,10 @@ var ICONS = {
      the same hairline as the rest, so they sit in a row of them without shouting. */
   signout:'<path d="M12.4 4.5H6.2A1.7 1.7 0 0 0 4.5 6.2v11.6a1.7 1.7 0 0 0 1.7 1.7h6.2"/><path d="m14.8 16.4 4.4-4.4-4.4-4.4"/><path d="M19.2 12H9"/>',
   signin:'<path d="M11.6 4.5h6.2a1.7 1.7 0 0 1 1.7 1.7v11.6a1.7 1.7 0 0 1-1.7 1.7h-6.2"/><path d="m10 16.4 4.4-4.4L10 7.6"/><path d="M14.4 12H4.5"/>',
+  mail:'<rect x="2.8" y="5" width="18.4" height="14" rx="4.2"/><path d="m3.4 6.6 8.6 6 8.6-6"/>',
+  key:'<circle cx="7.8" cy="15.6" r="3.3"/><path d="m10.2 13.2 8-8"/><path d="m15.6 7.8 2 2"/><path d="m13 10.4 2.2 2.2"/>',
+  eye:'<path d="M2.2 12S5.9 5.4 12 5.4 21.8 12 21.8 12 18.1 18.6 12 18.6 2.2 12 2.2 12Z"/><circle cx="12" cy="12" r="2.9"/>',
+  eyeoff:'<path d="M9.6 5.7A8.9 8.9 0 0 1 12 5.4c6.1 0 9.8 6.6 9.8 6.6a17 17 0 0 1-2.6 3.5"/><path d="M6.3 7.8A16.8 16.8 0 0 0 2.2 12S5.9 18.6 12 18.6a8.8 8.8 0 0 0 3.7-.8"/><path d="M3.2 3.2 20.8 20.8"/>',
   menu:'<path d="M3.6 6.6h16.8M3.6 12h16.8M3.6 17.4h16.8"/>',
   grip:'<circle class="s" cx="9" cy="5.6" r="1.55"/><circle class="s" cx="15" cy="5.6" r="1.55"/><circle class="s" cx="9" cy="12" r="1.55"/><circle class="s" cx="15" cy="12" r="1.55"/><circle class="s" cx="9" cy="18.4" r="1.55"/><circle class="s" cx="15" cy="18.4" r="1.55"/>',
   sun:'<circle class="d" cx="12" cy="12" r="4.9"/><path d="M12 2.1v2.5M12 19.4v2.5M4.6 12H2.1M21.9 12h-2.5M5 5 6.77 6.77M17.23 17.23 19 19M19 5l-1.77 1.77M6.77 17.23 5 19"/>',
@@ -4049,44 +4120,135 @@ function authSubmitEmail(email,password,mode){
   return (mode==='up'?authSignUp(email,password):authSignIn(email,password));
 }
 
-/* The wall REQUIRE_SIGNIN puts up. It is deliberately plain about what it is: an owner
-   who turned the flag on wants their staff to sign in, and the honest thing to say is
-   that this copy was set that way, not that the app is locked. It is not locked, as its
-   own flag comment explains at length. */
-function renderSignInWall(){
-  var root=byId('signin-root'); if(!root) return;
-  root.innerHTML=
-    '<div class="gate"><div class="gate-card">'+
-      '<div style="text-align:center;margin-bottom:6px">'+icon('users',30)+'</div>'+
-      '<h1>Sign in to continue</h1>'+
-      '<p class="gate-sub">This copy has been set to ask for an account before it opens.</p>'+
-      (authConfigured()
-        ? (authClientId()?'<button class="gate-btn" type="button" data-action="auth-google" style="margin-bottom:10px">Continue with Google</button>':'')+
-          '<form id="signin-form" autocomplete="off">'+
-            '<div class="gate-field"><label>Email</label>'+
-              '<input class="gate-input" id="signin-email" type="email" autocomplete="username" placeholder="you@email.com"></div>'+
-            '<div class="gate-field"><label>Password</label>'+
-              '<input class="gate-input" id="signin-pass" type="password" autocomplete="current-password" placeholder="at least 6 characters"></div>'+
-            '<button class="gate-btn" id="signin-go" type="submit">Sign in →</button>'+
-            '<div class="gate-msg" id="signin-msg"></div>'+
-          '</form>'
-        : '<div class="gate-msg show err">This copy was set to require an account, but no Firebase project has been configured for it, so there is nothing to sign in to. Whoever deployed it has to paste a Web API key, or set REQUIRE_SIGNIN back to false.</div>')+
-      '<div class="gate-foot">Your data on this device is not touched either way.</div>'+
-    '</div></div>';
-  var form=byId('signin-form'); if(!form) return;
-  var msg=byId('signin-msg'), btn=byId('signin-go');
+/* ---------- the sign-in screen ----------
+   One component, two jobs. Opened from the account menu it is a screen with a way out;
+   raised by REQUIRE_SIGNIN it is a wall with none. The difference is one flag, so the
+   thing an owner sees is the same either way and only the escape hatch moves.
+
+   ui.signin holds the mode ('in' or 'up') and whether the password is showing, because a
+   re-render must not silently retype the password field or throw away what was typed. */
+function siArtSVG(){
+  /* Flat shapes only: the brand blue, its soft tint, and the page's own surfaces. No
+     gradient, by standing instruction. It says "your books, locked to you" without a
+     stock illustration and without a single raster byte. */
+  return '<svg viewBox="0 0 420 330" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A locked ledger">'+
+    '<rect x="120" y="52" width="196" height="240" rx="16" fill="var(--bg-card)" stroke="var(--border)" stroke-width="2"/>'+
+    '<rect x="96" y="76" width="196" height="240" rx="16" fill="var(--accent-soft)"/>'+
+    '<rect x="96" y="76" width="196" height="240" rx="16" stroke="var(--accent)" stroke-width="2"/>'+
+    '<circle cx="194" cy="140" r="26" fill="var(--accent)"/>'+
+    '<path d="M194 130a7 7 0 0 1 7 7v5h-14v-5a7 7 0 0 1 7-7Z" fill="var(--bg-card)"/>'+
+    '<rect x="182" y="142" width="24" height="18" rx="4" fill="var(--bg-card)"/>'+
+    '<rect x="126" y="192" width="136" height="13" rx="6.5" fill="var(--bg-card)"/>'+
+    '<rect x="126" y="216" width="136" height="13" rx="6.5" fill="var(--bg-card)"/>'+
+    '<rect x="126" y="240" width="82" height="13" rx="6.5" fill="var(--bg-card)"/>'+
+    '<circle cx="332" cy="104" r="17" fill="var(--accent)" opacity=".18"/>'+
+    '<circle cx="72" cy="246" r="11" fill="var(--accent)" opacity=".18"/>'+
+    '<path d="M36 120h30M36 136h18" stroke="var(--accent)" stroke-width="4" stroke-linecap="round" opacity=".35"/>'+
+    '</svg>';
+}
+function siGoogleMark(){
+  /* Google's own four-colour mark, which their branding terms require on a button that
+     signs a person in with Google. Inline, because script-src and img-src both refuse
+     to fetch it from anywhere. */
+  return '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">'+
+    '<path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5Z"/>'+
+    '<path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65Z"/>'+
+    '<path fill="#FBBC05" d="M10.53 28.59A14.4 14.4 0 0 1 9.77 24c0-1.6.27-3.15.76-4.59l-7.98-6.19A23.96 23.96 0 0 0 0 24c0 3.88.93 7.54 2.56 10.78l7.97-6.19Z"/>'+
+    '<path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48Z"/>'+
+    '</svg>';
+}
+function siFieldHTML(o){
+  return '<div class="si-field"><label for="'+o.id+'">'+esc(o.label)+'</label></div>';
+}
+function signInHTML(){
+  var st=ui.signin||(ui.signin={mode:'in',show:false});
+  var up=st.mode==='up';
+  var dismissible=!REQUIRE_SIGNIN;
+  var h='<div class="si-wrap"><div class="si-frame"><div class="si-panel">'+
+    '<div class="si-art">'+siArtSVG()+'</div>'+
+    '<div class="si-side"><div class="si-card">'+
+    '<p class="si-kicker">'+esc(tr(up?'Create an account for':'Welcome to'))+'</p>'+
+    '<h1 class="si-name">'+appNameEsc()+'</h1>';
+
+  if(!authConfigured()){
+    /* Nothing to sign in to. Say that, rather than drawing buttons that must fail. */
+    h+='<div class="si-msg show err">'+esc(tr('No sign-in project is connected to this copy yet, so there is no account to sign in to. Everything on this device keeps working exactly as it does now.'))+'</div>'+
+      (dismissible?'<button type="button" class="si-cta" data-action="signin-dismiss" style="margin-top:16px">'+esc(tr('Continue to my books'))+'</button>':'')+
+      '</div></div></div></div></div>';
+    return h;
+  }
+
+  if(authClientId()){
+    h+='<button type="button" class="si-oauth" data-action="auth-google">'+siGoogleMark()+
+      '<span>'+esc(tr(up?'Sign up with Google':'Login with Google'))+'</span></button>'+
+      '<div class="si-or"><span>'+esc(tr('OR'))+'</span></div>';
+  }
+
+  h+='<form id="si-form" autocomplete="on" novalidate>'+
+    '<div class="si-field">'+icon('mail',18)+'<div class="si-field-body">'+
+      '<label for="si-email">'+esc(tr('Email'))+'</label>'+
+      '<input id="si-email" type="email" name="email" autocomplete="username" placeholder="example@gmail.com"></div></div>'+
+    '<div class="si-field">'+icon('key',18)+'<div class="si-field-body">'+
+      '<label for="si-pass">'+esc(tr('Password'))+'</label>'+
+      '<input id="si-pass" type="'+(st.show?'text':'password')+'" name="password" autocomplete="'+(up?'new-password':'current-password')+'" placeholder="'+esc(tr('at least 6 characters'))+'"></div>'+
+      '<button type="button" class="si-eye" data-action="signin-eye" aria-pressed="'+(st.show?'true':'false')+'"'+
+        ' aria-label="'+esc(tr(st.show?'Hide password':'Show password'))+'">'+icon(st.show?'eyeoff':'eye',17)+'</button></div>'+
+    '<div class="si-row">'+
+      '<label class="si-remember"><input type="checkbox" id="si-remember"'+(st.remember===false?'':' checked')+'>'+esc(tr('Remember me'))+'</label>'+
+      (up?'':'<button type="button" class="si-link" data-action="signin-forgot">'+esc(tr('Forgot Password?'))+'</button>')+
+    '</div>'+
+    '<button class="si-cta" id="si-go" type="submit">'+esc(tr(up?'Create account':'Login'))+'</button>'+
+    '<div class="si-msg" id="si-msg"></div>'+
+    '</form>'+
+    '<p class="si-foot">'+esc(tr(up?'Already have an account?':"Don't have an account?"))+' '+
+      '<button type="button" class="si-link" data-action="signin-mode" data-mode="'+(up?'in':'up')+'">'+
+      esc(tr(up?'Login':'Register'))+'</button></p>';
+
+  /* The sentence that keeps this a screen rather than a wall. */
+  if(dismissible){
+    h+='<button type="button" class="si-skip" data-action="signin-dismiss">'+
+      esc(tr('Not now. Keep working on this device'))+'</button>'+
+      '<p class="si-note">'+esc(tr('Your books already work offline with no account. Signing in only lets other people you invite see the same books.'))+'</p>';
+  }else{
+    h+='<p class="si-note">'+esc(tr('This copy was set to ask for an account before it opens. Your data on this device is not touched either way.'))+'</p>';
+  }
+  return h+'</div></div></div></div></div>';
+}
+function signInIsOpen(){ var r=byId('signin-root'); return !!(r&&r.firstChild); }
+function signInClose(){
+  var r=byId('signin-root'); if(!r) return;
+  r.innerHTML=''; document.body.classList.remove('drawer-open');
+}
+function signInOpen(mode){
+  var r=byId('signin-root'); if(!r) return;
+  ui.signin=ui.signin||{mode:'in',show:false};
+  if(mode) ui.signin.mode=mode;
+  signInRender();
+}
+function signInRender(){
+  var r=byId('signin-root'); if(!r) return;
+  r.innerHTML=signInHTML();
+  var form=byId('si-form'); if(!form){ return; }
   form.addEventListener('submit',function(e){
     e.preventDefault();
-    btn.disabled=true; msg.className='gate-msg'; btn.innerHTML='<span class="gate-spin"></span>Signing in…';
-    authSubmitEmail(byId('signin-email').value,byId('signin-pass').value,'in').then(function(){
-      root.innerHTML=''; bootApp();
+    var st=ui.signin, btn=byId('si-go'), msg=byId('si-msg');
+    var rem=byId('si-remember'); if(rem) st.remember=rem.checked;
+    var was=btn.textContent;
+    btn.disabled=true; msg.className='si-msg';
+    btn.innerHTML='<span class="si-spin"></span>'+esc(tr(st.mode==='up'?'Creating your account…':'Signing in…'));
+    authSubmitEmail(byId('si-email').value,byId('si-pass').value,st.mode).then(function(){
+      signInClose();
+      if(typeof bootApp==='function'&&!appBooted) bootApp(); else { render(); renderSidebar(); }
+      toast(tr(st.mode==='up'?'Account created. You are signed in.':'Signed in.'),'good');
     },function(err){
-      btn.disabled=false; btn.innerHTML='Sign in →';
-      msg.className='gate-msg show err'; msg.textContent=(err&&err.msg)||'Could not sign in.';
+      btn.disabled=false; btn.textContent=was;
+      msg.className='si-msg show err'; msg.textContent=(err&&err.msg)||tr('Could not sign in.');
     });
   });
-  setTimeout(function(){ var el=byId('signin-email'); if(el) el.focus(); },120);
+  setTimeout(function(){ var el=byId('si-email'); if(el) el.focus(); },120);
 }
+/* Kept under its old name because bootApp() calls it. */
+function renderSignInWall(){ signInOpen('in'); }
 
 /* ============================================================
    workspaces and invites
@@ -4322,7 +4484,7 @@ var DEFAULT_STATE={
     share:{ enabled:false, wsId:'', wsName:'', role:'', apiKey:'', clientId:'' },
     productCats:['Candle','Keychain','Gift Box'], productAttrs:['Scent','Color'],
     moduleLabels:{}, bizAddress:'', bizPhone:'', onboarded:false, lang:'en', payQR:'', payQRLabel:'',
-    collapsedNav:[], footCollapsed:false, taskLanes:['To do','Doing','Done'], bizLogo:'', tourDone:false, favorites:[], sectionOrder:[],
+    collapsedNav:[], taskLanes:['To do','Doing','Done'], bizLogo:'', tourDone:false, favorites:[], sectionOrder:[],
     country:'', taxLabel:'', locale:'', sectionColors:{}, sectionLabels:{}, navScale:1,
     /* fx.phpPer holds the seeded FALLBACK rates (see FX_SEED_PHP_PER). They are a last
        resort for rough on-screen estimates only: fx.src has no entry for them, so
@@ -5783,49 +5945,27 @@ function renderSidebar(){
     html+='<button class="nav-item" data-action="custom-module-new" style="opacity:.75">'+icon('plus')+'<span>'+esc(tr('New table…'))+'</span></button>';
   }
   html+='</nav>';
-  /* The two rows the reference parks under the spacer: help, then settings. Same
-     row treatment as the nav above, one step muted, outside the scrolling list so
-     they stay reachable however long the menu gets.
+  /* Help, Settings and Edit menu sit under the spacer, outside the scrolling list so they
+     stay reachable however long the menu gets.
 
-     COLLAPSIBLE, because the owner asked for it: "THE HELP TOUR DOWNWARD SHOULD BE
-     COLLAPSABLE". Help, Settings, Edit menu and the backup card are four blocks that
-     never change and sit permanently between the working menu and the account chip. A
-     disclosure row folds all four into one and remembers the answer in settings, the
-     way collapsedNav already remembers which sections are folded. The account chip is
-     NOT inside it: it is the thing the owner most wants to reach, so it stays put in
-     both states. */
-  var footOpen=!state.settings.footCollapsed;
+     These were briefly folded behind a "Help & settings" disclosure row. The row did not
+     earn its place: its own label truncated to "Help & setti..." at the sidebar's width,
+     and the chevron it left behind when closed read as a stray mark above the account
+     chip. Three quiet rows that are always there are tidier than a control that hides
+     them badly, so the disclosure is gone and the rows are plain again. */
   html+='<div class="sidebar-tail">'+
-    '<button class="nav-item nav-item-quiet sb-tail-toggle" data-action="sidebar-foot-toggle"'+
-      ' aria-expanded="'+(footOpen?'true':'false')+'" aria-controls="sidebar-tail-body sidebar-backup"'+
-      ' title="'+esc(tr(footOpen?'Hide help, settings and backup':'Show help, settings and backup'))+'">'+
-      icon('sliders')+'<span>'+esc(tr('Help & settings'))+'</span>'+
-      '<span class="nav-chev'+(footOpen?'':' closed')+'">'+icon('down-chev',10)+'</span></button>'+
-    '<div class="sidebar-tail-body" id="sidebar-tail-body"'+(footOpen?'':' hidden')+'>'+
-      '<button class="nav-item nav-item-quiet" data-action="show-tour" title="Replay the one-minute tour">'+icon('insights')+'<span>'+esc(tr('Help & tour'))+'</span></button>'+
-      '<button class="nav-item nav-item-quiet'+(route==='settings'?' active':'')+'" data-action="nav" data-route="settings" title="'+esc(tr('Settings'))+'">'+icon('settings')+'<span>'+esc(tr('Settings'))+'</span></button>'+
-      '<button class="nav-item nav-item-quiet" data-action="nav-edit-toggle" title="Resize text and reorder the menu">'+icon('edit')+'<span>'+esc(tr('Edit menu'))+'</span></button>'+
-    '</div></div>';
-  /* The promo card. In the reference this slot sells a plan. This app is bought once,
-     so an upsell there would be a lie, and a permanent "import a spreadsheet" pitch is
-     an onboarding prompt that never stops onboarding: on the four hundredth launch it
-     is still selling a feature the owner either used months ago or does not want.
-     The slot carries the one thing that is genuinely urgent and genuinely changes:
+    '<button class="nav-item nav-item-quiet" data-action="show-tour" title="Replay the one-minute tour">'+icon('insights')+'<span>'+esc(tr('Help & tour'))+'</span></button>'+
+    '<button class="nav-item nav-item-quiet'+(route==='settings'?' active':'')+'" data-action="nav" data-route="settings" title="'+esc(tr('Settings'))+'">'+icon('settings')+'<span>'+esc(tr('Settings'))+'</span></button>'+
+    '<button class="nav-item nav-item-quiet" data-action="nav-edit-toggle" title="Resize text and reorder the menu">'+icon('edit')+'<span>'+esc(tr('Edit menu'))+'</span></button>'+
+    '</div>';
+  /* The promo card carries the one thing that is genuinely urgent and genuinely changes:
      whether their books would survive losing this device. It reads differently in each
-     state, and when everything is safe it says so quietly instead of inventing a task.
-
-     It folds with the rows above it rather than on its own, because "collapse the
-     bottom of the sidebar" means one control, not two. The one state it is NOT allowed
-     to be silent in is the alarming one: with real books and no backup at all, a folded
-     card would hide the only warning that the owner is one cleared cache from losing
-     everything, so that card stays out. */
-  var backupCard=sidebarBackupCardHTML();
-  if(footOpen||/sb-risk/.test(backupCard)) html+=backupCard;
-  html+='<div class="sidebar-foot"><button class="biz-chip" data-action="acct-menu" aria-haspopup="menu" aria-expanded="false" title="'+appNameEsc()+'">'+
-    (bl?'<img src="'+esc(bl)+'" alt="" style="width:36px;height:36px;border-radius:10px;object-fit:cover;flex-shrink:0">'
-       :'<div class="avatar">'+esc(appName().charAt(0).toUpperCase())+'</div>')+
-    '<div><b>'+appNameEsc()+'</b><span>'+esc(acctChipLine())+'</span></div>'+
-    '<span class="biz-chev">'+icon('down-chev',14)+'</span></button></div>';
+     state, and when everything is safe it says so quietly instead of inventing a task. */
+  html+=sidebarBackupCardHTML();
+  /* No account chip down here any more. There were two doors to the same menu, and this
+     one was the crooked door: a fixed-width name that truncated, a second chevron, and a
+     block of chrome between the backup card and the bottom of the rail. The account lives
+     on the avatar in the top bar, where every other product of this kind puts it. */
   var sb=byId('sidebar');
   var navEl=sb.querySelector('.nav');
   var keepScroll=navEl?navEl.scrollTop:0;
@@ -5896,9 +6036,10 @@ function islandCloseAll(){
    the app already has (sign in, Google, sign out, workspaces, invites) was reachable
    only by scrolling to the bottom of Settings ▸ Data & Sync.
 
-   ONE renderer, two triggers. The top bar chip (.tb-acct) is hidden below 860px, where
-   the sidebar chip (.biz-chip) is the one an owner can reach, so neither is optional
-   and neither may be a second copy of the other. */
+   There were two triggers for a while, one in the top bar and one at the foot of the
+   sidebar. Two doors to the same menu, and the sidebar one was the crooked door: a name
+   that truncated at a fixed width and a second chevron sitting under the backup card. It
+   is gone. The top bar avatar is the only trigger, at every width. */
 var acctMenuTrigger=null;
 /* The one line under the business name on both chips. It used to say "Local · private"
    and "Local workspace" unconditionally, which stopped being true the moment anyone
@@ -5983,7 +6124,7 @@ function acctMenuPlace(menu,trig){
   var vh=document.documentElement.clientHeight||window.innerHeight||0;
   var mw=menu.offsetWidth, mh=menu.offsetHeight, gut=12;
   // the sidebar chip hangs from its left edge, the top bar chip from its right
-  var left=trig.classList.contains('biz-chip')?r.left:(r.right-mw);
+  var left=r.right-mw;
   left=Math.max(gut,Math.min(left,vw-mw-gut));
   var top=r.bottom+8, up=false;
   if(top+mh>vh-gut&&r.top-mh-8>=gut){ top=r.top-mh-8; up=true; }
@@ -11248,8 +11389,26 @@ document.addEventListener('click',function(e){
     authSignOut(); toast('Signed out. Everything on this device is untouched.');
     save(); render(); return;
   }
-  if(action==='auth-signin-email'){ authEmailModal('in'); return; }
-  if(action==='auth-signup'){ authEmailModal('up'); return; }
+  /* Sign in, create an account and forgot-password all lead to the one screen now. They
+     used to open three small modals, which is how "the log in is not the standard" came
+     to be true: the only full-page thing in the app was a licence gate that no longer
+     exists. */
+  if(action==='auth-signin-email'){ acctMenuClose(true); signInOpen('in'); return; }
+  if(action==='signin-dismiss'){ signInClose(); if(!appBooted) bootApp(); return; }
+  if(action==='signin-eye'){ ui.signin.show=!ui.signin.show; signInRender(); return; }
+  if(action==='signin-mode'){ ui.signin.mode=el.getAttribute('data-mode')||'in'; signInRender(); return; }
+  if(action==='signin-forgot'){
+    var em=byId('si-email'), msg=byId('si-msg');
+    var addr=em?String(em.value||'').trim():'';
+    if(!addr){ if(msg){ msg.className='si-msg show err'; msg.textContent=tr('Type your email address above first, then press this again.'); } if(em) em.focus(); return; }
+    authSendReset(addr).then(function(){
+      if(msg){ msg.className='si-msg show ok'; msg.textContent=tr('Check your email. A link to set a new password is on its way to')+' '+addr+'.'; }
+    },function(err){
+      if(msg){ msg.className='si-msg show err'; msg.textContent=(err&&err.msg)||tr('Could not send the reset email.'); }
+    });
+    return;
+  }
+  if(action==='auth-signup'){ acctMenuClose(true); signInOpen('up'); return; }
   if(action==='auth-change-password'){ authPasswordModal(); return; }
   if(action==='auth-profile'){ authProfileModal(); return; }
   /* Google sends the reset mail, not this app. Success is reported the same way whether
@@ -11307,13 +11466,6 @@ document.addEventListener('click',function(e){
   if(action==='go-import'){ ui.settingsTab='data'; nav('settings'); byId('sidebar').classList.remove('open'); byId('scrim').classList.remove('show'); setTimeout(function(){ var c=document.querySelector('[data-action="csv-import"]'); if(c&&c.scrollIntoView) c.scrollIntoView({behavior:'smooth',block:'center'}); },120); return; }
   if(action==='open-sidebar'){ byId('sidebar').classList.add('open'); byId('scrim').classList.add('show'); document.body.classList.add('drawer-open'); return; }
   if(action==='toggle-nav-collapse'){ state.settings.navCollapsed=!state.settings.navCollapsed; if(state.settings.navCollapsed) ui.navEdit=false; save(); applyNavCollapse(); renderSidebar(); var _tg=document.querySelector('.nav-toggle'); if(_tg){ _tg.innerHTML=icon(state.settings.navCollapsed?'collapseR':'collapseL'); _tg.setAttribute('title',state.settings.navCollapsed?'Expand sidebar':'Collapse sidebar'); } return; }
-  /* The bottom of the sidebar folds to one row and stays folded across launches. It
-     redraws the sidebar rather than toggling hidden in place, because the backup card
-     that folds with it is a sibling and its own state depends on the books. */
-  if(action==='sidebar-foot-toggle'){
-    state.settings.footCollapsed=!state.settings.footCollapsed;
-    save(); renderSidebar(); return;
-  }
   if(action==='pin-set'){ pinModal('set'); return; }
   if(action==='pin-change'){ pinModal('change'); return; }
   if(action==='pin-remove'){ pinModal('remove'); return; }
@@ -18172,7 +18324,9 @@ function islandScrollSync(){
   var y=m.scrollTop;
   document.body.classList.toggle('isl-scrolled', y>8);
 }
+var appBooted=false;
 function bootApp(){
+  appBooted=true;
   try{ console.info('Trakora build', APP_BUILD); }catch(_){}
   var _m=byId('main'); if(_m) _m.addEventListener('scroll', islandScrollSync, {passive:true});
   installChartHover();
@@ -18218,6 +18372,14 @@ if(REQUIRE_SIGNIN && !authSignedIn()){
   renderSignInWall();
 } else {
   bootApp();
+  /* "when they open the site": a copy that is actually SET UP for accounts and is not
+     signed in gets the sign-in screen on launch, because somebody signed out of a shared
+     set of books and the next thing they want is back in. A copy nobody has connected a
+     project to never sees it, because there would be nothing to sign in to and the books
+     work perfectly well without. Either way it can be dismissed. */
+  if(authConfigured() && !authSignedIn() && (shareCfg().enabled || (state.settings.share||{}).wsId)){
+    setTimeout(function(){ if(!signInIsOpen()) signInOpen('in'); },400);
+  }
 }
 </script>
 </body>

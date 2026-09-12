@@ -4299,17 +4299,20 @@ async function main() {
         share.apiKey = 'AIzaTEST'; share.clientId = 'test.apps.googleusercontent.com';
         share.enabled = false; share.wsId = ''; share.wsName = ''; share.role = '';
 
-        // both chips, one menu
+        // one trigger, in the top bar, at every width
         open('.tb-acct');
         ok('the account menu opens from the top bar chip', window.acctMenuIsOpen() === true);
         ok('...and the chip says so', d.querySelector('.tb-acct').getAttribute('aria-expanded') === 'true');
-        const fromTop = acts().join(',');
-        open('.biz-chip');
-        ok('the account menu opens from the sidebar chip too', window.acctMenuIsOpen() === true
-          && d.querySelector('.biz-chip').getAttribute('aria-expanded') === 'true');
-        ok('both chips open the SAME menu, not two of them', acts().join(',') === fromTop, [fromTop, acts().join(',')]);
-        ok('the menu is mounted on <body>, so neither the top bar nor the sidebar can clip it',
+        ok('the menu is mounted on <body>, so the top bar cannot clip it',
           d.getElementById('acct-menu').parentNode === d.body);
+        /* The sidebar used to carry a second chip onto the same menu. It was removed for
+           looking crooked, which is only safe because the top bar chip no longer hides on
+           a phone. If it ever hides again, a phone has no way to sign in or out at all. */
+        ok('the sidebar no longer carries a second account chip',
+          !d.querySelector('.biz-chip') && html.indexOf('biz-chip') === -1);
+        ok('...so the top bar chip may not be hidden on small screens',
+          !/\.tb-search,\.tb-bell,\.tb-acct\{display:none\}/.test(html) &&
+          /\.tb-search,\.tb-bell\{display:none\}/.test(html));
 
         // signed out: the three ways in
         open('.tb-acct');
@@ -4404,60 +4407,37 @@ async function main() {
       }
     })();
 
-    // ---------- the sidebar footer folds, and stays folded ----------
-    // "THE HELP TOUR DOWNWARD SHOULD BE COLLAPSABLE". Help, Settings, Edit menu and the
-    // backup card fold into one row; the account chip never does, because it is the
-    // control the owner most wants to reach.
+    // ---------- the foot of the sidebar ----------
+    /* This block used to test a "Help & settings" disclosure row that folded help,
+       settings, edit menu and the backup card away, and an account chip beside it. Both
+       are gone: the row's own label truncated to "Help & setti..." at the rail's width
+       and left a stray chevron above the chip when closed, and the chip was a second,
+       crooked door onto a menu the top bar already opens. What is tested now is that the
+       rows survived the removal and that nothing was left behind. */
     (function sidebarFoot() {
-      const savedFoot = window.state.settings.footCollapsed;
       const savedBackup = window.state.settings.lastBackup;
       try {
-        // a backed-up copy, so the card is in its quiet state and free to fold
         window.state.settings.lastBackup = window.todayISO();
-        window.state.settings.footCollapsed = false;
         window.renderSidebar();
-        ok('expanded, the tail carries help, settings and edit menu',
-          d.querySelectorAll('#sidebar-tail-body .nav-item').length === 3);
-        ok('expanded, the backup card is on screen', !!d.getElementById('sidebar-backup'));
-        const toggle = d.querySelector('.sb-tail-toggle');
-        ok('there is one disclosure row for all of it', !!toggle && toggle.getAttribute('aria-expanded') === 'true');
-
-        click(toggle);
-        ok('clicking it folds the block', window.state.settings.footCollapsed === true);
-        ok('...the three rows go', !d.querySelector('#sidebar-tail-body .nav-item') ||
-          d.getElementById('sidebar-tail-body').hidden === true);
-        /* The hidden attribute only hides what the stylesheet lets it hide. This element
-           carries an author display:flex, which outranks the browser's own
-           [hidden]{display:none} at equal specificity — so without an explicit override
-           the attribute above sets state and hides nothing on screen. jsdom does no
-           layout and cannot catch that, so the rule itself is the assertion. */
-        ok('...and the stylesheet actually lets [hidden] hide them',
-          /\.sidebar-tail-body\[hidden\]\s*\{[^}]*display\s*:\s*none/.test(html));
-        ok('...the backup card goes with them', !d.getElementById('sidebar-backup'));
-        ok('...the disclosure row itself stays, so it can be undone',
-          !!d.querySelector('.sb-tail-toggle') &&
-          d.querySelector('.sb-tail-toggle').getAttribute('aria-expanded') === 'false');
-        ok('...and the account chip is still reachable, which is the whole point',
-          !!d.querySelector('.biz-chip[data-action="acct-menu"]'));
-
-        // it is a setting, not a session flag: the choice survives a reload
-        const stored = JSON.parse(window.localStorage.getItem('bizpilot.v1') || '{}');
-        ok('the choice is written to settings, the way collapsedNav is',
-          stored.settings && stored.settings.footCollapsed === true, stored.settings && stored.settings.footCollapsed);
-
-        click(d.querySelector('.sb-tail-toggle'));
-        ok('clicking it again brings the block back', window.state.settings.footCollapsed === false &&
-          d.querySelectorAll('#sidebar-tail-body .nav-item').length === 3 && !!d.getElementById('sidebar-backup'));
-
-        // the one card that is not allowed to be silent
-        window.state.settings.lastBackup = null;
-        window.state.settings.footCollapsed = true;
-        window.renderSidebar();
-        const risky = window.dataRecordCount() >= 5 && !(window.state.settings.sync || {}).lastSync;
-        ok('a folded footer still shows the backup warning when the books really are at risk',
-          !risky || !!d.getElementById('sidebar-backup'), { risky });
+        const tail = d.querySelectorAll('.sidebar-tail .nav-item');
+        ok('the tail still carries help, settings and edit menu, plainly',
+          tail.length === 3, Array.prototype.map.call(tail, (e) => e.textContent.trim()));
+        ok('...with no disclosure row in front of them',
+          !d.querySelector('.sb-tail-toggle') && html.indexOf('sidebar-foot-toggle') === -1);
+        ok('...and no chevron left floating where it used to be',
+          !d.querySelector('.sidebar-tail .nav-chev'));
+        ok('the backup card is on screen and no longer folds away',
+          !!d.getElementById('sidebar-backup'));
+        ok('the account chip is gone from the foot of the sidebar',
+          !d.querySelector('.sidebar-foot') && !d.querySelector('.biz-chip'));
+        /* Dead weight from the removed feature: a setting nothing reads, CSS for elements
+           that are never rendered. Left behind, it is the next reader's wild goose chase. */
+        ok('the setting that drove it is gone with it',
+          !('footCollapsed' in window.state.settings) && html.indexOf('footCollapsed') === -1);
+        ok('...and so is its stylesheet',
+          html.indexOf('.biz-chip') === -1 && html.indexOf('.sb-tail-toggle') === -1 &&
+          html.indexOf('.sidebar-foot{') === -1);
       } finally {
-        window.state.settings.footCollapsed = savedFoot;
         window.state.settings.lastBackup = savedBackup;
         window.save();
         window.renderSidebar();
