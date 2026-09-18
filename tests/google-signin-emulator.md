@@ -18,8 +18,25 @@ next person will otherwise have only mocked evidence.
     exchanged at Firebase Auth        the emulator, not a mock
     result                            signed in, provider google, email verified
 
+The callback page was then driven separately as a real popup, opened by a real opener,
+with a Google-shaped fragment. It parsed the credential and posted it back to the exact
+origin, and did the same for a declined consent (`#error=access_denied`).
+
+That closes every line of OUR code in this chain:
+
+| Step | Whose code | Verified |
+|---|---|---|
+| Build the Google URL | ours | client_id, response_type=id_token, state, nonce |
+| Consent screen | **Google's** | needs a real client id |
+| Callback parses the fragment | ours | real popup, success and declined |
+| postMessage back to the opener | ours | exact origin, never `*` |
+| Three guards on receipt | ours | each refuses on its own, zero requests leak |
+| Exchange for a session | ours | real Firebase Auth server |
+| Session adopted | ours | signed in, provider google, verified |
+
 The only step not exercised is Google's own consent screen, which needs a real OAuth
-client id and a registered redirect URI. Everything after it is proven.
+client id and a registered redirect URI. It is Google's page, not ours: there is no code
+of ours left between the popup opening and the session existing.
 
 ## Running it
 
