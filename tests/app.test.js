@@ -4329,25 +4329,51 @@ async function main() {
           !/\.tb-search,\.tb-bell,\.tb-acct\{display:none\}/.test(html) &&
           /\.tb-search,\.tb-bell\{display:none\}/.test(html));
 
-        // signed out: the three ways in
+        // signed out: the two ways in, and nothing else
         open('.tb-acct');
         const out = acts();
-        ok('signed out, the menu offers Google, email sign-in and Create an account',
-          ['auth-google', 'auth-signin-email', 'auth-signup'].every((a) => out.indexOf(a) >= 0), out);
+        ok('signed out, the menu offers Sign in and Create account',
+          ['auth-signin-email', 'auth-signup'].every((a) => out.indexOf(a) >= 0), out);
+        /* Google is a METHOD, and methods belong next to the email field on the sign-in
+           screen, not in an account menu. Dropping the row also takes the last
+           authClientId() branch out of acctMenuHTML(). */
+        ok('signed out, Google is not offered here: it lives on the sign-in screen',
+          out.indexOf('auth-google') < 0, out);
         ok('signed out, there is nothing to sign out of', out.indexOf('auth-signout') < 0, out);
-        ok('signed out, Business settings and Privacy are still reachable',
+        ok('signed out, Settings and Privacy are still reachable',
           out.indexOf('settings-go') >= 0 && out.indexOf('nav') >= 0, out);
+        ok('signed out, the menu is five rows at most and carries no prose',
+          out.length <= 5 && !d.querySelector('#acct-menu .acct-note'), out);
+        ok('...and the labels are the standard ones', (() => {
+          const labels = Array.prototype.map.call(
+            d.querySelectorAll('#acct-menu [role="menuitem"] span:first-of-type'), (e) => e.textContent.trim());
+          return labels.join('|') === 'Sign in|Create account|Settings|Privacy';
+        })(), Array.prototype.map.call(d.querySelectorAll('#acct-menu [role="menuitem"]'), (e) => e.textContent.trim()));
         ok('every row in the menu is a real menuitem (keyboard reachable)',
           d.querySelectorAll('#acct-menu [data-action]').length > 0 &&
           Array.prototype.every.call(d.querySelectorAll('#acct-menu [data-action]'),
             (e) => e.getAttribute('role') === 'menuitem'));
 
-        // a copy with no Firebase project offers no sign-in it cannot honour
+        /* THE REPORTED DEFECT, written down so it cannot come back. This block used to
+           assert the opposite: that a copy with no Firebase project swapped the sign-in
+           rows for a "Set up sign-in" row into the developer fold. That is what the owner
+           objected to, in those words, and they were right. A product offers its front
+           door unconditionally and explains itself at the door. So the contract is now
+           equality: the rows are IDENTICAL with and without a key, and the truth about
+           the deployment is told on the sign-in screen instead (see signInAndSettings). */
         share.apiKey = ''; share.clientId = '';
         open('.tb-acct');
         const bare = acts();
-        ok('with no project configured the menu offers set-up, not buttons that must fail',
-          bare.indexOf('auth-signin-email') < 0 && bare.indexOf('auth-google') < 0 && bare.indexOf('settings-go') >= 0, bare);
+        ok('with no project configured the menu is byte-for-byte the same menu',
+          bare.join('|') === out.join('|'), [bare, out]);
+        ok('...so it still offers to sign in and to create an account',
+          bare.indexOf('auth-signin-email') >= 0 && bare.indexOf('auth-signup') >= 0, bare);
+        ok('...and no row anywhere in it leads to the setup tab',
+          Array.prototype.every.call(d.querySelectorAll('#acct-menu [data-action]'),
+            (e) => e.getAttribute('data-tab') !== 'data'), bare);
+        ok('...and it says nothing about a project, a key or setting anything up',
+          !/project|key|set ?up|configur|Firebase|developer/i.test(d.getElementById('acct-menu').textContent),
+          d.getElementById('acct-menu').textContent);
         share.apiKey = 'AIzaTEST'; share.clientId = 'test.apps.googleusercontent.com';
 
         // signed in with an email and password
@@ -4405,6 +4431,48 @@ async function main() {
         click(d.querySelector('.tb-acct'));
         ok('a second click on the chip closes what the first one opened', window.acctMenuIsOpen() === false);
 
+        /* An expired session. The books are untouched and the person is still shown as
+           themselves, so the menu has to say why the sharing stopped: the one prose note
+           the design allows, and a way straight back in above everything else. */
+        share.enabled = false; share.wsId = ''; share.wsName = ''; share.role = '';
+        window.authStore({ uid: 'u1', email: 'owner@example.com', name: 'Ira Santos', idToken: '',
+          refreshToken: 'r', expiresAt: Date.now() - 1000, provider: 'password', verified: true,
+          expired: true, at: Date.now() });
+        open('.tb-acct');
+        const exp = acts();
+        ok('an ended session is explained in the menu, not left as a mystery',
+          /Your session ended/.test(d.querySelector('#acct-menu .acct-note').textContent),
+          d.querySelector('#acct-menu .acct-note') && d.querySelector('#acct-menu .acct-note').textContent);
+        ok('...and the way back in is the first row, above the profile',
+          exp[0] === 'auth-signin-email' && exp.indexOf('auth-profile') === 1, exp);
+        ok('...and the note does not send anyone to a settings tab to fix it',
+          !/Settings|Data & Sync|Developer/.test(d.querySelector('#acct-menu .acct-note').textContent));
+
+        /* State D: the local session written by "Continue on this device". Nobody is
+           signed in to anything, so there is no password to change and no workspace to
+           invite anyone to, but there is still a profile and still a way out. */
+        window.authStore(null);
+        window.state.settings.localIn = true;
+        open('.tb-acct');
+        const loc = acts();
+        ok('a local session gets the profile, the settings, the privacy page and a way out',
+          loc.join('|') === 'auth-profile|settings-go|nav|auth-signout', loc);
+        ok('...and is told plainly that it is on this device',
+          /On this device/.test(d.querySelector('#acct-menu .acct-who').textContent),
+          d.querySelector('#acct-menu .acct-who').textContent);
+        ok('...with no account-only rows it has no account for',
+          loc.indexOf('auth-change-password') < 0 && loc.indexOf('auth-signin-email') < 0, loc);
+        window.state.settings.localIn = false;
+
+        /* The rule the whole change rests on, asserted against the source rather than
+           against one rendered state, because a fifth branch could be added tomorrow. */
+        const menuSrc = window.acctMenuHTML.toString();
+        ok('acctMenuHTML never asks whether a project is configured',
+          menuSrc.indexOf('authConfigured') < 0 && menuSrc.indexOf('authClientId') < 0 &&
+          menuSrc.indexOf('authApiKey') < 0, menuSrc.slice(0, 200));
+        ok('the words "Set up sign-in" appear nowhere in the app',
+          html.indexOf('Set up sign-in') === -1);
+
         // acting on a row puts the menu away
         window.authStore(null);
         share.enabled = false; share.wsId = ''; share.wsName = ''; share.role = '';
@@ -4412,6 +4480,7 @@ async function main() {
         click(d.querySelector('#acct-menu [data-action="settings-go"]'));
         ok('choosing a row closes the menu behind it', window.acctMenuIsOpen() === false);
       } finally {
+        window.state.settings.localIn = false;
         window.acctMenuClose(true);
         Object.keys(share).forEach((k) => { delete share[k]; });
         Object.assign(share, savedShare);
@@ -4506,8 +4575,15 @@ async function main() {
       ok('...with the frame, the panel and the artwork gone, not just hidden',
         ['si-frame', 'si-panel', 'si-art', 'si-side', 'siArtSVG'].every((c) => html.indexOf(c) === -1));
       ok('...and the parts that matter still there',
-        ['si-oauth', 'si-or', 'si-field', 'si-eye', 'si-remember', 'si-cta', 'si-foot']
+        ['si-oauth', 'si-or', 'si-field', 'si-eye', 'si-cta', 'si-foot']
           .every((c) => html.indexOf(c) > 0));
+      /* "Remember me" is gone. It was read into ui.signin.remember and used by nothing:
+         the session goes to localStorage and outlives a browser restart whatever the box
+         said, so unticking it told the person something untrue. The behaviour did not
+         change; the control that misdescribed it did. */
+      ok('...and the checkbox that promised something the code never did is gone',
+        html.indexOf('si-remember') === -1 && !/id="si-remember"/.test(html) &&
+        !/st\.remember=rem\.checked/.test(html));
       ok('...and the business name, not a hardcoded one',
         /si-name">'\+appNameEsc\(\)/.test(html));
       /* Two things in the reference are deliberately absent, and both would be a lie: a
@@ -4517,24 +4593,74 @@ async function main() {
         /class="si-oauth" data-action/.test(html) &&
         html.indexOf('auth-facebook') === -1);
 
-      /* PREVIEW. With no project connected there is nothing to check anything against, so
-         rather than a dead form the fields come pre-filled and Login opens the books. The
-         line that keeps this honest: no session is written, so nothing downstream believes
-         anyone signed in. */
-      ok('with no project connected the form is pre-filled for a tester',
-        /var SI_DEMO=\{email:'[^']+',password:'[^']+'\}/.test(html) &&
-        /preview\?' value="'\+esc\(SI_DEMO\.email\)/.test(html) &&
-        /preview\?' value="'\+esc\(SI_DEMO\.password\)/.test(html));
-      ok('...and Login takes them into the books instead of failing',
-        /if\(!authConfigured\(\)\)\{[\s\S]{0,420}?signInClose\(\);/.test(html));
-      ok('...and the Google button goes the same way rather than opening a dead popup',
-        /data-action="'\+\(preview\?'signin-preview':'auth-google'\)/.test(html) &&
-        html.indexOf("action==='signin-preview'") > 0);
-      /* The whole point of the honesty: a preview must not leave the app believing a
-         session exists, or every screen downstream lies about who is signed in. */
-      ok('...without writing a session, so nothing downstream thinks anyone signed in',
-        !/action==='signin-preview'[\s\S]{0,400}?authStore\(/.test(html) &&
-        /Preview\. No account is connected to this copy yet/.test(html));
+      /* THE SIGN-IN SCREEN IS THE ONE PLACE THE DEPLOYMENT IS DESCRIBED. The account
+         menu offers "Sign in" whether or not AUTH_CFG has been filled in, because that is
+         what a product does. The honest answer is given here, at the door, to somebody
+         who is actually trying to get in.
+
+         With no project there are no accounts, so there is no form. The screen used to
+         render the full form and pre-fill it from an SI_DEMO pair of made-up credentials,
+         which is the one lie it could tell: an Email label and a Password label promise
+         those two values get checked, and with an empty AUTH_CFG they are checked against
+         nothing at all. */
+      (function signInWithoutAProject() {
+        const share = window.state.settings.share;
+        const savedKey = share.apiKey, savedCid = share.clientId;
+        try {
+          share.apiKey = ''; share.clientId = '';
+          window.ui.signin = { mode: 'in', show: false };
+          const bare = window.signInHTML();
+          ok('with no project connected there is no form to fill in',
+            bare.indexOf('si-field') === -1 && bare.indexOf('si-oauth') === -1 &&
+            bare.indexOf('si-or') === -1 && bare.indexOf('si-form') === -1, bare.slice(0, 400));
+          ok('...and no made-up credentials anywhere, in the page or in the source',
+            html.indexOf('SI_DEMO') === -1 && html.indexOf('preview1234') === -1 &&
+            html.indexOf('tester@example.com') === -1);
+          ok('...what it says is short and true',
+            bare.indexOf('This copy has no accounts yet. Your books work on this device without one.') > 0, bare);
+          ok('...and it does not send the owner off to configure anything',
+            !/API key|Firebase|client id|Developer setup|Settings/i.test(bare), bare);
+          ok('...one button, and it is the way in',
+            (bare.match(/data-action="signin-preview"/g) || []).length === 1 &&
+            bare.indexOf('Continue on this device') > 0, bare);
+          /* The whole point of the honesty: continuing must not leave the app believing a
+             session exists, or every screen downstream lies about who is signed in. */
+          ok('...which writes no auth session, so nothing downstream thinks anyone signed in',
+            !/action==='signin-preview'[\s\S]{0,500}?authStore\(/.test(html) &&
+            /Opened on this device\. Nobody is signed in\./.test(html));
+
+          /* A key but no client id: the real form, and no Google button, because a Google
+             button with no client id behind it can open exactly one thing, a dead popup.
+             The OR rule has nothing left to separate, so it goes with it. */
+          share.apiKey = 'AIzaTEST';
+          const noGoogle = window.signInHTML();
+          ok('a project with no client id gets the real form',
+            noGoogle.indexOf('si-form') > 0 && noGoogle.indexOf('id="si-email"') > 0 &&
+            noGoogle.indexOf('id="si-pass"') > 0, noGoogle.slice(0, 300));
+          ok('...and no Google button, and no OR rule with nothing to separate',
+            noGoogle.indexOf('si-oauth') === -1 && noGoogle.indexOf('si-or') === -1);
+          ok('...and no pre-filled values in either field',
+            !/id="si-email"[^>]*value=/.test(noGoogle) && !/id="si-pass"[^>]*value=/.test(noGoogle));
+
+          share.clientId = 'test.apps.googleusercontent.com';
+          const withGoogle = window.signInHTML();
+          ok('add the client id and the Google button appears, above the email field',
+            withGoogle.indexOf('si-oauth') > 0 && withGoogle.indexOf('si-or') > 0 &&
+            withGoogle.indexOf('si-oauth') < withGoogle.indexOf('id="si-email"'), true);
+          ok('...opening the real popup, not the local shortcut',
+            /class="si-oauth" data-action="auth-google"/.test(withGoogle));
+          ok('...labelled the standard way in both modes', (() => {
+            const inLbl = withGoogle.indexOf('Continue with Google') > 0;
+            window.ui.signin.mode = 'up';
+            const upLbl = window.signInHTML().indexOf('Sign up with Google') > 0;
+            window.ui.signin.mode = 'in';
+            return inLbl && upLbl;
+          })());
+        } finally {
+          share.apiKey = savedKey; share.clientId = savedCid;
+          window.ui.signin = { mode: 'in', show: false };
+        }
+      })();
       ok('sign in, create an account and forgot password all lead to the one screen',
         /action==='auth-signin-email'\)\{ acctMenuClose\(true\); signInOpen\('in'\)/.test(html) &&
         /action==='auth-signup'\)\{ acctMenuClose\(true\); signInOpen\('up'\)/.test(html) &&
