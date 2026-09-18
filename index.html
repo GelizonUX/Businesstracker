@@ -3949,6 +3949,42 @@ function authErrMsg(code){
    swallows, and a provider left switched off answers only when somebody actually tries to
    sign in. So the app checks what it can check and says which of the three is missing,
    rather than leaving an owner to guess which of three consoles they got wrong. */
+/* The Firebase console does not hand you a Web API key on its own. It hands you a block
+   of JavaScript, and asking somebody to pick one line out of it and paste that instead is
+   how a two minute job becomes a support conversation. So the key field takes either: the
+   bare key, or the whole snippet, pasted as it was copied.
+
+   It also reads clientId out of a pasted block if one is there, because a Google OAuth
+   client id is the one value the Firebase snippet does NOT carry, and somebody who has
+   assembled a config by hand may well have added it. */
+function authParseConfig(text){
+  text=String(text||'').trim();
+  if(!text) return {};
+  /* Anything that is not obviously a config block is taken WHOLE as the key, even when it
+     does not look like one. Google is the authority on whether a key is valid, not a
+     regex here: a pattern strict enough to recognise a real key will also silently discard
+     a mistyped one, and a value that vanishes on save with no message is far worse than
+     one that comes back rejected by name. */
+  /* A Google OAuth client id has an unmistakable shape, so it is recognised wherever it
+     is pasted rather than being swallowed as a key by the fallback below. */
+  if(/^[\w-]+\.apps\.googleusercontent\.com$/.test(text)) return {clientId:text};
+  var looksLikeBlock=/[{}]/.test(text)||/apiKey\s*[:=]/i.test(text)||/\n/.test(text);
+  if(!looksLikeBlock) return {apiKey:text};
+  var out={};
+  var pick=function(name){
+    var m=new RegExp('["\']?'+name+'["\']?\\s*[:=]\\s*["\']([^"\']+)["\']','i').exec(text);
+    return m?m[1].trim():'';
+  };
+  var k=pick('apiKey'); if(k) out.apiKey=k;
+  var c=pick('clientId')||pick('client_id'); if(c) out.clientId=c;
+  var d=pick('authDomain'); if(d) out.authDomain=d;
+  var pid=pick('projectId'); if(pid) out.projectId=pid;
+  /* last resort: a key on its own line inside something we did not recognise */
+  if(!out.apiKey){ var m=/AIza[\w-]{20,}/.exec(text); if(m) out.apiKey=m[0]; }
+  /* and a client id anywhere in the text, since its shape is unmistakable */
+  if(!out.clientId){ var g=/[\w-]+\.apps\.googleusercontent\.com/.exec(text); if(g) out.clientId=g[0]; }
+  return out;
+}
 function authSetupCheck(hostOverride){
   var key=authApiKey(), cid=authClientId();
   /* the host is a parameter so the "not on the list" branch can be exercised from a test
@@ -10954,7 +10990,9 @@ function developerSetupHTML(){
         '<li>'+esc(tr('Realtime Database, Create database, then publish the rules at the bottom of this fold.'))+'</li>'+
       '</ol>'+
       '<form data-form="share-keys" style="margin-top:12px">'+
-        '<div class="field"><label>'+esc(tr('Firebase Web API key'))+'</label><input class="input" name="apiKey" value="'+esc(cfg.apiKey||'')+'" placeholder="AIza…" autocomplete="off" spellcheck="false"></div>'+
+        '<div class="field"><label>'+esc(tr('Firebase Web API key'))+'</label><input class="input" name="apiKey" value="'+esc(cfg.apiKey||'')+'" placeholder="AIza…" autocomplete="off" spellcheck="false">'+
+          '<p style="font-size:var(--f1);color:var(--text-3);margin-top:4px">'+
+            esc(tr('Paste the key, or paste the whole firebaseConfig block the console gives you and the key is taken out of it.'))+'</p></div>'+
         '<div class="field"><label>'+esc(tr('Google OAuth client id (optional, for the Google button)'))+'</label><input class="input" name="clientId" value="'+esc(cfg.clientId||'')+'" placeholder="…apps.googleusercontent.com" autocomplete="off" spellcheck="false">'+
           /* The consequence of leaving this field empty, stated where it becomes
              actionable and at the moment it becomes true: a key is set, so sign-in works,
@@ -14221,8 +14259,12 @@ document.addEventListener('submit',function(e){
   }
   if(kind==='share-keys'){
     var cfg=shareCfg();
-    var key=String(fv(form,'apiKey')||'').trim();
-    cfg.clientId=String(fv(form,'clientId')||'').trim();
+    /* Either field may have had the whole console snippet pasted into it, so both go
+       through the parser and whatever it finds wins over an empty box. */
+    var pastedKey=authParseConfig(fv(form,'apiKey'));
+    var pastedCid=authParseConfig(fv(form,'clientId'));
+    var key=String(pastedKey.apiKey||'').trim();
+    cfg.clientId=String(pastedCid.clientId||pastedKey.clientId||'').trim();
     if(!key){ cfg.apiKey=''; commit(); toast('Project keys cleared.'); return; }
     /* Check the key with Google BEFORE saving it and before claiming anything. One paste
        then finishes the rest of the setup by itself: the project id gives the default

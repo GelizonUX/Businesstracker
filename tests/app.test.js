@@ -5114,6 +5114,43 @@ async function main() {
         /class="grid grid-2 settings-grid"/.test(html));
     })();
 
+    // ---------- the key field takes what the console actually gives you ----------
+    /* The Firebase console does not hand you a Web API key on its own. It hands you a block
+       of JavaScript. Asking somebody to pick one line out of it is how a two minute job
+       becomes a support conversation, so the field takes either the bare key or the whole
+       snippet pasted as it was copied. */
+    (function pastedConfig() {
+      const SNIP = 'const firebaseConfig = {\n' +
+        '  apiKey: "AIzaSyD-ExampleKey_1234567890abcdefg",\n' +
+        '  authDomain: "google-auth-x1.firebaseapp.com",\n' +
+        '  projectId: "google-auth-x1",\n' +
+        '  appId: "1:123456789012:web:abc123def456"\n};';
+      const bare = window.authParseConfig('AIzaSyD-ExampleKey_1234567890abcdefg');
+      ok('a bare key is taken as a key and not mangled by the parser',
+        bare.apiKey === 'AIzaSyD-ExampleKey_1234567890abcdefg' && !bare.projectId, bare);
+      const snip = window.authParseConfig(SNIP);
+      ok('the whole console snippet yields the key, the project and the auth domain',
+        snip.apiKey === 'AIzaSyD-ExampleKey_1234567890abcdefg' &&
+        snip.projectId === 'google-auth-x1' &&
+        snip.authDomain === 'google-auth-x1.firebaseapp.com', snip);
+      /* The one value the Firebase snippet does NOT carry, so it is recognised by its own
+         unmistakable shape wherever it appears. */
+      ok('an OAuth client id is recognised anywhere in a paste, by its shape',
+        window.authParseConfig('99-xyz.apps.googleusercontent.com').clientId === '99-xyz.apps.googleusercontent.com' &&
+        window.authParseConfig(SNIP.replace('};', '  clientId: "99-xyz.apps.googleusercontent.com"\n};')).clientId === '99-xyz.apps.googleusercontent.com');
+      ok('a JSON-shaped config works too, since people paste both',
+        window.authParseConfig('{"apiKey":"AIzaSyD-ExampleKey_1234567890abcdefg"}').apiKey === 'AIzaSyD-ExampleKey_1234567890abcdefg');
+      /* Anything that is not a config block is taken WHOLE as the key, even when it does
+         not look like one, and Google decides. A pattern strict enough to recognise a real
+         key also silently discards a mistyped one, and a value that vanishes on save with
+         no message is worse than one that comes back rejected by name. */
+      ok('text that is not a config block is passed on as the key for Google to judge',
+        window.authParseConfig('hello there').apiKey === 'hello there');
+      ok('...but an empty paste yields nothing at all',
+        Object.keys(window.authParseConfig('')).length === 0 &&
+        Object.keys(window.authParseConfig('   ')).length === 0);
+    })();
+
     // ---------- connecting a project says which step is missing ----------
     /* Three things in two consoles have to be right before Google sign-in works, and each
        one fails with an error naming none of them: a wrong key answers "API key not valid",
