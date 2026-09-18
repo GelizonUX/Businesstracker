@@ -4387,6 +4387,35 @@ async function main() {
           inp.indexOf('auth-signin-email') < 0 && inp.indexOf('auth-google') < 0 && inp.indexOf('auth-signup') < 0, inp);
         ok('signed in, the header names the account',
           d.querySelector('#acct-menu .acct-who').textContent.indexOf('owner@example.com') >= 0);
+        /* The head has three sources and two of them share a fallback. meProfile().name
+           falls back through authName() to the address, and meSubtitle() falls back to the
+           address as well when no position and no rate are set. An owner who never filled
+           in a profile therefore had their address printed twice, one line above the other.
+           A previous fix compared the second line against the third and never against the
+           NAME, which is the pair that actually collided, so it survived.
+           Asserted on the RENDERED lines rather than on the logic, because the only reason
+           this reached a branch is that nothing ever compared the strings on screen. */
+        (function noRepeatedLine(label) {
+          const saved = JSON.parse(JSON.stringify(window.state.settings.profile || {}));
+          const savedAuth = window.localStorage.getItem('bizpilot.auth');
+          try {
+            /* The collision needs an account carrying NO display name, so authName() falls
+               back to the address and the name line becomes the address too. A fixture with
+               a name never collides, which is why an earlier version of this very assertion
+               passed against the broken code. */
+            window.state.settings.profile = { name: '', position: '', rate: 0, ratePer: 'month' };
+            window.authStore(Object.assign(JSON.parse(savedAuth || '{}'), { name: '' }));
+            open('.tb-acct');
+            const who = d.querySelector('#acct-menu .acct-who');
+            const lines = [who.querySelector('b')].concat(Array.prototype.slice.call(who.querySelectorAll('span')))
+              .filter(Boolean).map((e) => e.textContent.trim()).filter(Boolean);
+            ok('an account with no profile name does not print its address twice ' + label,
+              lines.length === new Set(lines).size, lines);
+          } finally {
+            window.state.settings.profile = saved;
+            if (savedAuth) window.localStorage.setItem('bizpilot.auth', savedAuth);
+          }
+        })('(password)');
 
         // a Google account's password is not this app's to change
         window.authStore(Object.assign(JSON.parse(window.localStorage.getItem('bizpilot.auth')), { provider: 'google' }));

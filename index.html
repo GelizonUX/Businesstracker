@@ -6303,13 +6303,22 @@ function acctMenuHTML(){
        position and no rate, which is exactly the same sentence the third line carries in
        the local state, and the head rendered it twice. One of them is the truth; two of
        them is a rendering bug. */
-    var line2=meSubtitle();
-    var line3=u?(ws?tr('Workspace')+': '+ws:tr('No workspace yet')):tr('On this device');
+    /* The head is a name and up to two lines under it, and each of the three can fall back
+       to the same string as another. meProfile().name falls back through authName() to the
+       address, and meSubtitle() falls back to the address too when no position and no rate
+       are set, so an account whose owner never filled in a profile printed its address
+       twice, one line above the other. The earlier fix here compared the second line
+       against the third and never against the NAME, which is the pair that actually
+       collided. Dedupe against everything already shown instead of against one neighbour:
+       three sources that share two fallbacks will collide again otherwise, and the next
+       collision will be as invisible to the suite as this one was. */
+    var seen=[String(nm||'')];
+    var under=[meSubtitle(), u?(ws?tr('Workspace')+': '+ws:tr('No workspace yet')):tr('On this device')]
+      .filter(function(v){ v=String(v||''); if(!v||seen.indexOf(v)>-1) return false; seen.push(v); return true; });
     h+='<div class="acct-head">'+
       '<span class="acct-face" aria-hidden="true">'+esc(String(nm||'?').charAt(0).toUpperCase())+'</span>'+
       '<span class="acct-who"><b>'+esc(nm)+'</b>'+
-        '<span>'+esc(line2)+'</span>'+
-        (line3===line2?'':'<span>'+esc(line3)+'</span>')+'</span></span></div>';
+        under.map(function(v){ return '<span>'+esc(v)+'</span>'; }).join('')+'</span></span></div>';
     /* The one permitted prose block. An ended session is the single case where a menu
        row on its own cannot explain why the thing that used to work has stopped. */
     if(u&&u.expired){
