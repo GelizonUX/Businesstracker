@@ -6440,35 +6440,14 @@ function authModalBusy(form,on,label){
   if(on){ b.setAttribute('data-idle',b.textContent); b.textContent=label||'Working…'; }
   else if(b.getAttribute('data-idle')){ b.textContent=b.getAttribute('data-idle'); }
 }
-/* Sign in and create an account are the same two fields and the same one call, so they
-   are one dialog with a mode rather than two that drift apart. */
-function authEmailModal(mode){
-  if(!authConfigured()){
-    toast('This copy has no Firebase project set up, so there is nothing to sign in to yet.','warn'); return;
-  }
-  var up=mode==='up';
-  var body='<p style="font-size:var(--f2);color:var(--text-2);margin-bottom:12px">'+esc(tr(up
-      ? 'An account is only used for sharing. Everything already on this device stays exactly where it is.'
-      : 'Signing in moves nothing. It lets the database check who is asking before it answers.'))+'</p>'+
-    '<div class="field"><label>Email</label><input class="input" type="email" name="email" autocomplete="username" placeholder="you@email.com"></div>'+
-    '<div class="field"><label>Password</label><input class="input" type="password" name="password" autocomplete="'+(up?'new-password':'current-password')+'" placeholder="at least 6 characters"></div>'+
-    (up?'':'<button class="btn btn-ghost btn-sm" type="button" data-action="auth-reset">'+esc(tr('Forgot password'))+'</button>');
-  openModal(up?'Create an account':'Sign in',body,{submitLabel:up?'Create account':'Sign in',onSubmit:function(form){
-    // the password is read raw: fv() trims, and a trailing space is a real character in one
-    var pw=form.elements['password']?form.elements['password'].value:'';
-    authModalBusy(form,true,up?'Creating…':'Signing in…');
-    authSubmitEmail(fv(form,'email'),pw,up?'up':'in').then(function(){
-      closeModal();
-      toast(up?('Account created. You are signed in as '+authName()+'.'):('Signed in as '+authName()+'.'));
-      save(); render();
-      if(typeof wsMaybeClaim==='function') wsMaybeClaim();
-    },function(err){
-      authModalBusy(form,false);
-      toast((err&&err.msg)||'Could not sign in.','error');
-    });
-    return false;
-  }});
-}
+/* The old email sign-in MODAL lived here: two fields and a Forgot password button in a
+   dialog, plus a guard toast naming Firebase. It was already dead code before this
+   change, since auth-signin-email and auth-signup both open the full-page sign-in screen
+   instead, and it is deleted rather than left lying around because a dead second version
+   of the sign-in surface is how two versions of "what signing in looks like" come back.
+   Its data-action="auth-reset" handler went with it; Forgot password on the real screen
+   is data-action="signin-forgot", which reads the address out of the screen's own field.
+   Password reset itself is unchanged: authSendReset() is where it always was. */
 function authPasswordModal(){
   var u=authUser();
   if(!u){ toast('Sign in first, from the account menu.','warn'); return; }
@@ -11783,16 +11762,6 @@ document.addEventListener('click',function(e){
     toast('Left. This device syncs to its own path again.'); render();
     return;
   }
-  if(action==='auth-reset'){
-    var rf=el.closest('form')||document.querySelector('form[data-form="auth-email"]');
-    var rmail=rf&&rf.elements['email']?String(rf.elements['email'].value||'').trim():'';
-    if(!rmail){ toast('Type your email address first, then press Forgot password.','warn'); return; }
-    authSendReset(rmail).then(function(){
-      toast('If that address has an account, a reset link is on its way to it.');
-    },function(err){ toast((err&&err.msg)||'Could not send a reset email.','error'); });
-    return;
-  }
-
   /* charts: switch the graph style the user wants to see */
   if(action==='chart-style'){ chartStyleSet(el.getAttribute('data-chart'), el.getAttribute('data-style')); render(); return; }
 

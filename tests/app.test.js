@@ -4996,6 +4996,16 @@ async function main() {
           window.ui.signin = { mode: 'in', show: false };
         }
       })();
+      /* ONE sign-in surface, not two. A modal version of the same two fields survived
+         here as dead code after the screen replaced it, carrying its own copy, its own
+         Forgot password button and a guard toast naming Firebase. A dead second version
+         of the login is how two answers to "what does signing in look like" come back,
+         so it is gone, along with the auth-reset action only it used. */
+      ok('there is no second, modal version of the sign-in form left lying around',
+        typeof window.authEmailModal === 'undefined' && html.indexOf('authEmailModal') === -1 &&
+        html.indexOf("action==='auth-reset'") === -1);
+      ok('...and password reset itself is untouched, on the screen that has the field',
+        typeof window.authSendReset === 'function' && html.indexOf("action==='signin-forgot'") > 0);
       ok('sign in, create an account and forgot password all lead to the one screen',
         /action==='auth-signin-email'\)\{ acctMenuClose\(true\); signInOpen\('in'\)/.test(html) &&
         /action==='auth-signup'\)\{ acctMenuClose\(true\); signInOpen\('up'\)/.test(html) &&
