@@ -2301,6 +2301,7 @@ details.calc .calc-body{margin-top:10px}
 .setup-check li{display:flex;align-items:flex-start;gap:9px;font-size:var(--f2);line-height:1.45}
 .setup-check li.ok{color:var(--good)}
 .setup-check li.no{color:var(--warn)}
+.setup-check li.note{color:var(--text-3)}
 .setup-check li svg{flex:0 0 auto;margin-top:2px}
 .setup-check li span{min-width:0}
 .setup-check li b{display:block;color:var(--text);font-weight:550}
@@ -3993,7 +3994,8 @@ function authSetupCheck(hostOverride){
   if(!key) return Promise.resolve([
     {ok:false,what:'Web API key',fix:'Paste it above. Firebase console, Project settings, General, Web API Key.'},
     {ok:false,what:'This domain allowed to sign in',fix:'Needs the key first.'},
-    {ok:false,what:'Google button',fix:'Needs an OAuth client id.'}
+    {ok:false,what:'Google button',fix:'Needs an OAuth client id.'},
+    {ok:null,what:'Redirect URI to register on the OAuth client',fix:authRedirectUri()}
   ]);
   return authVerifyKey(key).then(function(info){
     var local=(host==='localhost'||host==='127.0.0.1'||!host);
@@ -4005,13 +4007,20 @@ function authSetupCheck(hostOverride){
                   :'Add '+host+' in Authentication, Settings, Authorised domains. Until then Google refuses every sign-in from here.'},
       {ok:!!cid,what:'Google button',
        fix:cid?'A client id is set, so the sign-in screen offers Google.'
-              :'No OAuth client id, so the sign-in screen shows email and password only.'}
+              :'No OAuth client id, so the sign-in screen shows email and password only.'},
+      /* The one failure nothing here can detect. An unregistered redirect URI makes Google
+         stop on its own error page before it ever comes back, so the callback never fires,
+         the popup simply sits there, and the app has nothing to report. It cannot be
+         caught, so it is stated up front instead, with the exact string to paste. */
+      {ok:null,what:'Redirect URI to register on the OAuth client',
+       fix:authRedirectUri()+'. Paste this into the OAuth client under Authorised redirect URIs. If it is missing, the Google popup opens on an error page and never comes back, and nothing here can tell you why.'}
     ];
   },function(err){
     return [
       {ok:false,what:'Web API key',fix:(err&&err.msg)||'Google did not accept that key.'},
       {ok:false,what:'This domain allowed to sign in',fix:'Cannot be checked until the key is accepted.'},
-      {ok:!!cid,what:'Google button',fix:cid?'A client id is set.':'No OAuth client id yet.'}
+      {ok:!!cid,what:'Google button',fix:cid?'A client id is set.':'No OAuth client id yet.'},
+      {ok:null,what:'Redirect URI to register on the OAuth client',fix:authRedirectUri()}
     ];
   });
 }
@@ -11819,7 +11828,8 @@ document.addEventListener('click',function(e){
     box.innerHTML='<p style="font-size:var(--f1);color:var(--text-3);margin-top:10px">'+esc(tr('Checking with Google…'))+'</p>';
     authSetupCheck().then(function(rows){
       box.innerHTML='<ul class="setup-check">'+rows.map(function(r){
-        return '<li class="'+(r.ok?'ok':'no')+'">'+icon(r.ok?'check':'alert',14)+
+        var cls=r.ok===null?'note':(r.ok?'ok':'no');
+        return '<li class="'+cls+'">'+icon(r.ok===null?'copy':(r.ok?'check':'alert'),14)+
           '<span><b>'+esc(r.what)+'</b><i>'+esc(r.fix)+'</i></span></li>';
       }).join('')+'</ul>';
     });

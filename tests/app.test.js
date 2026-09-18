@@ -5169,8 +5169,14 @@ async function main() {
       try {
         share.apiKey = ''; share.clientId = '';
         let rows = await window.authSetupCheck('books.example.com');
-        ok('with nothing pasted, all three steps report as not done',
-          rows.length === 3 && rows.every((r) => !r.ok), rows);
+        ok('with nothing pasted, every step reports as not done',
+          rows.length === 4 && rows.slice(0, 3).every((r) => r.ok === false), rows);
+        /* The one failure nothing can detect at runtime. An unregistered redirect URI makes
+           Google stop on its own error page before it ever comes back, so the callback never
+           fires and the popup just sits there. It is stated up front, with the exact string
+           to paste, because the alternative is a silent hang with nothing to go on. */
+        ok('...and the redirect URI is given outright, since its failure is undetectable',
+          rows[3].ok === null && rows[3].fix.indexOf(window.authRedirectUri()) === 0, rows[3]);
 
         share.apiKey = 'AIzaOK';
         reply(true, { projectId: 'google-auth-x1', authorizedDomains: ['google-auth-x1.firebaseapp.com'] });
@@ -5186,7 +5192,10 @@ async function main() {
         share.clientId = 'x.apps.googleusercontent.com';
         reply(true, { projectId: 'google-auth-x1', authorizedDomains: ['books.example.com'] });
         rows = await window.authSetupCheck('books.example.com');
-        ok('with all three done, all three report done', rows.every((r) => r.ok), rows);
+        ok('with all three done, all three report done',
+          rows.slice(0, 3).every((r) => r.ok === true), rows);
+        ok('...and the redirect URI is still shown, because it cannot be checked either way',
+          rows[3].ok === null, rows[3]);
 
         reply(false, { error: { message: 'API key not valid. Please pass a valid API key.' } });
         rows = await window.authSetupCheck('books.example.com');
