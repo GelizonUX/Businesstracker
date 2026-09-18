@@ -6298,11 +6298,18 @@ function acctMenuHTML(){
     var pr=meProfile();
     var nm=pr.name||(u?authName():appName());
     var ws=(cfg.enabled&&cfg.wsId)?(cfg.wsName||cfg.wsId):'';
+    /* Two lines under the name, and the second is dropped when it would repeat the
+       first. meSubtitle() falls back to "On this device" when the person has given no
+       position and no rate, which is exactly the same sentence the third line carries in
+       the local state, and the head rendered it twice. One of them is the truth; two of
+       them is a rendering bug. */
+    var line2=meSubtitle();
+    var line3=u?(ws?tr('Workspace')+': '+ws:tr('No workspace yet')):tr('On this device');
     h+='<div class="acct-head">'+
       '<span class="acct-face" aria-hidden="true">'+esc(String(nm||'?').charAt(0).toUpperCase())+'</span>'+
       '<span class="acct-who"><b>'+esc(nm)+'</b>'+
-        '<span>'+esc(meSubtitle())+'</span>'+
-        '<span>'+esc(u?(ws?tr('Workspace')+': '+ws:tr('No workspace yet')):tr('On this device'))+'</span></span></div>';
+        '<span>'+esc(line2)+'</span>'+
+        (line3===line2?'':'<span>'+esc(line3)+'</span>')+'</span></span></div>';
     /* The one permitted prose block. An ended session is the single case where a menu
        row on its own cannot explain why the thing that used to work has stopped. */
     if(u&&u.expired){
@@ -10894,6 +10901,15 @@ function developerSetupHTML(){
       '<form data-form="share-keys" style="margin-top:12px">'+
         '<div class="field"><label>'+esc(tr('Firebase Web API key'))+'</label><input class="input" name="apiKey" value="'+esc(cfg.apiKey||'')+'" placeholder="AIza…" autocomplete="off" spellcheck="false"></div>'+
         '<div class="field"><label>'+esc(tr('Google OAuth client id (optional, for the Google button)'))+'</label><input class="input" name="clientId" value="'+esc(cfg.clientId||'')+'" placeholder="…apps.googleusercontent.com" autocomplete="off" spellcheck="false">'+
+          /* The consequence of leaving this field empty, stated where it becomes
+             actionable and at the moment it becomes true: a key is set, so sign-in works,
+             and the only thing missing is the Google button. It is said HERE and nowhere
+             else. The sign-in screen stays silent about it, because a product does not
+             explain the absence of a method it does not offer, and a sentence about
+             configuration on a login screen is the exact thing this redesign removed. */
+          ((typeof authApiKey==='function'&&authApiKey()&&!authClientId())
+            ?'<p style="font-size:var(--f1);color:var(--text-3);margin-top:4px">'+
+              esc(tr('Without this, the sign-in screen does not show the Google button.'))+'</p>':'')+
           '<p style="font-size:var(--f1);color:var(--text-3);margin-top:4px">'+esc(tr('The redirect URI to register for it is'))+' <span class="mono" style="overflow-wrap:anywhere">'+esc(authRedirectUri())+'</span>.</p></div>'+
         '<button class="btn btn-ghost btn-sm" type="submit">'+icon('check')+' '+esc(tr('Save project keys'))+'</button></form>'+
       cloudSyncAdvancedHTML()+

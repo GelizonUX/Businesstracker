@@ -4460,6 +4460,13 @@ async function main() {
         ok('...and is told plainly that it is on this device',
           /On this device/.test(d.querySelector('#acct-menu .acct-who').textContent),
           d.querySelector('#acct-menu .acct-who').textContent);
+        /* Once. meSubtitle() falls back to the same sentence when no position and no rate
+           are set, so the head used to print "On this device" on two consecutive lines. */
+        ok('...once, not on two lines in a row', (() => {
+          const lines = Array.prototype.map.call(
+            d.querySelectorAll('#acct-menu .acct-who span'), (e) => e.textContent.trim());
+          return lines.filter((l) => l === 'On this device').length === 1;
+        })(), Array.prototype.map.call(d.querySelectorAll('#acct-menu .acct-who span'), (e) => e.textContent.trim()));
         ok('...with no account-only rows it has no account for',
           loc.indexOf('auth-change-password') < 0 && loc.indexOf('auth-signin-email') < 0, loc);
         window.state.settings.localIn = false;
@@ -4798,6 +4805,41 @@ async function main() {
       /* Precedence, asserted in the code rather than only in the prose above it. */
       ok('the settings override is read first, falling back to AUTH_CFG',
         /function authApiKey\(\)\{ var o=\(state&&state\.settings&&state\.settings\.share&&state\.settings\.share\.apiKey\)\|\|''; return String\(o\|\|AUTH_CFG\.apiKey\|\|''\)\.trim\(\); \}/.test(html));
+
+      /* THE ONE PLACE THE MISSING CLIENT ID IS EXPLAINED. The realistic path is that the
+         owner pastes the API key first, because that is the value the Firebase console
+         puts in front of them, and the client id lives somewhere else entirely. They then
+         open the sign-in screen, find no Google button, and conclude Google was never
+         built. The sentence that catches that belongs where somebody doing setup is
+         already standing, with the client id field in front of them, and not on a login
+         screen in front of an owner trying to get in. */
+      (function clientIdConsequence() {
+        const share = window.state.settings.share;
+        const savedKey = share.apiKey, savedCid = share.clientId;
+        const line = 'Without this, the sign-in screen does not show the Google button.';
+        try {
+          share.apiKey = 'AIzaTEST'; share.clientId = '';
+          const fold = window.developerSetupHTML();
+          ok('a key with no client id says so, in the setup fold, under that field',
+            fold.indexOf(line) > 0 && fold.indexOf(line) > fold.indexOf('name="clientId"'), fold.indexOf(line));
+          ok('...and nowhere else in the product', (() => {
+            window.ui.signin = { mode: 'in', show: false };
+            const screen = window.signInHTML();
+            const menu = window.acctMenuHTML();
+            return screen.indexOf(line) === -1 && menu.indexOf(line) === -1 &&
+              !/Google/.test(menu) && !/Google/.test(screen);
+          })());
+          share.clientId = 'test.apps.googleusercontent.com';
+          ok('...and stops being said once the client id is there',
+            window.developerSetupHTML().indexOf(line) === -1);
+          share.apiKey = ''; share.clientId = '';
+          ok('...and is not said before there is a key, when it is not yet the problem',
+            window.developerSetupHTML().indexOf(line) === -1);
+        } finally {
+          share.apiKey = savedKey; share.clientId = savedCid;
+          window.ui.signin = { mode: 'in', show: false };
+        }
+      })();
 
       /* And the degradation. With nothing pasted, the profile page must not offer to go
          and configure anything either: that was the owner's complaint's second half. */
