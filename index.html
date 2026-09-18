@@ -3805,17 +3805,50 @@ function icon(name,size){
      accounts:sendOobCode        send a password-reset email (Google sends it, not us)
      securetoken /v1/token       refresh an expired ID token                          */
 
-/* The project this app signs in to. Both values are public by nature: an API key and an
-   OAuth client id ship in every copy of a web app and cannot be hidden in a static page,
-   which is why neither grants any access on its own. The database rules do that.
-   Left empty here on purpose. Filling them in with a plausible-looking string would be
-   inventing a credential; the owner pastes their own under Settings > Data & Sync >
-   Sharing, or edits these two lines before deploying. With both empty, every sign-in
-   path refuses with a message that says the app has no project configured, and the rest
-   of the app is untouched. */
+/* ============================================================
+   >>> DEPLOYMENT CONFIG. THE ONLY PLACE TO EDIT. <<<
+   ============================================================
+   Paste the two values from your Firebase project between the quotes below, save the
+   file, deploy. That is the whole setup. Nothing else in this file needs touching and
+   nothing in the product UI needs visiting.
+
+     apiKey    Firebase console > Project settings > General > Web API Key
+     clientId  Google Cloud console > APIs & Services > Credentials > OAuth 2.0 client
+               IDs > the Web application entry. Optional: it powers the Google button
+               only. Email and password sign-in works with the apiKey alone.
+               Register this exact redirect URI on that client, or Google refuses
+               every popup:   https://<your domain>/oauth-callback.html
+
+   THESE TWO VALUES ARE PUBLIC. They are not secrets and there is no way to make them
+   secrets. Every web app that talks to Firebase ships its API key and its OAuth client
+   id inside JavaScript the browser downloads, so anyone can read them out of any such
+   site in ten seconds with View Source. Google publishes them in its own quickstarts
+   for that reason. Neither value grants access to anything on its own: an API key only
+   names which project a request is for, and an OAuth client id only names which app is
+   asking a person to sign in.
+
+   WHAT ACTUALLY KEEPS THE DATA PRIVATE IS THE DATABASE RULES. The rules run on Google's
+   servers, on a machine nobody using this app can open a console on, and they are the
+   one check in the whole system that cannot be walked around from a browser. The rules
+   this app expects are printed under Settings > Data & Sync > Developer setup, ready to
+   paste into the Realtime Database rules tab. Publish them. A correct key with no rules
+   published is an open database; an empty key with rules published is simply a copy
+   with no sign-in. Treat leaking these two lines as a non-event and treat unpublished
+   rules as the emergency.
+
+   LEFT EMPTY ON PURPOSE. Filling them with a plausible-looking string would be
+   inventing a credential. While both are empty the app runs exactly as it always has,
+   on this device and offline, and every sign-in path says plainly that this copy has no
+   project connected instead of failing at Google with a message nobody can act on.
+
+   The fields under Settings > Data & Sync > Developer setup write to
+   state.settings.share and OVERRIDE what is below, at runtime, on one device only. That
+   is a convenience for someone testing a second project without editing the file. It is
+   not where a deployment is configured, it is not what the product points anyone at,
+   and it is not carried to anybody else's browser. The source of truth is here.        */
 var AUTH_CFG={
-  apiKey:'',     // Firebase Web API key (Firebase console > Project settings > Web API Key)
-  clientId:''    // Google OAuth client id (Google Cloud console > Credentials > Web application)
+  apiKey:   '',   // <-- paste the Firebase Web API key here  (looks like: AIzaSy...)
+  clientId: ''    // <-- paste the Google OAuth client id here (looks like: 1234-abc.apps.googleusercontent.com)
 };
 var AUTH_IDT='https://identitytoolkit.googleapis.com/v1/accounts:';
 /* GetProjectConfig. Public with nothing but the Web API key, because it is what the
@@ -3838,8 +3871,16 @@ var AUTH_KEY='bizpilot.auth';
    else Firebase's rules decide, and none of that needs this flag. */
 var REQUIRE_SIGNIN=false;
 
+/* AUTH_CFG is the deployment. The per-device override in settings is checked first only
+   so that somebody testing a second project does not have to edit and redeploy the file;
+   it is empty in every copy that was not deliberately poked at, in which case these read
+   straight out of AUTH_CFG above. */
 function authApiKey(){ var o=(state&&state.settings&&state.settings.share&&state.settings.share.apiKey)||''; return String(o||AUTH_CFG.apiKey||'').trim(); }
 function authClientId(){ var o=(state&&state.settings&&state.settings.share&&state.settings.share.clientId)||''; return String(o||AUTH_CFG.clientId||'').trim(); }
+/* "Is there a project behind this copy at all." It decides whether a sign-in attempt can
+   possibly succeed, and therefore what the sign-in SCREEN says when one is made. It no
+   longer decides whether the account menu offers to sign in: a product offers its front
+   door unconditionally and explains itself at the door, not in a profile menu. */
 function authConfigured(){ return !!authApiKey(); }
 
 /* The session lives in its own storage key, never inside the books. Signing out must
