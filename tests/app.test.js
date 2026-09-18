@@ -3255,6 +3255,31 @@ async function main() {
         window.render();
         await wait(40);
       };
+      /* Wait for the app to go QUIET, rather than guessing how long that takes.
+         A rate refresh resolves a couple of .then hops after enter()'s fixed 40ms, so a
+         sleep long enough on one runner is short on another and the previous case's toast
+         lands in the next case's capture. That is not hypothetical: it failed in CI on
+         Node 24 while passing locally, was "fixed" by lengthening the sleep to 160ms, and
+         failed again in CI on a runner that now forces Node 24 regardless of what the
+         workflow asks for. A longer guess is still a guess.
+         This watches the toast stream instead and returns once nothing new has arrived for
+         `quietMs`, so it costs nothing when the app is already idle and waits as long as it
+         genuinely needs to when it is not. */
+      const drain = async (quietMs = 150, cap = 4000) => {
+        const prev = window.toast;
+        let n = 0;
+        window.toast = function () { n += 1; };
+        try {
+          const t0 = Date.now();
+          let seen = -1, lastChange = Date.now();
+          for (;;) {
+            if (n !== seen) { seen = n; lastChange = Date.now(); }
+            if (Date.now() - lastChange >= quietMs) return;
+            if (Date.now() - t0 >= cap) return;
+            await wait(20);
+          }
+        } finally { window.toast = prev; }
+      };
       window.toast = function () {};
       setOnline(true);
 
@@ -3388,12 +3413,22 @@ async function main() {
       // assertion fails for something it is not testing. That is exactly what happened
       // in CI on Node 24 while three local runs on Node 22 passed: 884/1 there, 885/0
       // here. The bug was the fixed sleep standing in for "the app has gone quiet".
-      await wait(160);
+      await drain();     // let the PREVIOUS case's refresh finish before we start listening
       setFx({ updated: minsAgo(3 * 60), phpPer: { USD: 55 }, src: { USD: { by: 'live', at: minsAgo(120) } } });
       const quiet = [];
       window.toast = function (m) { quiet.push(m); };
       await enter('invoices');
-      await wait(160);   // and let THIS refresh finish before deciding it said nothing
+      /* and let THIS refresh finish before deciding it said nothing. Counting into the
+         same array the assertion reads means a late toast is caught rather than missed. */
+      {
+        const t0 = Date.now();
+        let seen = -1, lastChange = Date.now();
+        while (Date.now() - t0 < 4000) {
+          if (quiet.length !== seen) { seen = quiet.length; lastChange = Date.now(); }
+          if (Date.now() - lastChange >= 150) break;
+          await wait(20);
+        }
+      }
       window.toast = function () {};
       ok('a live rate refreshing another live rate says nothing — that is just it working',
         quiet.length === 0, quiet);
