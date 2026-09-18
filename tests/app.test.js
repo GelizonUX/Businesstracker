@@ -5114,6 +5114,54 @@ async function main() {
         /class="grid grid-2 settings-grid"/.test(html));
     })();
 
+    // ---------- connecting a project says which step is missing ----------
+    /* Three things in two consoles have to be right before Google sign-in works, and each
+       one fails with an error naming none of them: a wrong key answers "API key not valid",
+       an unlisted domain answers with a redirect_uri_mismatch the popup swallows, and a
+       provider left switched off answers only when somebody actually tries. The check says
+       which of the three is missing instead of leaving somebody to guess.
+       The host is a parameter because a test harness necessarily runs on a local address,
+       where the domain check short-circuits, so the branch that matters could not otherwise
+       be exercised at all. */
+    await (async function setupCheck() {
+      const realFetch = window.fetch;
+      const share = window.shareCfg();
+      const savedKey = share.apiKey, savedCid = share.clientId;
+      const reply = (ok, body) => { window.fetch = () => Promise.resolve({ ok, status: ok ? 200 : 400,
+        text: () => Promise.resolve(JSON.stringify(body)) }); };
+      try {
+        share.apiKey = ''; share.clientId = '';
+        let rows = await window.authSetupCheck('books.example.com');
+        ok('with nothing pasted, all three steps report as not done',
+          rows.length === 3 && rows.every((r) => !r.ok), rows);
+
+        share.apiKey = 'AIzaOK';
+        reply(true, { projectId: 'google-auth-x1', authorizedDomains: ['google-auth-x1.firebaseapp.com'] });
+        rows = await window.authSetupCheck('books.example.com');
+        ok('a good key names the project it reached', rows[0].ok && /google-auth-x1/.test(rows[0].fix), rows[0]);
+        /* The single most common reason a CORRECT key still refuses every sign-in, and the
+           one Google's own error is least helpful about. */
+        ok('a domain that is not on the project list is named, with where to add it',
+          !rows[1].ok && /books\.example\.com/.test(rows[1].fix) && /Authorised domains/.test(rows[1].fix), rows[1]);
+        ok('...and a missing client id is reported as no Google button, not as a failure',
+          !rows[2].ok && /email and password/.test(rows[2].fix), rows[2]);
+
+        share.clientId = 'x.apps.googleusercontent.com';
+        reply(true, { projectId: 'google-auth-x1', authorizedDomains: ['books.example.com'] });
+        rows = await window.authSetupCheck('books.example.com');
+        ok('with all three done, all three report done', rows.every((r) => r.ok), rows);
+
+        reply(false, { error: { message: 'API key not valid. Please pass a valid API key.' } });
+        rows = await window.authSetupCheck('books.example.com');
+        ok('a key Google rejects says so, and the later steps say they could not be checked',
+          !rows[0].ok && /Copy it again/.test(rows[0].fix) && /Cannot be checked/.test(rows[1].fix), rows);
+      } finally {
+        window.fetch = realFetch;
+        share.apiKey = savedKey; share.clientId = savedCid;
+        window.save();
+      }
+    })();
+
     // ---------- the profile is a page, and the top bar collapses instead of clipping ----------
     /* A profile is somewhere you go, not a dialog you lose by tapping outside it. It has
        an address, so it can be linked and bookmarked like anything else. */

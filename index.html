@@ -2295,6 +2295,16 @@ details.calc .calc-body{margin-top:10px}
    account in a browser this app has no part in */
 .adv-steps{margin:12px 0 4px;padding-left:22px;display:flex;flex-direction:column;gap:7px}
 .adv-steps li{font-size:var(--f2);color:var(--text-2);line-height:1.5}
+/* the three-line answer to "why is Google sign-in not working". Each row is a step and
+   whether it is done, because the failure is always one of exactly three things. */
+.setup-check{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.setup-check li{display:flex;align-items:flex-start;gap:9px;font-size:var(--f2);line-height:1.45}
+.setup-check li.ok{color:var(--good)}
+.setup-check li.no{color:var(--warn)}
+.setup-check li svg{flex:0 0 auto;margin-top:2px}
+.setup-check li span{min-width:0}
+.setup-check li b{display:block;color:var(--text);font-weight:550}
+.setup-check li i{display:block;font-style:normal;color:var(--text-2);overflow-wrap:anywhere}
 .adv-steps .mono{overflow-wrap:anywhere}
 /* the rules card is already a card; inside the fold it is a section, not a second frame */
 .adv-body>.card{border:0;padding:0;margin-top:8px;background:transparent;box-shadow:none}
@@ -3933,6 +3943,42 @@ function authErrMsg(code){
 /* Ask Google whether a key is real before telling the owner it is. The old save handler
    took any string at all and answered "You can sign in now", which is a promise the app
    had no way of keeping: a typo surfaced later as a failed sign-in with no clue why. */
+/* The last mile of connecting a project is three separate things in two different
+   consoles, and each one fails with an error that names none of them: a wrong key answers
+   "API key not valid", an unlisted domain answers with a redirect_uri_mismatch the popup
+   swallows, and a provider left switched off answers only when somebody actually tries to
+   sign in. So the app checks what it can check and says which of the three is missing,
+   rather than leaving an owner to guess which of three consoles they got wrong. */
+function authSetupCheck(hostOverride){
+  var key=authApiKey(), cid=authClientId();
+  /* the host is a parameter so the "not on the list" branch can be exercised from a test
+     harness, which necessarily runs on a local address where the check short-circuits */
+  var host=hostOverride||location.hostname;
+  if(!key) return Promise.resolve([
+    {ok:false,what:'Web API key',fix:'Paste it above. Firebase console, Project settings, General, Web API Key.'},
+    {ok:false,what:'This domain allowed to sign in',fix:'Needs the key first.'},
+    {ok:false,what:'Google button',fix:'Needs an OAuth client id.'}
+  ]);
+  return authVerifyKey(key).then(function(info){
+    var local=(host==='localhost'||host==='127.0.0.1'||!host);
+    var allowed=local||(info.authorizedDomains||[]).indexOf(host)>-1;
+    return [
+      {ok:true,what:'Web API key',fix:'Connected to '+(info.projectId||'your project')+'.'},
+      {ok:allowed,what:'This domain allowed to sign in',
+       fix:allowed?(local?'Local addresses are always allowed.':host+' is on the list.')
+                  :'Add '+host+' in Authentication, Settings, Authorised domains. Until then Google refuses every sign-in from here.'},
+      {ok:!!cid,what:'Google button',
+       fix:cid?'A client id is set, so the sign-in screen offers Google.'
+              :'No OAuth client id, so the sign-in screen shows email and password only.'}
+    ];
+  },function(err){
+    return [
+      {ok:false,what:'Web API key',fix:(err&&err.msg)||'Google did not accept that key.'},
+      {ok:false,what:'This domain allowed to sign in',fix:'Cannot be checked until the key is accepted.'},
+      {ok:!!cid,what:'Google button',fix:cid?'A client id is set.':'No OAuth client id yet.'}
+    ];
+  });
+}
 function authVerifyKey(key){
   key=String(key||'').trim();
   if(!key) return Promise.reject({code:'empty',msg:'Paste the Web API key first.'});
@@ -10920,7 +10966,11 @@ function developerSetupHTML(){
             ?'<p style="font-size:var(--f1);color:var(--text-3);margin-top:4px">'+
               esc(tr('Without this, the sign-in screen does not show the Google button.'))+'</p>':'')+
           '<p style="font-size:var(--f1);color:var(--text-3);margin-top:4px">'+esc(tr('The redirect URI to register for it is'))+' <span class="mono" style="overflow-wrap:anywhere">'+esc(authRedirectUri())+'</span>.</p></div>'+
-        '<button class="btn btn-ghost btn-sm" type="submit">'+icon('check')+' '+esc(tr('Save project keys'))+'</button></form>'+
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+          '<button class="btn btn-ghost btn-sm" type="submit">'+icon('check')+' '+esc(tr('Save project keys'))+'</button>'+
+          '<button class="btn btn-ghost btn-sm" type="button" data-action="auth-setup-check">'+icon('shield',13)+' '+esc(tr('Check setup'))+'</button>'+
+        '</div></form>'+
+        '<div id="setup-check"></div>'+
       cloudSyncAdvancedHTML()+
       databaseRulesCardHTML()+
     '</div></details>';
@@ -11724,6 +11774,19 @@ document.addEventListener('click',function(e){
      used to open three small modals, which is how "the log in is not the standard" came
      to be true: the only full-page thing in the app was a licence gate that no longer
      exists. */
+  /* Says which of the three steps is missing, in place, rather than leaving somebody to
+     work out which of two consoles they got wrong. */
+  if(action==='auth-setup-check'){
+    var box=byId('setup-check'); if(!box) return;
+    box.innerHTML='<p style="font-size:var(--f1);color:var(--text-3);margin-top:10px">'+esc(tr('Checking with Google…'))+'</p>';
+    authSetupCheck().then(function(rows){
+      box.innerHTML='<ul class="setup-check">'+rows.map(function(r){
+        return '<li class="'+(r.ok?'ok':'no')+'">'+icon(r.ok?'check':'alert',14)+
+          '<span><b>'+esc(r.what)+'</b><i>'+esc(r.fix)+'</i></span></li>';
+      }).join('')+'</ul>';
+    });
+    return;
+  }
   if(action==='auth-signin-email'){ acctMenuClose(true); signInOpen('in'); return; }
   /* "Continue on this device": the only button on the sign-in screen when this copy has
      no project behind it. It writes NO auth session, deliberately. What it sets is a
