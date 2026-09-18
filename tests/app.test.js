@@ -4491,6 +4491,341 @@ async function main() {
       }
     })();
 
+    // ---------- Sign in with Google, driven end to end with the transport mocked ----------
+    /* The owner asked for two things and this is the second: "make the log in google
+       work". The flow was already built and the brief said to prove it rather than
+       rewrite it, so this block drives the whole of it — the URL Google is sent, the
+       three postMessage checks, the token exchange, every failure branch and the
+       blocked-popup redirect — against a stubbed window.open and a stubbed fetch.
+
+       WHAT THIS CANNOT PROVE, stated here so nobody reads a green suite as more than it
+       is: that Google itself accepts the request. That needs a real client id and the
+       deployment's domain registered as an authorised redirect URI, and neither exists
+       in this repository. Everything on this side of the wire is checked below. What is
+       left is console configuration on the owner's side, and the two ways it goes wrong
+       (redirect_uri_mismatch, and the provider switched off) both surface as a sentence
+       rather than a popup that dies in silence.
+
+       The security of the whole flow is three lines in authGoogle(), and every one of
+       them is asserted on its own below. A popup credential is only ever as good as the
+       checks on the message that carries it. */
+    await (async function googleSignIn() {
+      const realOpen = window.open, realFetch = window.fetch, realToast = window.toast;
+      const share = window.state.settings.share;
+      const savedShare = JSON.parse(JSON.stringify(share));
+      const savedAuth = window.localStorage.getItem('bizpilot.auth');
+      // A stand-in for the popup: only the three things authGoogle() touches.
+      const fakePopup = () => ({ closed: false, close() { this.closed = true; } });
+      /* postMessage arrives as a MessageEvent whose `source` is the popup window. jsdom
+         refuses a plain object for `source` through the constructor, so it is defined on
+         the event afterwards — which is also the only way to forge a wrong one. */
+      const deliver = (origin, source, data) => {
+        const e = new window.MessageEvent('message', { data });
+        Object.defineProperty(e, 'origin', { value: origin, configurable: true });
+        Object.defineProperty(e, 'source', { value: source, configurable: true });
+        window.dispatchEvent(e);
+      };
+      let popup = null, openUrl = '';
+      const calls = [];
+      try {
+        window.toast = () => {};
+        window.authStore(null);
+        share.apiKey = 'AIzaTEST';
+        share.clientId = '1234-abc.apps.googleusercontent.com';
+
+        // ---- the URL Google is sent ----
+        ok('the redirect URI is this origin plus /oauth-callback.html',
+          window.authRedirectUri() === 'https://x.test/oauth-callback.html', window.authRedirectUri());
+        const u = new window.URL(window.authGoogleUrl('ST123', 'NONCE456'));
+        const q = u.searchParams;
+        ok('the sign-in URL is ordinary OAuth at accounts.google.com',
+          u.origin + u.pathname === 'https://accounts.google.com/o/oauth2/v2/auth', u.href);
+        ok('...carrying the client id and the redirect URI',
+          q.get('client_id') === '1234-abc.apps.googleusercontent.com' &&
+          q.get('redirect_uri') === 'https://x.test/oauth-callback.html', [q.get('client_id'), q.get('redirect_uri')]);
+        /* response_type=id_token puts the credential in the FRAGMENT, which never leaves
+           the browser and is never sent to a server or written to a log. */
+        ok('...asking for an id_token, so the credential stays in the fragment',
+          q.get('response_type') === 'id_token' && q.get('scope') === 'openid email profile',
+          [q.get('response_type'), q.get('scope')]);
+        ok('...and both nonces, which are what the two replay checks are made of',
+          q.get('state') === 'ST123' && q.get('nonce') === 'NONCE456');
+        ok('...and the account chooser every time, because a shared device is normal here',
+          q.get('prompt') === 'select_account');
+
+        // ---- no client id: refuse before opening anything ----
+        share.clientId = '';
+        let opens = 0;
+        window.open = () => { opens++; return fakePopup(); };
+        const noconf = await window.authGoogle().then(() => null, (e) => e);
+        ok('with no client id Google sign-in refuses without opening a dead popup',
+          !!noconf && noconf.code === 'noconfig' && opens === 0, [noconf, opens]);
+        ok('...and says only the fact, with no instruction aimed at someone who cannot act on it',
+          !!noconf && !/Settings|Developer|Data & Sync/.test(noconf.msg || ''), noconf);
+        share.clientId = '1234-abc.apps.googleusercontent.com';
+
+        // ---- the happy path ----
+        window.open = (url) => { openUrl = url; popup = fakePopup(); return popup; };
+        window.fetch = (url, opt) => {
+          calls.push({ url, body: opt && opt.body ? JSON.parse(opt.body) : null });
+          return resp(200, JSON.stringify({ localId: 'guid1', email: 'Owner@Gmail.com',
+            displayName: 'Ira Santos', idToken: 'idt', refreshToken: 'rft', expiresIn: '3600', emailVerified: true }));
+        };
+        let p = window.authGoogle();
+        await wait(20);
+        const st = openUrl ? new window.URL(openUrl).searchParams.get('state') : '';
+        ok('pressing the button opens a popup with a freshly minted state',
+          !!popup && st.length === 32, [openUrl.slice(0, 60), st]);
+
+        /* THE THREE CHECKS. Each is refused on its own, and each is asserted by the same
+           evidence: zero requests left the device, so a forged credential never reached
+           the exchange. This is the entire security of popup auth. */
+        deliver('https://evil.test', popup, { type: 'trakora-oauth', state: st, idToken: 'forged' });
+        await wait(15);
+        ok('a message from another origin is ignored', calls.length === 0, calls);
+        deliver('https://x.test', { closed: false }, { type: 'trakora-oauth', state: st, idToken: 'forged' });
+        await wait(15);
+        ok('a message from a window we did not open is ignored', calls.length === 0, calls);
+        deliver('https://x.test', popup, { type: 'trakora-oauth', state: 'someone-elses', idToken: 'forged' });
+        await wait(15);
+        ok('a message carrying the wrong state is ignored', calls.length === 0, calls);
+        deliver('https://x.test', popup, { type: 'not-ours', state: st, idToken: 'forged' });
+        await wait(15);
+        ok('a message of another type is ignored', calls.length === 0, calls);
+
+        // ...and the real one is accepted
+        deliver('https://x.test', popup, { type: 'trakora-oauth', state: st, idToken: 'google-id-token' });
+        const sess = await p.then((s) => s, (e) => ({ err: e }));
+        ok('the one real message is exchanged, and exactly once', calls.length === 1, calls.length);
+        ok('...at signInWithIdp with the project key',
+          calls.length === 1 && calls[0].url === 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=AIzaTEST',
+          calls.length && calls[0].url);
+        ok('...handing the id_token over as a google.com credential from this origin',
+          calls.length === 1 && calls[0].body.postBody === 'id_token=google-id-token&providerId=google.com' &&
+          calls[0].body.requestUri === 'https://x.test', calls.length && calls[0].body);
+        ok('a session comes back and is stored as a Google account',
+          !!sess && !sess.err && window.authUser() && window.authUser().provider === 'google', sess);
+        ok('...with the address lowercased, and verified because Google verified it',
+          window.authUser().email === 'owner@gmail.com' && window.authUser().verified === true, window.authUser());
+        ok('...and the popup is closed once the credential is in hand', popup.closed === true);
+
+        // ---- Google refuses ----
+        window.authStore(null);
+        calls.length = 0;
+        p = window.authGoogle();
+        await wait(20);
+        deliver('https://x.test', popup, { type: 'trakora-oauth',
+          state: new window.URL(openUrl).searchParams.get('state'), error: 'access_denied' });
+        const denied = await p.then(() => null, (e) => e);
+        ok('an error from Google rejects with its code and writes no session',
+          !!denied && denied.code === 'access_denied' && window.authSignedIn() === false, denied);
+
+        // ---- a message with neither a token nor an error ----
+        p = window.authGoogle();
+        await wait(20);
+        deliver('https://x.test', popup, { type: 'trakora-oauth',
+          state: new window.URL(openUrl).searchParams.get('state') });
+        const empty = await p.then(() => null, (e) => e);
+        ok('an empty credential rejects rather than exchanging nothing',
+          !!empty && empty.code === 'nokey', empty);
+
+        // ---- the person closes the popup ----
+        p = window.authGoogle();
+        await wait(20);
+        popup.closed = true;
+        const cancelled = await p.then(() => null, (e) => e);
+        ok('closing the popup is a cancellation, and it says nothing',
+          !!cancelled && cancelled.code === 'cancelled' && cancelled.msg === '', cancelled);
+        /* Which the handler has to honour, or the owner gets an error toast for having
+           changed their mind. */
+        ok('...which the button handler reports by saying nothing at all',
+          /if\(err&&err\.code==='cancelled'\) return;/.test(html));
+
+        // ---- the browser blocks the popup ----
+        /* jsdom cannot navigate and window.location is [Unforgeable], so the navigation
+           itself is not observable here. What is: the URL the code built (handed to
+           window.open first, which is the call being blocked), that authGoogle RESOLVES
+           rather than rejecting, and that the state and nonce were parked for the return
+           trip. The jsdomError the attempted navigation raises is expected, so it is
+           swallowed for the length of this one call rather than printed as a failure. */
+        window.sessionStorage.removeItem('trakora.gstate');
+        window.sessionStorage.removeItem('trakora.gnonce');
+        openUrl = '';
+        window.open = (url) => { openUrl = url; return null; };
+        const vcHandlers = dom.virtualConsole.listeners('jsdomError');
+        dom.virtualConsole.removeAllListeners('jsdomError');
+        dom.virtualConsole.on('jsdomError', () => {});
+        const redirected = await window.authGoogle();
+        dom.virtualConsole.removeAllListeners('jsdomError');
+        vcHandlers.forEach((fn) => dom.virtualConsole.on('jsdomError', fn));
+        const rst = openUrl ? new window.URL(openUrl).searchParams.get('state') : '';
+        const rnonce = openUrl ? new window.URL(openUrl).searchParams.get('nonce') : '';
+        ok('a blocked popup is not an error: the page leaves and comes back instead',
+          redirected === null, redirected);
+        ok('...remembering the state and the nonce across the navigation',
+          window.sessionStorage.getItem('trakora.gstate') === rst && !!rst &&
+          window.sessionStorage.getItem('trakora.gnonce') === rnonce && !!rnonce, rst);
+
+        // ---- and coming back from it ----
+        calls.length = 0;
+        const realReplace = window.history.replaceState;
+        window.history.replaceState = () => {};
+        window.location.hash = '#id_token=back-from-redirect&state=' + rst;
+        const back = await window.authGoogleResume().then((s) => s, (e) => ({ err: e }));
+        ok('the redirect branch resumes on boot and adopts the session',
+          calls.length === 1 && !!back && !back.err && back.uid === 'guid1', [calls.length, back]);
+        /* The same state check as the popup, on the path that has no opener to check. */
+        window.sessionStorage.setItem('trakora.gstate', 'ours');
+        window.sessionStorage.setItem('trakora.gnonce', 'n');
+        calls.length = 0;
+        window.location.hash = '#id_token=forged&state=theirs';
+        const forged = await window.authGoogleResume().then((s) => s, (e) => ({ err: e }));
+        ok('a returning fragment with the wrong state is refused, with no request made',
+          forged === null && calls.length === 0, [forged, calls.length]);
+        window.history.replaceState = realReplace;
+
+        /* WHERE A FAILURE IS REPORTED. Once, and where the person is looking: the inline
+           line when the sign-in screen is up, a toast when it is not. A toast fired over
+           an open sign-in card is the same message twice, in the one place it is least
+           likely to be read. */
+        const realGoogle = window.authGoogle;
+        const toasts = [];
+        window.toast = (m) => { toasts.push(String(m)); };
+        try {
+          /* Opened through its own address rather than by calling signInOpen() directly.
+             #/signin is an address, not a route, and the hashchange listener closes the
+             screen whenever the hash is anything else — including the id_token fragments
+             this block set a moment ago, whose events are still queued. */
+          window.location.hash = '#/signin';
+          await wait(40);
+          ok('the sign-in screen is up for this check', window.signInIsOpen() === true,
+            d.getElementById('signin-root').innerHTML.length);
+          window.authGoogle = () => Promise.reject({ code: 'offline', msg: 'raw' });
+          click(d.querySelector('.si-oauth'));
+          await wait(30);
+          ok('a Google failure lands on the sign-in screen, inline',
+            d.getElementById('si-msg').textContent === 'Could not reach Google. Check your connection and try again.',
+            d.getElementById('si-msg').textContent);
+          ok('...and not also as a toast, which would be the same message twice',
+            toasts.length === 0, toasts);
+
+          toasts.length = 0;
+          window.authGoogle = () => Promise.reject({ code: 'nokey', msg: 'raw' });
+          click(d.querySelector('.si-oauth'));
+          await wait(30);
+          ok('a sign-in Google did not finish says so in its own words',
+            d.getElementById('si-msg').textContent === 'Google did not complete the sign-in. Try again.',
+            d.getElementById('si-msg').textContent);
+
+          toasts.length = 0;
+          window.authGoogle = () => Promise.reject({ code: 'cancelled', msg: '' });
+          d.getElementById('si-msg').textContent = 'untouched';
+          click(d.querySelector('.si-oauth'));
+          await wait(30);
+          ok('closing the popup reports nothing anywhere',
+            toasts.length === 0 && d.getElementById('si-msg').textContent === 'untouched',
+            [toasts, d.getElementById('si-msg').textContent]);
+
+          /* Off the sign-in screen there is no inline line, so it has to be a toast or
+             the failure is silent. */
+          window.location.hash = '#/dashboard';
+          await wait(40);
+          window.signInClose();
+          toasts.length = 0;
+          window.authGoogle = () => Promise.reject({ code: 'access_denied', msg: 'raw' });
+          const btn = d.createElement('button');
+          btn.setAttribute('data-action', 'auth-google');
+          d.getElementById('main').appendChild(btn);
+          click(btn);
+          await wait(30);
+          ok('with the screen closed the same failure is a toast instead',
+            toasts.length === 1 &&
+            toasts[0] === 'Could not sign in with Google. Try again, or use your email and password.', toasts);
+          btn.remove();
+        } finally {
+          window.authGoogle = realGoogle;
+          window.signInClose();
+          window.toast = () => {};
+        }
+
+        /* The callback page is the other half of the flow and it is where the credential
+           is physically handed over. It must name this exact origin: with '*' the token
+           would be readable by whatever else the opener happens to be embedded in. */
+        const cb = fs.readFileSync(path.join(__dirname, '..', 'oauth-callback.html'), 'utf8');
+        ok('the callback page posts to this exact origin, never to a wildcard',
+          /postMessage\(payload, window\.location\.origin\)/.test(cb) &&
+          cb.indexOf("postMessage(payload, '*')") === -1 && cb.indexOf('postMessage(payload, "*")') === -1);
+        ok('...and carries nothing but what came back in the fragment',
+          /type: 'trakora-oauth'/.test(cb) && /p\.get\('state'\)/.test(cb) && /p\.get\('id_token'\)/.test(cb));
+        ok('...and falls back to the app when it was reached without an opener',
+          /window\.opener && window\.opener !== window/.test(cb) && /location\.replace\(back\)/.test(cb));
+        ok('...storing nothing, because it is a doorway and not a page',
+          cb.indexOf('localStorage') === -1 && cb.indexOf('sessionStorage') === -1);
+      } finally {
+        window.open = realOpen; window.fetch = realFetch; window.toast = realToast;
+        window.sessionStorage.removeItem('trakora.gstate');
+        window.sessionStorage.removeItem('trakora.gnonce');
+        Object.keys(share).forEach((k) => { delete share[k]; });
+        Object.assign(share, savedShare);
+        if (savedAuth) window.localStorage.setItem('bizpilot.auth', savedAuth);
+        else window.localStorage.removeItem('bizpilot.auth');
+        window.location.hash = '#/dashboard';
+        window.render();
+      }
+    })();
+
+    // ---------- one place to paste the deployment config, and it is honest about itself ----------
+    /* The hard constraint on this whole change: we do not have the owner's Web API key or
+       OAuth client id and cannot get them. So AUTH_CFG stays empty, with one obvious place
+       to paste, and the app has to degrade honestly with nothing in it. */
+    (function deploymentConfig() {
+      const block = html.slice(html.indexOf('var AUTH_CFG={'), html.indexOf('var AUTH_IDT='));
+      ok('AUTH_CFG is empty, because inventing a credential is not an option',
+        /apiKey:\s*'',/.test(block) && /clientId:\s*''/.test(block), block);
+      ok('...with exactly one place to paste each value, marked as such',
+        (block.match(/<-- paste/g) || []).length === 2, block);
+      /* The two sentences an owner most needs and is least likely to be told: these are
+         public values, and the thing that actually keeps the data private is elsewhere. */
+      const doc = html.slice(html.indexOf('DEPLOYMENT CONFIG'), html.indexOf('var AUTH_CFG={'));
+      ok('the block says the two values are public and cannot be secrets',
+        /THESE TWO VALUES ARE PUBLIC/.test(doc) && /View Source/.test(doc), doc.length);
+      ok('...and that the database rules, not these, are what keep the data private',
+        /DATABASE RULES/.test(doc) && /unpublished\s+rules as the emergency/.test(doc.replace(/\s+/g, ' ')), doc.length);
+      ok('...and names the redirect URI that has to be registered on the OAuth client',
+        /oauth-callback\.html/.test(doc));
+      ok('...and says the Settings fields are a per-device override, not the deployment',
+        /OVERRIDE/.test(doc) && /source of truth is here/.test(doc.replace(/\s+/g, ' ')));
+      /* Precedence, asserted in the code rather than only in the prose above it. */
+      ok('the settings override is read first, falling back to AUTH_CFG',
+        /function authApiKey\(\)\{ var o=\(state&&state\.settings&&state\.settings\.share&&state\.settings\.share\.apiKey\)\|\|''; return String\(o\|\|AUTH_CFG\.apiKey\|\|''\)\.trim\(\); \}/.test(html));
+
+      /* And the degradation. With nothing pasted, the profile page must not offer to go
+         and configure anything either: that was the owner's complaint's second half. */
+      const share = window.state.settings.share;
+      const savedKey = share.apiKey, savedCid = share.clientId;
+      const savedAuth = window.localStorage.getItem('bizpilot.auth');
+      try {
+        share.apiKey = ''; share.clientId = '';
+        window.authStore(null);
+        window.state.settings.localIn = true;
+        window.location.hash = '#/profile'; window.render();
+        const card = d.getElementById('main');
+        ok('the profile page offers no setup button in the local state',
+          !card.querySelector('[data-action="settings-go"][data-tab="data"]'),
+          card.innerHTML.indexOf('data-tab="data"'));
+        ok('...only a way out', card.querySelectorAll('[data-action="auth-signout"]').length === 1);
+        ok('...and says what is true about this copy without naming a console',
+          /This copy has no accounts yet/.test(card.textContent) &&
+          !/API key|Firebase|client id|Developer setup/i.test(card.textContent));
+      } finally {
+        window.state.settings.localIn = false;
+        share.apiKey = savedKey; share.clientId = savedCid;
+        if (savedAuth) window.localStorage.setItem('bizpilot.auth', savedAuth);
+        else window.localStorage.removeItem('bizpilot.auth');
+        window.location.hash = '#/dashboard'; window.render();
+      }
+    })();
+
     // ---------- connecting a Firebase project is one paste ----------
     /* The old save handler took any string at all and answered "You can sign in now" — a
        promise it had no way of keeping, so a typo surfaced later as a failed sign-in with
