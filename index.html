@@ -120,6 +120,12 @@
      for what you owe, and paper. */
   --accent:#2563eb;     /* the reference brand blue */
   --accent-2:#1d4ed8;
+  /* ink for text sitting ON --accent as a fill. --accent is NOT the same colour in the
+     two themes (#2563eb here, #60a5fa in dark, because the ramp is read from the other
+     end), so a hardcoded white foreground is only legible in one of them: white on
+     #60a5fa is 2.54:1, an outright AA failure on the sign-in screen's primary button.
+     This token flips with the accent and keeps that pairing above 4.5:1 either way. */
+  --accent-on:#ffffff;  /* 8.59:1 on #2563eb */
   --accent-cta:#2563eb;
   --accent-cta-ink:#ffffff;
   --accent-soft:rgba(37,99,235,.08);
@@ -128,6 +134,14 @@
      needs 3:1 against its own fill. --border is a decorative hairline at 1.2:1
      and stays that way for card edges and table rules, which the SC exempts. */
   --border-ctl:#7b8ba0;  /* 3.47:1 vs white, 3.20:1 vs --bg-sunken (WCAG 1.4.11) */
+  /* the resting edge of a filled text field. --border is a 1.2:1 hairline, which on the
+     sign-in screen left the boxes reading as loose labels floating on the page rather
+     than as things you type into. */
+  --border-field:#d0d5dd;
+  /* Google's own published stroke and dark-button fill, used ONLY by the federated
+     button so it has a visible edge on a white page and on a near-black one. */
+  --goog-border:#747775;
+  --goog-bg:var(--bg-card);
   /* ink for text/glyphs sitting ON a filled semantic colour. Light in this theme
      because the fills are dark; near-black in dark, where they are light. */
   --on-tint:#ffffff;
@@ -382,11 +396,15 @@ html[data-theme="dark"]{
 
   --accent:#60a5fa;     /* the SAME blue, read from the dark end of the ramp */
   --accent-2:#93c5fd;
+  --accent-on:#0b1220;  /* 8.93:1 on #60a5fa; white would be 2.54:1 */
   --accent-cta:#2563eb;              /* the reference fill is unchanged: white ink clears 5.12:1 on it */
   --accent-cta-ink:#ffffff;
   --accent-soft:rgba(96,165,250,.13);
   --accent-ink:#93c5fd;
   --border-ctl:#64748b;  /* 3.46:1 vs --bg-input (WCAG 1.4.11) */
+  --border-field:#3a475c;
+  --goog-border:#8E918F;
+  --goog-bg:#131314;     /* Google's dark button fill: --bg-card is the page itself here */
   --on-tint:#14110e;
 
   --good:#4ade80; --good-soft:rgba(74,222,128,.12);
@@ -1827,7 +1845,27 @@ tr:hover .row-actions{opacity:1}
    in the app. (The project already deleted an entire lens engine for measuring
    4.18/765.) iOS does the same thing: the dim layer only dims, and the SHEET is
    the material that blurs. So the blur moves up one layer, where it is visible. */
-.modal-overlay{position:fixed;inset:0;background:rgba(8,10,22,.6);z-index:100;display:flex;align-items:flex-start;justify-content:center;padding:7vh 16px 16px;animation:fadeIn .2s;overflow-y:auto}
+/* ===== THE TOP OF THE STACK, low → high. Read this before changing any of these five.
+     500  .onb-overlay     first-run tour
+     520  .greet-overlay   first-run greeting
+     560  .si-wrap         the sign-in screen
+     580  .modal-overlay   dialogs, which can be raised FROM the sign-in screen
+     600  .toast-root      the last word: every toast has to be readable over all of it
+
+   The sign-in screen used to sit at 300, i.e. UNDER the greeting and the tour, so on a
+   first visit it was drawn, opaque, and completely uninteractable: clicks landed on the
+   greeting above it and fourteen Tab presses never reached the form. It now outranks
+   both. (It also does not RACE them any more: showGreeting()/maybeOnboard() stand aside
+   while signInIsOpen() and run when it closes. The z-order has to be right anyway,
+   because "covered" and "not raised" are two different bugs and only one of them is a
+   state machine.)
+
+   Above it, toasts and modals. A toast fired while the screen was up used to be painted
+   underneath an opaque sheet, which is what made Sign out look like it had done nothing:
+   the confirmation existed and could not be seen.
+
+   .gate (9999) and the storage-failure bar stay above everything by design. ===== */
+.modal-overlay{position:fixed;inset:0;background:rgba(8,10,22,.6);z-index:580;display:flex;align-items:flex-start;justify-content:center;padding:7vh 16px 16px;animation:fadeIn .2s;overflow-y:auto}
 .modal{
   background:var(--lg-tint);border:1px solid var(--lg-edge);border-radius:var(--r-2xl);
   width:100%;max-width:520px;box-shadow:var(--shadow-lg),var(--lg-rim);
@@ -1873,7 +1911,8 @@ tr:hover .row-actions{opacity:1}
 /* ============================================================
    toasts
    ============================================================ */
-.toast-root{position:fixed;bottom:20px;right:20px;z-index:200;display:flex;flex-direction:column;gap:8px;max-width:min(360px,calc(100vw - 32px))}
+/* z-index 600: the top of the stack. See the stacking-order note above .modal-overlay. */
+.toast-root{position:fixed;bottom:20px;right:20px;z-index:600;display:flex;flex-direction:column;gap:8px;max-width:min(360px,calc(100vw - 32px))}
 /* ----- connections notice -----
    Bottom-left, deliberately opposite the toasts, and deliberately not a modal: it is a
    notice with two buttons, not a decision the app should hold itself hostage to. It
@@ -2566,60 +2605,135 @@ body.dragging-active .kb-col{transition:outline-color .12s var(--ease)}
    It is a SCREEN, not a wall, in every case but one. The books work with no account at
    all, so unless this copy was deliberately set to require sign-in there is always a way
    past it that does not involve signing in to anything. */
-.si-wrap{position:fixed;inset:0;z-index:300;background:var(--bg-card);
+/* Eleven vertical gaps used eight different values (2/26/18/22/22/12/12/18/24/10/18),
+   which is not a rhythm, it is eight separate decisions. Three steps now: things inside
+   one group, rows of the same form, and sections. Nothing on this screen may introduce
+   a fourth. */
+.si-wrap{position:fixed;inset:0;z-index:560;background:var(--bg-card);
+  --si-1:8px;    /* inside one group: kicker→name, eye padding, skip link */
+  --si-2:16px;   /* one form row to the next */
+  --si-3:24px;   /* one section to the next */
   overflow:auto;-webkit-overflow-scrolling:touch;
   display:grid;place-items:center;padding:32px 24px}
+/* with the demo strip present the wrap is two rows: the strip, then everything else,
+   with the card still centred in what is left. Without it there is one row and the
+   card centres in the whole screen exactly as before. */
+.si-wrap.si-has-demo{grid-template-rows:auto 1fr}
+/* The demo notice is a SYSTEM notice about the whole screen, so it is a strip on the
+   screen rather than a card inside the form. In the card it pushed the first clickable
+   control 191px down, and it wore .si-msg.ok, which is the same class, and so the same shape and
+   the same accent-blue ground, as #si-msg, the form's own result line. Two identically
+   shaped rounded notices, one of them promotional-looking, both claiming to be about
+   what you just did. It gets its own class and its own amber ground.
+   It clears .toast-root, which is bottom:20px;right:20px. */
+.si-demo{grid-row:1;width:calc(100% + 48px);margin:-32px -24px var(--si-3);
+  padding:11px 20px;background:var(--warn-soft);color:var(--warn);
+  border-bottom:1px solid var(--warn);font-size:var(--f2);line-height:1.45;text-align:center}
 .si-card{width:100%;max-width:388px}
-.si-kicker{font-size:var(--f4);color:var(--text-2);line-height:1.2}
-.si-name{font-family:var(--font-display);font-size:var(--f7);font-weight:700;color:var(--accent);
-  line-height:1.15;letter-spacing:-.02em;margin:2px 0 26px;overflow-wrap:anywhere}
-/* the federated button: white, bordered, centred, the way every other one looks */
+/* Header. Centred with the rest of the column, and demoted: .si-name was 40px (--f7,
+   the token reserved for dashboard headline figures) in saturated accent blue under a
+   17px kicker, which is a landing-page hero, not a login header, and at 390px a real
+   name like "Aling Nena's Sari-Sari Store" wrapped to three lines. Blue is now on
+   exactly one element on this screen, the button you are meant to press. */
+.si-kicker{font-size:var(--f2);color:var(--text-2);line-height:1.2;text-align:center}
+.si-name{font-family:var(--font-display);font-size:var(--f6);font-weight:700;color:var(--text);
+  line-height:1.15;letter-spacing:-.02em;margin:var(--si-1) 0 var(--si-3);text-align:center;
+  /* break-word, not anywhere: break a token only when it genuinely cannot fit */
+  overflow-wrap:break-word}
+/* The federated button. It had no visible edge in either theme: a --border hairline on
+   --bg-card is 1.12:1 in light, and in dark --bg-card IS the page colour, so the button
+   was a black rectangle on a black page held up by a black shadow. Google publish a
+   stroke colour and a dark fill for exactly this; use theirs. */
 .si-oauth{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;
-  padding:13px 16px;border:1px solid var(--border);border-radius:11px;background:var(--bg-card);
+  padding:13px 16px;border:1px solid var(--goog-border);border-radius:11px;background:var(--goog-bg);
   font-size:var(--f3);font-weight:550;color:var(--text);box-shadow:var(--shadow-sm);transition:background .16s var(--ease),border-color .16s var(--ease)}
-.si-oauth:hover{background:var(--bg-sunken);border-color:var(--text-3)}
-.si-or{display:flex;align-items:center;gap:14px;margin:22px 0;color:var(--text-3);font-size:var(--f1);letter-spacing:.08em}
+html[data-theme="dark"] .si-oauth{box-shadow:none;color:#e3e3e3}  /* the shadow was black on near-black */
+.si-oauth:not([disabled]):hover{background:var(--bg-sunken);border-color:var(--text-3)}
+/* Demo: the button cannot sign anyone in with Google, so it is disabled and says why.
+   DIM THE CHROME ONLY. No opacity and no grayscale on .si-oauth: both of those repaint
+   the four-colour mark inside it, and a faded or grey Google G is itself a breach of the
+   terms the mark is here to satisfy. The fill, the border and the label go quiet; the
+   svg is untouched and stays at full fidelity. */
+.si-oauth[disabled]{background:var(--bg-sunken);color:var(--text-3);cursor:not-allowed;box-shadow:none}
+html[data-theme="dark"] .si-oauth[disabled]{background:var(--bg-sunken);color:var(--text-3)}
+.si-hint{margin-top:var(--si-1);font-size:var(--f1);color:var(--text-3);line-height:1.45;text-align:center}
+.si-or{display:flex;align-items:center;gap:14px;margin:var(--si-3) 0;color:var(--text-3);font-size:var(--f1);letter-spacing:.08em}
 .si-or::before,.si-or::after{content:"";flex:1;height:1px;background:var(--border)}
-/* filled field with the caption sitting above the value inside the same box */
+/* filled field with the caption sitting above the value inside the same box.
+   The resting border used to be transparent, i.e. --bg-sunken on --bg-card at 1.03:1
+   light and 1.09:1 dark, so the fields read as labels floating on the page. */
 .si-field{display:flex;align-items:center;gap:12px;background:var(--bg-sunken);
-  border:1px solid transparent;border-radius:11px;padding:9px 14px;margin-bottom:12px;
+  border:1px solid var(--border-field);border-radius:11px;padding:9px 14px;margin-bottom:var(--si-2);
   transition:border-color .16s var(--ease),background .16s var(--ease)}
-.si-field:focus-within{border-color:var(--accent);background:var(--bg-card)}
+/* THE FOCUS RING, and there is now exactly one of them.
+   Three layers used to stack on a focused input: this wrapper's 1px border, the global
+   :focus-visible 2px outline (killed by outline:none on the input), and the global
+   :focus-visible 4px --accent-soft glow, which DID draw: 2,848 of the field's 32,320
+   pixels, uniform 17/255, i.e. a faint filled inner box at 1.12:1. Visible enough to be
+   noticed, far too weak to be a focus indicator. Both input-level layers go, and the
+   indicator moves out to the wrapper as a real offset outline: it lands on card
+   background rather than on the field fill, so it is 5.09:1 light / 7.07:1 dark whatever
+   the resting border does, and at ~1,817px² it clears the 1,785px² that WCAG 2.4.13
+   asks of a 388×58.28 target, which the 1px border alone never could at 893px².
+   Scoped to `.si-field input`, NOT `.si-field *`: .si-eye lives inside .si-field and
+   keeps its own 2px outline from the global rule. */
+.si-field input:focus,.si-field input:focus-visible{outline:none;box-shadow:none}
+.si-field:focus-within{border-color:var(--accent);background:var(--bg-card);
+  outline:2px solid var(--accent);outline-offset:2px}
 .si-field>svg{flex:0 0 auto;color:var(--text-3)}
 .si-field-body{flex:1;min-width:0}
 .si-field label{display:block;font-size:var(--f1);color:var(--text-3);line-height:1.3}
 .si-field input{width:100%;border:0;background:transparent;padding:1px 0 0;font-size:var(--f3);
   font-weight:550;color:var(--text);outline:none}
 .si-field input::placeholder{font-weight:400;color:var(--text-3)}
-.si-eye{flex:0 0 auto;display:inline-flex;color:var(--text-3);padding:4px;border-radius:7px}
+/* Padding pulled back by an equal negative margin: the tap target grows and not one pixel
+   of the drawn control moves. .si-eye was a 25px target and is now 41px inside a 58px row.
+   .si-link was a bare 20px text run; 14px top and bottom around a ~16px line box puts it
+   at 44px. 10px was tried first and measured 36px, which is why the number is 14 and why
+   the test asserts the arithmetic rather than the literal. Both are on the screen a phone
+   user has to hit. */
+.si-eye{flex:0 0 auto;display:inline-flex;color:var(--text-3);padding:12px;margin:-12px;border-radius:7px}
 .si-eye:hover{color:var(--text);background:var(--bg-card)}
 /* Holds one control now, "Forgot password?", so it sits at the end of the row rather
    than at the two ends of it. The "Remember me" checkbox that used to be its partner is
-   gone: it was read and never used, so it could only misdescribe what the app does. */
-.si-row{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:wrap;margin:6px 0 18px}
-.si-link{font-size:var(--f2);color:var(--accent);font-weight:550}
+   gone: it was read and never used, so it could only misdescribe what the app does.
+   Its bottom margin is 0 and the separation above the CTA lives on the CTA, because this
+   row is not rendered in signup mode at all. When it carried the gap, "Create account"
+   sat jammed against the password box while "Log in" got 46px of air. */
+.si-row{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:wrap;margin:var(--si-1) 0 0}
+.si-link{font-size:var(--f2);color:var(--accent);font-weight:550;padding:14px 4px;margin:-14px -4px}
 .si-link:hover{text-decoration:underline}
 .si-cta{width:100%;display:flex;align-items:center;justify-content:center;gap:9px;padding:15px 18px;
-  border-radius:11px;background:var(--accent);color:#fff;font-size:var(--f3);font-weight:600;
+  margin-top:var(--si-3);
+  /* NOT #fff. --accent is #2563eb light and #60a5fa dark, and white on #60a5fa is
+     2.54:1, an AA failure on the one control this screen exists for. --accent-on
+     flips with it: 8.59:1 light, 8.93:1 dark. */
+  border-radius:11px;background:var(--accent);color:var(--accent-on);font-size:var(--f3);font-weight:600;
   transition:filter .16s var(--ease)}
 .si-cta:hover{filter:brightness(1.07)}
 .si-cta[disabled]{opacity:.65}
-.si-foot{margin-top:24px;text-align:center;font-size:var(--f2);color:var(--text-2)}
-.si-msg{margin-top:14px;font-size:var(--f2);border-radius:10px;padding:11px 13px;display:none;line-height:1.45}
+.si-foot{margin-top:var(--si-3);text-align:center;font-size:var(--f2);color:var(--text-2)}
+.si-msg{margin-top:var(--si-2);font-size:var(--f2);border-radius:10px;padding:11px 13px;display:none;line-height:1.45}
 .si-msg.show{display:block}
 .si-msg.err{background:var(--risk-soft);color:var(--risk)}
 .si-msg.ok{background:var(--accent-soft);color:var(--accent)}
-.si-note{margin-top:18px;font-size:var(--f1);color:var(--text-3);line-height:1.5;text-align:center}
-.si-spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.45);
-  border-top-color:#fff;animation:gatespin .7s linear infinite;display:inline-block}
+.si-note{margin-top:var(--si-2);font-size:var(--f1);color:var(--text-3);line-height:1.5;text-align:center}
+/* currentColor, not white: it sits on the CTA and the CTA's ink is near-black in dark. */
+.si-spin{width:14px;height:14px;border-radius:50%;border:2px solid currentColor;
+  border-top-color:transparent;opacity:.9;animation:gatespin .7s linear infinite;display:inline-block}
 /* the way out, for every case except a copy deliberately set to require an account */
-.si-skip{display:block;width:100%;margin-top:10px;text-align:center;font-size:var(--f2);
+.si-skip{display:block;width:100%;margin-top:var(--si-1);text-align:center;font-size:var(--f2);
   color:var(--text-3);padding:9px;border-radius:9px}
 .si-skip:hover{color:var(--text);background:var(--bg-sunken)}
 @media (max-width:560px){
-  .si-wrap{padding:24px 18px;align-content:start}
+  .si-wrap{padding:24px 18px}
+  .si-wrap:not(.si-has-demo){align-content:start}
+  .si-wrap.si-has-demo{grid-template-rows:auto 1fr;align-content:stretch}
+  /* the strip stays full-bleed against the narrower gutter */
+  .si-demo{width:calc(100% + 36px);margin:-24px -18px var(--si-3)}
 }
-}
+/* (a stray closing brace lived here, taking the stylesheet to nesting depth −1. Browsers
+   throw it away, so nothing was visibly broken, but it was a real syntax error.) */
 .gate{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;
   background:#0d0f17;font-family:var(--font)}
 .gate-card{position:relative;width:100%;max-width:380px;background:#15171f;
@@ -4352,9 +4466,19 @@ function authGoogleResume(){
    Settings and by the sign-in wall, so there is exactly one version of what "Sign in"
    and "Create an account" mean. Returns a promise so both callers can say what happened
    in their own way. */
+/* The ONE client-side check on that form, pulled out so the demo branch of the sign-in
+   screen can run it without also running the network call underneath. It is deliberately
+   thin: an address with no @ and a three-character password are for the server to refuse,
+   and a demo that refused them would be lying in the other direction, turning away two
+   things the real path would accept. Returns an error object, or null. */
+function authEmailFormError(email,password){
+  if(!String(email||'').trim()||!String(password||'')) return {code:'empty',msg:'Enter an email address and a password.'};
+  return null;
+}
 function authSubmitEmail(email,password,mode){
   email=String(email||'').trim(); password=String(password||'');
-  if(!email||!password) return Promise.reject({code:'empty',msg:'Enter an email address and a password.'});
+  var bad=authEmailFormError(email,password);
+  if(bad) return Promise.reject(bad);
   return (mode==='up'?authSignUp(email,password):authSignIn(email,password));
 }
 
@@ -4387,9 +4511,16 @@ function signInHTML(){
   var st=ui.signin||(ui.signin={mode:'in',show:false});
   var up=st.mode==='up';
   var dismissible=!REQUIRE_SIGNIN;
-  var h='<div class="si-wrap"><div class="si-card">'+
-    '<p class="si-kicker">'+esc(tr(up?'Create an account for':'Welcome to'))+'</p>'+
-    '<h1 class="si-name">'+appNameEsc()+'</h1>';
+  var demo=!authConfigured();
+
+  /* role=dialog + aria-modal, and .app goes inert while this is up (signInRender /
+     signInClose). Without them the whole sidebar sat in front of this card in the
+     accessibility tree: 10 of 16 Tab stops walked straight out of the form onto nav
+     items that were completely hidden under an opaque sheet, and Shift+Tab did not
+     bring you back. The tab cycle is wrapped in signInRender() as well, because inert
+     is the newer of the two and the wrap costs four lines. */
+  var h='<div class="si-wrap'+(demo?' si-has-demo':'')+'" role="dialog" aria-modal="true"'+
+    ' aria-label="'+esc(tr(up?'Create an account':'Sign in'))+'">';
 
   /* DEMO MODE. With no project connected there are no accounts, and an earlier version
      of this screen therefore showed no form at all: an Email label is a promise the value
@@ -4397,34 +4528,57 @@ function signInHTML(){
 
      That is the right instinct for a shipped product and the wrong one for what this is
      doing now, which is letting somebody look at and click through the login before any
-     backend exists. So the whole form renders, pre-filled, and every control works: Log
-     in and Google open the books, Create account switches the form over, Forgot password
-     answers. Nothing is sent anywhere and no session is written; the banner says exactly
-     that, in place, so the screen is a demo rather than a lie. The moment AUTH_CFG is
-     filled in this branch stops applying and every one of these becomes real. */
-  var demo=!authConfigured();
+     backend exists. So the whole form renders, pre-filled, and the controls that CAN act
+     act: Log in opens the books, Create account switches the form over, Forgot password
+     answers. Nothing is sent anywhere and no session is written. The moment AUTH_CFG is
+     filled in this branch stops applying and every one of these becomes real.
+
+     The notice is a strip on the screen rather than a card in the form (see .si-demo),
+     and it no longer claims that all four of the buttons just open the books, which was
+     false of two of them: Create account toggles the form and Forgot password prints a line. It
+     names the one button it is actually describing, which is true in both modes and
+     claims nothing about Google or the footer toggle. */
   if(demo){
-    h+='<div class="si-msg show ok" style="margin-bottom:18px">'+
-      esc(tr('Demo. No accounts are connected yet, so these details are filled in for you and every button just opens the books. Nothing is sent and nobody is signed in.'))+'</div>';
+    h+='<div class="si-demo" id="si-demo">'+
+      esc(tr('Demo. No accounts are connected yet, so these details are filled in for you and the button below just opens the books — nothing is checked and nothing is sent. Nobody is signed in and no account is created.'))+'</div>';
   }
+  h+='<div class="si-card">'+
+    '<p class="si-kicker">'+esc(tr(up?'Create an account for':'Welcome to'))+'</p>'+
+    '<h1 class="si-name">'+appNameEsc()+'</h1>';
 
   /* Google is a method, so it sits next to the email field, and only when there is a
      client id behind it. A Google button with nothing behind it can open one thing: a
-     dead popup. The OR rule has nothing to separate without it, so it goes too. */
+     dead popup. The OR rule has nothing to separate without it, so it goes too.
+
+     In demo the button is DISABLED and carries no data-action at all. It used to carry
+     the local preview shortcut, which made a control wearing Google's mark perform an
+     action that has nothing to do with Google. The mark is a claim about what pressing
+     it does. The mark, the viewBox, the four colours, the label, the height, the border
+     and the OR rule are all unchanged; only the wiring is. Native disabled also drops it
+     out of the tab order, which is right for a control that cannot act. */
   if(demo||authClientId()){
-    h+='<button type="button" class="si-oauth" data-action="'+(demo?'signin-preview':'auth-google')+'">'+siGoogleMark()+
+    h+='<button type="button" class="si-oauth"'+
+      (demo?' disabled aria-describedby="si-oauth-hint"':' data-action="auth-google"')+'>'+siGoogleMark()+
       '<span>'+esc(tr(up?'Sign up with Google':'Continue with Google'))+'</span></button>'+
+      (demo?'<p class="si-hint" id="si-oauth-hint">'+esc(tr('Available once Google sign-in is set up.'))+'</p>':'')+
       '<div class="si-or"><span>'+esc(tr('OR'))+'</span></div>';
   }
 
-  h+='<form id="si-form" autocomplete="on" novalidate>'+
+  /* autocomplete=off on the two demo-prefilled fields, and on the form, ONLY in demo.
+     A filled current-password reading "preview1234" inside an autocomplete=on form is
+     exactly the shape Chrome and Safari offer to save, so pressing Log in on a deployed
+     copy would train a real owner's password manager with a made-up credential for this
+     origin. The configured path keeps username / current-password / new-password
+     untouched, because there a save prompt is the correct behaviour. */
+  h+='<form id="si-form" autocomplete="'+(demo?'off':'on')+'" novalidate'+
+      (demo?' aria-describedby="si-demo"':'')+'>'+
     '<div class="si-field">'+icon('mail',18)+'<div class="si-field-body">'+
       '<label for="si-email">'+esc(tr('Email'))+'</label>'+
-      '<input id="si-email" type="email" name="email" autocomplete="username" placeholder="example@gmail.com"'+
+      '<input id="si-email" type="email" name="email" autocomplete="'+(demo?'off':'username')+'" placeholder="example@gmail.com"'+
         (demo?' value="'+esc(SI_DEMO.email)+'"':'')+'></div></div>'+
     '<div class="si-field">'+icon('key',18)+'<div class="si-field-body">'+
       '<label for="si-pass">'+esc(tr('Password'))+'</label>'+
-      '<input id="si-pass" type="'+(st.show?'text':'password')+'" name="password" autocomplete="'+(up?'new-password':'current-password')+'" placeholder="'+esc(tr('at least 6 characters'))+'"'+
+      '<input id="si-pass" type="'+(st.show?'text':'password')+'" name="password" autocomplete="'+(demo?'off':(up?'new-password':'current-password'))+'" placeholder="'+esc(tr('at least 6 characters'))+'"'+
         (demo?' value="'+esc(SI_DEMO.password)+'"':'')+'></div>'+
       '<button type="button" class="si-eye" data-action="signin-eye" aria-pressed="'+(st.show?'true':'false')+'"'+
         ' aria-label="'+esc(tr(st.show?'Hide password':'Show password'))+'">'+icon(st.show?'eyeoff':'eye',17)+'</button></div>'+
@@ -4437,7 +4591,11 @@ function signInHTML(){
       '<button type="button" class="si-link" data-action="signin-forgot">'+esc(tr('Forgot password?'))+'</button>'+
     '</div>')+
     '<button class="si-cta" id="si-go" type="submit">'+esc(tr(up?'Create account':'Log in'))+'</button>'+
-    '<div class="si-msg" id="si-msg"></div>'+
+    /* role=status + aria-live: this element is where every answer the screen gives
+       lands: the Forgot password line, the demo validation error, a Firebase error.
+       Querying the screen for [aria-live],[role=status],[role=alert] used to return
+       nothing at all, so a screen reader said nothing when any of them appeared. */
+    '<div class="si-msg" id="si-msg" role="status" aria-live="polite"></div>'+
     '</form>'+
     '<p class="si-foot">'+esc(tr(up?'Already have an account?':"Don't have an account?"))+' '+
       '<button type="button" class="si-link" data-action="signin-mode" data-mode="'+(up?'in':'up')+'">'+
@@ -4454,9 +4612,25 @@ function signInHTML(){
   return h+'</div></div>';
 }
 function signInIsOpen(){ var r=byId('signin-root'); return !!(r&&r.firstChild); }
+/* The app shell sits in front of this screen in the accessibility tree, so it is made
+   inert while the screen is up and un-inerted the moment it closes. Both halves live
+   here so there is one place to look if focus ever escapes again. */
+function siAppInert(on){
+  var app=byId('app'); if(!app) return;
+  if(on) app.setAttribute('inert',''); else app.removeAttribute('inert');
+}
 function signInClose(){
   var r=byId('signin-root'); if(!r) return;
   r.innerHTML=''; document.body.classList.remove('drawer-open');
+  siAppInert(false);
+  /* The first-run greeting and the tour stood aside for this screen rather than opening
+     behind it (see maybeGreet / maybeOnboard). Closing it is when they get their turn,
+     so "Not now" lands on the app with the greeting in front of it, which is the state a
+     first visit would have reached if the sign-in screen had never been in the way. */
+  if(typeof appBooted!=='undefined'&&appBooted){
+    if(typeof maybeOnboard==='function') maybeOnboard();
+    if(typeof maybeGreet==='function') maybeGreet();
+  }
 }
 function signInOpen(mode){
   var r=byId('signin-root'); if(!r) return;
@@ -4464,21 +4638,49 @@ function signInOpen(mode){
   if(mode) ui.signin.mode=mode;
   signInRender();
 }
-function signInRender(){
+/* keepFocus: a re-render that must NOT yank the caret back to the email field. Showing
+   and hiding the password rebuilds the whole card, and the autofocus below then threw a
+   keyboard user out of the eye button they had just pressed, and announced the
+   aria-pressed flip on an element they were no longer on. Opening the screen and
+   switching between Log in and Create account still land on email, which is right. */
+function signInRender(keepFocus){
   var r=byId('signin-root'); if(!r) return;
   r.innerHTML=signInHTML();
+  siAppInert(true);
+  var wrap=r.querySelector('.si-wrap');
+  if(wrap) wrap.addEventListener('keydown',siTrapTab);
   var form=byId('si-form'); if(!form){ return; }
   form.addEventListener('submit',function(e){
     e.preventDefault();
     var st=ui.signin, btn=byId('si-go'), msg=byId('si-msg');
-    var was=btn.textContent;
+    var was=btn.textContent, demo=!authConfigured();
+    /* "Signing in…" / "Creating your account…" used to be set BEFORE the demo branch was
+       checked, so for 420ms the button asserted an action that was never going to happen
+       and the toast that corrected it only arrived afterwards. One label for the demo,
+       because one thing happens in it either way. The configured path is untouched. */
     btn.disabled=true; msg.className='si-msg';
-    btn.innerHTML='<span class="si-spin"></span>'+esc(tr(st.mode==='up'?'Creating your account…':'Signing in…'));
-    /* Demo: the form is real on screen and checks nothing behind it, so Log in and
+    btn.innerHTML='<span class="si-spin"></span>'+esc(tr(demo?'Opening the demo…':(st.mode==='up'?'Creating your account…':'Signing in…')));
+    /* Demo: the form is real on screen and there is no server behind it, so Log in and
        Create account open the books. No session is written, which is what keeps this a
        demo rather than a forged sign-in: authSignedIn() stays false and every screen
-       downstream keeps telling the truth about who is using the app. */
-    if(!authConfigured()){
+       downstream keeps telling the truth about who is using the app.
+
+       It runs the SAME client-side check the configured path runs (the one function,
+       not a copy of it) and diverges only at the network call. Without that, clearing
+       both fields opened the app, the error state on a screen whose whole job is
+       previewing the login could not be reached at all, and filling in AUTH_CFG later
+       would have silently flipped empty-submit from "opens the app" to "shows an error"
+       with nobody reviewing the change. What it deliberately does NOT do is add a format
+       check or a length check of its own: those are the server's, so a malformed address
+       and a three-character password still open the app here, exactly as they would
+       still be accepted for sending there. */
+    if(demo){
+      var bad=authEmailFormError(byId('si-email').value,byId('si-pass').value);
+      if(bad){
+        btn.disabled=false; btn.textContent=was;
+        msg.className='si-msg show err'; msg.textContent=tr(bad.msg);
+        return;
+      }
       setTimeout(function(){
         state.settings.localIn=true; save();
         signInClose();
@@ -4498,7 +4700,21 @@ function signInRender(){
       msg.className='si-msg show err'; msg.textContent=(err&&err.msg)||tr('Could not sign in.');
     });
   });
-  setTimeout(function(){ var el=byId('si-email'); if(el) el.focus(); },120);
+  if(!keepFocus) setTimeout(function(){ var el=byId('si-email'); if(el) el.focus(); },120);
+}
+/* Tab wrapping. inert on .app is the main containment; this closes the ends of the
+   cycle so Tab off the last control comes back to the first rather than to the browser
+   chrome, and Shift+Tab off the first goes to the last. */
+function siTrapTab(e){
+  if(e.key!=='Tab') return;
+  var wrap=e.currentTarget;
+  var f=Array.prototype.filter.call(
+    wrap.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select,textarea,[tabindex]:not([tabindex="-1"])'),
+    function(el){ return el.offsetWidth||el.offsetHeight||el===document.activeElement; });
+  if(!f.length) return;
+  var first=f[0], last=f[f.length-1];
+  if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+  else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
 }
 /* Kept under its old name because bootApp() calls it. */
 function renderSignInWall(){ signInOpen('in'); }
@@ -4969,7 +5185,10 @@ function probeStorage(){
   }catch(e){ storageOk=false; }
   if(!storageOk){
     var bar=document.createElement('div');
-    bar.style.cssText='position:fixed;top:0;left:0;right:0;z-index:300;background:#b91c1c;color:#fff;font-size:var(--f2);font-weight:600;text-align:center;padding:8px 16px;font-family:inherit';
+    /* z-index 620: above the sign-in screen, the modals and the toasts, because "this
+       browser is not saving your data" outranks everything that could be on top of it.
+       It used to be 300 and won on DOM order alone; the stack above it moved. */
+    bar.style.cssText='position:fixed;top:0;left:0;right:0;z-index:620;background:#b91c1c;color:#fff;font-size:var(--f2);font-weight:600;text-align:center;padding:8px 16px;font-family:inherit';
     bar.innerHTML=icon('alert',15)+' This browser is blocking storage. Your data will NOT survive closing this tab. Open this file in Chrome, Edge, Firefox or Safari directly (not inside a chat app’s built-in viewer) and avoid private/incognito mode.';
     bar.style.display='flex'; bar.style.alignItems='center'; bar.style.gap='8px'; bar.style.justifyContent='center';
     document.body.appendChild(bar);
@@ -11846,27 +12065,29 @@ document.addEventListener('click',function(e){
     return;
   }
   if(action==='auth-signin-email'){ acctMenuClose(true); signInOpen('in'); return; }
-  /* "Continue on this device": the only button on the sign-in screen when this copy has
-     no project behind it. It writes NO auth session, deliberately. What it sets is a
-     local flag that decides which rows the account menu shows, so that the person who
-     pressed it can find their profile and a way back out. Nothing anywhere treats that
-     flag as proof of identity, and the toast says in as many words that nobody is
-     signed in. */
-  if(action==='signin-preview'){
-    state.settings.localIn=true; save();
-    signInClose();
-    if(location.hash==='#/signin') location.hash='#/dashboard';
-    if(!appBooted) bootApp(); else { render(); renderSidebar(); }
-    toast(tr('Opened on this device. Nobody is signed in.'),'good',{ms:5200});
-    return;
-  }
+  /* The local preview action is GONE, not orphaned. It existed for a "Continue on this device"
+     button that no longer exists, and its last caller was the demo Google button, which
+     is now disabled and carries no action at all: a Google-marked control must not
+     perform a non-Google action. Nothing is lost: it did exactly what the demo branch of
+     the sign-in form's submit handler does (set localIn, close, boot, say plainly that
+     nobody is signed in), and that is still the only place that behaviour lives. When
+     AUTH_CFG is filled in the demo branch stops applying entirely and the Google button
+     goes to auth-google, so there was never a future caller to keep it for. */
   if(action==='signin-dismiss'){
     signInClose();
     if(location.hash==='#/signin') location.hash='#/dashboard';
     if(!appBooted) bootApp();
     return;
   }
-  if(action==='signin-eye'){ ui.signin.show=!ui.signin.show; signInRender(); return; }
+  /* keepFocus, then put focus back on the eye itself: the re-render destroys the button
+     that was just pressed, so without this a keyboard user is thrown to the email field
+     on every toggle and hears the aria-pressed flip announced on an element they have
+     already left. */
+  if(action==='signin-eye'){
+    ui.signin.show=!ui.signin.show; signInRender(true);
+    var eye=document.querySelector('.si-eye'); if(eye) eye.focus();
+    return;
+  }
   if(action==='signin-mode'){ ui.signin.mode=el.getAttribute('data-mode')||'in'; signInRender(); return; }
   if(action==='signin-forgot'){
     var em=byId('si-email'), msg=byId('si-msg');
@@ -15864,12 +16085,27 @@ var BIZ_PRESETS={
   general:{label:'Something else',cats:['Product','Service'],hide:[],
     fields:[{label:'Variant',type:'text',cat:''}]}
 };
+var onbPending=false;
 function maybeOnboard(){
   if(state.settings.onboarded) return;
   if(state.finance.length||state.products.length||state.orders.length){ state.settings.onboarded=true; state.settings.wizardDone=true; save(); return; }
-  state.settings.onboarded=true; save(); // show once, ever
+  /* Sign-in screen up: defer, and do NOT burn the once-ever flag. signInClose() calls
+     back in, so the tour runs when the screen is out of the way instead of opening
+     behind it. The flag is therefore set at the moment the tour actually opens, not when
+     it is scheduled: the screen can be raised inside the 600ms (a #/signin boot does
+     exactly that, 400ms after this runs) and burning it early would lose the tour for
+     good. See the stacking-order note above .modal-overlay. */
+  if(onbPending) return;
+  if(typeof signInIsOpen==='function'&&signInIsOpen()) return;
+  onbPending=true;
   // carousel intro first; the setup wizard opens when it ends
-  setTimeout(function(){ showOnboard(0); },600);
+  setTimeout(function(){
+    onbPending=false;
+    if(state.settings.onboarded) return;
+    if(typeof signInIsOpen==='function'&&signInIsOpen()) return;
+    state.settings.onboarded=true; save(); // show once, ever
+    showOnboard(0);
+  },600);
 }
 /* first-run section picker: the owner chooses which parts of the app appear in
    their sidebar. Essentials (dashboard, assistant, finance, settings) always show. */
@@ -18818,8 +19054,17 @@ function maybeGreet(){
   if(byId('lock-root')&&byId('lock-root').innerHTML) return;
   if(byId('modal-root')&&byId('modal-root').innerHTML) return;
   if(byId('lightbox-root')&&byId('lightbox-root').querySelector('.onb-card')) return; // onboarding is up: greet after
+  /* The sign-in screen is up: stand aside rather than opening behind it. Note that
+     greetShownThisSession is NOT set here: this is a deferral, not a cancellation, and
+     signInClose() calls back in. Raising the sign-in screen's z-index alone would not
+     have been enough: the greeting would still be OPEN underneath an opaque sheet and
+     sitting there the moment somebody pressed "Not now". */
+  if(typeof signInIsOpen==='function'&&signInIsOpen()) return;
   greetShownThisSession=true;
-  setTimeout(showGreeting,450);
+  setTimeout(function(){
+    if(typeof signInIsOpen==='function'&&signInIsOpen()){ greetShownThisSession=false; return; }
+    showGreeting();
+  },450);
 }
 document.addEventListener('submit',function(e){ if(e.target&&e.target.id==='greet-form'){ e.preventDefault(); greetSaveName(); } });
 /* calculators: search-first live filter + recents */
