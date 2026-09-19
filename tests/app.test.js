@@ -5051,19 +5051,30 @@ async function main() {
           share.apiKey = ''; share.clientId = '';
           window.ui.signin = { mode: 'in', show: false };
           const bare = window.signInHTML();
-          ok('with no project connected there is no form to fill in',
-            bare.indexOf('si-field') === -1 && bare.indexOf('si-oauth') === -1 &&
-            bare.indexOf('si-or') === -1 && bare.indexOf('si-form') === -1, bare.slice(0, 400));
-          ok('...and no made-up credentials anywhere, in the page or in the source',
-            html.indexOf('SI_DEMO') === -1 && html.indexOf('preview1234') === -1 &&
-            html.indexOf('tester@example.com') === -1);
-          ok('...what it says is short and true',
-            bare.indexOf('This copy has no accounts yet. Your books work on this device without one.') > 0, bare);
+          /* The screen used to render NO form at all with no project behind it, on the
+             grounds that an Email label promises the value gets checked. That is right for
+             a shipped product and wrong for a screen somebody is being asked to look at and
+             click through before any backend exists, which is what this is for now. So the
+             whole form renders and every control works. What keeps it honest is the banner
+             and the absence of a session, not the absence of the UI. */
+          ok('with no project connected the whole form is still there to look at',
+            ['si-oauth', 'si-or', 'si-form', 'si-field', 'si-eye', 'si-cta']
+              .every((c) => bare.indexOf(c) > 0), bare.slice(0, 400));
+          ok('...pre-filled, so a tester can press Log in and be in the app',
+            /id="si-email"[^>]*value="tester@example\.com"/.test(bare) &&
+            /id="si-pass"[^>]*value="preview1234"/.test(bare), bare.slice(0, 600));
+          ok('...with forgot password and create account both reachable',
+            bare.indexOf('data-action="signin-forgot"') > 0 &&
+            /data-action="signin-mode" data-mode="up"/.test(bare), bare.slice(0, 600));
+          /* The Google button must not open a dead popup when there is no client id
+             behind it, so in this state it goes the same way as Log in. */
+          ok('...and Google opens the books rather than a popup with nothing behind it',
+            /class="si-oauth" data-action="signin-preview"/.test(bare), bare.slice(0, 600));
+          ok('...and it says plainly that nothing is checked and nobody is signed in',
+            /Demo\. No accounts are connected yet/.test(bare) &&
+            /Nothing is sent and nobody is signed in/.test(bare), bare);
           ok('...and it does not send the owner off to configure anything',
             !/API key|Firebase|client id|Developer setup|Settings/i.test(bare), bare);
-          ok('...one button, and it is the way in',
-            (bare.match(/data-action="signin-preview"/g) || []).length === 1 &&
-            bare.indexOf('Continue on this device') > 0, bare);
           /* The whole point of the honesty: continuing must not leave the app believing a
              session exists, or every screen downstream lies about who is signed in. */
           ok('...which writes no auth session, so nothing downstream thinks anyone signed in',

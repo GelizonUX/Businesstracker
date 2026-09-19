@@ -4379,6 +4379,10 @@ function siGoogleMark(){
 function siFieldHTML(o){
   return '<div class="si-field"><label for="'+o.id+'">'+esc(o.label)+'</label></div>';
 }
+/* The pair the demo fills in. Not credentials: there is nothing for them to be
+   credentials TO. They exist so somebody opening this screen can press Log in and be
+   looking at the app a second later instead of typing into a form that checks nothing. */
+var SI_DEMO={email:'tester@example.com',password:'preview1234'};
 function signInHTML(){
   var st=ui.signin||(ui.signin={mode:'in',show:false});
   var up=st.mode==='up';
@@ -4387,34 +4391,28 @@ function signInHTML(){
     '<p class="si-kicker">'+esc(tr(up?'Create an account for':'Welcome to'))+'</p>'+
     '<h1 class="si-name">'+appNameEsc()+'</h1>';
 
-  /* THIS IS WHERE THE TRUTH ABOUT THE DEPLOYMENT IS TOLD, and it is the only place.
-     The account menu offers "Sign in" whether or not AUTH_CFG has been filled in,
-     because that is what a product does; the honest answer lives here, at the door,
-     in front of somebody who is actually trying to get in.
+  /* DEMO MODE. With no project connected there are no accounts, and an earlier version
+     of this screen therefore showed no form at all: an Email label is a promise the value
+     gets checked, and with an empty AUTH_CFG nothing checks it.
 
-     With no project connected there are no accounts, so there is no login form. An
-     Email label and a Password label are a promise that those two values will be
-     checked against something, and with an empty AUTH_CFG they are checked against
-     nothing at all. The screen used to render the full form and pre-fill it with a
-     made-up address and password, which is the one lie this screen could tell. What
-     renders instead is one sentence and one button: short, and true.
-
-     Nothing here asks the owner to go and configure anything. Whoever is doing the
-     setup is reading AUTH_CFG at the top of this file, or the Developer setup fold in
-     Settings, and neither of them needs to be advertised on a login screen. */
-  if(!authConfigured()){
+     That is the right instinct for a shipped product and the wrong one for what this is
+     doing now, which is letting somebody look at and click through the login before any
+     backend exists. So the whole form renders, pre-filled, and every control works: Log
+     in and Google open the books, Create account switches the form over, Forgot password
+     answers. Nothing is sent anywhere and no session is written; the banner says exactly
+     that, in place, so the screen is a demo rather than a lie. The moment AUTH_CFG is
+     filled in this branch stops applying and every one of these becomes real. */
+  var demo=!authConfigured();
+  if(demo){
     h+='<div class="si-msg show ok" style="margin-bottom:18px">'+
-      esc(tr('This copy has no accounts yet. Your books work on this device without one.'))+'</div>'+
-      '<button class="si-cta" type="button" data-action="signin-preview">'+
-        esc(tr('Continue on this device'))+'</button>';
-    return h+'</div></div>';
+      esc(tr('Demo. No accounts are connected yet, so these details are filled in for you and every button just opens the books. Nothing is sent and nobody is signed in.'))+'</div>';
   }
 
   /* Google is a method, so it sits next to the email field, and only when there is a
      client id behind it. A Google button with nothing behind it can open one thing: a
      dead popup. The OR rule has nothing to separate without it, so it goes too. */
-  if(authClientId()){
-    h+='<button type="button" class="si-oauth" data-action="auth-google">'+siGoogleMark()+
+  if(demo||authClientId()){
+    h+='<button type="button" class="si-oauth" data-action="'+(demo?'signin-preview':'auth-google')+'">'+siGoogleMark()+
       '<span>'+esc(tr(up?'Sign up with Google':'Continue with Google'))+'</span></button>'+
       '<div class="si-or"><span>'+esc(tr('OR'))+'</span></div>';
   }
@@ -4422,10 +4420,12 @@ function signInHTML(){
   h+='<form id="si-form" autocomplete="on" novalidate>'+
     '<div class="si-field">'+icon('mail',18)+'<div class="si-field-body">'+
       '<label for="si-email">'+esc(tr('Email'))+'</label>'+
-      '<input id="si-email" type="email" name="email" autocomplete="username" placeholder="example@gmail.com"></div></div>'+
+      '<input id="si-email" type="email" name="email" autocomplete="username" placeholder="example@gmail.com"'+
+        (demo?' value="'+esc(SI_DEMO.email)+'"':'')+'></div></div>'+
     '<div class="si-field">'+icon('key',18)+'<div class="si-field-body">'+
       '<label for="si-pass">'+esc(tr('Password'))+'</label>'+
-      '<input id="si-pass" type="'+(st.show?'text':'password')+'" name="password" autocomplete="'+(up?'new-password':'current-password')+'" placeholder="'+esc(tr('at least 6 characters'))+'"></div>'+
+      '<input id="si-pass" type="'+(st.show?'text':'password')+'" name="password" autocomplete="'+(up?'new-password':'current-password')+'" placeholder="'+esc(tr('at least 6 characters'))+'"'+
+        (demo?' value="'+esc(SI_DEMO.password)+'"':'')+'></div>'+
       '<button type="button" class="si-eye" data-action="signin-eye" aria-pressed="'+(st.show?'true':'false')+'"'+
         ' aria-label="'+esc(tr(st.show?'Hide password':'Show password'))+'">'+icon(st.show?'eyeoff':'eye',17)+'</button></div>'+
     /* "Remember me" is gone. It was read into ui.signin.remember and used by nothing:
@@ -4474,10 +4474,20 @@ function signInRender(){
     var was=btn.textContent;
     btn.disabled=true; msg.className='si-msg';
     btn.innerHTML='<span class="si-spin"></span>'+esc(tr(st.mode==='up'?'Creating your account…':'Signing in…'));
-    /* No !authConfigured() branch here any more. With no project connected signInHTML()
-       renders no form at all, so there is nothing to submit and nothing to let through:
-       that state now has one button, data-action="signin-preview", handled in the action
-       handler. This listener only ever runs on a screen whose fields are real. */
+    /* Demo: the form is real on screen and checks nothing behind it, so Log in and
+       Create account open the books. No session is written, which is what keeps this a
+       demo rather than a forged sign-in: authSignedIn() stays false and every screen
+       downstream keeps telling the truth about who is using the app. */
+    if(!authConfigured()){
+      setTimeout(function(){
+        state.settings.localIn=true; save();
+        signInClose();
+        if(location.hash==='#/signin') location.hash='#/dashboard';
+        if(typeof bootApp==='function'&&!appBooted) bootApp(); else { render(); renderSidebar(); }
+        toast(tr('Opened in demo. No accounts are connected yet, so nobody is signed in.'),'good',{ms:5200});
+      },420);   // long enough to see the button change, short enough not to feel broken
+      return;
+    }
     authSubmitEmail(byId('si-email').value,byId('si-pass').value,st.mode).then(function(){
       state.settings.localIn=false; save();
       signInClose();
@@ -11861,6 +11871,13 @@ document.addEventListener('click',function(e){
   if(action==='signin-forgot'){
     var em=byId('si-email'), msg=byId('si-msg');
     var addr=em?String(em.value||'').trim():'';
+    /* Demo: there is no account to send anything to, and pretending a mail went out
+       would be the one lie this screen must not tell. It says what it is instead. */
+    if(!authConfigured()){
+      if(msg){ msg.className='si-msg show ok';
+        msg.textContent=tr('In the finished app this sends a reset link to')+' '+(addr||tr('your email address'))+'. '+tr('No accounts are connected yet, so nothing was sent.'); }
+      return;
+    }
     if(!addr){ if(msg){ msg.className='si-msg show err'; msg.textContent=tr('Type your email address above first, then press this again.'); } if(em) em.focus(); return; }
     authSendReset(addr).then(function(){
       if(msg){ msg.className='si-msg show ok'; msg.textContent=tr('Check your email. A link to set a new password is on its way to')+' '+addr+'.'; }
