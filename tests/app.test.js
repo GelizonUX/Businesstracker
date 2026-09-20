@@ -3440,8 +3440,19 @@ async function main() {
         }
       }
       window.toast = function () {};
+      /* Asserted against USD, not against silence.
+         This read `quiet.length === 0`, which demanded the whole app say nothing at all
+         for the duration. It does not: by this point the fixtures carry AUD invoices with
+         no rate, and entering the screen correctly warns "No verified rate for AUD...".
+         That message is right, has nothing to do with a USD live-to-live refresh, and
+         lands in the previous case's window locally but in this one on CI, so the
+         assertion failed for something it was not testing. Adding more waiting would not
+         have helped; the window it was watching was the wrong shape, not the wrong size.
+         The contract is that refreshing a live rate with a live rate is not announced, so
+         this is the exact complement of the assertion above it: nothing said about USD. */
+      const aboutUsd = quiet.filter((m) => /USD/.test(String(m)));
       ok('a live rate refreshing another live rate says nothing — that is just it working',
-        quiet.length === 0, quiet);
+        aboutUsd.length === 0, aboutUsd);
 
       // =================================================================
       // The part that could have multiplied the blink.
