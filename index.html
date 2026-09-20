@@ -120,6 +120,12 @@
      for what you owe, and paper. */
   --accent:#2563eb;     /* the reference brand blue */
   --accent-2:#1d4ed8;
+  /* ink for text sitting ON --accent as a fill. --accent is NOT the same colour in the
+     two themes (#2563eb here, #60a5fa in dark, because the ramp is read from the other
+     end), so a hardcoded white foreground is only legible in one of them: white on
+     #60a5fa is 2.54:1, an outright AA failure on the sign-in screen's primary button.
+     This token flips with the accent and keeps that pairing above 4.5:1 either way. */
+  --accent-on:#ffffff;  /* 8.59:1 on #2563eb */
   --accent-cta:#2563eb;
   --accent-cta-ink:#ffffff;
   --accent-soft:rgba(37,99,235,.08);
@@ -128,6 +134,14 @@
      needs 3:1 against its own fill. --border is a decorative hairline at 1.2:1
      and stays that way for card edges and table rules, which the SC exempts. */
   --border-ctl:#7b8ba0;  /* 3.47:1 vs white, 3.20:1 vs --bg-sunken (WCAG 1.4.11) */
+  /* the resting edge of a filled text field. --border is a 1.2:1 hairline, which on the
+     sign-in screen left the boxes reading as loose labels floating on the page rather
+     than as things you type into. */
+  --border-field:#d0d5dd;
+  /* Google's own published stroke and dark-button fill, used ONLY by the federated
+     button so it has a visible edge on a white page and on a near-black one. */
+  --goog-border:#747775;
+  --goog-bg:var(--bg-card);
   /* ink for text/glyphs sitting ON a filled semantic colour. Light in this theme
      because the fills are dark; near-black in dark, where they are light. */
   --on-tint:#ffffff;
@@ -382,11 +396,15 @@ html[data-theme="dark"]{
 
   --accent:#60a5fa;     /* the SAME blue, read from the dark end of the ramp */
   --accent-2:#93c5fd;
+  --accent-on:#0b1220;  /* 8.93:1 on #60a5fa; white would be 2.54:1 */
   --accent-cta:#2563eb;              /* the reference fill is unchanged: white ink clears 5.12:1 on it */
   --accent-cta-ink:#ffffff;
   --accent-soft:rgba(96,165,250,.13);
   --accent-ink:#93c5fd;
   --border-ctl:#64748b;  /* 3.46:1 vs --bg-input (WCAG 1.4.11) */
+  --border-field:#3a475c;
+  --goog-border:#8E918F;
+  --goog-bg:#131314;     /* Google's dark button fill: --bg-card is the page itself here */
   --on-tint:#14110e;
 
   --good:#4ade80; --good-soft:rgba(74,222,128,.12);
@@ -1827,7 +1845,27 @@ tr:hover .row-actions{opacity:1}
    in the app. (The project already deleted an entire lens engine for measuring
    4.18/765.) iOS does the same thing: the dim layer only dims, and the SHEET is
    the material that blurs. So the blur moves up one layer, where it is visible. */
-.modal-overlay{position:fixed;inset:0;background:rgba(8,10,22,.6);z-index:100;display:flex;align-items:flex-start;justify-content:center;padding:7vh 16px 16px;animation:fadeIn .2s;overflow-y:auto}
+/* ===== THE TOP OF THE STACK, low → high. Read this before changing any of these five.
+     500  .onb-overlay     first-run tour
+     520  .greet-overlay   first-run greeting
+     560  .si-wrap         the sign-in screen
+     580  .modal-overlay   dialogs, which can be raised FROM the sign-in screen
+     600  .toast-root      the last word: every toast has to be readable over all of it
+
+   The sign-in screen used to sit at 300, i.e. UNDER the greeting and the tour, so on a
+   first visit it was drawn, opaque, and completely uninteractable: clicks landed on the
+   greeting above it and fourteen Tab presses never reached the form. It now outranks
+   both. (It also does not RACE them any more: showGreeting()/maybeOnboard() stand aside
+   while signInIsOpen() and run when it closes. The z-order has to be right anyway,
+   because "covered" and "not raised" are two different bugs and only one of them is a
+   state machine.)
+
+   Above it, toasts and modals. A toast fired while the screen was up used to be painted
+   underneath an opaque sheet, which is what made Sign out look like it had done nothing:
+   the confirmation existed and could not be seen.
+
+   .gate (9999) and the storage-failure bar stay above everything by design. ===== */
+.modal-overlay{position:fixed;inset:0;background:rgba(8,10,22,.6);z-index:580;display:flex;align-items:flex-start;justify-content:center;padding:7vh 16px 16px;animation:fadeIn .2s;overflow-y:auto}
 .modal{
   background:var(--lg-tint);border:1px solid var(--lg-edge);border-radius:var(--r-2xl);
   width:100%;max-width:520px;box-shadow:var(--shadow-lg),var(--lg-rim);
@@ -1873,7 +1911,8 @@ tr:hover .row-actions{opacity:1}
 /* ============================================================
    toasts
    ============================================================ */
-.toast-root{position:fixed;bottom:20px;right:20px;z-index:200;display:flex;flex-direction:column;gap:8px;max-width:min(360px,calc(100vw - 32px))}
+/* z-index 600: the top of the stack. See the stacking-order note above .modal-overlay. */
+.toast-root{position:fixed;bottom:20px;right:20px;z-index:600;display:flex;flex-direction:column;gap:8px;max-width:min(360px,calc(100vw - 32px))}
 /* ----- connections notice -----
    Bottom-left, deliberately opposite the toasts, and deliberately not a modal: it is a
    notice with two buttons, not a decision the app should hold itself hostage to. It
@@ -2295,6 +2334,17 @@ details.calc .calc-body{margin-top:10px}
    account in a browser this app has no part in */
 .adv-steps{margin:12px 0 4px;padding-left:22px;display:flex;flex-direction:column;gap:7px}
 .adv-steps li{font-size:var(--f2);color:var(--text-2);line-height:1.5}
+/* the three-line answer to "why is Google sign-in not working". Each row is a step and
+   whether it is done, because the failure is always one of exactly three things. */
+.setup-check{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.setup-check li{display:flex;align-items:flex-start;gap:9px;font-size:var(--f2);line-height:1.45}
+.setup-check li.ok{color:var(--good)}
+.setup-check li.no{color:var(--warn)}
+.setup-check li.note{color:var(--text-3)}
+.setup-check li svg{flex:0 0 auto;margin-top:2px}
+.setup-check li span{min-width:0}
+.setup-check li b{display:block;color:var(--text);font-weight:550}
+.setup-check li i{display:block;font-style:normal;color:var(--text-2);overflow-wrap:anywhere}
 .adv-steps .mono{overflow-wrap:anywhere}
 /* the rules card is already a card; inside the fold it is a section, not a second frame */
 .adv-body>.card{border:0;padding:0;margin-top:8px;background:transparent;box-shadow:none}
@@ -2555,58 +2605,135 @@ body.dragging-active .kb-col{transition:outline-color .12s var(--ease)}
    It is a SCREEN, not a wall, in every case but one. The books work with no account at
    all, so unless this copy was deliberately set to require sign-in there is always a way
    past it that does not involve signing in to anything. */
-.si-wrap{position:fixed;inset:0;z-index:300;background:var(--bg-card);
+/* Eleven vertical gaps used eight different values (2/26/18/22/22/12/12/18/24/10/18),
+   which is not a rhythm, it is eight separate decisions. Three steps now: things inside
+   one group, rows of the same form, and sections. Nothing on this screen may introduce
+   a fourth. */
+.si-wrap{position:fixed;inset:0;z-index:560;background:var(--bg-card);
+  --si-1:8px;    /* inside one group: kicker→name, eye padding, skip link */
+  --si-2:16px;   /* one form row to the next */
+  --si-3:24px;   /* one section to the next */
   overflow:auto;-webkit-overflow-scrolling:touch;
   display:grid;place-items:center;padding:32px 24px}
+/* with the demo strip present the wrap is two rows: the strip, then everything else,
+   with the card still centred in what is left. Without it there is one row and the
+   card centres in the whole screen exactly as before. */
+.si-wrap.si-has-demo{grid-template-rows:auto 1fr}
+/* The demo notice is a SYSTEM notice about the whole screen, so it is a strip on the
+   screen rather than a card inside the form. In the card it pushed the first clickable
+   control 191px down, and it wore .si-msg.ok, which is the same class, and so the same shape and
+   the same accent-blue ground, as #si-msg, the form's own result line. Two identically
+   shaped rounded notices, one of them promotional-looking, both claiming to be about
+   what you just did. It gets its own class and its own amber ground.
+   It clears .toast-root, which is bottom:20px;right:20px. */
+.si-demo{grid-row:1;width:calc(100% + 48px);margin:-32px -24px var(--si-3);
+  padding:11px 20px;background:var(--warn-soft);color:var(--warn);
+  border-bottom:1px solid var(--warn);font-size:var(--f2);line-height:1.45;text-align:center}
 .si-card{width:100%;max-width:388px}
-.si-kicker{font-size:var(--f4);color:var(--text-2);line-height:1.2}
-.si-name{font-family:var(--font-display);font-size:var(--f7);font-weight:700;color:var(--accent);
-  line-height:1.15;letter-spacing:-.02em;margin:2px 0 26px;overflow-wrap:anywhere}
-/* the federated button: white, bordered, centred, the way every other one looks */
+/* Header. Centred with the rest of the column, and demoted: .si-name was 40px (--f7,
+   the token reserved for dashboard headline figures) in saturated accent blue under a
+   17px kicker, which is a landing-page hero, not a login header, and at 390px a real
+   name like "Aling Nena's Sari-Sari Store" wrapped to three lines. Blue is now on
+   exactly one element on this screen, the button you are meant to press. */
+.si-kicker{font-size:var(--f2);color:var(--text-2);line-height:1.2;text-align:center}
+.si-name{font-family:var(--font-display);font-size:var(--f6);font-weight:700;color:var(--text);
+  line-height:1.15;letter-spacing:-.02em;margin:var(--si-1) 0 var(--si-3);text-align:center;
+  /* break-word, not anywhere: break a token only when it genuinely cannot fit */
+  overflow-wrap:break-word}
+/* The federated button. It had no visible edge in either theme: a --border hairline on
+   --bg-card is 1.12:1 in light, and in dark --bg-card IS the page colour, so the button
+   was a black rectangle on a black page held up by a black shadow. Google publish a
+   stroke colour and a dark fill for exactly this; use theirs. */
 .si-oauth{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;
-  padding:13px 16px;border:1px solid var(--border);border-radius:11px;background:var(--bg-card);
+  padding:13px 16px;border:1px solid var(--goog-border);border-radius:11px;background:var(--goog-bg);
   font-size:var(--f3);font-weight:550;color:var(--text);box-shadow:var(--shadow-sm);transition:background .16s var(--ease),border-color .16s var(--ease)}
-.si-oauth:hover{background:var(--bg-sunken);border-color:var(--text-3)}
-.si-or{display:flex;align-items:center;gap:14px;margin:22px 0;color:var(--text-3);font-size:var(--f1);letter-spacing:.08em}
+html[data-theme="dark"] .si-oauth{box-shadow:none;color:#e3e3e3}  /* the shadow was black on near-black */
+.si-oauth:not([disabled]):hover{background:var(--bg-sunken);border-color:var(--text-3)}
+/* Demo: the button cannot sign anyone in with Google, so it is disabled and says why.
+   DIM THE CHROME ONLY. No opacity and no grayscale on .si-oauth: both of those repaint
+   the four-colour mark inside it, and a faded or grey Google G is itself a breach of the
+   terms the mark is here to satisfy. The fill, the border and the label go quiet; the
+   svg is untouched and stays at full fidelity. */
+.si-oauth[disabled]{background:var(--bg-sunken);color:var(--text-3);cursor:not-allowed;box-shadow:none}
+html[data-theme="dark"] .si-oauth[disabled]{background:var(--bg-sunken);color:var(--text-3)}
+.si-hint{margin-top:var(--si-1);font-size:var(--f1);color:var(--text-3);line-height:1.45;text-align:center}
+.si-or{display:flex;align-items:center;gap:14px;margin:var(--si-3) 0;color:var(--text-3);font-size:var(--f1);letter-spacing:.08em}
 .si-or::before,.si-or::after{content:"";flex:1;height:1px;background:var(--border)}
-/* filled field with the caption sitting above the value inside the same box */
+/* filled field with the caption sitting above the value inside the same box.
+   The resting border used to be transparent, i.e. --bg-sunken on --bg-card at 1.03:1
+   light and 1.09:1 dark, so the fields read as labels floating on the page. */
 .si-field{display:flex;align-items:center;gap:12px;background:var(--bg-sunken);
-  border:1px solid transparent;border-radius:11px;padding:9px 14px;margin-bottom:12px;
+  border:1px solid var(--border-field);border-radius:11px;padding:9px 14px;margin-bottom:var(--si-2);
   transition:border-color .16s var(--ease),background .16s var(--ease)}
-.si-field:focus-within{border-color:var(--accent);background:var(--bg-card)}
+/* THE FOCUS RING, and there is now exactly one of them.
+   Three layers used to stack on a focused input: this wrapper's 1px border, the global
+   :focus-visible 2px outline (killed by outline:none on the input), and the global
+   :focus-visible 4px --accent-soft glow, which DID draw: 2,848 of the field's 32,320
+   pixels, uniform 17/255, i.e. a faint filled inner box at 1.12:1. Visible enough to be
+   noticed, far too weak to be a focus indicator. Both input-level layers go, and the
+   indicator moves out to the wrapper as a real offset outline: it lands on card
+   background rather than on the field fill, so it is 5.09:1 light / 7.07:1 dark whatever
+   the resting border does, and at ~1,817px² it clears the 1,785px² that WCAG 2.4.13
+   asks of a 388×58.28 target, which the 1px border alone never could at 893px².
+   Scoped to `.si-field input`, NOT `.si-field *`: .si-eye lives inside .si-field and
+   keeps its own 2px outline from the global rule. */
+.si-field input:focus,.si-field input:focus-visible{outline:none;box-shadow:none}
+.si-field:focus-within{border-color:var(--accent);background:var(--bg-card);
+  outline:2px solid var(--accent);outline-offset:2px}
 .si-field>svg{flex:0 0 auto;color:var(--text-3)}
 .si-field-body{flex:1;min-width:0}
 .si-field label{display:block;font-size:var(--f1);color:var(--text-3);line-height:1.3}
 .si-field input{width:100%;border:0;background:transparent;padding:1px 0 0;font-size:var(--f3);
   font-weight:550;color:var(--text);outline:none}
 .si-field input::placeholder{font-weight:400;color:var(--text-3)}
-.si-eye{flex:0 0 auto;display:inline-flex;color:var(--text-3);padding:4px;border-radius:7px}
+/* Padding pulled back by an equal negative margin: the tap target grows and not one pixel
+   of the drawn control moves. .si-eye was a 25px target and is now 41px inside a 58px row.
+   .si-link was a bare 20px text run; 14px top and bottom around a ~16px line box puts it
+   at 44px. 10px was tried first and measured 36px, which is why the number is 14 and why
+   the test asserts the arithmetic rather than the literal. Both are on the screen a phone
+   user has to hit. */
+.si-eye{flex:0 0 auto;display:inline-flex;color:var(--text-3);padding:12px;margin:-12px;border-radius:7px}
 .si-eye:hover{color:var(--text);background:var(--bg-card)}
-.si-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:6px 0 18px}
-.si-remember{display:flex;align-items:center;gap:9px;font-size:var(--f2);color:var(--text-2)}
-.si-link{font-size:var(--f2);color:var(--accent);font-weight:550}
+/* Holds one control now, "Forgot password?", so it sits at the end of the row rather
+   than at the two ends of it. The "Remember me" checkbox that used to be its partner is
+   gone: it was read and never used, so it could only misdescribe what the app does.
+   Its bottom margin is 0 and the separation above the CTA lives on the CTA, because this
+   row is not rendered in signup mode at all. When it carried the gap, "Create account"
+   sat jammed against the password box while "Log in" got 46px of air. */
+.si-row{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:wrap;margin:var(--si-1) 0 0}
+.si-link{font-size:var(--f2);color:var(--accent);font-weight:550;padding:14px 4px;margin:-14px -4px}
 .si-link:hover{text-decoration:underline}
 .si-cta{width:100%;display:flex;align-items:center;justify-content:center;gap:9px;padding:15px 18px;
-  border-radius:11px;background:var(--accent);color:#fff;font-size:var(--f3);font-weight:600;
+  margin-top:var(--si-3);
+  /* NOT #fff. --accent is #2563eb light and #60a5fa dark, and white on #60a5fa is
+     2.54:1, an AA failure on the one control this screen exists for. --accent-on
+     flips with it: 8.59:1 light, 8.93:1 dark. */
+  border-radius:11px;background:var(--accent);color:var(--accent-on);font-size:var(--f3);font-weight:600;
   transition:filter .16s var(--ease)}
 .si-cta:hover{filter:brightness(1.07)}
 .si-cta[disabled]{opacity:.65}
-.si-foot{margin-top:24px;text-align:center;font-size:var(--f2);color:var(--text-2)}
-.si-msg{margin-top:14px;font-size:var(--f2);border-radius:10px;padding:11px 13px;display:none;line-height:1.45}
+.si-foot{margin-top:var(--si-3);text-align:center;font-size:var(--f2);color:var(--text-2)}
+.si-msg{margin-top:var(--si-2);font-size:var(--f2);border-radius:10px;padding:11px 13px;display:none;line-height:1.45}
 .si-msg.show{display:block}
 .si-msg.err{background:var(--risk-soft);color:var(--risk)}
 .si-msg.ok{background:var(--accent-soft);color:var(--accent)}
-.si-note{margin-top:18px;font-size:var(--f1);color:var(--text-3);line-height:1.5;text-align:center}
-.si-spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.45);
-  border-top-color:#fff;animation:gatespin .7s linear infinite;display:inline-block}
+.si-note{margin-top:var(--si-2);font-size:var(--f1);color:var(--text-3);line-height:1.5;text-align:center}
+/* currentColor, not white: it sits on the CTA and the CTA's ink is near-black in dark. */
+.si-spin{width:14px;height:14px;border-radius:50%;border:2px solid currentColor;
+  border-top-color:transparent;opacity:.9;animation:gatespin .7s linear infinite;display:inline-block}
 /* the way out, for every case except a copy deliberately set to require an account */
-.si-skip{display:block;width:100%;margin-top:10px;text-align:center;font-size:var(--f2);
+.si-skip{display:block;width:100%;margin-top:var(--si-1);text-align:center;font-size:var(--f2);
   color:var(--text-3);padding:9px;border-radius:9px}
 .si-skip:hover{color:var(--text);background:var(--bg-sunken)}
 @media (max-width:560px){
-  .si-wrap{padding:24px 18px;align-content:start}
+  .si-wrap{padding:24px 18px}
+  .si-wrap:not(.si-has-demo){align-content:start}
+  .si-wrap.si-has-demo{grid-template-rows:auto 1fr;align-content:stretch}
+  /* the strip stays full-bleed against the narrower gutter */
+  .si-demo{width:calc(100% + 36px);margin:-24px -18px var(--si-3)}
 }
-}
+/* (a stray closing brace lived here, taking the stylesheet to nesting depth −1. Browsers
+   throw it away, so nothing was visibly broken, but it was a real syntax error.) */
 .gate{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;
   background:#0d0f17;font-family:var(--font)}
 .gate-card{position:relative;width:100%;max-width:380px;background:#15171f;
@@ -3805,17 +3932,50 @@ function icon(name,size){
      accounts:sendOobCode        send a password-reset email (Google sends it, not us)
      securetoken /v1/token       refresh an expired ID token                          */
 
-/* The project this app signs in to. Both values are public by nature: an API key and an
-   OAuth client id ship in every copy of a web app and cannot be hidden in a static page,
-   which is why neither grants any access on its own. The database rules do that.
-   Left empty here on purpose. Filling them in with a plausible-looking string would be
-   inventing a credential; the owner pastes their own under Settings > Data & Sync >
-   Sharing, or edits these two lines before deploying. With both empty, every sign-in
-   path refuses with a message that says the app has no project configured, and the rest
-   of the app is untouched. */
+/* ============================================================
+   >>> DEPLOYMENT CONFIG. THE ONLY PLACE TO EDIT. <<<
+   ============================================================
+   Paste the two values from your Firebase project between the quotes below, save the
+   file, deploy. That is the whole setup. Nothing else in this file needs touching and
+   nothing in the product UI needs visiting.
+
+     apiKey    Firebase console > Project settings > General > Web API Key
+     clientId  Google Cloud console > APIs & Services > Credentials > OAuth 2.0 client
+               IDs > the Web application entry. Optional: it powers the Google button
+               only. Email and password sign-in works with the apiKey alone.
+               Register this exact redirect URI on that client, or Google refuses
+               every popup:   https://<your domain>/oauth-callback.html
+
+   THESE TWO VALUES ARE PUBLIC. They are not secrets and there is no way to make them
+   secrets. Every web app that talks to Firebase ships its API key and its OAuth client
+   id inside JavaScript the browser downloads, so anyone can read them out of any such
+   site in ten seconds with View Source. Google publishes them in its own quickstarts
+   for that reason. Neither value grants access to anything on its own: an API key only
+   names which project a request is for, and an OAuth client id only names which app is
+   asking a person to sign in.
+
+   WHAT ACTUALLY KEEPS THE DATA PRIVATE IS THE DATABASE RULES. The rules run on Google's
+   servers, on a machine nobody using this app can open a console on, and they are the
+   one check in the whole system that cannot be walked around from a browser. The rules
+   this app expects are printed under Settings > Data & Sync > Developer setup, ready to
+   paste into the Realtime Database rules tab. Publish them. A correct key with no rules
+   published is an open database; an empty key with rules published is simply a copy
+   with no sign-in. Treat leaking these two lines as a non-event and treat unpublished
+   rules as the emergency.
+
+   LEFT EMPTY ON PURPOSE. Filling them with a plausible-looking string would be
+   inventing a credential. While both are empty the app runs exactly as it always has,
+   on this device and offline, and every sign-in path says plainly that this copy has no
+   project connected instead of failing at Google with a message nobody can act on.
+
+   The fields under Settings > Data & Sync > Developer setup write to
+   state.settings.share and OVERRIDE what is below, at runtime, on one device only. That
+   is a convenience for someone testing a second project without editing the file. It is
+   not where a deployment is configured, it is not what the product points anyone at,
+   and it is not carried to anybody else's browser. The source of truth is here.        */
 var AUTH_CFG={
-  apiKey:'',     // Firebase Web API key (Firebase console > Project settings > Web API Key)
-  clientId:''    // Google OAuth client id (Google Cloud console > Credentials > Web application)
+  apiKey:   '',   // <-- paste the Firebase Web API key here  (looks like: AIzaSy...)
+  clientId: ''    // <-- paste the Google OAuth client id here (looks like: 1234-abc.apps.googleusercontent.com)
 };
 var AUTH_IDT='https://identitytoolkit.googleapis.com/v1/accounts:';
 /* GetProjectConfig. Public with nothing but the Web API key, because it is what the
@@ -3838,8 +3998,16 @@ var AUTH_KEY='bizpilot.auth';
    else Firebase's rules decide, and none of that needs this flag. */
 var REQUIRE_SIGNIN=false;
 
+/* AUTH_CFG is the deployment. The per-device override in settings is checked first only
+   so that somebody testing a second project does not have to edit and redeploy the file;
+   it is empty in every copy that was not deliberately poked at, in which case these read
+   straight out of AUTH_CFG above. */
 function authApiKey(){ var o=(state&&state.settings&&state.settings.share&&state.settings.share.apiKey)||''; return String(o||AUTH_CFG.apiKey||'').trim(); }
 function authClientId(){ var o=(state&&state.settings&&state.settings.share&&state.settings.share.clientId)||''; return String(o||AUTH_CFG.clientId||'').trim(); }
+/* "Is there a project behind this copy at all." It decides whether a sign-in attempt can
+   possibly succeed, and therefore what the sign-in SCREEN says when one is made. It no
+   longer decides whether the account menu offers to sign in: a product offers its front
+   door unconditionally and explains itself at the door, not in a profile menu. */
 function authConfigured(){ return !!authApiKey(); }
 
 /* The session lives in its own storage key, never inside the books. Signing out must
@@ -3890,6 +4058,86 @@ function authErrMsg(code){
 /* Ask Google whether a key is real before telling the owner it is. The old save handler
    took any string at all and answered "You can sign in now", which is a promise the app
    had no way of keeping: a typo surfaced later as a failed sign-in with no clue why. */
+/* The last mile of connecting a project is three separate things in two different
+   consoles, and each one fails with an error that names none of them: a wrong key answers
+   "API key not valid", an unlisted domain answers with a redirect_uri_mismatch the popup
+   swallows, and a provider left switched off answers only when somebody actually tries to
+   sign in. So the app checks what it can check and says which of the three is missing,
+   rather than leaving an owner to guess which of three consoles they got wrong. */
+/* The Firebase console does not hand you a Web API key on its own. It hands you a block
+   of JavaScript, and asking somebody to pick one line out of it and paste that instead is
+   how a two minute job becomes a support conversation. So the key field takes either: the
+   bare key, or the whole snippet, pasted as it was copied.
+
+   It also reads clientId out of a pasted block if one is there, because a Google OAuth
+   client id is the one value the Firebase snippet does NOT carry, and somebody who has
+   assembled a config by hand may well have added it. */
+function authParseConfig(text){
+  text=String(text||'').trim();
+  if(!text) return {};
+  /* Anything that is not obviously a config block is taken WHOLE as the key, even when it
+     does not look like one. Google is the authority on whether a key is valid, not a
+     regex here: a pattern strict enough to recognise a real key will also silently discard
+     a mistyped one, and a value that vanishes on save with no message is far worse than
+     one that comes back rejected by name. */
+  /* A Google OAuth client id has an unmistakable shape, so it is recognised wherever it
+     is pasted rather than being swallowed as a key by the fallback below. */
+  if(/^[\w-]+\.apps\.googleusercontent\.com$/.test(text)) return {clientId:text};
+  var looksLikeBlock=/[{}]/.test(text)||/apiKey\s*[:=]/i.test(text)||/\n/.test(text);
+  if(!looksLikeBlock) return {apiKey:text};
+  var out={};
+  var pick=function(name){
+    var m=new RegExp('["\']?'+name+'["\']?\\s*[:=]\\s*["\']([^"\']+)["\']','i').exec(text);
+    return m?m[1].trim():'';
+  };
+  var k=pick('apiKey'); if(k) out.apiKey=k;
+  var c=pick('clientId')||pick('client_id'); if(c) out.clientId=c;
+  var d=pick('authDomain'); if(d) out.authDomain=d;
+  var pid=pick('projectId'); if(pid) out.projectId=pid;
+  /* last resort: a key on its own line inside something we did not recognise */
+  if(!out.apiKey){ var m=/AIza[\w-]{20,}/.exec(text); if(m) out.apiKey=m[0]; }
+  /* and a client id anywhere in the text, since its shape is unmistakable */
+  if(!out.clientId){ var g=/[\w-]+\.apps\.googleusercontent\.com/.exec(text); if(g) out.clientId=g[0]; }
+  return out;
+}
+function authSetupCheck(hostOverride){
+  var key=authApiKey(), cid=authClientId();
+  /* the host is a parameter so the "not on the list" branch can be exercised from a test
+     harness, which necessarily runs on a local address where the check short-circuits */
+  var host=hostOverride||location.hostname;
+  if(!key) return Promise.resolve([
+    {ok:false,what:'Web API key',fix:'Paste it above. Firebase console, Project settings, General, Web API Key.'},
+    {ok:false,what:'This domain allowed to sign in',fix:'Needs the key first.'},
+    {ok:false,what:'Google button',fix:'Needs an OAuth client id.'},
+    {ok:null,what:'Redirect URI to register on the OAuth client',fix:authRedirectUri()}
+  ]);
+  return authVerifyKey(key).then(function(info){
+    var local=(host==='localhost'||host==='127.0.0.1'||!host);
+    var allowed=local||(info.authorizedDomains||[]).indexOf(host)>-1;
+    return [
+      {ok:true,what:'Web API key',fix:'Connected to '+(info.projectId||'your project')+'.'},
+      {ok:allowed,what:'This domain allowed to sign in',
+       fix:allowed?(local?'Local addresses are always allowed.':host+' is on the list.')
+                  :'Add '+host+' in Authentication, Settings, Authorised domains. Until then Google refuses every sign-in from here.'},
+      {ok:!!cid,what:'Google button',
+       fix:cid?'A client id is set, so the sign-in screen offers Google.'
+              :'No OAuth client id, so the sign-in screen shows email and password only.'},
+      /* The one failure nothing here can detect. An unregistered redirect URI makes Google
+         stop on its own error page before it ever comes back, so the callback never fires,
+         the popup simply sits there, and the app has nothing to report. It cannot be
+         caught, so it is stated up front instead, with the exact string to paste. */
+      {ok:null,what:'Redirect URI to register on the OAuth client',
+       fix:authRedirectUri()+'. Paste this into the OAuth client under Authorised redirect URIs. If it is missing, the Google popup opens on an error page and never comes back, and nothing here can tell you why.'}
+    ];
+  },function(err){
+    return [
+      {ok:false,what:'Web API key',fix:(err&&err.msg)||'Google did not accept that key.'},
+      {ok:false,what:'This domain allowed to sign in',fix:'Cannot be checked until the key is accepted.'},
+      {ok:!!cid,what:'Google button',fix:cid?'A client id is set.':'No OAuth client id yet.'},
+      {ok:null,what:'Redirect URI to register on the OAuth client',fix:authRedirectUri()}
+    ];
+  });
+}
 function authVerifyKey(key){
   key=String(key||'').trim();
   if(!key) return Promise.reject({code:'empty',msg:'Paste the Web API key first.'});
@@ -4093,9 +4341,13 @@ function authTokenQuiet(){
   return authToken().then(function(t){ return t||null; },function(e){
     if(!authStale){
       authStale=true;
+      /* The expiry line used to send the owner to Settings ▸ Data & Sync, which is the
+         developer fold. Signing in again is done from the account menu, like everywhere
+         else, so that is what it says. Being offline is a different thing and keeps its
+         own sentence: nothing is wrong and nothing needs doing. */
       if(typeof toast==='function') toast(e&&e.code==='offline'
         ? 'Offline, so sharing is paused. Everything you do is saved on this device and goes up when the connection is back.'
-        : 'Your sign-in ended. Everything still works on this device; sign in again from Settings ▸ Data & Sync when you want sharing back.','warn');
+        : 'Your session ended. Everything still works on this device. Sign in again from the account menu when you want sharing back.','warn');
     }
     return null;
   });
@@ -4154,8 +4406,12 @@ function authGoogleExchange(idToken,nonce){
   }).then(function(d){ return authAdopt(d,'google'); });
 }
 function authGoogle(){
+  /* Unreachable from the UI now that the button is rendered only when there is a client
+     id, so this is a guard rather than a message anyone should see. It says the fact and
+     stops: the tail that named Settings and Developer setup was an instruction aimed at
+     an owner who cannot act on it. */
   if(!authClientId()) return Promise.reject({code:'noconfig',
-    msg:'Google sign-in is not connected to this copy yet. Whoever set it up can add the client id under Settings, Data & Sync, Developer setup.'});
+    msg:'Google sign-in is not set up for this copy.'});
   var st=authRandom(16), nonce=authRandom(16), url=authGoogleUrl(st,nonce);
   var win=null;
   try{ win=window.open(url,'trakora-google','width=480,height=640,menubar=no,toolbar=no'); }catch(_){ win=null; }
@@ -4210,9 +4466,19 @@ function authGoogleResume(){
    Settings and by the sign-in wall, so there is exactly one version of what "Sign in"
    and "Create an account" mean. Returns a promise so both callers can say what happened
    in their own way. */
+/* The ONE client-side check on that form, pulled out so the demo branch of the sign-in
+   screen can run it without also running the network call underneath. It is deliberately
+   thin: an address with no @ and a three-character password are for the server to refuse,
+   and a demo that refused them would be lying in the other direction, turning away two
+   things the real path would accept. Returns an error object, or null. */
+function authEmailFormError(email,password){
+  if(!String(email||'').trim()||!String(password||'')) return {code:'empty',msg:'Enter an email address and a password.'};
+  return null;
+}
 function authSubmitEmail(email,password,mode){
   email=String(email||'').trim(); password=String(password||'');
-  if(!email||!password) return Promise.reject({code:'empty',msg:'Enter an email address and a password.'});
+  var bad=authEmailFormError(email,password);
+  if(bad) return Promise.reject(bad);
   return (mode==='up'?authSignUp(email,password):authSignIn(email,password));
 }
 
@@ -4237,60 +4503,103 @@ function siGoogleMark(){
 function siFieldHTML(o){
   return '<div class="si-field"><label for="'+o.id+'">'+esc(o.label)+'</label></div>';
 }
-/* The pair the preview fills in. Not credentials: there is nothing for them to be
-   credentials TO. They exist so a tester opening the page can press Login and be looking
-   at the app a second later, instead of staring at an empty form that cannot submit. */
+/* The pair the demo fills in. Not credentials: there is nothing for them to be
+   credentials TO. They exist so somebody opening this screen can press Log in and be
+   looking at the app a second later instead of typing into a form that checks nothing. */
 var SI_DEMO={email:'tester@example.com',password:'preview1234'};
 function signInHTML(){
   var st=ui.signin||(ui.signin={mode:'in',show:false});
   var up=st.mode==='up';
   var dismissible=!REQUIRE_SIGNIN;
-  var h='<div class="si-wrap"><div class="si-card">'+
+  var demo=!authConfigured();
+
+  /* role=dialog + aria-modal, and .app goes inert while this is up (signInRender /
+     signInClose). Without them the whole sidebar sat in front of this card in the
+     accessibility tree: 10 of 16 Tab stops walked straight out of the form onto nav
+     items that were completely hidden under an opaque sheet, and Shift+Tab did not
+     bring you back. The tab cycle is wrapped in signInRender() as well, because inert
+     is the newer of the two and the wrap costs four lines. */
+  var h='<div class="si-wrap'+(demo?' si-has-demo':'')+'" role="dialog" aria-modal="true"'+
+    ' aria-label="'+esc(tr(up?'Create an account':'Sign in'))+'">';
+
+  /* DEMO MODE. With no project connected there are no accounts, and an earlier version
+     of this screen therefore showed no form at all: an Email label is a promise the value
+     gets checked, and with an empty AUTH_CFG nothing checks it.
+
+     That is the right instinct for a shipped product and the wrong one for what this is
+     doing now, which is letting somebody look at and click through the login before any
+     backend exists. So the whole form renders, pre-filled, and the controls that CAN act
+     act: Log in opens the books, Create account switches the form over, Forgot password
+     answers. Nothing is sent anywhere and no session is written. The moment AUTH_CFG is
+     filled in this branch stops applying and every one of these becomes real.
+
+     The notice is a strip on the screen rather than a card in the form (see .si-demo),
+     and it no longer claims that all four of the buttons just open the books, which was
+     false of two of them: Create account toggles the form and Forgot password prints a line. It
+     names the one button it is actually describing, which is true in both modes and
+     claims nothing about Google or the footer toggle. */
+  if(demo){
+    h+='<div class="si-demo" id="si-demo">'+
+      esc(tr('Demo. No accounts are connected yet, so these details are filled in for you and the button below just opens the books — nothing is checked and nothing is sent. Nobody is signed in and no account is created.'))+'</div>';
+  }
+  h+='<div class="si-card">'+
     '<p class="si-kicker">'+esc(tr(up?'Create an account for':'Welcome to'))+'</p>'+
     '<h1 class="si-name">'+appNameEsc()+'</h1>';
 
-  /* The WHOLE design renders whether or not a project is connected. It used to replace
-     itself with a one-line apology, which meant the screen could not be looked at, shown
-     to anyone or worked on until the auth was finished. That is backwards: the page is a
-     page first. When nothing is wired up the form is still all here and says so quietly;
-     what changes is what the buttons do, not whether they exist. */
-  /* PREVIEW MODE: no project connected, so there is no account to check anything against.
-     Rather than a dead form, the fields come pre-filled and Login lets the tester straight
-     through to the books. It does NOT pretend to have signed anybody in: no session is
-     written, the account menu still says "Not signed in", and the notice says so in as
-     many words. The moment a real project is connected this whole branch stops applying
-     and the form is empty and real. */
-  var preview=!authConfigured();
-  if(preview){
-    h+='<div class="si-msg show ok" style="margin-bottom:18px">'+
-      esc(tr('Preview. No account is connected to this copy yet, so these details are filled in for you and Login just opens the books. Nothing is checked and nobody is signed in.'))+'</div>';
+  /* Google is a method, so it sits next to the email field, and only when there is a
+     client id behind it. A Google button with nothing behind it can open one thing: a
+     dead popup. The OR rule has nothing to separate without it, so it goes too.
+
+     In demo the button is DISABLED and carries no data-action at all. It used to carry
+     the local preview shortcut, which made a control wearing Google's mark perform an
+     action that has nothing to do with Google. The mark is a claim about what pressing
+     it does. The mark, the viewBox, the four colours, the label, the height, the border
+     and the OR rule are all unchanged; only the wiring is. Native disabled also drops it
+     out of the tab order, which is right for a control that cannot act. */
+  if(demo||authClientId()){
+    h+='<button type="button" class="si-oauth"'+
+      (demo?' disabled aria-describedby="si-oauth-hint"':' data-action="auth-google"')+'>'+siGoogleMark()+
+      '<span>'+esc(tr(up?'Sign up with Google':'Continue with Google'))+'</span></button>'+
+      (demo?'<p class="si-hint" id="si-oauth-hint">'+esc(tr('Available once Google sign-in is set up.'))+'</p>':'')+
+      '<div class="si-or"><span>'+esc(tr('OR'))+'</span></div>';
   }
 
-  h+='<button type="button" class="si-oauth" data-action="'+(preview?'signin-preview':'auth-google')+'">'+siGoogleMark()+
-    '<span>'+esc(tr(up?'Sign up with Google':'Login with Google'))+'</span></button>'+
-    '<div class="si-or"><span>'+esc(tr('OR'))+'</span></div>';
-
-  h+='<form id="si-form" autocomplete="on" novalidate>'+
+  /* autocomplete=off on the two demo-prefilled fields, and on the form, ONLY in demo.
+     A filled current-password reading "preview1234" inside an autocomplete=on form is
+     exactly the shape Chrome and Safari offer to save, so pressing Log in on a deployed
+     copy would train a real owner's password manager with a made-up credential for this
+     origin. The configured path keeps username / current-password / new-password
+     untouched, because there a save prompt is the correct behaviour. */
+  h+='<form id="si-form" autocomplete="'+(demo?'off':'on')+'" novalidate'+
+      (demo?' aria-describedby="si-demo"':'')+'>'+
     '<div class="si-field">'+icon('mail',18)+'<div class="si-field-body">'+
       '<label for="si-email">'+esc(tr('Email'))+'</label>'+
-      '<input id="si-email" type="email" name="email" autocomplete="username" placeholder="example@gmail.com"'+
-        (preview?' value="'+esc(SI_DEMO.email)+'"':'')+'></div></div>'+
+      '<input id="si-email" type="email" name="email" autocomplete="'+(demo?'off':'username')+'" placeholder="example@gmail.com"'+
+        (demo?' value="'+esc(SI_DEMO.email)+'"':'')+'></div></div>'+
     '<div class="si-field">'+icon('key',18)+'<div class="si-field-body">'+
       '<label for="si-pass">'+esc(tr('Password'))+'</label>'+
-      '<input id="si-pass" type="'+(st.show?'text':'password')+'" name="password" autocomplete="'+(up?'new-password':'current-password')+'" placeholder="'+esc(tr('at least 6 characters'))+'"'+
-        (preview?' value="'+esc(SI_DEMO.password)+'"':'')+'></div>'+
+      '<input id="si-pass" type="'+(st.show?'text':'password')+'" name="password" autocomplete="'+(demo?'off':(up?'new-password':'current-password'))+'" placeholder="'+esc(tr('at least 6 characters'))+'"'+
+        (demo?' value="'+esc(SI_DEMO.password)+'"':'')+'></div>'+
       '<button type="button" class="si-eye" data-action="signin-eye" aria-pressed="'+(st.show?'true':'false')+'"'+
         ' aria-label="'+esc(tr(st.show?'Hide password':'Show password'))+'">'+icon(st.show?'eyeoff':'eye',17)+'</button></div>'+
-    '<div class="si-row">'+
-      '<label class="si-remember"><input type="checkbox" id="si-remember"'+(st.remember===false?'':' checked')+'>'+esc(tr('Remember me'))+'</label>'+
-      (up?'':'<button type="button" class="si-link" data-action="signin-forgot">'+esc(tr('Forgot Password?'))+'</button>')+
-    '</div>'+
-    '<button class="si-cta" id="si-go" type="submit">'+esc(tr(up?'Create account':'Login'))+'</button>'+
-    '<div class="si-msg" id="si-msg"></div>'+
+    /* "Remember me" is gone. It was read into ui.signin.remember and used by nothing:
+       the session is written to localStorage and survives a browser restart whatever
+       the box said, so unticking it told the person something untrue. The behaviour is
+       unchanged; only the control that misdescribed it is removed. If a real "do not
+       keep me signed in" is wanted later, it comes back with code behind it. */
+    (up?'':'<div class="si-row">'+
+      '<button type="button" class="si-link" data-action="signin-forgot">'+esc(tr('Forgot password?'))+'</button>'+
+    '</div>')+
+    '<button class="si-cta" id="si-go" type="submit">'+esc(tr(up?'Create account':'Log in'))+'</button>'+
+    /* role=status + aria-live: this element is where every answer the screen gives
+       lands: the Forgot password line, the demo validation error, a Firebase error.
+       Querying the screen for [aria-live],[role=status],[role=alert] used to return
+       nothing at all, so a screen reader said nothing when any of them appeared. */
+    '<div class="si-msg" id="si-msg" role="status" aria-live="polite"></div>'+
     '</form>'+
     '<p class="si-foot">'+esc(tr(up?'Already have an account?':"Don't have an account?"))+' '+
       '<button type="button" class="si-link" data-action="signin-mode" data-mode="'+(up?'in':'up')+'">'+
-      esc(tr(up?'Login':'Register'))+'</button></p>';
+      esc(tr(up?'Log in':'Create account'))+'</button></p>';
 
   /* The sentence that keeps this a screen rather than a wall. */
   if(dismissible){
@@ -4303,9 +4612,25 @@ function signInHTML(){
   return h+'</div></div>';
 }
 function signInIsOpen(){ var r=byId('signin-root'); return !!(r&&r.firstChild); }
+/* The app shell sits in front of this screen in the accessibility tree, so it is made
+   inert while the screen is up and un-inerted the moment it closes. Both halves live
+   here so there is one place to look if focus ever escapes again. */
+function siAppInert(on){
+  var app=byId('app'); if(!app) return;
+  if(on) app.setAttribute('inert',''); else app.removeAttribute('inert');
+}
 function signInClose(){
   var r=byId('signin-root'); if(!r) return;
   r.innerHTML=''; document.body.classList.remove('drawer-open');
+  siAppInert(false);
+  /* The first-run greeting and the tour stood aside for this screen rather than opening
+     behind it (see maybeGreet / maybeOnboard). Closing it is when they get their turn,
+     so "Not now" lands on the app with the greeting in front of it, which is the state a
+     first visit would have reached if the sign-in screen had never been in the way. */
+  if(typeof appBooted!=='undefined'&&appBooted){
+    if(typeof maybeOnboard==='function') maybeOnboard();
+    if(typeof maybeGreet==='function') maybeGreet();
+  }
 }
 function signInOpen(mode){
   var r=byId('signin-root'); if(!r) return;
@@ -4313,27 +4638,56 @@ function signInOpen(mode){
   if(mode) ui.signin.mode=mode;
   signInRender();
 }
-function signInRender(){
+/* keepFocus: a re-render that must NOT yank the caret back to the email field. Showing
+   and hiding the password rebuilds the whole card, and the autofocus below then threw a
+   keyboard user out of the eye button they had just pressed, and announced the
+   aria-pressed flip on an element they were no longer on. Opening the screen and
+   switching between Log in and Create account still land on email, which is right. */
+function signInRender(keepFocus){
   var r=byId('signin-root'); if(!r) return;
   r.innerHTML=signInHTML();
+  siAppInert(true);
+  var wrap=r.querySelector('.si-wrap');
+  if(wrap) wrap.addEventListener('keydown',siTrapTab);
   var form=byId('si-form'); if(!form){ return; }
   form.addEventListener('submit',function(e){
     e.preventDefault();
     var st=ui.signin, btn=byId('si-go'), msg=byId('si-msg');
-    var rem=byId('si-remember'); if(rem) st.remember=rem.checked;
-    var was=btn.textContent;
+    var was=btn.textContent, demo=!authConfigured();
+    /* "Signing in…" / "Creating your account…" used to be set BEFORE the demo branch was
+       checked, so for 420ms the button asserted an action that was never going to happen
+       and the toast that corrected it only arrived afterwards. One label for the demo,
+       because one thing happens in it either way. The configured path is untouched. */
     btn.disabled=true; msg.className='si-msg';
-    btn.innerHTML='<span class="si-spin"></span>'+esc(tr(st.mode==='up'?'Creating your account…':'Signing in…'));
-    if(!authConfigured()){
-      /* Preview: let them in. No AUTH session is stored, so nothing treats this as proof
-         of identity; what is set is a local flag that decides which rows the account menu
-         shows. The person who pressed Login expects to find their profile and a way back
-         out, and both now work. */
-      state.settings.localIn=true; save();
-      signInClose();
-      if(location.hash==='#/signin') location.hash='#/dashboard';
-      if(typeof bootApp==='function'&&!appBooted) bootApp(); else { render(); renderSidebar(); }
-      toast(tr('Opened in preview. No account is connected yet, so nobody is signed in.'),'good',{ms:5200});
+    btn.innerHTML='<span class="si-spin"></span>'+esc(tr(demo?'Opening the demo…':(st.mode==='up'?'Creating your account…':'Signing in…')));
+    /* Demo: the form is real on screen and there is no server behind it, so Log in and
+       Create account open the books. No session is written, which is what keeps this a
+       demo rather than a forged sign-in: authSignedIn() stays false and every screen
+       downstream keeps telling the truth about who is using the app.
+
+       It runs the SAME client-side check the configured path runs (the one function,
+       not a copy of it) and diverges only at the network call. Without that, clearing
+       both fields opened the app, the error state on a screen whose whole job is
+       previewing the login could not be reached at all, and filling in AUTH_CFG later
+       would have silently flipped empty-submit from "opens the app" to "shows an error"
+       with nobody reviewing the change. What it deliberately does NOT do is add a format
+       check or a length check of its own: those are the server's, so a malformed address
+       and a three-character password still open the app here, exactly as they would
+       still be accepted for sending there. */
+    if(demo){
+      var bad=authEmailFormError(byId('si-email').value,byId('si-pass').value);
+      if(bad){
+        btn.disabled=false; btn.textContent=was;
+        msg.className='si-msg show err'; msg.textContent=tr(bad.msg);
+        return;
+      }
+      setTimeout(function(){
+        state.settings.localIn=true; save();
+        signInClose();
+        if(location.hash==='#/signin') location.hash='#/dashboard';
+        if(typeof bootApp==='function'&&!appBooted) bootApp(); else { render(); renderSidebar(); }
+        toast(tr('Opened in demo. No accounts are connected yet, so nobody is signed in.'),'good',{ms:5200});
+      },420);   // long enough to see the button change, short enough not to feel broken
       return;
     }
     authSubmitEmail(byId('si-email').value,byId('si-pass').value,st.mode).then(function(){
@@ -4346,7 +4700,21 @@ function signInRender(){
       msg.className='si-msg show err'; msg.textContent=(err&&err.msg)||tr('Could not sign in.');
     });
   });
-  setTimeout(function(){ var el=byId('si-email'); if(el) el.focus(); },120);
+  if(!keepFocus) setTimeout(function(){ var el=byId('si-email'); if(el) el.focus(); },120);
+}
+/* Tab wrapping. inert on .app is the main containment; this closes the ends of the
+   cycle so Tab off the last control comes back to the first rather than to the browser
+   chrome, and Shift+Tab off the first goes to the last. */
+function siTrapTab(e){
+  if(e.key!=='Tab') return;
+  var wrap=e.currentTarget;
+  var f=Array.prototype.filter.call(
+    wrap.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select,textarea,[tabindex]:not([tabindex="-1"])'),
+    function(el){ return el.offsetWidth||el.offsetHeight||el===document.activeElement; });
+  if(!f.length) return;
+  var first=f[0], last=f[f.length-1];
+  if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+  else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
 }
 /* Kept under its old name because bootApp() calls it. */
 function renderSignInWall(){ signInOpen('in'); }
@@ -4817,7 +5185,10 @@ function probeStorage(){
   }catch(e){ storageOk=false; }
   if(!storageOk){
     var bar=document.createElement('div');
-    bar.style.cssText='position:fixed;top:0;left:0;right:0;z-index:300;background:#b91c1c;color:#fff;font-size:var(--f2);font-weight:600;text-align:center;padding:8px 16px;font-family:inherit';
+    /* z-index 620: above the sign-in screen, the modals and the toasts, because "this
+       browser is not saving your data" outranks everything that could be on top of it.
+       It used to be 300 and won on DOM order alone; the stack above it moved. */
+    bar.style.cssText='position:fixed;top:0;left:0;right:0;z-index:620;background:#b91c1c;color:#fff;font-size:var(--f2);font-weight:600;text-align:center;padding:8px 16px;font-family:inherit';
     bar.innerHTML=icon('alert',15)+' This browser is blocking storage. Your data will NOT survive closing this tab. Open this file in Chrome, Edge, Firefox or Safari directly (not inside a chat app’s built-in viewer) and avoid private/incognito mode.';
     bar.style.display='flex'; bar.style.alignItems='center'; bar.style.gap='8px'; bar.style.justifyContent='center';
     document.body.appendChild(bar);
@@ -6221,61 +6592,96 @@ function meSubtitle(){
   if(!bits.length) bits.push(u?(u.email||tr('Signed in')):tr('On this device'));
   return bits.join(' · ');
 }
+/* THE ACCOUNT MENU NEVER MENTIONS CONFIGURATION, IN ANY STATE, EVER.
+   A row here is a destination, not a promise about what is wired up behind it. Whether
+   this copy has a Firebase project is a fact about a deployment, and the one place it
+   is told is the screen a row leads to, where somebody is actually trying to sign in.
+   It used to be told here, as a row offering to go and set the sign-in up, which sent an
+   owner into a developer fold to paste an API key. That is why the owner reported this
+   menu as not standard. It was not. No account menu in any product asks the person using
+   it to go and configure the product.
+
+   So: authConfigured() may not be called from this function, and the rows a signed-out
+   person sees are the same whether AUTH_CFG is filled in or empty. Four states, no
+   fifth branch. Never more than seven rows, and no prose except the one note that says
+   a session has ended. */
 function acctMenuHTML(){
   var u=(typeof authUser==='function')?authUser():null;
   var cfg=(typeof shareCfg==='function')?shareCfg():{};
   var bl=state.settings.bizLogo;
   var h='';
-  /* Somebody is using this copy: either a real session, or the local one a copy with no
-     sign-in project behind it gets. Both people want the same three things out of this
-     menu, so both get them. What differs is only what is true underneath, and the head
-     says which it is rather than implying an account that does not exist. */
+  /* States B, C and D: somebody is using this copy, either through a real session or
+     through the local one. The rows they share are the same; what differs is what is
+     true underneath, and the head says which it is rather than implying an account
+     that does not exist. */
   if(meIsIn()){
     var pr=meProfile();
     var nm=pr.name||(u?authName():appName());
     var ws=(cfg.enabled&&cfg.wsId)?(cfg.wsName||cfg.wsId):'';
+    /* Two lines under the name, and the second is dropped when it would repeat the
+       first. meSubtitle() falls back to "On this device" when the person has given no
+       position and no rate, which is exactly the same sentence the third line carries in
+       the local state, and the head rendered it twice. One of them is the truth; two of
+       them is a rendering bug. */
+    /* The head is a name and up to two lines under it, and each of the three can fall back
+       to the same string as another. meProfile().name falls back through authName() to the
+       address, and meSubtitle() falls back to the address too when no position and no rate
+       are set, so an account whose owner never filled in a profile printed its address
+       twice, one line above the other. The earlier fix here compared the second line
+       against the third and never against the NAME, which is the pair that actually
+       collided. Dedupe against everything already shown instead of against one neighbour:
+       three sources that share two fallbacks will collide again otherwise, and the next
+       collision will be as invisible to the suite as this one was. */
+    var seen=[String(nm||'')];
+    var under=[meSubtitle(), u?(ws?tr('Workspace')+': '+ws:tr('No workspace yet')):tr('On this device')]
+      .filter(function(v){ v=String(v||''); if(!v||seen.indexOf(v)>-1) return false; seen.push(v); return true; });
     h+='<div class="acct-head">'+
       '<span class="acct-face" aria-hidden="true">'+esc(String(nm||'?').charAt(0).toUpperCase())+'</span>'+
       '<span class="acct-who"><b>'+esc(nm)+'</b>'+
-        '<span>'+esc(meSubtitle())+'</span>'+
-        '<span>'+esc(u?(ws?tr('Workspace')+': '+ws:tr('No workspace yet')):tr('This device only'))+'</span></span></div>';
-    if(u&&u.expired) h+='<p class="acct-note">'+esc(tr('This session ended. Your books on this device are untouched; sign in again when you want sharing back.'))+'</p>';
-    h+='<div class="acct-sep"></div>';
+        under.map(function(v){ return '<span>'+esc(v)+'</span>'; }).join('')+'</span></span></div>';
+    /* The one permitted prose block. An ended session is the single case where a menu
+       row on its own cannot explain why the thing that used to work has stopped. */
+    if(u&&u.expired){
+      h+='<p class="acct-note">'+esc(tr('Your session ended. Sign in again when you want sharing back. Your books on this device are untouched.'))+'</p>';
+      h+='<div class="acct-sep"></div>';
+      h+='<button type="button" role="menuitem" data-action="auth-signin-email">'+icon('signin')+
+        '<span>'+esc(tr('Sign in again'))+'</span></button>';
+    }else{
+      h+='<div class="acct-sep"></div>';
+    }
     h+=acctRow('auth-profile','idcard','Your profile');
     /* A Google account has no password here to change. Firebase holds no password for
        it at all, so a Change password row could only ever fail; the honest version
-       says where the password actually lives and offers to go there. */
+       says where the password actually lives and offers to go there.
+       State D has no account of either kind, so it gets neither row. */
     if(u&&u.provider==='password') h+=acctRow('auth-change-password','shield','Change password');
     else if(u) h+='<a role="menuitem" href="https://myaccount.google.com/security" target="_blank" rel="noopener noreferrer">'+
       icon('shield')+'<span>'+esc(tr('Password'))+'</span><span class="acct-sub">'+esc(tr('kept by Google'))+'</span></a>';
     if(typeof shareOn==='function'&&shareOn()) h+=acctRow('settings-go','users','Members and invites',' data-tab="data"');
     h+='<div class="acct-sep"></div>';
-    h+=acctRow('settings-go','settings','Business settings',' data-tab="business"');
+    h+=acctRow('settings-go','settings','Settings',' data-tab="business"');
     h+=acctRow('nav','shield','Privacy',' data-route="privacy"');
     h+='<div class="acct-sep"></div>';
     h+='<button type="button" role="menuitem" data-action="auth-signout">'+icon('signout')+
       '<span>'+esc(tr('Sign out'))+'</span></button>';
     return h;
   }
+  /* State A: signed out. Two ways in, then the two places anybody expects to find in an
+     account menu. No paragraph selling local-first storage: that argument belongs on the
+     sign-in screen, in front of somebody who is deciding, not in a menu they opened to
+     get somewhere. No Google row either: Google is a METHOD, and methods live next to
+     the email field on the sign-in screen, not here. Dropping it also takes the last
+     question about the deployment out of this function. */
   h+='<div class="acct-head">'+
     (bl?'<img class="acct-face" src="'+esc(bl)+'" alt="">'
        :'<span class="acct-face" aria-hidden="true">'+esc(appName().charAt(0).toUpperCase())+'</span>')+
     '<span class="acct-who"><b>'+appNameEsc()+'</b><span>'+esc(tr('Not signed in'))+'</span></span></div>';
-  /* This is the true and the selling part, so it goes first: nobody has to make an
-     account to run their books, and nothing is being withheld until they do. */
-  h+='<p class="acct-note">'+esc(tr('Your books are saved on this device and work offline. No account is needed to use them. Signing in adds one thing: other people you invite can see the same books.'))+'</p>';
   h+='<div class="acct-sep"></div>';
-  if(typeof authConfigured==='function'&&authConfigured()){
-    if(authClientId()) h+=acctRow('auth-google','users','Sign in with Google');
-    h+='<button type="button" role="menuitem" data-action="auth-signin-email">'+icon('signin')+
-      '<span>'+esc(tr('Sign in with email'))+'</span></button>';
-    h+=acctRow('auth-signup','plus','Create an account');
-  }else{
-    h+='<p class="acct-note">'+esc(tr('No sign-in project is connected to this copy yet, so there is no account to sign in to. Connect one and the buttons appear here.'))+'</p>';
-    h+=acctRow('settings-go','cloud','Set up sign-in',' data-tab="data"');
-  }
+  h+='<button type="button" role="menuitem" data-action="auth-signin-email">'+icon('signin')+
+    '<span>'+esc(tr('Sign in'))+'</span></button>';
+  h+=acctRow('auth-signup','plus','Create account');
   h+='<div class="acct-sep"></div>';
-  h+=acctRow('settings-go','settings','Business settings',' data-tab="business"');
+  h+=acctRow('settings-go','settings','Settings',' data-tab="business"');
   h+=acctRow('nav','shield','Privacy',' data-route="privacy"');
   return h;
 }
@@ -6370,35 +6776,14 @@ function authModalBusy(form,on,label){
   if(on){ b.setAttribute('data-idle',b.textContent); b.textContent=label||'Working…'; }
   else if(b.getAttribute('data-idle')){ b.textContent=b.getAttribute('data-idle'); }
 }
-/* Sign in and create an account are the same two fields and the same one call, so they
-   are one dialog with a mode rather than two that drift apart. */
-function authEmailModal(mode){
-  if(!authConfigured()){
-    toast('This copy has no Firebase project set up, so there is nothing to sign in to yet.','warn'); return;
-  }
-  var up=mode==='up';
-  var body='<p style="font-size:var(--f2);color:var(--text-2);margin-bottom:12px">'+esc(tr(up
-      ? 'An account is only used for sharing. Everything already on this device stays exactly where it is.'
-      : 'Signing in moves nothing. It lets the database check who is asking before it answers.'))+'</p>'+
-    '<div class="field"><label>Email</label><input class="input" type="email" name="email" autocomplete="username" placeholder="you@email.com"></div>'+
-    '<div class="field"><label>Password</label><input class="input" type="password" name="password" autocomplete="'+(up?'new-password':'current-password')+'" placeholder="at least 6 characters"></div>'+
-    (up?'':'<button class="btn btn-ghost btn-sm" type="button" data-action="auth-reset">'+esc(tr('Forgot password'))+'</button>');
-  openModal(up?'Create an account':'Sign in',body,{submitLabel:up?'Create account':'Sign in',onSubmit:function(form){
-    // the password is read raw: fv() trims, and a trailing space is a real character in one
-    var pw=form.elements['password']?form.elements['password'].value:'';
-    authModalBusy(form,true,up?'Creating…':'Signing in…');
-    authSubmitEmail(fv(form,'email'),pw,up?'up':'in').then(function(){
-      closeModal();
-      toast(up?('Account created. You are signed in as '+authName()+'.'):('Signed in as '+authName()+'.'));
-      save(); render();
-      if(typeof wsMaybeClaim==='function') wsMaybeClaim();
-    },function(err){
-      authModalBusy(form,false);
-      toast((err&&err.msg)||'Could not sign in.','error');
-    });
-    return false;
-  }});
-}
+/* The old email sign-in MODAL lived here: two fields and a Forgot password button in a
+   dialog, plus a guard toast naming Firebase. It was already dead code before this
+   change, since auth-signin-email and auth-signup both open the full-page sign-in screen
+   instead, and it is deleted rather than left lying around because a dead second version
+   of the sign-in surface is how two versions of "what signing in looks like" come back.
+   Its data-action="auth-reset" handler went with it; Forgot password on the real screen
+   is data-action="signin-forgot", which reads the address out of the screen's own field.
+   Password reset itself is unchanged: authSendReset() is where it always was. */
 function authPasswordModal(){
   var u=authUser();
   if(!u){ toast('Sign in first, from the account menu.','warn'); return; }
@@ -6486,10 +6871,13 @@ function viewProfile(){
         '<button class="btn btn-ghost btn-sm" data-action="auth-signout">'+icon('signout',13)+' '+esc(tr('Sign out'))+'</button>'+
       '</div>';
   }else if(meIsIn()){
+    /* A local session: nobody is signed in to anything. This used to carry a "Set up
+       sign-in" button into the developer fold, which put an API key field one click from
+       an owner's profile page. Gone. What is left says what is true and offers the one
+       thing that is actually this person's to do. */
     html+='<p style="font-size:var(--f2);color:var(--text-2)">'+
-      esc(tr('No account is connected to this copy, so this profile lives on this device and nowhere else. Everything works exactly the same; signing in would only let other people you invite see the same books.'))+'</p>'+
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">'+
-        '<button class="btn btn-ghost btn-sm" data-action="settings-go" data-tab="data">'+icon('cloud',13)+' '+esc(tr('Set up sign-in'))+'</button>'+
+      esc(tr('This copy has no accounts yet, so your profile is kept on this device. Everything works the same. An account would only let other people you invite see the same books.'))+'</p>'+
+      '<div style="margin-top:14px">'+
         '<button class="btn btn-ghost btn-sm" data-action="auth-signout">'+icon('signout',13)+' '+esc(tr('Sign out'))+'</button>'+
       '</div>';
   }else{
@@ -10840,10 +11228,25 @@ function developerSetupHTML(){
         '<li>'+esc(tr('Realtime Database, Create database, then publish the rules at the bottom of this fold.'))+'</li>'+
       '</ol>'+
       '<form data-form="share-keys" style="margin-top:12px">'+
-        '<div class="field"><label>'+esc(tr('Firebase Web API key'))+'</label><input class="input" name="apiKey" value="'+esc(cfg.apiKey||'')+'" placeholder="AIza…" autocomplete="off" spellcheck="false"></div>'+
+        '<div class="field"><label>'+esc(tr('Firebase Web API key'))+'</label><input class="input" name="apiKey" value="'+esc(cfg.apiKey||'')+'" placeholder="AIza…" autocomplete="off" spellcheck="false">'+
+          '<p style="font-size:var(--f1);color:var(--text-3);margin-top:4px">'+
+            esc(tr('Paste the key, or paste the whole firebaseConfig block the console gives you and the key is taken out of it.'))+'</p></div>'+
         '<div class="field"><label>'+esc(tr('Google OAuth client id (optional, for the Google button)'))+'</label><input class="input" name="clientId" value="'+esc(cfg.clientId||'')+'" placeholder="…apps.googleusercontent.com" autocomplete="off" spellcheck="false">'+
+          /* The consequence of leaving this field empty, stated where it becomes
+             actionable and at the moment it becomes true: a key is set, so sign-in works,
+             and the only thing missing is the Google button. It is said HERE and nowhere
+             else. The sign-in screen stays silent about it, because a product does not
+             explain the absence of a method it does not offer, and a sentence about
+             configuration on a login screen is the exact thing this redesign removed. */
+          ((typeof authApiKey==='function'&&authApiKey()&&!authClientId())
+            ?'<p style="font-size:var(--f1);color:var(--text-3);margin-top:4px">'+
+              esc(tr('Without this, the sign-in screen does not show the Google button.'))+'</p>':'')+
           '<p style="font-size:var(--f1);color:var(--text-3);margin-top:4px">'+esc(tr('The redirect URI to register for it is'))+' <span class="mono" style="overflow-wrap:anywhere">'+esc(authRedirectUri())+'</span>.</p></div>'+
-        '<button class="btn btn-ghost btn-sm" type="submit">'+icon('check')+' '+esc(tr('Save project keys'))+'</button></form>'+
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+          '<button class="btn btn-ghost btn-sm" type="submit">'+icon('check')+' '+esc(tr('Save project keys'))+'</button>'+
+          '<button class="btn btn-ghost btn-sm" type="button" data-action="auth-setup-check">'+icon('shield',13)+' '+esc(tr('Check setup'))+'</button>'+
+        '</div></form>'+
+        '<div id="setup-check"></div>'+
       cloudSyncAdvancedHTML()+
       databaseRulesCardHTML()+
     '</div></details>';
@@ -11592,14 +11995,42 @@ document.addEventListener('click',function(e){
   if(el.closest('#acct-menu')) acctMenuClose(true);
   if(action==='acct-menu'){ acctMenuToggle(el); return; }
 
-  /* accounts. A cancelled popup is silent on purpose: the owner closed it, they know. */
+  /* accounts. A cancelled popup is silent on purpose: the owner closed it, they know.
+     Every other failure is reported EXACTLY ONCE, and where the person is looking: the
+     inline line on the sign-in screen when that screen is up, a toast when it is not.
+     Never both, which is what a toast fired over an open sign-in card would be. */
   if(action==='auth-google'){
+    var gfail=function(err){
+      if(err&&err.code==='cancelled') return;      // they closed it, they know
+      var code=(err&&err.code)||'';
+      var m;
+      if(code==='nokey') m=tr('Google did not complete the sign-in. Try again.');
+      else if(code==='offline') m=tr('Could not reach Google. Check your connection and try again.');
+      /* A provider switched off in the Firebase project is a setup fault, and only
+         somebody with console access can act on it. authErrMsg() already says which
+         switch and where, so that one sentence is passed through untouched. */
+      else if(code==='OPERATION_NOT_ALLOWED') m=(err&&err.msg)||tr('Could not sign in with Google.');
+      else m=tr('Could not sign in with Google. Try again, or use your email and password.');
+      var line=byId('si-msg');
+      if(line&&signInIsOpen()){ line.className='si-msg show err'; line.textContent=m; }
+      else toast(m,'error');
+    };
     authGoogle().then(function(s){
-      if(s){ toast('Signed in as '+authName()+'.'); save(); render(); wsMaybeClaim(); }
-    },function(err){
-      if(err&&err.code==='cancelled') return;
-      toast((err&&err.msg)||'Could not sign in with Google.','error');
-    });
+      /* A null resolve is the blocked-popup fallback: the page is already navigating to
+         Google and will come back through authGoogleResume(). Saying anything here would
+         be a message nobody has time to read. */
+      if(!s) return;
+      state.settings.localIn=false; save();
+      /* Google can be pressed from the sign-in screen or from nowhere in particular, so
+         the screen is put away only if it was up. */
+      if(signInIsOpen()){
+        signInClose();
+        if(location.hash==='#/signin') location.hash='#/dashboard';
+      }
+      if(typeof bootApp==='function'&&!appBooted) bootApp(); else { render(); renderSidebar(); }
+      toast(tr('Signed in as')+' '+authName()+'.','good');
+      if(typeof wsMaybeClaim==='function') wsMaybeClaim();
+    },gfail);
     return;
   }
   if(action==='auth-signout'){
@@ -11619,28 +12050,55 @@ document.addEventListener('click',function(e){
      used to open three small modals, which is how "the log in is not the standard" came
      to be true: the only full-page thing in the app was a licence gate that no longer
      exists. */
-  if(action==='auth-signin-email'){ acctMenuClose(true); signInOpen('in'); return; }
-  /* Google, in preview, goes the same way as Login: into the books, signing in to nothing.
-     Opening a real Google popup with no client id behind it would only fail. */
-  if(action==='signin-preview'){
-    state.settings.localIn=true; save();
-    signInClose();
-    if(location.hash==='#/signin') location.hash='#/dashboard';
-    if(!appBooted) bootApp(); else { render(); renderSidebar(); }
-    toast(tr('Opened in preview. No account is connected yet, so nobody is signed in.'),'good',{ms:5200});
+  /* Says which of the three steps is missing, in place, rather than leaving somebody to
+     work out which of two consoles they got wrong. */
+  if(action==='auth-setup-check'){
+    var box=byId('setup-check'); if(!box) return;
+    box.innerHTML='<p style="font-size:var(--f1);color:var(--text-3);margin-top:10px">'+esc(tr('Checking with Google…'))+'</p>';
+    authSetupCheck().then(function(rows){
+      box.innerHTML='<ul class="setup-check">'+rows.map(function(r){
+        var cls=r.ok===null?'note':(r.ok?'ok':'no');
+        return '<li class="'+cls+'">'+icon(r.ok===null?'copy':(r.ok?'check':'alert'),14)+
+          '<span><b>'+esc(r.what)+'</b><i>'+esc(r.fix)+'</i></span></li>';
+      }).join('')+'</ul>';
+    });
     return;
   }
+  if(action==='auth-signin-email'){ acctMenuClose(true); signInOpen('in'); return; }
+  /* The local preview action is GONE, not orphaned. It existed for a "Continue on this device"
+     button that no longer exists, and its last caller was the demo Google button, which
+     is now disabled and carries no action at all: a Google-marked control must not
+     perform a non-Google action. Nothing is lost: it did exactly what the demo branch of
+     the sign-in form's submit handler does (set localIn, close, boot, say plainly that
+     nobody is signed in), and that is still the only place that behaviour lives. When
+     AUTH_CFG is filled in the demo branch stops applying entirely and the Google button
+     goes to auth-google, so there was never a future caller to keep it for. */
   if(action==='signin-dismiss'){
     signInClose();
     if(location.hash==='#/signin') location.hash='#/dashboard';
     if(!appBooted) bootApp();
     return;
   }
-  if(action==='signin-eye'){ ui.signin.show=!ui.signin.show; signInRender(); return; }
+  /* keepFocus, then put focus back on the eye itself: the re-render destroys the button
+     that was just pressed, so without this a keyboard user is thrown to the email field
+     on every toggle and hears the aria-pressed flip announced on an element they have
+     already left. */
+  if(action==='signin-eye'){
+    ui.signin.show=!ui.signin.show; signInRender(true);
+    var eye=document.querySelector('.si-eye'); if(eye) eye.focus();
+    return;
+  }
   if(action==='signin-mode'){ ui.signin.mode=el.getAttribute('data-mode')||'in'; signInRender(); return; }
   if(action==='signin-forgot'){
     var em=byId('si-email'), msg=byId('si-msg');
     var addr=em?String(em.value||'').trim():'';
+    /* Demo: there is no account to send anything to, and pretending a mail went out
+       would be the one lie this screen must not tell. It says what it is instead. */
+    if(!authConfigured()){
+      if(msg){ msg.className='si-msg show ok';
+        msg.textContent=tr('In the finished app this sends a reset link to')+' '+(addr||tr('your email address'))+'. '+tr('No accounts are connected yet, so nothing was sent.'); }
+      return;
+    }
     if(!addr){ if(msg){ msg.className='si-msg show err'; msg.textContent=tr('Type your email address above first, then press this again.'); } if(em) em.focus(); return; }
     authSendReset(addr).then(function(){
       if(msg){ msg.className='si-msg show ok'; msg.textContent=tr('Check your email. A link to set a new password is on its way to')+' '+addr+'.'; }
@@ -11678,16 +12136,6 @@ document.addEventListener('click',function(e){
     toast('Left. This device syncs to its own path again.'); render();
     return;
   }
-  if(action==='auth-reset'){
-    var rf=el.closest('form')||document.querySelector('form[data-form="auth-email"]');
-    var rmail=rf&&rf.elements['email']?String(rf.elements['email'].value||'').trim():'';
-    if(!rmail){ toast('Type your email address first, then press Forgot password.','warn'); return; }
-    authSendReset(rmail).then(function(){
-      toast('If that address has an account, a reset link is on its way to it.');
-    },function(err){ toast((err&&err.msg)||'Could not send a reset email.','error'); });
-    return;
-  }
-
   /* charts: switch the graph style the user wants to see */
   if(action==='chart-style'){ chartStyleSet(el.getAttribute('data-chart'), el.getAttribute('data-style')); render(); return; }
 
@@ -14059,8 +14507,12 @@ document.addEventListener('submit',function(e){
   }
   if(kind==='share-keys'){
     var cfg=shareCfg();
-    var key=String(fv(form,'apiKey')||'').trim();
-    cfg.clientId=String(fv(form,'clientId')||'').trim();
+    /* Either field may have had the whole console snippet pasted into it, so both go
+       through the parser and whatever it finds wins over an empty box. */
+    var pastedKey=authParseConfig(fv(form,'apiKey'));
+    var pastedCid=authParseConfig(fv(form,'clientId'));
+    var key=String(pastedKey.apiKey||'').trim();
+    cfg.clientId=String(pastedCid.clientId||pastedKey.clientId||'').trim();
     if(!key){ cfg.apiKey=''; commit(); toast('Project keys cleared.'); return; }
     /* Check the key with Google BEFORE saving it and before claiming anything. One paste
        then finishes the rest of the setup by itself: the project id gives the default
@@ -15633,12 +16085,27 @@ var BIZ_PRESETS={
   general:{label:'Something else',cats:['Product','Service'],hide:[],
     fields:[{label:'Variant',type:'text',cat:''}]}
 };
+var onbPending=false;
 function maybeOnboard(){
   if(state.settings.onboarded) return;
   if(state.finance.length||state.products.length||state.orders.length){ state.settings.onboarded=true; state.settings.wizardDone=true; save(); return; }
-  state.settings.onboarded=true; save(); // show once, ever
+  /* Sign-in screen up: defer, and do NOT burn the once-ever flag. signInClose() calls
+     back in, so the tour runs when the screen is out of the way instead of opening
+     behind it. The flag is therefore set at the moment the tour actually opens, not when
+     it is scheduled: the screen can be raised inside the 600ms (a #/signin boot does
+     exactly that, 400ms after this runs) and burning it early would lose the tour for
+     good. See the stacking-order note above .modal-overlay. */
+  if(onbPending) return;
+  if(typeof signInIsOpen==='function'&&signInIsOpen()) return;
+  onbPending=true;
   // carousel intro first; the setup wizard opens when it ends
-  setTimeout(function(){ showOnboard(0); },600);
+  setTimeout(function(){
+    onbPending=false;
+    if(state.settings.onboarded) return;
+    if(typeof signInIsOpen==='function'&&signInIsOpen()) return;
+    state.settings.onboarded=true; save(); // show once, ever
+    showOnboard(0);
+  },600);
 }
 /* first-run section picker: the owner chooses which parts of the app appear in
    their sidebar. Essentials (dashboard, assistant, finance, settings) always show. */
@@ -18587,8 +19054,17 @@ function maybeGreet(){
   if(byId('lock-root')&&byId('lock-root').innerHTML) return;
   if(byId('modal-root')&&byId('modal-root').innerHTML) return;
   if(byId('lightbox-root')&&byId('lightbox-root').querySelector('.onb-card')) return; // onboarding is up: greet after
+  /* The sign-in screen is up: stand aside rather than opening behind it. Note that
+     greetShownThisSession is NOT set here: this is a deferral, not a cancellation, and
+     signInClose() calls back in. Raising the sign-in screen's z-index alone would not
+     have been enough: the greeting would still be OPEN underneath an opaque sheet and
+     sitting there the moment somebody pressed "Not now". */
+  if(typeof signInIsOpen==='function'&&signInIsOpen()) return;
   greetShownThisSession=true;
-  setTimeout(showGreeting,450);
+  setTimeout(function(){
+    if(typeof signInIsOpen==='function'&&signInIsOpen()){ greetShownThisSession=false; return; }
+    showGreeting();
+  },450);
 }
 document.addEventListener('submit',function(e){ if(e.target&&e.target.id==='greet-form'){ e.preventDefault(); greetSaveName(); } });
 /* calculators: search-first live filter + recents */

@@ -215,9 +215,15 @@ async function main() {
       // spaces around it; prose is written word — word. So test the rule. The single
       // permitted prose dash is 'estimate — unverified', which two other assertions
       // match on, so changing it has to be a deliberate act in the same commit.
+      // A SECOND permitted prose dash now exists, and only one: the sign-in screen's
+      // demo notice, 'the button below just opens the books — nothing is checked'. It is
+      // agreed product copy, matched verbatim by the assertion further down that checks
+      // the banner no longer claims 'every button just opens the books', so changing it
+      // has to be a deliberate act in the same commit, exactly like the other one.
       const proseDashes = html.match(/\S[  ]—[  ]\S/g) || [];
       ok('no em dash is used as prose (placeholder glyphs are fine)',
-        proseDashes.length === 1 && /e — u/.test(proseDashes[0]), proseDashes.slice(0, 5));
+        proseDashes.length === 2 && proseDashes.some((x) => /e — u/.test(x)) &&
+        proseDashes.some((x) => /s — n/.test(x)), proseDashes.slice(0, 5));
       ok('the mobile-table placeholder regex still has its glyph', /\/\^\[—–-\]\+\$\//.test(html));
     })();
 
@@ -1520,8 +1526,12 @@ async function main() {
       // amplitude, and its whole refraction pass measured a lens on/off delta of
       // 0.2/765 — a filter that provably did nothing on the largest composited surface
       // in the app. The dim only dims now; the sheet is the material that blurs.
+      // The z-index moved from 100 to 580 when the sign-in screen was lifted clear of the
+      // first-run greeting: a modal raised FROM that screen has to draw over it. What this
+      // assertion is about is the backdrop-filter, so it no longer pins the number; the
+      // stacking order itself is asserted on its own further down.
       ok('the modal overlay dims but does not blur (the sheet is the glass)',
-        /\.modal-overlay\{position:fixed;inset:0;background:rgba\(8,10,22,\.6\);z-index:100/.test(html) &&
+        /\.modal-overlay\{position:fixed;inset:0;background:rgba\(8,10,22,\.6\);z-index:\d+/.test(html) &&
         !/\.modal-overlay\{[^}]*backdrop-filter/.test(html));
 
       // the slider: default, clamping, persistence, and live token application
@@ -3255,6 +3265,31 @@ async function main() {
         window.render();
         await wait(40);
       };
+      /* Wait for the app to go QUIET, rather than guessing how long that takes.
+         A rate refresh resolves a couple of .then hops after enter()'s fixed 40ms, so a
+         sleep long enough on one runner is short on another and the previous case's toast
+         lands in the next case's capture. That is not hypothetical: it failed in CI on
+         Node 24 while passing locally, was "fixed" by lengthening the sleep to 160ms, and
+         failed again in CI on a runner that now forces Node 24 regardless of what the
+         workflow asks for. A longer guess is still a guess.
+         This watches the toast stream instead and returns once nothing new has arrived for
+         `quietMs`, so it costs nothing when the app is already idle and waits as long as it
+         genuinely needs to when it is not. */
+      const drain = async (quietMs = 150, cap = 4000) => {
+        const prev = window.toast;
+        let n = 0;
+        window.toast = function () { n += 1; };
+        try {
+          const t0 = Date.now();
+          let seen = -1, lastChange = Date.now();
+          for (;;) {
+            if (n !== seen) { seen = n; lastChange = Date.now(); }
+            if (Date.now() - lastChange >= quietMs) return;
+            if (Date.now() - t0 >= cap) return;
+            await wait(20);
+          }
+        } finally { window.toast = prev; }
+      };
       window.toast = function () {};
       setOnline(true);
 
@@ -3388,15 +3423,36 @@ async function main() {
       // assertion fails for something it is not testing. That is exactly what happened
       // in CI on Node 24 while three local runs on Node 22 passed: 884/1 there, 885/0
       // here. The bug was the fixed sleep standing in for "the app has gone quiet".
-      await wait(160);
+      await drain();     // let the PREVIOUS case's refresh finish before we start listening
       setFx({ updated: minsAgo(3 * 60), phpPer: { USD: 55 }, src: { USD: { by: 'live', at: minsAgo(120) } } });
       const quiet = [];
       window.toast = function (m) { quiet.push(m); };
       await enter('invoices');
-      await wait(160);   // and let THIS refresh finish before deciding it said nothing
+      /* and let THIS refresh finish before deciding it said nothing. Counting into the
+         same array the assertion reads means a late toast is caught rather than missed. */
+      {
+        const t0 = Date.now();
+        let seen = -1, lastChange = Date.now();
+        while (Date.now() - t0 < 4000) {
+          if (quiet.length !== seen) { seen = quiet.length; lastChange = Date.now(); }
+          if (Date.now() - lastChange >= 150) break;
+          await wait(20);
+        }
+      }
       window.toast = function () {};
+      /* Asserted against USD, not against silence.
+         This read `quiet.length === 0`, which demanded the whole app say nothing at all
+         for the duration. It does not: by this point the fixtures carry AUD invoices with
+         no rate, and entering the screen correctly warns "No verified rate for AUD...".
+         That message is right, has nothing to do with a USD live-to-live refresh, and
+         lands in the previous case's window locally but in this one on CI, so the
+         assertion failed for something it was not testing. Adding more waiting would not
+         have helped; the window it was watching was the wrong shape, not the wrong size.
+         The contract is that refreshing a live rate with a live rate is not announced, so
+         this is the exact complement of the assertion above it: nothing said about USD. */
+      const aboutUsd = quiet.filter((m) => /USD/.test(String(m)));
       ok('a live rate refreshing another live rate says nothing — that is just it working',
-        quiet.length === 0, quiet);
+        aboutUsd.length === 0, aboutUsd);
 
       // =================================================================
       // The part that could have multiplied the blink.
@@ -4329,25 +4385,51 @@ async function main() {
           !/\.tb-search,\.tb-bell,\.tb-acct\{display:none\}/.test(html) &&
           /\.tb-search,\.tb-bell\{display:none\}/.test(html));
 
-        // signed out: the three ways in
+        // signed out: the two ways in, and nothing else
         open('.tb-acct');
         const out = acts();
-        ok('signed out, the menu offers Google, email sign-in and Create an account',
-          ['auth-google', 'auth-signin-email', 'auth-signup'].every((a) => out.indexOf(a) >= 0), out);
+        ok('signed out, the menu offers Sign in and Create account',
+          ['auth-signin-email', 'auth-signup'].every((a) => out.indexOf(a) >= 0), out);
+        /* Google is a METHOD, and methods belong next to the email field on the sign-in
+           screen, not in an account menu. Dropping the row also takes the last
+           authClientId() branch out of acctMenuHTML(). */
+        ok('signed out, Google is not offered here: it lives on the sign-in screen',
+          out.indexOf('auth-google') < 0, out);
         ok('signed out, there is nothing to sign out of', out.indexOf('auth-signout') < 0, out);
-        ok('signed out, Business settings and Privacy are still reachable',
+        ok('signed out, Settings and Privacy are still reachable',
           out.indexOf('settings-go') >= 0 && out.indexOf('nav') >= 0, out);
+        ok('signed out, the menu is five rows at most and carries no prose',
+          out.length <= 5 && !d.querySelector('#acct-menu .acct-note'), out);
+        ok('...and the labels are the standard ones', (() => {
+          const labels = Array.prototype.map.call(
+            d.querySelectorAll('#acct-menu [role="menuitem"] span:first-of-type'), (e) => e.textContent.trim());
+          return labels.join('|') === 'Sign in|Create account|Settings|Privacy';
+        })(), Array.prototype.map.call(d.querySelectorAll('#acct-menu [role="menuitem"]'), (e) => e.textContent.trim()));
         ok('every row in the menu is a real menuitem (keyboard reachable)',
           d.querySelectorAll('#acct-menu [data-action]').length > 0 &&
           Array.prototype.every.call(d.querySelectorAll('#acct-menu [data-action]'),
             (e) => e.getAttribute('role') === 'menuitem'));
 
-        // a copy with no Firebase project offers no sign-in it cannot honour
+        /* THE REPORTED DEFECT, written down so it cannot come back. This block used to
+           assert the opposite: that a copy with no Firebase project swapped the sign-in
+           rows for a "Set up sign-in" row into the developer fold. That is what the owner
+           objected to, in those words, and they were right. A product offers its front
+           door unconditionally and explains itself at the door. So the contract is now
+           equality: the rows are IDENTICAL with and without a key, and the truth about
+           the deployment is told on the sign-in screen instead (see signInAndSettings). */
         share.apiKey = ''; share.clientId = '';
         open('.tb-acct');
         const bare = acts();
-        ok('with no project configured the menu offers set-up, not buttons that must fail',
-          bare.indexOf('auth-signin-email') < 0 && bare.indexOf('auth-google') < 0 && bare.indexOf('settings-go') >= 0, bare);
+        ok('with no project configured the menu is byte-for-byte the same menu',
+          bare.join('|') === out.join('|'), [bare, out]);
+        ok('...so it still offers to sign in and to create an account',
+          bare.indexOf('auth-signin-email') >= 0 && bare.indexOf('auth-signup') >= 0, bare);
+        ok('...and no row anywhere in it leads to the setup tab',
+          Array.prototype.every.call(d.querySelectorAll('#acct-menu [data-action]'),
+            (e) => e.getAttribute('data-tab') !== 'data'), bare);
+        ok('...and it says nothing about a project, a key or setting anything up',
+          !/project|key|set ?up|configur|Firebase|developer/i.test(d.getElementById('acct-menu').textContent),
+          d.getElementById('acct-menu').textContent);
         share.apiKey = 'AIzaTEST'; share.clientId = 'test.apps.googleusercontent.com';
 
         // signed in with an email and password
@@ -4361,6 +4443,35 @@ async function main() {
           inp.indexOf('auth-signin-email') < 0 && inp.indexOf('auth-google') < 0 && inp.indexOf('auth-signup') < 0, inp);
         ok('signed in, the header names the account',
           d.querySelector('#acct-menu .acct-who').textContent.indexOf('owner@example.com') >= 0);
+        /* The head has three sources and two of them share a fallback. meProfile().name
+           falls back through authName() to the address, and meSubtitle() falls back to the
+           address as well when no position and no rate are set. An owner who never filled
+           in a profile therefore had their address printed twice, one line above the other.
+           A previous fix compared the second line against the third and never against the
+           NAME, which is the pair that actually collided, so it survived.
+           Asserted on the RENDERED lines rather than on the logic, because the only reason
+           this reached a branch is that nothing ever compared the strings on screen. */
+        (function noRepeatedLine(label) {
+          const saved = JSON.parse(JSON.stringify(window.state.settings.profile || {}));
+          const savedAuth = window.localStorage.getItem('bizpilot.auth');
+          try {
+            /* The collision needs an account carrying NO display name, so authName() falls
+               back to the address and the name line becomes the address too. A fixture with
+               a name never collides, which is why an earlier version of this very assertion
+               passed against the broken code. */
+            window.state.settings.profile = { name: '', position: '', rate: 0, ratePer: 'month' };
+            window.authStore(Object.assign(JSON.parse(savedAuth || '{}'), { name: '' }));
+            open('.tb-acct');
+            const who = d.querySelector('#acct-menu .acct-who');
+            const lines = [who.querySelector('b')].concat(Array.prototype.slice.call(who.querySelectorAll('span')))
+              .filter(Boolean).map((e) => e.textContent.trim()).filter(Boolean);
+            ok('an account with no profile name does not print its address twice ' + label,
+              lines.length === new Set(lines).size, lines);
+          } finally {
+            window.state.settings.profile = saved;
+            if (savedAuth) window.localStorage.setItem('bizpilot.auth', savedAuth);
+          }
+        })('(password)');
 
         // a Google account's password is not this app's to change
         window.authStore(Object.assign(JSON.parse(window.localStorage.getItem('bizpilot.auth')), { provider: 'google' }));
@@ -4405,6 +4516,55 @@ async function main() {
         click(d.querySelector('.tb-acct'));
         ok('a second click on the chip closes what the first one opened', window.acctMenuIsOpen() === false);
 
+        /* An expired session. The books are untouched and the person is still shown as
+           themselves, so the menu has to say why the sharing stopped: the one prose note
+           the design allows, and a way straight back in above everything else. */
+        share.enabled = false; share.wsId = ''; share.wsName = ''; share.role = '';
+        window.authStore({ uid: 'u1', email: 'owner@example.com', name: 'Ira Santos', idToken: '',
+          refreshToken: 'r', expiresAt: Date.now() - 1000, provider: 'password', verified: true,
+          expired: true, at: Date.now() });
+        open('.tb-acct');
+        const exp = acts();
+        ok('an ended session is explained in the menu, not left as a mystery',
+          /Your session ended/.test(d.querySelector('#acct-menu .acct-note').textContent),
+          d.querySelector('#acct-menu .acct-note') && d.querySelector('#acct-menu .acct-note').textContent);
+        ok('...and the way back in is the first row, above the profile',
+          exp[0] === 'auth-signin-email' && exp.indexOf('auth-profile') === 1, exp);
+        ok('...and the note does not send anyone to a settings tab to fix it',
+          !/Settings|Data & Sync|Developer/.test(d.querySelector('#acct-menu .acct-note').textContent));
+
+        /* State D: the local session written by "Continue on this device". Nobody is
+           signed in to anything, so there is no password to change and no workspace to
+           invite anyone to, but there is still a profile and still a way out. */
+        window.authStore(null);
+        window.state.settings.localIn = true;
+        open('.tb-acct');
+        const loc = acts();
+        ok('a local session gets the profile, the settings, the privacy page and a way out',
+          loc.join('|') === 'auth-profile|settings-go|nav|auth-signout', loc);
+        ok('...and is told plainly that it is on this device',
+          /On this device/.test(d.querySelector('#acct-menu .acct-who').textContent),
+          d.querySelector('#acct-menu .acct-who').textContent);
+        /* Once. meSubtitle() falls back to the same sentence when no position and no rate
+           are set, so the head used to print "On this device" on two consecutive lines. */
+        ok('...once, not on two lines in a row', (() => {
+          const lines = Array.prototype.map.call(
+            d.querySelectorAll('#acct-menu .acct-who span'), (e) => e.textContent.trim());
+          return lines.filter((l) => l === 'On this device').length === 1;
+        })(), Array.prototype.map.call(d.querySelectorAll('#acct-menu .acct-who span'), (e) => e.textContent.trim()));
+        ok('...with no account-only rows it has no account for',
+          loc.indexOf('auth-change-password') < 0 && loc.indexOf('auth-signin-email') < 0, loc);
+        window.state.settings.localIn = false;
+
+        /* The rule the whole change rests on, asserted against the source rather than
+           against one rendered state, because a fifth branch could be added tomorrow. */
+        const menuSrc = window.acctMenuHTML.toString();
+        ok('acctMenuHTML never asks whether a project is configured',
+          menuSrc.indexOf('authConfigured') < 0 && menuSrc.indexOf('authClientId') < 0 &&
+          menuSrc.indexOf('authApiKey') < 0, menuSrc.slice(0, 200));
+        ok('the words "Set up sign-in" appear nowhere in the app',
+          html.indexOf('Set up sign-in') === -1);
+
         // acting on a row puts the menu away
         window.authStore(null);
         share.enabled = false; share.wsId = ''; share.wsName = ''; share.role = '';
@@ -4412,6 +4572,7 @@ async function main() {
         click(d.querySelector('#acct-menu [data-action="settings-go"]'));
         ok('choosing a row closes the menu behind it', window.acctMenuIsOpen() === false);
       } finally {
+        window.state.settings.localIn = false;
         window.acctMenuClose(true);
         Object.keys(share).forEach((k) => { delete share[k]; });
         Object.assign(share, savedShare);
@@ -4419,6 +4580,376 @@ async function main() {
         else window.localStorage.removeItem('bizpilot.auth');
         window.location.hash = '#/dashboard';
         window.render();
+      }
+    })();
+
+    // ---------- Sign in with Google, driven end to end with the transport mocked ----------
+    /* The owner asked for two things and this is the second: "make the log in google
+       work". The flow was already built and the brief said to prove it rather than
+       rewrite it, so this block drives the whole of it — the URL Google is sent, the
+       three postMessage checks, the token exchange, every failure branch and the
+       blocked-popup redirect — against a stubbed window.open and a stubbed fetch.
+
+       WHAT THIS CANNOT PROVE, stated here so nobody reads a green suite as more than it
+       is: that Google itself accepts the request. That needs a real client id and the
+       deployment's domain registered as an authorised redirect URI, and neither exists
+       in this repository. Everything on this side of the wire is checked below. What is
+       left is console configuration on the owner's side, and the two ways it goes wrong
+       (redirect_uri_mismatch, and the provider switched off) both surface as a sentence
+       rather than a popup that dies in silence.
+
+       The security of the whole flow is three lines in authGoogle(), and every one of
+       them is asserted on its own below. A popup credential is only ever as good as the
+       checks on the message that carries it. */
+    await (async function googleSignIn() {
+      const realOpen = window.open, realFetch = window.fetch, realToast = window.toast;
+      const share = window.state.settings.share;
+      const savedShare = JSON.parse(JSON.stringify(share));
+      const savedAuth = window.localStorage.getItem('bizpilot.auth');
+      // A stand-in for the popup: only the three things authGoogle() touches.
+      const fakePopup = () => ({ closed: false, close() { this.closed = true; } });
+      /* postMessage arrives as a MessageEvent whose `source` is the popup window. jsdom
+         refuses a plain object for `source` through the constructor, so it is defined on
+         the event afterwards — which is also the only way to forge a wrong one. */
+      const deliver = (origin, source, data) => {
+        const e = new window.MessageEvent('message', { data });
+        Object.defineProperty(e, 'origin', { value: origin, configurable: true });
+        Object.defineProperty(e, 'source', { value: source, configurable: true });
+        window.dispatchEvent(e);
+      };
+      let popup = null, openUrl = '';
+      const calls = [];
+      try {
+        window.toast = () => {};
+        window.authStore(null);
+        share.apiKey = 'AIzaTEST';
+        share.clientId = '1234-abc.apps.googleusercontent.com';
+
+        // ---- the URL Google is sent ----
+        ok('the redirect URI is this origin plus /oauth-callback.html',
+          window.authRedirectUri() === 'https://x.test/oauth-callback.html', window.authRedirectUri());
+        const u = new window.URL(window.authGoogleUrl('ST123', 'NONCE456'));
+        const q = u.searchParams;
+        ok('the sign-in URL is ordinary OAuth at accounts.google.com',
+          u.origin + u.pathname === 'https://accounts.google.com/o/oauth2/v2/auth', u.href);
+        ok('...carrying the client id and the redirect URI',
+          q.get('client_id') === '1234-abc.apps.googleusercontent.com' &&
+          q.get('redirect_uri') === 'https://x.test/oauth-callback.html', [q.get('client_id'), q.get('redirect_uri')]);
+        /* response_type=id_token puts the credential in the FRAGMENT, which never leaves
+           the browser and is never sent to a server or written to a log. */
+        ok('...asking for an id_token, so the credential stays in the fragment',
+          q.get('response_type') === 'id_token' && q.get('scope') === 'openid email profile',
+          [q.get('response_type'), q.get('scope')]);
+        ok('...and both nonces, which are what the two replay checks are made of',
+          q.get('state') === 'ST123' && q.get('nonce') === 'NONCE456');
+        ok('...and the account chooser every time, because a shared device is normal here',
+          q.get('prompt') === 'select_account');
+
+        // ---- no client id: refuse before opening anything ----
+        share.clientId = '';
+        let opens = 0;
+        window.open = () => { opens++; return fakePopup(); };
+        const noconf = await window.authGoogle().then(() => null, (e) => e);
+        ok('with no client id Google sign-in refuses without opening a dead popup',
+          !!noconf && noconf.code === 'noconfig' && opens === 0, [noconf, opens]);
+        ok('...and says only the fact, with no instruction aimed at someone who cannot act on it',
+          !!noconf && !/Settings|Developer|Data & Sync/.test(noconf.msg || ''), noconf);
+        share.clientId = '1234-abc.apps.googleusercontent.com';
+
+        // ---- the happy path ----
+        window.open = (url) => { openUrl = url; popup = fakePopup(); return popup; };
+        window.fetch = (url, opt) => {
+          calls.push({ url, body: opt && opt.body ? JSON.parse(opt.body) : null });
+          return resp(200, JSON.stringify({ localId: 'guid1', email: 'Owner@Gmail.com',
+            displayName: 'Ira Santos', idToken: 'idt', refreshToken: 'rft', expiresIn: '3600', emailVerified: true }));
+        };
+        let p = window.authGoogle();
+        await wait(20);
+        const st = openUrl ? new window.URL(openUrl).searchParams.get('state') : '';
+        ok('pressing the button opens a popup with a freshly minted state',
+          !!popup && st.length === 32, [openUrl.slice(0, 60), st]);
+
+        /* THE THREE CHECKS. Each is refused on its own, and each is asserted by the same
+           evidence: zero requests left the device, so a forged credential never reached
+           the exchange. This is the entire security of popup auth. */
+        deliver('https://evil.test', popup, { type: 'trakora-oauth', state: st, idToken: 'forged' });
+        await wait(15);
+        ok('a message from another origin is ignored', calls.length === 0, calls);
+        deliver('https://x.test', { closed: false }, { type: 'trakora-oauth', state: st, idToken: 'forged' });
+        await wait(15);
+        ok('a message from a window we did not open is ignored', calls.length === 0, calls);
+        deliver('https://x.test', popup, { type: 'trakora-oauth', state: 'someone-elses', idToken: 'forged' });
+        await wait(15);
+        ok('a message carrying the wrong state is ignored', calls.length === 0, calls);
+        deliver('https://x.test', popup, { type: 'not-ours', state: st, idToken: 'forged' });
+        await wait(15);
+        ok('a message of another type is ignored', calls.length === 0, calls);
+
+        // ...and the real one is accepted
+        deliver('https://x.test', popup, { type: 'trakora-oauth', state: st, idToken: 'google-id-token' });
+        const sess = await p.then((s) => s, (e) => ({ err: e }));
+        ok('the one real message is exchanged, and exactly once', calls.length === 1, calls.length);
+        ok('...at signInWithIdp with the project key',
+          calls.length === 1 && calls[0].url === 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=AIzaTEST',
+          calls.length && calls[0].url);
+        ok('...handing the id_token over as a google.com credential from this origin',
+          calls.length === 1 && calls[0].body.postBody === 'id_token=google-id-token&providerId=google.com' &&
+          calls[0].body.requestUri === 'https://x.test', calls.length && calls[0].body);
+        ok('a session comes back and is stored as a Google account',
+          !!sess && !sess.err && window.authUser() && window.authUser().provider === 'google', sess);
+        ok('...with the address lowercased, and verified because Google verified it',
+          window.authUser().email === 'owner@gmail.com' && window.authUser().verified === true, window.authUser());
+        ok('...and the popup is closed once the credential is in hand', popup.closed === true);
+
+        // ---- Google refuses ----
+        window.authStore(null);
+        calls.length = 0;
+        p = window.authGoogle();
+        await wait(20);
+        deliver('https://x.test', popup, { type: 'trakora-oauth',
+          state: new window.URL(openUrl).searchParams.get('state'), error: 'access_denied' });
+        const denied = await p.then(() => null, (e) => e);
+        ok('an error from Google rejects with its code and writes no session',
+          !!denied && denied.code === 'access_denied' && window.authSignedIn() === false, denied);
+
+        // ---- a message with neither a token nor an error ----
+        p = window.authGoogle();
+        await wait(20);
+        deliver('https://x.test', popup, { type: 'trakora-oauth',
+          state: new window.URL(openUrl).searchParams.get('state') });
+        const empty = await p.then(() => null, (e) => e);
+        ok('an empty credential rejects rather than exchanging nothing',
+          !!empty && empty.code === 'nokey', empty);
+
+        // ---- the person closes the popup ----
+        p = window.authGoogle();
+        await wait(20);
+        popup.closed = true;
+        const cancelled = await p.then(() => null, (e) => e);
+        ok('closing the popup is a cancellation, and it says nothing',
+          !!cancelled && cancelled.code === 'cancelled' && cancelled.msg === '', cancelled);
+        /* Which the handler has to honour, or the owner gets an error toast for having
+           changed their mind. */
+        ok('...which the button handler reports by saying nothing at all',
+          /if\(err&&err\.code==='cancelled'\) return;/.test(html));
+
+        // ---- the browser blocks the popup ----
+        /* jsdom cannot navigate and window.location is [Unforgeable], so the navigation
+           itself is not observable here. What is: the URL the code built (handed to
+           window.open first, which is the call being blocked), that authGoogle RESOLVES
+           rather than rejecting, and that the state and nonce were parked for the return
+           trip. The jsdomError the attempted navigation raises is expected, so it is
+           swallowed for the length of this one call rather than printed as a failure. */
+        window.sessionStorage.removeItem('trakora.gstate');
+        window.sessionStorage.removeItem('trakora.gnonce');
+        openUrl = '';
+        window.open = (url) => { openUrl = url; return null; };
+        const vcHandlers = dom.virtualConsole.listeners('jsdomError');
+        dom.virtualConsole.removeAllListeners('jsdomError');
+        dom.virtualConsole.on('jsdomError', () => {});
+        const redirected = await window.authGoogle();
+        dom.virtualConsole.removeAllListeners('jsdomError');
+        vcHandlers.forEach((fn) => dom.virtualConsole.on('jsdomError', fn));
+        const rst = openUrl ? new window.URL(openUrl).searchParams.get('state') : '';
+        const rnonce = openUrl ? new window.URL(openUrl).searchParams.get('nonce') : '';
+        ok('a blocked popup is not an error: the page leaves and comes back instead',
+          redirected === null, redirected);
+        ok('...remembering the state and the nonce across the navigation',
+          window.sessionStorage.getItem('trakora.gstate') === rst && !!rst &&
+          window.sessionStorage.getItem('trakora.gnonce') === rnonce && !!rnonce, rst);
+
+        // ---- and coming back from it ----
+        calls.length = 0;
+        const realReplace = window.history.replaceState;
+        window.history.replaceState = () => {};
+        window.location.hash = '#id_token=back-from-redirect&state=' + rst;
+        const back = await window.authGoogleResume().then((s) => s, (e) => ({ err: e }));
+        ok('the redirect branch resumes on boot and adopts the session',
+          calls.length === 1 && !!back && !back.err && back.uid === 'guid1', [calls.length, back]);
+        /* The same state check as the popup, on the path that has no opener to check. */
+        window.sessionStorage.setItem('trakora.gstate', 'ours');
+        window.sessionStorage.setItem('trakora.gnonce', 'n');
+        calls.length = 0;
+        window.location.hash = '#id_token=forged&state=theirs';
+        const forged = await window.authGoogleResume().then((s) => s, (e) => ({ err: e }));
+        ok('a returning fragment with the wrong state is refused, with no request made',
+          forged === null && calls.length === 0, [forged, calls.length]);
+        window.history.replaceState = realReplace;
+
+        /* WHERE A FAILURE IS REPORTED. Once, and where the person is looking: the inline
+           line when the sign-in screen is up, a toast when it is not. A toast fired over
+           an open sign-in card is the same message twice, in the one place it is least
+           likely to be read. */
+        const realGoogle = window.authGoogle;
+        const toasts = [];
+        window.toast = (m) => { toasts.push(String(m)); };
+        try {
+          /* Opened through its own address rather than by calling signInOpen() directly.
+             #/signin is an address, not a route, and the hashchange listener closes the
+             screen whenever the hash is anything else — including the id_token fragments
+             this block set a moment ago, whose events are still queued. */
+          window.location.hash = '#/signin';
+          await wait(40);
+          ok('the sign-in screen is up for this check', window.signInIsOpen() === true,
+            d.getElementById('signin-root').innerHTML.length);
+          window.authGoogle = () => Promise.reject({ code: 'offline', msg: 'raw' });
+          click(d.querySelector('.si-oauth'));
+          await wait(30);
+          ok('a Google failure lands on the sign-in screen, inline',
+            d.getElementById('si-msg').textContent === 'Could not reach Google. Check your connection and try again.',
+            d.getElementById('si-msg').textContent);
+          ok('...and not also as a toast, which would be the same message twice',
+            toasts.length === 0, toasts);
+
+          toasts.length = 0;
+          window.authGoogle = () => Promise.reject({ code: 'nokey', msg: 'raw' });
+          click(d.querySelector('.si-oauth'));
+          await wait(30);
+          ok('a sign-in Google did not finish says so in its own words',
+            d.getElementById('si-msg').textContent === 'Google did not complete the sign-in. Try again.',
+            d.getElementById('si-msg').textContent);
+
+          toasts.length = 0;
+          window.authGoogle = () => Promise.reject({ code: 'cancelled', msg: '' });
+          d.getElementById('si-msg').textContent = 'untouched';
+          click(d.querySelector('.si-oauth'));
+          await wait(30);
+          ok('closing the popup reports nothing anywhere',
+            toasts.length === 0 && d.getElementById('si-msg').textContent === 'untouched',
+            [toasts, d.getElementById('si-msg').textContent]);
+
+          /* Off the sign-in screen there is no inline line, so it has to be a toast or
+             the failure is silent. */
+          window.location.hash = '#/dashboard';
+          await wait(40);
+          window.signInClose();
+          toasts.length = 0;
+          window.authGoogle = () => Promise.reject({ code: 'access_denied', msg: 'raw' });
+          const btn = d.createElement('button');
+          btn.setAttribute('data-action', 'auth-google');
+          d.getElementById('main').appendChild(btn);
+          click(btn);
+          await wait(30);
+          ok('with the screen closed the same failure is a toast instead',
+            toasts.length === 1 &&
+            toasts[0] === 'Could not sign in with Google. Try again, or use your email and password.', toasts);
+          btn.remove();
+        } finally {
+          window.authGoogle = realGoogle;
+          window.signInClose();
+          window.toast = () => {};
+        }
+
+        /* The callback page is the other half of the flow and it is where the credential
+           is physically handed over. It must name this exact origin: with '*' the token
+           would be readable by whatever else the opener happens to be embedded in. */
+        const cb = fs.readFileSync(path.join(__dirname, '..', 'oauth-callback.html'), 'utf8');
+        ok('the callback page posts to this exact origin, never to a wildcard',
+          /postMessage\(payload, window\.location\.origin\)/.test(cb) &&
+          cb.indexOf("postMessage(payload, '*')") === -1 && cb.indexOf('postMessage(payload, "*")') === -1);
+        ok('...and carries nothing but what came back in the fragment',
+          /type: 'trakora-oauth'/.test(cb) && /p\.get\('state'\)/.test(cb) && /p\.get\('id_token'\)/.test(cb));
+        ok('...and falls back to the app when it was reached without an opener',
+          /window\.opener && window\.opener !== window/.test(cb) && /location\.replace\(back\)/.test(cb));
+        ok('...storing nothing, because it is a doorway and not a page',
+          cb.indexOf('localStorage') === -1 && cb.indexOf('sessionStorage') === -1);
+      } finally {
+        window.open = realOpen; window.fetch = realFetch; window.toast = realToast;
+        window.sessionStorage.removeItem('trakora.gstate');
+        window.sessionStorage.removeItem('trakora.gnonce');
+        Object.keys(share).forEach((k) => { delete share[k]; });
+        Object.assign(share, savedShare);
+        if (savedAuth) window.localStorage.setItem('bizpilot.auth', savedAuth);
+        else window.localStorage.removeItem('bizpilot.auth');
+        window.location.hash = '#/dashboard';
+        window.render();
+      }
+    })();
+
+    // ---------- one place to paste the deployment config, and it is honest about itself ----------
+    /* The hard constraint on this whole change: we do not have the owner's Web API key or
+       OAuth client id and cannot get them. So AUTH_CFG stays empty, with one obvious place
+       to paste, and the app has to degrade honestly with nothing in it. */
+    (function deploymentConfig() {
+      const block = html.slice(html.indexOf('var AUTH_CFG={'), html.indexOf('var AUTH_IDT='));
+      ok('AUTH_CFG is empty, because inventing a credential is not an option',
+        /apiKey:\s*'',/.test(block) && /clientId:\s*''/.test(block), block);
+      ok('...with exactly one place to paste each value, marked as such',
+        (block.match(/<-- paste/g) || []).length === 2, block);
+      /* The two sentences an owner most needs and is least likely to be told: these are
+         public values, and the thing that actually keeps the data private is elsewhere. */
+      const doc = html.slice(html.indexOf('DEPLOYMENT CONFIG'), html.indexOf('var AUTH_CFG={'));
+      ok('the block says the two values are public and cannot be secrets',
+        /THESE TWO VALUES ARE PUBLIC/.test(doc) && /View Source/.test(doc), doc.length);
+      ok('...and that the database rules, not these, are what keep the data private',
+        /DATABASE RULES/.test(doc) && /unpublished\s+rules as the emergency/.test(doc.replace(/\s+/g, ' ')), doc.length);
+      ok('...and names the redirect URI that has to be registered on the OAuth client',
+        /oauth-callback\.html/.test(doc));
+      ok('...and says the Settings fields are a per-device override, not the deployment',
+        /OVERRIDE/.test(doc) && /source of truth is here/.test(doc.replace(/\s+/g, ' ')));
+      /* Precedence, asserted in the code rather than only in the prose above it. */
+      ok('the settings override is read first, falling back to AUTH_CFG',
+        /function authApiKey\(\)\{ var o=\(state&&state\.settings&&state\.settings\.share&&state\.settings\.share\.apiKey\)\|\|''; return String\(o\|\|AUTH_CFG\.apiKey\|\|''\)\.trim\(\); \}/.test(html));
+
+      /* THE ONE PLACE THE MISSING CLIENT ID IS EXPLAINED. The realistic path is that the
+         owner pastes the API key first, because that is the value the Firebase console
+         puts in front of them, and the client id lives somewhere else entirely. They then
+         open the sign-in screen, find no Google button, and conclude Google was never
+         built. The sentence that catches that belongs where somebody doing setup is
+         already standing, with the client id field in front of them, and not on a login
+         screen in front of an owner trying to get in. */
+      (function clientIdConsequence() {
+        const share = window.state.settings.share;
+        const savedKey = share.apiKey, savedCid = share.clientId;
+        const line = 'Without this, the sign-in screen does not show the Google button.';
+        try {
+          share.apiKey = 'AIzaTEST'; share.clientId = '';
+          const fold = window.developerSetupHTML();
+          ok('a key with no client id says so, in the setup fold, under that field',
+            fold.indexOf(line) > 0 && fold.indexOf(line) > fold.indexOf('name="clientId"'), fold.indexOf(line));
+          ok('...and nowhere else in the product', (() => {
+            window.ui.signin = { mode: 'in', show: false };
+            const screen = window.signInHTML();
+            const menu = window.acctMenuHTML();
+            return screen.indexOf(line) === -1 && menu.indexOf(line) === -1 &&
+              !/Google/.test(menu) && !/Google/.test(screen);
+          })());
+          share.clientId = 'test.apps.googleusercontent.com';
+          ok('...and stops being said once the client id is there',
+            window.developerSetupHTML().indexOf(line) === -1);
+          share.apiKey = ''; share.clientId = '';
+          ok('...and is not said before there is a key, when it is not yet the problem',
+            window.developerSetupHTML().indexOf(line) === -1);
+        } finally {
+          share.apiKey = savedKey; share.clientId = savedCid;
+          window.ui.signin = { mode: 'in', show: false };
+        }
+      })();
+
+      /* And the degradation. With nothing pasted, the profile page must not offer to go
+         and configure anything either: that was the owner's complaint's second half. */
+      const share = window.state.settings.share;
+      const savedKey = share.apiKey, savedCid = share.clientId;
+      const savedAuth = window.localStorage.getItem('bizpilot.auth');
+      try {
+        share.apiKey = ''; share.clientId = '';
+        window.authStore(null);
+        window.state.settings.localIn = true;
+        window.location.hash = '#/profile'; window.render();
+        const card = d.getElementById('main');
+        ok('the profile page offers no setup button in the local state',
+          !card.querySelector('[data-action="settings-go"][data-tab="data"]'),
+          card.innerHTML.indexOf('data-tab="data"'));
+        ok('...only a way out', card.querySelectorAll('[data-action="auth-signout"]').length === 1);
+        ok('...and says what is true about this copy without naming a console',
+          /This copy has no accounts yet/.test(card.textContent) &&
+          !/API key|Firebase|client id|Developer setup/i.test(card.textContent));
+      } finally {
+        window.state.settings.localIn = false;
+        share.apiKey = savedKey; share.clientId = savedCid;
+        if (savedAuth) window.localStorage.setItem('bizpilot.auth', savedAuth);
+        else window.localStorage.removeItem('bizpilot.auth');
+        window.location.hash = '#/dashboard'; window.render();
       }
     })();
 
@@ -4506,35 +5037,358 @@ async function main() {
       ok('...with the frame, the panel and the artwork gone, not just hidden',
         ['si-frame', 'si-panel', 'si-art', 'si-side', 'siArtSVG'].every((c) => html.indexOf(c) === -1));
       ok('...and the parts that matter still there',
-        ['si-oauth', 'si-or', 'si-field', 'si-eye', 'si-remember', 'si-cta', 'si-foot']
+        ['si-oauth', 'si-or', 'si-field', 'si-eye', 'si-cta', 'si-foot']
           .every((c) => html.indexOf(c) > 0));
+      /* "Remember me" is gone. It was read into ui.signin.remember and used by nothing:
+         the session goes to localStorage and outlives a browser restart whatever the box
+         said, so unticking it told the person something untrue. The behaviour did not
+         change; the control that misdescribed it did. */
+      ok('...and the checkbox that promised something the code never did is gone',
+        html.indexOf('si-remember') === -1 && !/id="si-remember"/.test(html) &&
+        !/st\.remember=rem\.checked/.test(html));
       ok('...and the business name, not a hardcoded one',
         /si-name">'\+appNameEsc\(\)/.test(html));
       /* Two things in the reference are deliberately absent, and both would be a lie: a
          gradient the owner ruled out, and a Facebook button this app cannot honour. */
+      // The Google button carries data-action="auth-google" and NOTHING ELSE. It used to
+      // be interpolated, so it could also come out as signin-preview; it cannot any more,
+      // because in demo it renders disabled with no action at all (see below).
       ok('...with no gradient, and no federated button it cannot honour',
         !/\.si-[a-z-]*\{[^}]*linear-gradient/.test(html) &&
-        /class="si-oauth" data-action/.test(html) &&
+        /class="si-oauth"'\+\s*\(demo\?' disabled aria-describedby="si-oauth-hint"':' data-action="auth-google"'\)/.test(html) &&
         html.indexOf('auth-facebook') === -1);
 
-      /* PREVIEW. With no project connected there is nothing to check anything against, so
-         rather than a dead form the fields come pre-filled and Login opens the books. The
-         line that keeps this honest: no session is written, so nothing downstream believes
-         anyone signed in. */
-      ok('with no project connected the form is pre-filled for a tester',
-        /var SI_DEMO=\{email:'[^']+',password:'[^']+'\}/.test(html) &&
-        /preview\?' value="'\+esc\(SI_DEMO\.email\)/.test(html) &&
-        /preview\?' value="'\+esc\(SI_DEMO\.password\)/.test(html));
-      ok('...and Login takes them into the books instead of failing',
-        /if\(!authConfigured\(\)\)\{[\s\S]{0,420}?signInClose\(\);/.test(html));
-      ok('...and the Google button goes the same way rather than opening a dead popup',
-        /data-action="'\+\(preview\?'signin-preview':'auth-google'\)/.test(html) &&
-        html.indexOf("action==='signin-preview'") > 0);
-      /* The whole point of the honesty: a preview must not leave the app believing a
-         session exists, or every screen downstream lies about who is signed in. */
-      ok('...without writing a session, so nothing downstream thinks anyone signed in',
-        !/action==='signin-preview'[\s\S]{0,400}?authStore\(/.test(html) &&
-        /Preview\. No account is connected to this copy yet/.test(html));
+      /* THE SIGN-IN SCREEN IS THE ONE PLACE THE DEPLOYMENT IS DESCRIBED. The account
+         menu offers "Sign in" whether or not AUTH_CFG has been filled in, because that is
+         what a product does. The honest answer is given here, at the door, to somebody
+         who is actually trying to get in.
+
+         With no project there are no accounts, so there is no form. The screen used to
+         render the full form and pre-fill it from an SI_DEMO pair of made-up credentials,
+         which is the one lie it could tell: an Email label and a Password label promise
+         those two values get checked, and with an empty AUTH_CFG they are checked against
+         nothing at all. */
+      (function signInWithoutAProject() {
+        const share = window.state.settings.share;
+        const savedKey = share.apiKey, savedCid = share.clientId;
+        try {
+          share.apiKey = ''; share.clientId = '';
+          window.ui.signin = { mode: 'in', show: false };
+          const bare = window.signInHTML();
+          /* The screen used to render NO form at all with no project behind it, on the
+             grounds that an Email label promises the value gets checked. That is right for
+             a shipped product and wrong for a screen somebody is being asked to look at and
+             click through before any backend exists, which is what this is for now. So the
+             whole form renders and every control works. What keeps it honest is the banner
+             and the absence of a session, not the absence of the UI. */
+          ok('with no project connected the whole form is still there to look at',
+            ['si-oauth', 'si-or', 'si-form', 'si-field', 'si-eye', 'si-cta']
+              .every((c) => bare.indexOf(c) > 0), bare.slice(0, 400));
+          ok('...pre-filled, so a tester can press Log in and be in the app',
+            /id="si-email"[^>]*value="tester@example\.com"/.test(bare) &&
+            /id="si-pass"[^>]*value="preview1234"/.test(bare), bare.slice(0, 600));
+          ok('...with forgot password and create account both reachable',
+            bare.indexOf('data-action="signin-forgot"') > 0 &&
+            /data-action="signin-mode" data-mode="up"/.test(bare), bare.slice(0, 600));
+          /* The Google button must not open a dead popup when there is no client id
+             behind it. It used to carry data-action="signin-preview", i.e. a control
+             wearing Google's mark that performed an action having nothing to do with
+             Google: the mark is a claim about what pressing it does. It is now rendered
+             disabled with no action at all, which also drops it out of the tab order,
+             and it says why in a line it points at with aria-describedby. */
+          ok('...and Google is disabled rather than wired to a non-Google action',
+            / class="si-oauth" disabled aria-describedby="si-oauth-hint"/.test(bare) &&
+            bare.indexOf('data-action="signin-preview"') === -1 &&
+            bare.indexOf('data-action="auth-google"') === -1, bare.slice(0, 900));
+          ok('...with the hint it names actually present',
+            /<p class="si-hint" id="si-oauth-hint">/.test(bare), bare.slice(0, 900));
+          /* The mark itself must not be dimmed to say "disabled": opacity and grayscale
+             both repaint Google's four colours, which is a brand breach of its own. The
+             chrome goes quiet and the svg is untouched. */
+          ok('...without dimming the four-colour mark to do it',
+            /\.si-oauth\[disabled\]\{[^}]*\}/.test(html) &&
+            !/\.si-oauth\[disabled\]\{[^}]*(opacity|filter)/.test(html) &&
+            /\.si-oauth\[disabled\]\{[^}]*background:var\(--bg-sunken\)/.test(html), true);
+          /* CRITICAL-1: the banner used to say "every button just opens the books", which
+             was false of two of the four controls on the screen (Create account toggles
+             the form, Forgot password prints a line). It names the one button it is
+             actually describing, which is true of the CTA in both modes and claims
+             nothing about Google, Forgot password or the footer toggle. */
+          ok('...and it says plainly that nothing is checked and nobody is signed in',
+            /Demo\. No accounts are connected yet/.test(bare) &&
+            /the button below just opens the books/.test(bare) &&
+            /nothing is checked and nothing is sent/.test(bare) &&
+            /Nobody is signed in and no account is created/.test(bare), bare);
+          ok('...and no longer claims that EVERY button just opens the books',
+            bare.indexOf('every button just opens the books') === -1 &&
+            html.indexOf('every button just opens the books') === -1, bare);
+          /* It is a system notice about the screen, so it is a strip on .si-wrap rather
+             than a card inside the form, and it no longer shares .si-msg.ok with #si-msg,
+             the form's own result line. Two identically shaped rounded notices, one of
+             them accent-blue and reading as promotional, was the reason. */
+          ok('...as a strip on the screen, not a second .si-msg inside the card',
+            /<div class="si-demo" id="si-demo">/.test(bare) &&
+            !/class="si-msg show ok" style="margin-bottom/.test(bare) &&
+            /\.si-demo\{/.test(html), bare.slice(0, 900));
+          ok('...it does not send the owner off to configure anything',
+            !/API key|Firebase|client id|Developer setup|Settings/i.test(bare), bare);
+          /* The whole point of the honesty: continuing must not leave the app believing a
+             session exists, or every screen downstream lies about who is signed in. The
+             demo branch of the form's submit handler is now the ONLY place that
+             behaviour lives; signin-preview, whose last caller was the Google button, is
+             deleted rather than left orphaned. */
+          ok('...which writes no auth session, so nothing downstream thinks anyone signed in',
+            !/state\.settings\.localIn=true[\s\S]{0,400}?authStore\(/.test(html) &&
+            /Opened in demo\. No accounts are connected yet, so nobody is signed in\./.test(html));
+          ok('...and the orphaned signin-preview action is gone, not left dangling',
+            html.indexOf("action==='signin-preview'") === -1 &&
+            html.indexOf('data-action="signin-preview"') === -1 &&
+            html.indexOf("'signin-preview'") === -1, true);
+
+          /* A key but no client id: the real form, and no Google button, because a Google
+             button with no client id behind it can open exactly one thing, a dead popup.
+             The OR rule has nothing left to separate, so it goes with it. */
+          share.apiKey = 'AIzaTEST';
+          const noGoogle = window.signInHTML();
+          ok('a project with no client id gets the real form',
+            noGoogle.indexOf('si-form') > 0 && noGoogle.indexOf('id="si-email"') > 0 &&
+            noGoogle.indexOf('id="si-pass"') > 0, noGoogle.slice(0, 300));
+          ok('...and no Google button, and no OR rule with nothing to separate',
+            noGoogle.indexOf('si-oauth') === -1 && noGoogle.indexOf('si-or') === -1);
+          ok('...and no pre-filled values in either field',
+            !/id="si-email"[^>]*value=/.test(noGoogle) && !/id="si-pass"[^>]*value=/.test(noGoogle));
+
+          share.clientId = 'test.apps.googleusercontent.com';
+          const withGoogle = window.signInHTML();
+          ok('add the client id and the Google button appears, above the email field',
+            withGoogle.indexOf('si-oauth') > 0 && withGoogle.indexOf('si-or') > 0 &&
+            withGoogle.indexOf('si-oauth') < withGoogle.indexOf('id="si-email"'), true);
+          ok('...opening the real popup, not the local shortcut',
+            /class="si-oauth" data-action="auth-google"/.test(withGoogle));
+          ok('...labelled the standard way in both modes', (() => {
+            const inLbl = withGoogle.indexOf('Continue with Google') > 0;
+            window.ui.signin.mode = 'up';
+            const upLbl = window.signInHTML().indexOf('Sign up with Google') > 0;
+            window.ui.signin.mode = 'in';
+            return inLbl && upLbl;
+          })());
+        } finally {
+          share.apiKey = savedKey; share.clientId = savedCid;
+          window.ui.signin = { mode: 'in', show: false };
+        }
+      })();
+
+      /* ---------- the screen has to be ON TOP, and reachable ----------
+         It sat at z-index 300 while the first-run greeting was 520 and the welcome tour
+         500, so on a first visit (and every visit until the tour was finished) the login
+         was painted, opaque, and completely uninteractable: clicks landed on the overlay
+         above it and fourteen Tab presses never reached the form. The same 300 was above
+         .toast-root at 200 and the modal layer at 100, so a toast fired while the screen
+         was up was drawn underneath it. That is what made Sign out look like it had done
+         nothing: the confirmation existed and could not be seen.
+
+         Five layers, one order, and the numbers are asserted against each other rather
+         than individually so that moving one of them has to move the rest. */
+      (function signInStackingOrder() {
+        const z = (sel, re) => {
+          const m = html.match(re);
+          return m ? parseInt(m[1], 10) : NaN;
+        };
+        const si    = z('.si-wrap',        /\.si-wrap\{position:fixed;inset:0;z-index:(\d+)/);
+        const greet = z('.greet-overlay',  /\.greet-overlay\{position:fixed;inset:0;z-index:(\d+)/);
+        const onb   = z('.onb-overlay',    /\.onb-overlay\{position:fixed;inset:0;z-index:(\d+)/);
+        const modal = z('.modal-overlay',  /\.modal-overlay\{position:fixed;inset:0;background:rgba\(8,10,22,\.6\);z-index:(\d+)/);
+        const toast = z('.toast-root',     /\.toast-root\{position:fixed;bottom:20px;right:20px;z-index:(\d+)/);
+        ok('every layer in the top of the stack has a z-index that parses',
+          [si, greet, onb, modal, toast].every((n) => Number.isFinite(n)), { si, greet, onb, modal, toast });
+        ok('the sign-in screen outranks the first-run greeting and the welcome tour',
+          si > greet && si > onb, { si, greet, onb });
+        ok('...and the toast root and the modal layer outrank the sign-in screen',
+          toast > si && modal > si, { si, modal, toast });
+        ok('...with the toasts last, so nothing can cover a message',
+          toast > modal && toast > greet && toast > onb, { toast, modal, greet, onb });
+        ok('...and the order is written down where the next person will read it',
+          /THE TOP OF THE STACK/.test(html) && /\.si-wrap\s+the sign-in screen/.test(html));
+
+        /* Covering the greeting is not the same as dismissing it. If .si-wrap merely
+           outranked 520 the greeting would still be OPEN underneath an opaque sheet, and
+           sitting there the moment somebody pressed "Not now". Both first-run overlays
+           stand aside while the screen is up and take their turn when it closes, and
+           neither burns its once-ever flag while it waits. */
+        ok('the first-run overlays stand aside while the sign-in screen is open',
+          /function maybeGreet\(\)\{[\s\S]{0,1400}?signInIsOpen\(\)\) return;/.test(html) &&
+          /function maybeOnboard\(\)\{[\s\S]{0,1400}?signInIsOpen\(\)\) return;/.test(html));
+        ok('...deferring, not cancelling: closing the screen gives them their turn',
+          /function signInClose\(\)\{[\s\S]{0,700}?maybeOnboard\(\);[\s\S]{0,200}?maybeGreet\(\);/.test(html));
+        ok('...and the tour does not burn its once-ever flag while it is waiting',
+          /onbPending=false;\s*if\(state\.settings\.onboarded\) return;[\s\S]{0,160}?state\.settings\.onboarded=true; save\(\);/.test(html));
+      })();
+
+      /* ---------- focus containment ----------
+         .si-wrap had no role and no aria-modal, and .app had neither inert nor
+         aria-hidden, so the app's whole nav came BEFORE the card in the accessibility
+         tree: 10 of 16 Tab stops walked out of the form onto sidebar items that were
+         completely hidden under an opaque sheet, and Shift+Tab did not bring you back. */
+      ok('the sign-in screen is a modal dialog and the app goes inert behind it',
+        /class="si-wrap'\+\(demo\?' si-has-demo':''\)\+'" role="dialog" aria-modal="true"/.test(html) &&
+        /function siAppInert\(on\)\{[\s\S]{0,200}?setAttribute\('inert',''\)[\s\S]{0,80}?removeAttribute\('inert'\)/.test(html));
+      ok('...and the inert is lifted again on close, not just set on open',
+        /function signInClose\(\)\{[\s\S]{0,300}?siAppInert\(false\)/.test(html) &&
+        /function signInRender\(keepFocus\)\{[\s\S]{0,200}?siAppInert\(true\)/.test(html));
+      ok('...with the two ends of the tab cycle joined up',
+        /function siTrapTab\(e\)\{/.test(html) &&
+        /e\.shiftKey && document\.activeElement===first\)\{ e\.preventDefault\(\); last\.focus\(\)/.test(html) &&
+        /document\.activeElement===last\)\{ e\.preventDefault\(\); first\.focus\(\)/.test(html));
+
+      /* ---------- the one thing on this screen a screen reader can hear ----------
+         querySelectorAll('[aria-live],[role=status],[role=alert]') on #/signin returned
+         [] : nothing here was announced at all. Pressing Forgot password changed the text
+         under the button and said nothing. #si-msg is where every answer the screen gives
+         lands, so it is the live region. */
+      ok('the message line is a polite live region',
+        /<div class="si-msg" id="si-msg" role="status" aria-live="polite">/.test(html));
+      ok('...and the form is pointed at the demo notice it is described by',
+        /<form id="si-form" autocomplete="'\+\(demo\?'off':'on'\)\+'" novalidate'\+\s*\(demo\?' aria-describedby="si-demo"':''\)/.test(html));
+
+      /* ---------- the demo used to skip validation entirely ----------
+         The submit handler returned inside if(!authConfigured()) before authSubmitEmail(),
+         and the form is novalidate with no required, so cleared fields, a malformed
+         address, a three-character password and whitespace-only all just opened the app.
+         The error state on a screen whose entire job is previewing the login could
+         therefore not be reached at all, and filling in AUTH_CFG later would have
+         silently flipped empty-submit from "opens the app" to "shows an error".
+
+         It runs the SAME check, not a copy of it: authEmailFormError is the one function
+         and authSubmitEmail calls it too, so the two paths cannot drift. It deliberately
+         adds NOTHING of its own: no email regex, no six-character minimum. Format and
+         length are the server's to refuse, and a demo that turned away a malformed
+         address would be refusing something the real path accepts, which is the same
+         class of lie pointing the other way. */
+      (function demoValidatesLikeTheRealPath() {
+        ok('there is exactly one client-side check on the email form',
+          /function authEmailFormError\(email,password\)\{\s*if\(!String\(email\|\|''\)\.trim\(\)\|\|!String\(password\|\|''\)\) return \{code:'empty',msg:'Enter an email address and a password\.'\};/.test(html) &&
+          (html.match(/Enter an email address and a password\./g) || []).length === 1,
+          (html.match(/Enter an email address and a password\./g) || []).length);
+        ok('...and both the configured path and the demo path call it',
+          /function authSubmitEmail\([\s\S]{0,200}?var bad=authEmailFormError\(email,password\);\s*if\(bad\) return Promise\.reject\(bad\);/.test(html) &&
+          /if\(demo\)\{\s*var bad=authEmailFormError\(byId\('si-email'\)\.value,byId\('si-pass'\)\.value\);/.test(html));
+        ok('...the demo shows it inline and does NOT open the app',
+          /if\(bad\)\{\s*btn\.disabled=false; btn\.textContent=was;\s*msg\.className='si-msg show err'; msg\.textContent=tr\(bad\.msg\);\s*return;\s*\}/.test(html));
+        ok('...and invents no format or length rule the real path does not have',
+          !/\[\^@\]\+@\[\^@\]\+/.test(html.slice(html.indexOf('function authEmailFormError'), html.indexOf('function authEmailFormError') + 400)) &&
+          !/password\.length\s*<\s*6/.test(html));
+        /* and the real thing, driven: the function the screen actually calls */
+        const F = window.authEmailFormError;
+        ok('empty and whitespace-only are refused',
+          !!F('', '') && !!F('   ', 'preview1234') && !!F('', 'x') &&
+          F('', '').msg === 'Enter an email address and a password.',
+          [F('', ''), F('   ', 'preview1234')]);
+        ok('...and a malformed address and a three-character password are NOT',
+          F('not-an-email', 'abc') === null && F('a@b.co', 'xyz') === null,
+          [F('not-an-email', 'abc'), F('a@b.co', 'xyz')]);
+      })();
+
+      /* ---------- the loading label used to assert something that never happened ----------
+         "Signing in…" / "Creating your account…" were set BEFORE the demo branch was
+         checked, so for 420ms the button claimed an action that was not going to happen
+         and the toast correcting it arrived afterwards. The configured labels are
+         untouched; the demo gets one of its own, because one thing happens either way. */
+      ok('the demo CTA says what it is actually about to do',
+        /esc\(tr\(demo\?'Opening the demo…':\(st\.mode==='up'\?'Creating your account…':'Signing in…'\)\)\)/.test(html));
+
+      /* ---------- MEDIUM-10: a filled current-password of "preview1234" in an
+         autocomplete=on form is exactly what Chrome and Safari offer to save, which
+         would train a real owner's password manager with a made-up credential for the
+         deployed origin. Demo only; the configured path still wants the save prompt. */
+      ok('the demo-prefilled fields are not offered to the password manager',
+        /autocomplete="'\+\(demo\?'off':'username'\)\+'"/.test(html) &&
+        /autocomplete="'\+\(demo\?'off':\(up\?'new-password':'current-password'\)\)\+'"/.test(html));
+
+      /* ---------- HIGH-6: the eye rebuilt the card and the autofocus then threw the
+         keyboard user back to the email field on every toggle. ---------- */
+      ok('showing the password no longer steals focus back to the email field',
+        /if\(!keepFocus\) setTimeout\(function\(\)\{ var el=byId\('si-email'\); if\(el\) el\.focus\(\); \},120\);/.test(html) &&
+        /action==='signin-eye'\)\{[\s\S]{0,200}?signInRender\(true\);[\s\S]{0,140}?eye\.focus\(\)/.test(html));
+      ok('...while opening the screen and switching mode still land on email',
+        /action==='signin-mode'\)\{ ui\.signin\.mode=el\.getAttribute\('data-mode'\)\|\|'in'; signInRender\(\);/.test(html));
+
+      /* ---------- D1: --accent is #2563eb light and #60a5fa dark, so a hardcoded white
+         foreground is legible in exactly one of them. White on #60a5fa is 2.54:1. ------- */
+      ok('the primary button takes a themed foreground, not a hardcoded white',
+        /\.si-cta\{[^}]*color:var\(--accent-on\)/.test(html) &&
+        !/\.si-cta\{[^}]*color:#fff/.test(html) &&
+        /--accent-on:#ffffff;/.test(html) && /--accent-on:#0b1220;/.test(html));
+      ok('...without darkening --accent itself, which is shared app-wide',
+        /--accent:#2563eb;/.test(html) && /--accent:#60a5fa;/.test(html));
+
+      /* ---------- D3 + the focus ring (the resolution of conflict 2) ---------- */
+      ok('the fields have a real resting border, not a transparent one',
+        /\.si-field\{[^}]*border:1px solid var\(--border-field\)/.test(html) &&
+        /--border-field:#d0d5dd;/.test(html) && /--border-field:#3a475c;/.test(html) &&
+        !/\.si-field\{[^}]*border:1px solid transparent/.test(html));
+      ok('both input-level focus layers are gone and the indicator is on the wrapper',
+        /\.si-field input:focus,\.si-field input:focus-visible\{outline:none;box-shadow:none\}/.test(html) &&
+        /\.si-field:focus-within\{border-color:var\(--accent\);background:var\(--bg-card\);\s*outline:2px solid var\(--accent\);outline-offset:2px\}/.test(html));
+      ok('...scoped to the input, so the eye inside the field keeps its own ring',
+        !/\.si-field \*\{/.test(html) && !/\.si-field \*:focus/.test(html));
+
+      /* ---------- D2: the button had no visible edge in either theme ---------- */
+      ok('the Google button uses Google’s own stroke colours and dark fill',
+        /--goog-border:#747775;/.test(html) && /--goog-border:#8E918F;/.test(html) &&
+        /--goog-bg:#131314;/.test(html) &&
+        /\.si-oauth\{[^}]*border:1px solid var\(--goog-border\);[^}]*background:var\(--goog-bg\)/.test(html));
+      ok('...keeping the shadow in light and dropping it in dark',
+        /\.si-oauth\{[^}]*box-shadow:var\(--shadow-sm\)/.test(html) &&
+        /html\[data-theme="dark"\] \.si-oauth\{box-shadow:none/.test(html));
+      ok('...and hover no longer fires on the disabled one',
+        /\.si-oauth:not\(\[disabled\]\):hover\{/.test(html) && !/\.si-oauth:hover\{/.test(html));
+
+      /* ---------- D5/D6/D9/D10/D11a/D13/D14: the polish pass ---------- */
+      ok('the eleven vertical gaps collapse to three tokens',
+        /--si-1:8px;/.test(html) && /--si-2:16px;/.test(html) && /--si-3:24px;/.test(html) &&
+        /\.si-name\{[^}]*margin:var\(--si-1\) 0 var\(--si-3\)/.test(html) &&
+        /\.si-field\{[^}]*margin-bottom:var\(--si-2\)/.test(html) &&
+        /\.si-foot\{margin-top:var\(--si-3\)/.test(html) &&
+        /\.si-msg\{margin-top:var\(--si-2\)/.test(html) &&
+        /\.si-note\{margin-top:var\(--si-2\)/.test(html) &&
+        /\.si-skip\{[^}]*margin-top:var\(--si-1\)/.test(html) &&
+        /\.si-or\{[^}]*margin:var\(--si-3\) 0/.test(html));
+      ok('the CTA carries its own separation, so it stops jumping between modes',
+        /\.si-row\{[^}]*margin:var\(--si-1\) 0 0\}/.test(html) &&
+        /\.si-cta\{[^}]*margin-top:var\(--si-3\)/.test(html));
+      ok('the header is a login header, not a landing-page hero',
+        /\.si-name\{[^}]*font-size:var\(--f6\)[^}]*color:var\(--text\)/.test(html) &&
+        /\.si-name\{[^}]*overflow-wrap:break-word/.test(html) &&
+        !/\.si-name\{[^}]*overflow-wrap:anywhere/.test(html) &&
+        /\.si-kicker\{font-size:var\(--f2\)/.test(html));
+      ok('...and the header block is centred with the rest of the column',
+        /\.si-kicker\{[^}]*text-align:center/.test(html) &&
+        /\.si-name\{[^}]*text-align:center/.test(html));
+      // Asserted as the goal rather than as the literal that was first prescribed.
+      // .si-link was written as padding:10px, which measured 36px tall: the 13px font's
+      // line box is ~16px, so 10+16+10 lands 8px under the 44px floor the rule exists to
+      // clear. The padding has to be >=14px, and the margin has to cancel it exactly or
+      // the control moves. Checking the arithmetic keeps the next edit honest.
+      ok('the two smallest touch targets are padded out without moving a pixel', (function () {
+        const eye = /\.si-eye\{[^}]*padding:12px;margin:-12px/.test(html);
+        const m = /\.si-link\{[^}]*padding:(\d+)px (\d+)px;margin:-(\d+)px -(\d+)px\}/.exec(html);
+        if (!m) return false;
+        const [padY, padX, marY, marX] = m.slice(1).map(Number);
+        return eye && padY >= 14 && padY + 16 + padY >= 44 && marY === padY && marX === padX;
+      })());
+      ok('the stray closing brace after the sign-in media query is gone',
+        !/@media \(max-width:560px\)\{\s*\.si-wrap\{padding:24px 18px;align-content:start\}\s*\}\s*\}/.test(html));
+
+      /* ONE sign-in surface, not two. A modal version of the same two fields survived
+         here as dead code after the screen replaced it, carrying its own copy, its own
+         Forgot password button and a guard toast naming Firebase. A dead second version
+         of the login is how two answers to "what does signing in look like" come back,
+         so it is gone, along with the auth-reset action only it used. */
+      ok('there is no second, modal version of the sign-in form left lying around',
+        typeof window.authEmailModal === 'undefined' && html.indexOf('authEmailModal') === -1 &&
+        html.indexOf("action==='auth-reset'") === -1);
+      ok('...and password reset itself is untouched, on the screen that has the field',
+        typeof window.authSendReset === 'function' && html.indexOf("action==='signin-forgot'") > 0);
       ok('sign in, create an account and forgot password all lead to the one screen',
         /action==='auth-signin-email'\)\{ acctMenuClose\(true\); signInOpen\('in'\)/.test(html) &&
         /action==='auth-signup'\)\{ acctMenuClose\(true\); signInOpen\('up'\)/.test(html) &&
@@ -4570,6 +5424,100 @@ async function main() {
       ok('settings cards size to their content instead of stretching to their neighbour',
         /\.settings-grid>\.card\{align-self:start\}/.test(html) &&
         /class="grid grid-2 settings-grid"/.test(html));
+    })();
+
+    // ---------- the key field takes what the console actually gives you ----------
+    /* The Firebase console does not hand you a Web API key on its own. It hands you a block
+       of JavaScript. Asking somebody to pick one line out of it is how a two minute job
+       becomes a support conversation, so the field takes either the bare key or the whole
+       snippet pasted as it was copied. */
+    (function pastedConfig() {
+      const SNIP = 'const firebaseConfig = {\n' +
+        '  apiKey: "AIzaSyD-ExampleKey_1234567890abcdefg",\n' +
+        '  authDomain: "google-auth-x1.firebaseapp.com",\n' +
+        '  projectId: "google-auth-x1",\n' +
+        '  appId: "1:123456789012:web:abc123def456"\n};';
+      const bare = window.authParseConfig('AIzaSyD-ExampleKey_1234567890abcdefg');
+      ok('a bare key is taken as a key and not mangled by the parser',
+        bare.apiKey === 'AIzaSyD-ExampleKey_1234567890abcdefg' && !bare.projectId, bare);
+      const snip = window.authParseConfig(SNIP);
+      ok('the whole console snippet yields the key, the project and the auth domain',
+        snip.apiKey === 'AIzaSyD-ExampleKey_1234567890abcdefg' &&
+        snip.projectId === 'google-auth-x1' &&
+        snip.authDomain === 'google-auth-x1.firebaseapp.com', snip);
+      /* The one value the Firebase snippet does NOT carry, so it is recognised by its own
+         unmistakable shape wherever it appears. */
+      ok('an OAuth client id is recognised anywhere in a paste, by its shape',
+        window.authParseConfig('99-xyz.apps.googleusercontent.com').clientId === '99-xyz.apps.googleusercontent.com' &&
+        window.authParseConfig(SNIP.replace('};', '  clientId: "99-xyz.apps.googleusercontent.com"\n};')).clientId === '99-xyz.apps.googleusercontent.com');
+      ok('a JSON-shaped config works too, since people paste both',
+        window.authParseConfig('{"apiKey":"AIzaSyD-ExampleKey_1234567890abcdefg"}').apiKey === 'AIzaSyD-ExampleKey_1234567890abcdefg');
+      /* Anything that is not a config block is taken WHOLE as the key, even when it does
+         not look like one, and Google decides. A pattern strict enough to recognise a real
+         key also silently discards a mistyped one, and a value that vanishes on save with
+         no message is worse than one that comes back rejected by name. */
+      ok('text that is not a config block is passed on as the key for Google to judge',
+        window.authParseConfig('hello there').apiKey === 'hello there');
+      ok('...but an empty paste yields nothing at all',
+        Object.keys(window.authParseConfig('')).length === 0 &&
+        Object.keys(window.authParseConfig('   ')).length === 0);
+    })();
+
+    // ---------- connecting a project says which step is missing ----------
+    /* Three things in two consoles have to be right before Google sign-in works, and each
+       one fails with an error naming none of them: a wrong key answers "API key not valid",
+       an unlisted domain answers with a redirect_uri_mismatch the popup swallows, and a
+       provider left switched off answers only when somebody actually tries. The check says
+       which of the three is missing instead of leaving somebody to guess.
+       The host is a parameter because a test harness necessarily runs on a local address,
+       where the domain check short-circuits, so the branch that matters could not otherwise
+       be exercised at all. */
+    await (async function setupCheck() {
+      const realFetch = window.fetch;
+      const share = window.shareCfg();
+      const savedKey = share.apiKey, savedCid = share.clientId;
+      const reply = (ok, body) => { window.fetch = () => Promise.resolve({ ok, status: ok ? 200 : 400,
+        text: () => Promise.resolve(JSON.stringify(body)) }); };
+      try {
+        share.apiKey = ''; share.clientId = '';
+        let rows = await window.authSetupCheck('books.example.com');
+        ok('with nothing pasted, every step reports as not done',
+          rows.length === 4 && rows.slice(0, 3).every((r) => r.ok === false), rows);
+        /* The one failure nothing can detect at runtime. An unregistered redirect URI makes
+           Google stop on its own error page before it ever comes back, so the callback never
+           fires and the popup just sits there. It is stated up front, with the exact string
+           to paste, because the alternative is a silent hang with nothing to go on. */
+        ok('...and the redirect URI is given outright, since its failure is undetectable',
+          rows[3].ok === null && rows[3].fix.indexOf(window.authRedirectUri()) === 0, rows[3]);
+
+        share.apiKey = 'AIzaOK';
+        reply(true, { projectId: 'google-auth-x1', authorizedDomains: ['google-auth-x1.firebaseapp.com'] });
+        rows = await window.authSetupCheck('books.example.com');
+        ok('a good key names the project it reached', rows[0].ok && /google-auth-x1/.test(rows[0].fix), rows[0]);
+        /* The single most common reason a CORRECT key still refuses every sign-in, and the
+           one Google's own error is least helpful about. */
+        ok('a domain that is not on the project list is named, with where to add it',
+          !rows[1].ok && /books\.example\.com/.test(rows[1].fix) && /Authorised domains/.test(rows[1].fix), rows[1]);
+        ok('...and a missing client id is reported as no Google button, not as a failure',
+          !rows[2].ok && /email and password/.test(rows[2].fix), rows[2]);
+
+        share.clientId = 'x.apps.googleusercontent.com';
+        reply(true, { projectId: 'google-auth-x1', authorizedDomains: ['books.example.com'] });
+        rows = await window.authSetupCheck('books.example.com');
+        ok('with all three done, all three report done',
+          rows.slice(0, 3).every((r) => r.ok === true), rows);
+        ok('...and the redirect URI is still shown, because it cannot be checked either way',
+          rows[3].ok === null, rows[3]);
+
+        reply(false, { error: { message: 'API key not valid. Please pass a valid API key.' } });
+        rows = await window.authSetupCheck('books.example.com');
+        ok('a key Google rejects says so, and the later steps say they could not be checked',
+          !rows[0].ok && /Copy it again/.test(rows[0].fix) && /Cannot be checked/.test(rows[1].fix), rows);
+      } finally {
+        window.fetch = realFetch;
+        share.apiKey = savedKey; share.clientId = savedCid;
+        window.save();
+      }
     })();
 
     // ---------- the profile is a page, and the top bar collapses instead of clipping ----------
