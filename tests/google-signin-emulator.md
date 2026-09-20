@@ -55,6 +55,24 @@ and reported in the live region. 15 checks, all passing as of the refactor.
 
     cd tests && node real-auth.js      # needs the emulator below already running
 
+`real-google.js` does the same for the Google flow, which had the identical gap: it was
+last proven before the refactor too. 12 checks — the button is live once a client id
+exists, the URL opened is Google's with our client id and `response_type=id_token` and a
+fresh state and nonce, each of the three guards refuses on its own, a genuine Google
+credential is exchanged at the real server for a session recorded as provider `google`
+with a real token and refresh token, and a declined consent comes back as `access_denied`
+signing nobody in.
+
+    cd tests && node real-google.js
+
+A third trap, on top of the two below, and the costliest: the reply must be **sent from**
+the popup's realm, not merely addressed through it. `popup.parent.postMessage(...)` called
+from the main window is still executed by the main window, so `e.source` is the main
+window and guard 2 drops it — which looks exactly like a hang, and makes every other guard
+appear to pass when it is really the source check firing every time. Append a script
+element to the iframe's document instead. `eval` would also run in the right realm but the
+app ships no `unsafe-eval`, and an `about:blank` iframe inherits that policy.
+
 One trap worth keeping: drive sign-out through the real delegated handler, not by calling
 `authSignOut()`. The toast and the re-raised screen live in the handler, so the bare
 function clears the session and proves nothing about what a person sees. Appending a real
