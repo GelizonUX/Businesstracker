@@ -38,10 +38,36 @@ The only step not exercised is Google's own consent screen, which needs a real O
 client id and a registered redirect URI. It is Google's page, not ours: there is no code
 of ours left between the popup opening and the session existing.
 
-## Running it
+## Re-run after any change to the sign-in screen
+
+`real-auth.js` in this folder is the same idea made repeatable, and it exists because the
+sign-in screen was heavily refactored after the run above: the z-order, the Google
+button's rendering, the submit path and the validation check all moved. Mocked assertions
+and the demo path both stayed green through that, and neither would have noticed if the
+configured path had broken, because neither one talks to a server.
+
+It drives the REAL path against the REAL emulator, with `AUTH_CFG` populated at runtime:
+the demo banner and prefilled values disappear, the Google button un-disables and carries
+`auth-google`, an account is created, a genuine three-part JWT lands in `bizpilot.auth`,
+sign-out clears it and its toast is hit-tested as actually visible over the re-raised
+screen, the same credentials sign back in, and a wrong password is refused by the server
+and reported in the live region. 15 checks, all passing as of the refactor.
+
+    cd tests && node real-auth.js      # needs the emulator below already running
+
+One trap worth keeping: drive sign-out through the real delegated handler, not by calling
+`authSignOut()`. The toast and the re-raised screen live in the handler, so the bare
+function clears the session and proves nothing about what a person sees. Appending a real
+element carrying `data-action="auth-signout"` and clicking it exercises the delegate.
+
+## Running the emulator
 
     npm install firebase-tools
     firebase emulators:start --only auth --project google-auth-demo
+
+It needs Java. It may log a failure reaching `firebase-public.firebaseio.com` (a version
+check) and still start the auth emulator on 9099 perfectly well, so check the port before
+believing the error: `curl 127.0.0.1:9099` answers with `"authEmulator":{"ready":true}`.
 
 The emulator serves the identitytoolkit API at 127.0.0.1:9099. Two things matter:
 
