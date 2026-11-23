@@ -15,16 +15,16 @@ function serve(){
   });
 }
 const CLEAN=function(){
-  ['greet-root','onboard-root','lock-root','consent-root'].forEach(function(id){ var e=document.getElementById(id); if(e) e.innerHTML=''; });
-  document.querySelectorAll('.greet-overlay,.onb-overlay,.toast').forEach(function(e){ e.remove(); });
+  var e=document.getElementById('lock-root'); if(e) e.innerHTML='';
+  document.querySelectorAll('.toast').forEach(function(e){ e.remove(); });
 };
 async function boot(page,opts){
   opts=opts||{};
-  await page.addInitScript(function(){ try{ localStorage.setItem('bizpilot.tourdone','1'); }catch(_){ } });
   await page.goto(opts.url,{waitUntil:'load'});
   await page.waitForFunction(function(){ return typeof window.state==='object'&&window.state&&window.state.settings; },null,{timeout:30000});
   await page.evaluate(function(o){
-    state.settings.onboarded=true; state.settings.startDismissed=true;
+    // an owner who has already opened the book: no first-run question, no connections notice
+    state.settings.onboarded=true;
     state.settings.privacy=Object.assign({},state.settings.privacy,{consent:'all'});
     if(o.sample&&typeof loadSampleData==='function'&&state.finance.length===0) loadSampleData();
     save(); applyTheme(); render();
