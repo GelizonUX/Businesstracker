@@ -18226,8 +18226,32 @@ document.addEventListener('pointercancel',function(e){ if(e.pointerType==='touch
 function renderRouted(){
   var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if(reduce||typeof document.startViewTransition!=='function'){ render(); return; }
-  try{ document.startViewTransition(function(){ render(); }); }
-  catch(_){ render(); } // never let a transition failure cost the user their navigation
+  var vt;
+  try{ vt=document.startViewTransition(function(){ render(); }); }
+  catch(_){ render(); return; } // never let a transition failure cost the user their navigation
+  vtIgnoreSkip(vt);
+}
+/* A second route change before the first transition has finished is the API working
+   as designed: the browser skips the older transition (its render() still runs) and
+   rejects that transition's promises with AbortError. Nobody was listening, so every
+   skip reached the unhandledrejection listener and raised a red "Background task
+   failed" toast for a navigation that had in fact worked.
+   Only the abort is swallowed. Anything else is rethrown so it still surfaces, and
+   because a render() failure rejects all three promises with the one error object,
+   it is rethrown once rather than three times. */
+function vtIgnoreSkip(vt){
+  if(!vt) return;
+  var reported=[];
+  ['updateCallbackDone','ready','finished'].forEach(function(k){
+    var p=vt[k];
+    if(!p||typeof p.then!=='function') return;
+    p.then(null,function(err){
+      if(err&&err.name==='AbortError') return;
+      if(reported.indexOf(err)>-1) return;
+      reported.push(err);
+      throw err;
+    });
+  });
 }
 window.addEventListener('hashchange',function(){
   /* the screen sits over the app, so opening it must not also redraw the page underneath */
