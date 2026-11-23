@@ -215,23 +215,18 @@ async function main() {
       // spaces around it; prose is written word — word. So test the rule. The single
       // permitted prose dash is 'estimate — unverified', which two other assertions
       // match on, so changing it has to be a deliberate act in the same commit.
-      // A SECOND permitted prose dash now exists, and only one: the sign-in screen's
-      // demo notice, 'the button below just opens the books — nothing is checked'. It is
-      // agreed product copy, matched verbatim by the assertion further down that checks
-      // the banner no longer claims 'every button just opens the books', so changing it
-      // has to be a deliberate act in the same commit, exactly like the other one.
+      // (A second one was permitted for a while: the sign-in screen's demo notice. The
+      // screen is gone and so is its dash.)
       const proseDashes = html.match(/\S[  ]—[  ]\S/g) || [];
       ok('no em dash is used as prose (placeholder glyphs are fine)',
-        proseDashes.length === 2 && proseDashes.some((x) => /e — u/.test(x)) &&
-        proseDashes.some((x) => /s — n/.test(x)), proseDashes.slice(0, 5));
+        proseDashes.length === 1 && /e — u/.test(proseDashes[0]), proseDashes.slice(0, 5));
       ok('the mobile-table placeholder regex still has its glyph', /\/\^\[—–-\]\+\$\//.test(html));
     })();
 
     // ---------- security: escaping + CSP + safeColor ----------
     // Every roadmap object reaches an HTML ATTRIBUTE, and importData() deep-merges
-    // whatever JSON it is handed while cloudMerge() takes records off a database
-    // anyone with the URL can write to, so a backup someone sends you is the
-    // delivery path, and so is a shared database. A first fix hardened frames, stamps and edges and left notes,
+    // whatever JSON it is handed, so a backup someone sends you is the
+    // delivery path. A first fix hardened frames, stamps and edges and left notes,
     // tables, comments and nodes wide open; there were zero assertions here, which is
     // exactly why that survived. Test the RULE, on every renderer, forever.
     //
@@ -265,6 +260,24 @@ async function main() {
     })();
     ok('no unescaped image src in source', html.match(/src="'\+(?!esc\()/g) === null);
     ok('CSP meta present', !!d.querySelector('meta[http-equiv="Content-Security-Policy"]'));
+    // The policy used to name Firebase's database wildcards and Google's two identity
+    // hosts. Nothing talks to them any more, so the only place script in this origin can
+    // send anything is the page's own origin and the exchange-rate API.
+    (function cspNamesOnlyWhatIsUsed() {
+      const csp = d.querySelector('meta[http-equiv="Content-Security-Policy"]').getAttribute('content');
+      const dir = (name) => (csp.split(';').map((x) => x.trim()).filter((x) => x.indexOf(name + ' ') === 0)[0] || '')
+        .split(/\s+/).slice(1);
+      ok('connect-src is the page itself and the exchange-rate API, and nothing else',
+        dir('connect-src').join(' ') === "'self' https://open.er-api.com", dir('connect-src'));
+      ok('...so the identity and database hosts are no longer allowed',
+        !/identitytoolkit|securetoken|googleapis|firebaseio|firebasedatabase|accounts\.google/.test(csp), csp);
+      ok('...and nothing was opened up to make room: no frame-src, form-action stays on self',
+        dir('frame-src').length === 0 && dir('form-action').join(' ') === "'self'" && dir('script-src').join(' ') === "'self' 'unsafe-inline'");
+      const headers = fs.readFileSync(path.join(__dirname, '..', '_headers'), 'utf8');
+      const redirects = fs.readFileSync(path.join(__dirname, '..', '_redirects'), 'utf8');
+      ok('the deploy config names none of those hosts and routes no sign-in callback either',
+        !/identitytoolkit|securetoken|googleapis|firebase|oauth/i.test(headers + redirects));
+    })();
     ok('CSP blocks objects + framing', /object-src 'none'/.test(html) && /frame-ancestors 'none'/.test(html));
     ok('safeColor rejects injection', window.safeColor('red"><img>') === '#0260a6' && window.safeColor('#10b981') === '#10b981');
     window.state.settings.bizLogo = 'x" onerror="alert(1)';
@@ -299,9 +312,9 @@ async function main() {
     // This block used to mint licence keys. The gate it tested was never enforceable:
     // an audit of this repo forged a working key out of the repo's own contents, and
     // separately walked past isActivated() with one localStorage.setItem, because
-    // isActivated() only ever checked the SHAPE of that value. What replaced it is an
-    // account, which is enforceable only because Firebase's rules check the token on
-    // their server. So what is asserted here is the removal, not a replacement gate.
+    // isActivated() only ever checked the SHAPE of that value. Nothing replaced it:
+    // the accounts that came after it are gone too (see accountsRetired below). So
+    // what is asserted here is the removal, not a replacement gate.
     (function licenceGateRetired() {
       // 1. nothing in the app implements a gate any more
       const goneFromApp = ['GATE', 'gateEndpoint', 'gateReadLicense', 'gateFetch', 'verifyActivation',
@@ -316,7 +329,7 @@ async function main() {
       window.location.hash = '#/dashboard';
       window.bootApp();
       ok('the app opens straight into itself with no gate', d.getElementById('main').innerHTML.length > 50
-        && (d.getElementById('signin-root') === null || d.getElementById('signin-root').innerHTML === ''));
+        && d.getElementById('signin-root') === null);
 
       // 3. the one-line bypass the audit used. It used to be a skeleton key; now it is
       //    a stray localStorage entry that grants exactly nothing, because nothing reads it.
@@ -325,11 +338,6 @@ async function main() {
       ok('a forged activation record in localStorage grants nothing (nothing reads it)',
         !/bizpilot\.activation/.test(html) && d.getElementById('main').innerHTML.length > 50);
       window.localStorage.removeItem('bizpilot.activation');
-
-      // 4. sign-in is not a paywall: the flag exists, defaults off, and says so
-      ok('REQUIRE_SIGNIN ships off, so local use needs no account', window.REQUIRE_SIGNIN === false);
-      ok('the flag admits in writing that it stops nobody determined',
-        /REQUIRE_SIGNIN[\s\S]{0,80}=false/.test(html) && /stops nobody/.test(html));
     })();
 
     // ---------- no licence artefact survives ANYWHERE in the repo ----------
@@ -1246,16 +1254,19 @@ async function main() {
 
     // ---- backup safety system ----
     window.state.finance = Array.from({length:6}, (_,i) => ({ id:'bk'+i, type:'expense', amount:100, date:'2026-01-01', category:'Other expense' }));
-    window.state.settings.lastBackup = null; window.state.settings.sync = { enabled:false, lastSync:null }; window.state.settings.backupSnooze = null;
-    ok('dataAtRisk() is true with records and no backup/sync', window.dataAtRisk() === true);
+    window.state.settings.lastBackup = null; window.state.settings.backupSnooze = null;
+    ok('dataAtRisk() is true with records and no backup', window.dataAtRisk() === true);
     window.location.hash = '#/dashboard'; window.render();
     ok('safety banner shows on the dashboard when at risk', !!d.querySelector('.backup-banner'));
     click(d.querySelector('[data-action="snooze-backup"]'));
     ok('snoozing hides the banner', !d.querySelector('.backup-banner') && !!window.state.settings.backupSnooze);
     window.state.settings.backupSnooze = null; window.state.settings.lastBackup = window.todayISO(); window.render();
     ok('a fresh backup clears the risk (no banner)', window.dataAtRisk() === false && !d.querySelector('.backup-banner'));
+    // Cloud sync used to clear the risk as well. It is gone, so a backup file is the only
+    // thing that does, and a sync block left behind by an older build must not count.
     (function(){ window.state.settings.lastBackup = null; window.state.settings.sync = { enabled:true, lastSync: window.todayISO()+'T00:00:00' };
-      ok('active cloud sync also clears the risk', window.dataAtRisk() === false); })();
+      ok('a leftover cloud-sync block does not clear the risk: only a backup file does', window.dataAtRisk() === true);
+      delete window.state.settings.sync; })();
 
     // ---------- island top navigation (desktop shell) ----------
     window.location.hash = '#/dashboard'; window.render();
@@ -1526,10 +1537,8 @@ async function main() {
       // amplitude, and its whole refraction pass measured a lens on/off delta of
       // 0.2/765 — a filter that provably did nothing on the largest composited surface
       // in the app. The dim only dims now; the sheet is the material that blurs.
-      // The z-index moved from 100 to 580 when the sign-in screen was lifted clear of the
-      // first-run greeting: a modal raised FROM that screen has to draw over it. What this
-      // assertion is about is the backdrop-filter, so it no longer pins the number; the
-      // stacking order itself is asserted on its own further down.
+      // What this assertion is about is the backdrop-filter, so it does not pin the
+      // z-index; the stacking order itself is asserted on its own further down.
       ok('the modal overlay dims but does not blur (the sheet is the glass)',
         /\.modal-overlay\{position:fixed;inset:0;background:rgba\(8,10,22,\.6\);z-index:\d+/.test(html) &&
         !/\.modal-overlay\{[^}]*backdrop-filter/.test(html));
@@ -2292,12 +2301,9 @@ async function main() {
         ok('view transitions use the smooth spring and are reduced-motion guarded',
           /::view-transition-new\(main-content\)\{animation:vtIn [^}]*var\(--spring-smooth\)/.test(css) &&
           /@media \(prefers-reduced-motion:reduce\)\{\s*::view-transition-old\(main-content\),::view-transition-new\(main-content\)\{animation:none/.test(css));
-        /* hashchange still drives renderRouted; it goes through a wrapper now because
-           #/signin opens a full-page screen OVER the app and must not also redraw what is
-           underneath it. The fallback being asserted is unchanged. */
         ok('routing degrades gracefully where startViewTransition is absent',
           /typeof document\.startViewTransition!=='function'/.test(html) &&
-          /window\.addEventListener\('hashchange',function\(\)\{[\s\S]{0,300}?renderRouted\(\);/.test(html));
+          /window\.addEventListener\('hashchange',renderRouted\)/.test(html));
         // 2) entrances overshoot (physical), instead of plain fades
         ok('node entrance overshoots before settling (spring physics)', /@keyframes rmNodeIn\{[\s\S]{0,220}?scale\(1\.02\)/.test(css));
         ok('popover entrance overshoots before settling', /@keyframes rmPopIn\{[\s\S]{0,220}?translateY\(1px\)/.test(css));
@@ -3663,842 +3669,123 @@ async function main() {
       window.location.hash = '#/dashboard'; window.render();
     })();
 
-    // =====================================================================
-    // CLOUD SYNC — per-record push, per-record merge, tombstones, migration
-    // Nothing here touches a real database. A fake Firebase Realtime Database
-    // is stubbed into window.fetch and implements the two verbs the app uses:
-    // GET returns a deep copy of the node, PATCH replaces the children NAMED in
-    // the body and leaves that node's other children alone (null removes one).
-    // Two devices are simulated by swapping window.state and window.DEVICE_ID,
-    // which is what the app itself keys every write on.
-    // Every assertion below reads STATE, not rendered HTML: an earlier round of
-    // work in this project shipped a half-finished fix because a rendered string
-    // said what the test wanted to hear.
-    // =====================================================================
-    await (async function perRecordSync() {
-      const realFetch = window.fetch, realToast = window.toast, realRender = window.render;
-      const realState = window.state, realDev = window.DEVICE_ID, realKey = window.cryptoKey;
-      const realNow = window.Date.now, realFmt = window.cloudFormatKnown;  // the app runs on jsdom's Date, not node's
-      const T0 = Date.parse('2026-06-01T00:00:00Z');
-      const T = (n) => T0 + n * 60000;
-      let clock = T0;
-      const toasts = [];
-      const calls = [];
-      const db = {};
+    // ================= the pages that describe the product say what it is =================
+    // These used to be asserted twice, once with sharing off and once with it on, because
+    // the two were different products and each page had to tell the truth about both.
+    // There is one product now: the books are in this browser and nowhere else.
+    (function honestCopy() {
       try {
-        window.Date.now = () => clock;
-        window.cryptoKey = null;                    // this block writes plain JSON to localStorage
-        window.toast = (m, t) => { toasts.push({ msg: m, type: t || 'good' }); };
-        window.render = () => {};
-
-        const clone = (v) => (v === undefined || v === null ? null : JSON.parse(JSON.stringify(v)));
-        function readAt(segs) {
-          let cur = db;
-          for (const s of segs) { if (cur === null || cur === undefined || typeof cur !== 'object') return null; cur = cur[s]; }
-          return cur === undefined ? null : cur;
-        }
-        function nodeAt(segs) {
-          let cur = db;
-          for (const s of segs) {
-            if (cur[s] === undefined || cur[s] === null || typeof cur[s] !== 'object') cur[s] = {};
-            cur = cur[s];
-          }
-          return cur;
-        }
-        function jres(v) {
-          const s = JSON.stringify(v === undefined ? null : v);
-          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(JSON.parse(s)), text: () => Promise.resolve(s) });
-        }
-        window.fetch = function (url, opts) {
-          opts = opts || {};
-          const method = opts.method || 'GET';
-          const u = String(url);
-          const m = u.match(/^https:\/\/db\.test\/(.*)\.json$/);
-          if (!m) return Promise.reject(new Error('the app reached a URL the stub does not serve: ' + u));
-          const segs = m[1] ? m[1].split('/') : [];
-          const body = opts.body ? JSON.parse(opts.body) : undefined;
-          calls.push({ method, path: m[1], body });
-          if (method === 'GET') return jres(clone(readAt(segs)));
-          if (method === 'PATCH') {
-            const parent = nodeAt(segs);
-            Object.keys(body).forEach((k) => { if (body[k] === null) delete parent[k]; else parent[k] = clone(body[k]); });
-            return jres(body);
-          }
-          return Promise.reject(new Error('the app used an unexpected method: ' + method));
-        };
-
-        const devs = {};
-        function blank(path) {
-          const s = JSON.parse(JSON.stringify(window.DEFAULT_STATE));
-          s.meta = { createdAt: '2026-01-01' };
-          s.settings.sync = { url: 'https://db.test', path: path || 'p', enabled: false, lastSync: null };
-          return s;
-        }
-        function use(id) {
-          if (!devs[id]) devs[id] = blank();
-          window.DEVICE_ID = id;
-          window.state = devs[id];
-          window.cloudFormatKnown = false;          // every device checks the format for itself
-          return devs[id];
-        }
-        const push = (id) => { use(id); return window.cloudPush(true); };
-        const pull = (id) => { use(id); return window.cloudPull(); };
-        const rows = (id, coll) => devs[id][coll || 'finance'] || [];
-        const one = (id, coll, rid) => rows(id, coll).filter((r) => r.id === rid)[0];
-        const ids = (id, coll) => rows(id, coll).map((r) => r.id).sort().join(',');
-        const uniq = (id, coll) => new Set(rows(id, coll).map((r) => r.id)).size === rows(id, coll).length;
-        function add(id, coll, rec, at) { use(id); clock = at; devs[id][coll].push(rec); window.syncScan(); }
-        function edit(id, coll, rid, patch, at) { use(id); clock = at; Object.assign(one(id, coll, rid), patch); window.syncScan(); }
-        function del(id, coll, rid, at) { use(id); clock = at; devs[id][coll] = devs[id][coll].filter((r) => r.id !== rid); window.syncScan(); }
-        const patches = (path) => calls.filter((c) => c.method === 'PATCH' && c.path === path);
-
-        // ---------- a push writes one address per record ----------
-        clock = T(1);
-        use('A');
-        devs.A.finance.push({ id: 'f1', type: 'income', amount: 1000, category: 'Sales', date: '2026-06-01', note: 'first sale' });
-        devs.A.finance.push({ id: 'f2', type: 'expense', amount: 250, category: 'Supplies', date: '2026-06-01', note: 'ink' });
-        window.save();                                // the ledger is refreshed by the normal save path
-        ok('save() notes what changed, so nothing has to be stamped at 300 call sites',
-          !!devs.A.meta.sync && !!devs.A.meta.sync.recs['finance/f1'] && !!devs.A.meta.sync.recs['finance/f2'],
-          Object.keys((devs.A.meta.sync || {}).recs || {}));
-        await push('A');
-        ok('a push writes one document per record, not one blob',
-          !!db.p.v2.finance.f1 && !!db.p.v2.finance.f2 && db.p.finance === undefined, Object.keys(db.p));
-        const first = patches('p/v2/finance');
-        ok('the record write is a PATCH to <path>/v2/<collection>.json keyed by record id',
-          first.length === 1 && Object.keys(first[0].body).sort().join(',') === 'f1,f2',
-          first.map((c) => c.path + ' ' + Object.keys(c.body).join(',')));
-        ok('each record travels with updatedAt in epoch ms and updatedBy',
-          first[0].body.f1.updatedAt === T(1) && first[0].body.f1.updatedBy === 'A' && first[0].body.f1.rec.amount === 1000,
-          first[0].body.f1);
-        ok('updatedBy is a plain id field, so a user id can take the device id’s place later',
-          typeof first[0].body.f1.updatedBy === 'string');
-        calls.length = 0;
-        edit('A', 'finance', 'f1', { amount: 1100 }, T(2));
-        await push('A');
-        ok('a later push sends only the record that changed, never the collection',
-          patches('p/v2/finance').length === 1 && Object.keys(patches('p/v2/finance')[0].body).join(',') === 'f1',
-          patches('p/v2/finance').map((c) => Object.keys(c.body)));
-        ok('...and an unchanged record is not re-sent at all',
-          patches('p/v2/finance')[0].body.f2 === undefined);
-
-        // ---------- two devices, different records ----------
-        await pull('B');
-        ok('a device that has never synced picks the whole book up on its first merge',
-          rows('B').length === 2 && one('B', 'finance', 'f1').amount === 1100);
-        edit('A', 'finance', 'f1', { note: 'A touched this one' }, T(10));
-        await push('A');
-        edit('B', 'finance', 'f2', { amount: 275 }, T(11));
-        await push('B');
-        await pull('A');
-        await pull('B');
-        ok('two devices editing DIFFERENT records: both edits survive on both devices',
-          one('A', 'finance', 'f1').note === 'A touched this one' && one('A', 'finance', 'f2').amount === 275 &&
-          one('B', 'finance', 'f1').note === 'A touched this one' && one('B', 'finance', 'f2').amount === 275,
-          [one('A', 'finance', 'f1').note, one('A', 'finance', 'f2').amount, one('B', 'finance', 'f1').note, one('B', 'finance', 'f2').amount]);
-        ok('...and neither merge duplicated a finance entry',
-          rows('A').length === 2 && rows('B').length === 2 && uniq('A') && uniq('B'), [rows('A').length, rows('B').length]);
-
-        // ---------- two devices, the same record ----------
-        edit('A', 'finance', 'f1', { note: 'A wrote at 20' }, T(20));
-        edit('B', 'finance', 'f1', { note: 'B wrote at 21' }, T(21));
-        await push('B');
-        toasts.length = 0;
-        await pull('A');
-        ok('two devices editing the SAME record: the newest edit wins',
-          one('A', 'finance', 'f1').note === 'B wrote at 21', one('A', 'finance', 'f1').note);
-        ok('...and the merge reports the clash instead of discarding quietly',
-          toasts.length === 1 && /edited in both places/.test(toasts[0].msg) && toasts[0].type === 'warn', toasts);
-        edit('A', 'finance', 'f1', { note: 'A wrote at 29' }, T(29));
-        await push('A');
-        edit('B', 'finance', 'f1', { note: 'B wrote at 30' }, T(30));
-        toasts.length = 0;
-        await pull('B');
-        ok('a local edit newer than the cloud copy is kept, and the clash is still reported',
-          one('B', 'finance', 'f1').note === 'B wrote at 30' && /edited in both places/.test(toasts[toasts.length - 1].msg),
-          [one('B', 'finance', 'f1').note, toasts]);
-        await push('B');
-        await pull('A');
-        ok('...and both devices settle on the newest of the two, with no third copy',
-          one('A', 'finance', 'f1').note === 'B wrote at 30' && rows('A').length === 2 && rows('B').length === 2 && uniq('A'));
-        ok('nothing in the merge copy promises to replace a device any more',
-          !/replace/i.test(toasts.map((t) => t.msg).join(' ')) && html.indexOf('Replace the data on THIS device with the cloud copy?') === -1);
-
-        // ---------- tombstones: a delete must not walk back in ----------
-        add('A', 'finance', { id: 'f3', type: 'expense', amount: 90, category: 'Fees', date: '2026-06-02', note: 'bank fee' }, T(40));
-        await push('A');
-        await pull('B');
-        ok('a record created on A reaches B', !!one('B', 'finance', 'f3'));
-        del('A', 'finance', 'f3', T(41));
-        ok('deleting locally records a tombstone rather than just dropping the key',
-          !!devs.A.meta.sync.tombs['finance/f3'] && !devs.A.meta.sync.recs['finance/f3'],
-          devs.A.meta.sync.tombs['finance/f3']);
-        await push('A');
-        ok('the tombstone is what goes up, at the record’s own address',
-          db.p.v2.finance.f3.deleted === true && db.p.v2.finance.f3.updatedAt === T(41) && db.p.v2.finance.f3.rec === undefined,
-          db.p.v2.finance.f3);
-        await pull('A');
-        ok('merging on the device that deleted it does not bring it back', !one('A', 'finance', 'f3'));
-        await pull('B');
-        ok('a delete on A does not resurrect from B: B drops it too',
-          !one('B', 'finance', 'f3') && rows('B').length === 2, ids('B'));
-        await push('B');
-        await pull('A');
-        ok('...and it is still gone after B pushes and A merges again',
-          !one('A', 'finance', 'f3') && rows('A').length === 2 && ids('A') === 'f1,f2');
-        del('B', 'finance', 'f2', T(45));
-        await pull('B');
-        ok('a delete that has NOT been pushed yet also survives a merge',
-          !one('B', 'finance', 'f2') && rows('B').length === 1, ids('B'));
-        await push('B');
-        await pull('A');
-        ok('...and reaches the other device as soon as it is pushed',
-          !one('A', 'finance', 'f2') && rows('A').length === 1 && ids('A') === 'f1');
-
-        // ---------- a record made offline on each device ----------
-        add('A', 'finance', { id: 'fa', type: 'income', amount: 500, category: 'Sales', date: '2026-06-03', note: 'offline on A' }, T(50));
-        add('B', 'finance', { id: 'fb', type: 'expense', amount: 120, category: 'Fuel', date: '2026-06-03', note: 'offline on B' }, T(51));
-        await push('A');
-        await push('B');
-        await pull('A');
-        await pull('B');
-        ok('a record created offline on each device arrives on both, exactly once',
-          ids('A') === 'f1,fa,fb' && ids('B') === 'f1,fa,fb' && uniq('A') && uniq('B'), [ids('A'), ids('B')]);
-        const sumA = rows('A').reduce((n, r) => n + r.amount, 0), sumB = rows('B').reduce((n, r) => n + r.amount, 0);
-        ok('the two devices agree on the money, to the peso', sumA === sumB && sumA === 1100 + 500 + 120, [sumA, sumB]);
-        const beforeRepeat = rows('A').length;
-        await pull('A'); await pull('A'); await pull('A');
-        ok('merging three times over changes nothing and duplicates no finance entry',
-          rows('A').length === beforeRepeat && uniq('A') && rows('A').reduce((n, r) => n + r.amount, 0) === sumA,
-          [rows('A').length, beforeRepeat]);
-
-        // ---------- money: an invoice that crosses devices still adds up ----------
-        use('A');
-        devs.A.invoices.push({ id: 'inv1', number: 'INV-1', client: 'Acme', desc: 'build', amount: 5000, issueDate: '2026-06-01', dueDate: '2026-06-15', status: 'Sent', createdAt: '2026-06-01' });
-        clock = T(55); window.syncScan();
-        await push('A');
-        await pull('B');
-        use('B');
-        ok('an invoice merged onto another device keeps receivables agreeing with themselves',
-          window.receivablesTotal() === window.receivablesSummary().total && window.receivablesTotal() === 5000,
-          [window.receivablesTotal(), window.receivablesSummary().total]);
-
-        // ---------- migration from the pre-v2 whole-blob document ----------
-        db.legacy = {
-          v: 2,
-          settings: { businessName: 'Old Books', currency: '₱', taxRate: 8 },
-          finance: [{ id: 'L1', type: 'income', amount: 1000, category: 'Sales', date: '2026-05-01', note: 'old sale' },
-                    { id: 'L2', type: 'expense', amount: 400, category: 'Rent', date: '2026-05-02', note: 'old rent' }],
-          invoices: [{ id: 'LI1', number: 'OLD-1', client: 'Wayne', desc: 'x', amount: 2500, issueDate: '2026-05-01', dueDate: '2026-05-20', status: 'Sent' }],
-          tasks: [{ id: 'LT1', title: 'old task', done: false }],
-          clients: [{ id: 'LC1', name: 'Wayne', status: 'Active' }],
-          meta: { createdAt: '2026-01-01', updatedAt: T(-100), deviceId: 'oldphone' }
-        };
-        devs.C = blank('legacy');
-        clock = T(60);
-        await pull('C');
-        ok('migration converts the old whole-blob copy into one document per record',
-          !!db.legacy.v2 && !!db.legacy.v2.finance.L1 && !!db.legacy.v2.finance.L2 &&
-          !!db.legacy.v2.invoices.LI1 && !!db.legacy.v2.tasks.LT1 && !!db.legacy.v2.clients.LC1,
-          Object.keys(db.legacy.v2 || {}));
-        ok('...and each converted record keeps the old copy’s own last-modified time and author',
-          db.legacy.v2.finance.L1.updatedAt === T(-100) && db.legacy.v2.finance.L1.updatedBy === 'oldphone',
-          db.legacy.v2.finance.L1);
-        ok('...and nothing is lost: every record and the settings reach the device',
-          rows('C').length === 2 && devs.C.invoices.length === 1 && devs.C.tasks.length === 1 &&
-          devs.C.clients.length === 1 && devs.C.settings.businessName === 'Old Books',
-          [rows('C').length, devs.C.invoices.length, devs.C.tasks.length, devs.C.settings.businessName]);
-        ok('...and the device keeps its own database address rather than the one it merged',
-          devs.C.settings.sync.path === 'legacy' && devs.C.settings.sync.url === 'https://db.test');
-        ok('...and the old document is left where it is rather than deleted under the owner',
-          Array.isArray(db.legacy.finance) && db.legacy.finance.length === 2);
-        ok('the conversion marks the format, which is what stops it running twice',
-          db.legacy.v2._meta.format === 2, db.legacy.v2._meta);
-        const afterFirst = JSON.stringify(db.legacy.v2);
-        const dataOf = (d) => JSON.stringify({ f: d.finance, i: d.invoices, t: d.tasks, c: d.clients, n: d.settings.businessName, led: d.meta.sync });
-        const stateAfterFirst = dataOf(devs.C);
-        calls.length = 0;
-        clock = T(61);
-        await pull('C');
-        ok('running the migration a second time writes nothing at all',
-          calls.filter((c) => c.method === 'PATCH').length === 0, calls.filter((c) => c.method === 'PATCH').map((c) => c.path));
-        ok('...and changes neither the database nor the device',
-          JSON.stringify(db.legacy.v2) === afterFirst && dataOf(devs.C) === stateAfterFirst);
-        // a conversion that died before it could mark the format. The records are
-        // already here, so the marker is simply restored: the old document must NOT
-        // be copied back over everything that has happened since.
-        delete db.legacy.v2._meta;
-        db.legacy.finance.push({ id: 'L9', type: 'income', amount: 1, category: 'Sales', date: '2026-05-03', note: 'only in the old copy' });
-        db.legacy.v2.finance.L1.rec.amount = 1234;   // something newer than the old copy
-        db.legacy.v2.finance.L1.updatedAt = T(70);
-        calls.length = 0;
-        clock = T(71);
-        await pull('C');
-        ok('a lost format marker is restored without re-copying the old document over newer records',
-          db.legacy.v2.finance.L1.rec.amount === 1234 && db.legacy.v2.finance.L9 === undefined &&
-          db.legacy.v2._meta.format === 2,
-          [db.legacy.v2.finance.L1.rec.amount, !!db.legacy.v2.finance.L9]);
-        ok('...and the only write it makes is the marker itself',
-          calls.filter((c) => c.method === 'PATCH').map((c) => c.path).join(',') === 'legacy/v2',
-          calls.filter((c) => c.method === 'PATCH').map((c) => c.path));
-        ok('...and the newer record is what the device ends up with',
-          one('C', 'finance', 'L1').amount === 1234, rows('C').map((r) => r.id + ':' + r.amount));
-        // a database that cannot be read must not be mistaken for a database with no records
-        const goodFetch = window.fetch;
-        window.fetch = (u, o) => (/legacy\/v2\/_meta\.json$/.test(String(u))
-          ? Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve(null), text: () => Promise.resolve('') })
-          : goodFetch(u, o));
-        const treeBefore = JSON.stringify(db.legacy.v2);
-        window.cloudFormatKnown = false;
-        toasts.length = 0;
-        await pull('C');
-        window.fetch = goodFetch;
-        ok('a read that fails is a merge that does not happen, not a migration that does',
-          JSON.stringify(db.legacy.v2) === treeBefore && /Could not merge/.test(toasts[toasts.length - 1].msg),
-          toasts[toasts.length - 1]);
-
-        // ---------- offline is still the normal case, not an error case ----------
-        const netless = window.fetch;
-        window.fetch = () => Promise.reject(new Error('offline'));
-        use('A');
-        devs.A.settings.sync.enabled = true;          // auto-push on, and no network at all
-        clock = T(80);
-        devs.A.finance.push({ id: 'off1', type: 'expense', amount: 42, category: 'Fuel', date: '2026-06-04', note: 'logged on the road' });
-        toasts.length = 0;
-        window.save();
-        const pushed = await window.cloudPush(true);
-        ok('with no network the record is still saved, still pending, and nobody is shouted at',
-          pushed === 0 && !!one('A', 'finance', 'off1') && devs.A.meta.sync.recs['finance/off1'].sy === 0 && toasts.length === 0,
-          [pushed, toasts]);
-        window.fetch = netless;
-        devs.A.settings.sync.enabled = false;
-        await push('A');
-        ok('...and it goes up on its own the moment the network is back',
-          !!db.p.v2.finance.off1 && db.p.v2.finance.off1.rec.amount === 42 && devs.A.meta.sync.recs['finance/off1'].sy === T(80),
-          db.p.v2.finance.off1);
-
-        // ---------- a device that never enabled sync is untouched ----------
-        const offline = blank();
-        offline.settings.sync = { url: '', path: 'bizpilot', enabled: false, lastSync: null };
-        window.state = offline; window.DEVICE_ID = 'D';
-        offline.finance.push({ id: 'z1', type: 'income', amount: 10, category: 'Sales', date: '2026-06-01' });
-        window.save();
-        ok('a device with no database URL keeps no ledger and makes no request',
-          offline.meta.sync === undefined && window.syncScan() === null);
-
-        if (process.env.SYNC_TRACE) {
-          console.log('\n--- SYNC TRACE: every request the stub saw (last run) ---');
-          calls.slice(-12).forEach((c) => console.log(c.method + ' https://db.test/' + c.path + '.json  ' + (c.body ? JSON.stringify(c.body) : '')));
-          console.log('--- cloud tree ---\n' + JSON.stringify(db, null, 1).slice(0, 4000));
-        }
-      } finally {
-        window.clearTimeout(window.cloudTimer);   // one scenario turned auto-push on
-        window.fetch = realFetch; window.toast = realToast; window.render = realRender;
-        window.state = realState; window.DEVICE_ID = realDev; window.cryptoKey = realKey;
-        window.Date.now = realNow; window.cloudFormatKnown = realFmt;
-      }
-    })();
-
-    // ================= workspaces, invites and losing access =================
-    // The stub below is not a mock that always says yes. It enforces the SAME rules
-    // this build ships in Settings, because the rules are the access control: a test
-    // where the database always answers 200 proves that a button was clickable, not
-    // that anybody was kept out. Every assertion here is on state or on the database
-    // contents, never on rendered markup — asserting on markup has reported a pass as
-    // a failure twice in this project.
-    await (async function workspacesAndInvites() {
-      const realFetch = window.fetch, realToast = window.toast, realRender = window.render;
-      const realState = window.state, realConfirm = window.confirm, realNow = window.Date.now;
-      const realAuth = window.localStorage.getItem('bizpilot.auth');
-      try {
-        window.toast = () => {}; window.render = () => {}; window.confirm = () => true;
-
-        const db = { workspaces: {}, users: {} };
-        const sessions = {};          // idToken -> the claims a real Firebase token would carry
-        let clock = Date.UTC(2026, 5, 1, 9, 0, 0);
-        window.Date.now = () => clock;
-
-        function signIn(uid, email, verified) {
-          const tok = 'idtok_' + uid;
-          sessions[tok] = { uid, email, email_verified: verified !== false };
-          window.localStorage.setItem('bizpilot.auth', JSON.stringify({
-            uid, email, name: '', idToken: tok, refreshToken: 'r_' + uid,
-            expiresAt: clock + 3600e3, provider: 'google', verified: verified !== false, at: clock
-          }));
-        }
-        function signOut() { window.localStorage.removeItem('bizpilot.auth'); }
-
-        const clone = (v) => (v === undefined || v === null ? null : JSON.parse(JSON.stringify(v)));
-        function readAt(segs) {
-          let cur = db;
-          for (const s of segs) { if (cur === null || cur === undefined || typeof cur !== 'object') return null; cur = cur[s]; }
-          return cur === undefined ? null : cur;
-        }
-        function nodeAt(segs) {
-          let cur = db;
-          for (const s of segs) {
-            if (cur[s] === undefined || cur[s] === null || typeof cur[s] !== 'object') cur[s] = {};
-            cur = cur[s];
-          }
-          return cur;
-        }
-        const memberRole = (ws, uid) => {
-          const m = readAt(['workspaces', ws, 'members', uid]);
-          return (m && m.role) || null;
-        };
-        // The shipped rules, in JS. Kept deliberately literal so a change to one is
-        // obviously a change to the other.
-        function allowed(method, segs, body, claims) {
-          // The owner's own private sync path keeps exactly the rules it always had:
-          // open at that one path, and no token, because a copy with no account sends
-          // none. Sharing is what moves the books somewhere a token is required.
-          if (segs[0] !== 'workspaces' && segs[0] !== 'users') return true;
-          if (!claims) return false;
-          if (segs[0] === 'users') return segs[1] === claims.uid;
-          const ws = segs[1];
-          if (!ws) return false;
-          const role = memberRole(ws, claims.uid);
-          const wsExists = !!readAt(['workspaces', ws]);
-          const hasMembers = !!readAt(['workspaces', ws, 'members']);
-
-          // Invitations. The token IS the secret, so anybody signed in who holds one can
-          // read that one invite — and nobody can list them, because reading the parent
-          // needs membership. Only an owner writes one, and the person it names deletes
-          // it as they claim it.
-          if (segs[2] === 'invites' && segs[3]) {
-            const inv = readAt(['workspaces', ws, 'invites', segs[3]]);
-            if (method === 'GET') return true;
-            if (method === 'DELETE') return role === 'owner' ||
-              (!!inv && inv.email === claims.email && claims.email_verified === true);
-            return role === 'owner';
-          }
-          // Claiming the membership row an invite entitles you to. The rule looks the
-          // invite up by the token the row names, so expiry and the email match are
-          // decided here, on the server, and not only in the app.
-          if (segs[2] === 'members' && segs[3] === claims.uid && method === 'PUT' && !readAt(segs) && !role) {
-            if (!hasMembers) return !!(body && body.role === 'owner');   // first member owns it
-            const inv = body && body.viaInvite ? readAt(['workspaces', ws, 'invites', body.viaInvite]) : null;
-            return !!inv && inv.email === claims.email && claims.email_verified === true && +inv.expiresAt > clock;
-          }
-          if (role) {
-            // a member reads and writes the books; only an owner changes meta or membership
-            if (segs[2] === 'meta' || segs[2] === 'members') return role === 'owner' || method === 'GET';
-            return true;
-          }
-          // A workspace nobody is in yet can be created. Without this no workspace could
-          // ever exist, because the owner-only rule would refuse the row that makes
-          // someone an owner.
-          if (!wsExists || !hasMembers) return !segs[2] || segs[2] === 'meta';
-          return false;
-        }
-        function res(status, payload) {
-          const t = JSON.stringify(payload === undefined ? null : payload);
-          return Promise.resolve({ ok: status >= 200 && status < 300, status,
-            json: () => Promise.resolve(JSON.parse(t)), text: () => Promise.resolve(t) });
-        }
-        const seen = [];
-        window.fetch = function (url, opts) {
-          opts = opts || {};
-          const method = opts.method || 'GET';
-          const m = String(url).match(/^https:\/\/db\.test\/(.*?)\.json(?:\?auth=(.*))?$/);
-          if (!m) return Promise.reject(new Error('the app reached a URL the stub does not serve: ' + url));
-          const segs = m[1] ? m[1].split('/') : [];
-          const body = opts.body !== undefined ? JSON.parse(opts.body) : undefined;
-          const claims = m[2] ? sessions[decodeURIComponent(m[2])] : null;
-          seen.push({ method, path: m[1], uid: claims ? claims.uid : null });
-          if (!allowed(method, segs, body, claims)) return res(401, { error: 'Permission denied' });
-          if (method === 'GET') return res(200, clone(readAt(segs)));
-          if (method === 'DELETE') {
-            const parent = nodeAt(segs.slice(0, -1));
-            delete parent[segs[segs.length - 1]];
-            return res(200, null);
-          }
-          if (method === 'PUT') {
-            const parent = nodeAt(segs.slice(0, -1));
-            parent[segs[segs.length - 1]] = clone(body);
-            return res(200, body);
-          }
-          if (method === 'PATCH') {
-            const parent = nodeAt(segs);
-            Object.keys(body).forEach((k) => { if (body[k] === null) delete parent[k]; else parent[k] = clone(body[k]); });
-            return res(200, body);
-          }
-          return Promise.reject(new Error('unexpected method ' + method));
-        };
-
-        function device() {
-          const st = JSON.parse(JSON.stringify(window.DEFAULT_STATE));
-          st.meta = { createdAt: '2026-01-01' };
-          st.settings.sync = { url: 'https://db.test', path: 'p', enabled: false, lastSync: null };
-          st.settings.share = { enabled: false, wsId: '', wsName: '', role: '', apiKey: 'k', clientId: '' };
-          return st;
-        }
-
-        // ---------- the owner's first sign-in makes a workspace ----------
-        const owner = device(); window.state = owner; window.DEVICE_ID = 'dev-owner';
-        signIn('uid-owner', 'owner@x.test');
-        const ws = await window.wsCreate('Owner Books');
-        ok('creating a workspace records it on this device as the owner',
-          owner.settings.share.enabled === true && owner.settings.share.role === 'owner' &&
-          owner.settings.share.wsId === ws.wsId && owner.settings.share.wsName === 'Owner Books');
-        ok('the workspace exists in the database with its owner as the first member',
-          db.workspaces[ws.wsId].meta.ownerUid === 'uid-owner' &&
-          db.workspaces[ws.wsId].members['uid-owner'].role === 'owner');
-        ok('the owner’s own user record points at it', db.users['uid-owner'].workspaces[ws.wsId] === true);
-
-        // ---------- sync writes move under the workspace, authored by the user ----------
-        owner.finance.push({ id: 'wf1', type: 'income', amount: 1000, category: 'Sales', date: '2026-06-01', note: 'shared sale' });
-        window.save();
-        ok('with sharing on, the books address moves under the workspace',
-          window.cloudRoot() === 'https://db.test/workspaces/' + ws.wsId + '/data');
-        await window.cloudPush(true);
-        const pushed = db.workspaces[ws.wsId].data.v2.finance.wf1;
-        ok('a push lands under the workspace, not the old private path',
-          !!pushed && pushed.rec.amount === 1000 && !db.p);
-        ok('updatedBy is the signed-in user rather than the device', pushed.updatedBy === 'uid-owner');
-
-        // ---------- an invitation is a token, not an email ----------
-        const inv = await window.wsInvite('Partner@X.test');
-        ok('the invite is stored under a long random token with the invited email',
-          inv.token.length >= 32 && db.workspaces[ws.wsId].invites[inv.token].email === 'partner@x.test' &&
-          db.workspaces[ws.wsId].invites[inv.token].invitedBy === 'uid-owner');
-        ok('the invite expires', db.workspaces[ws.wsId].invites[inv.token].expiresAt > clock);
-        ok('the link carries the workspace and the token, and parses back to them',
-          (function () { const p = window.wsParseInviteHash(inv.link); return !!p && p.wsId === ws.wsId && p.token === inv.token; })());
-
-        // ---------- the invitee: wrong address, unverified address, then the real one ----------
-        const guest = device(); window.state = guest; window.DEVICE_ID = 'dev-guest';
-
-        signIn('uid-other', 'someone@else.test');
-        const mismatch = await window.wsClaimInvite(ws.wsId, inv.token).then(() => null, (e) => e);
-        ok('an invite claimed from the wrong email address is refused, and says so',
-          mismatch && mismatch.code === 'mismatch' && /someone@else\.test/.test(mismatch.msg));
-        ok('...and the refused claim joined nothing',
-          guest.settings.share.enabled === false && !db.workspaces[ws.wsId].members['uid-other']);
-
-        signIn('uid-partner', 'partner@x.test', false);
-        const unver = await window.wsClaimInvite(ws.wsId, inv.token).then(() => null, (e) => e);
-        ok('an unverified email cannot claim an invite: a typed address proves nothing',
-          unver && unver.code === 'unverified' && !db.workspaces[ws.wsId].members['uid-partner']);
-
-        signIn('uid-partner', 'partner@x.test', true);
-        const joined = await window.wsClaimInvite(ws.wsId, inv.token);
-        ok('the invited, verified address joins as a member',
-          joined.role === 'member' && guest.settings.share.enabled === true &&
-          guest.settings.share.wsId === ws.wsId && guest.settings.share.role === 'member' &&
-          guest.settings.share.wsName === 'Owner Books');
-        ok('...and the membership row the rules read on every request is written',
-          db.workspaces[ws.wsId].members['uid-partner'].email === 'partner@x.test' &&
-          db.workspaces[ws.wsId].members['uid-partner'].role === 'member');
-        ok('...and the invite is consumed, so the link is spent',
-          db.workspaces[ws.wsId].invites[inv.token] === undefined);
-
-        // ---------- single use, and expiry, each with its own message ----------
-        const reuse = await window.wsClaimInvite(ws.wsId, inv.token).then(() => null, (e) => e);
-        ok('claiming a spent invite fails and says it has been used',
-          reuse && reuse.code === 'used' && /already been used/.test(reuse.msg));
-
-        window.state = owner; signIn('uid-owner', 'owner@x.test');
-        const old = await window.wsInvite('late@x.test');
-        clock += (window.WS_INVITE_DAYS + 1) * 86400e3;
-        window.state = guest;
-        signIn('uid-late', 'late@x.test', true);
-        const expired = await window.wsClaimInvite(ws.wsId, old.token).then(() => null, (e) => e);
-        ok('an expired invite fails and says it expired, not that it was used',
-          expired && expired.code === 'expired' && /expired/.test(expired.msg));
-        ok('...and an expired invite joins nobody, at the database as well as here',
-          !db.workspaces[ws.wsId].members['uid-late'] && guest.settings.share.wsId === ws.wsId);
-
-        // ---------- a member reads and writes the same books ----------
-        signIn('uid-partner', 'partner@x.test', true);
-        await window.cloudPull();
-        ok('a member merges the owner’s records out of the workspace',
-          (guest.finance || []).some((r) => r.id === 'wf1' && r.amount === 1000));
-        guest.finance.push({ id: 'gf1', type: 'expense', amount: 250, category: 'Supplies', date: '2026-06-02', note: 'partner expense' });
-        window.save();
-        await window.cloudPush(true);
-        ok('a member’s own record reaches the shared books, authored by them',
-          !!db.workspaces[ws.wsId].data.v2.finance.gf1 &&
-          db.workspaces[ws.wsId].data.v2.finance.gf1.updatedBy === 'uid-partner');
-
-        // ---------- removal is the database's decision, not a hidden button ----------
-        window.state = owner; signIn('uid-owner', 'owner@x.test');
-        await window.wsRemoveMember('uid-partner');
-        ok('removing a member deletes the row every rule reads',
-          db.workspaces[ws.wsId].members['uid-partner'] === undefined);
-
-        window.state = guest; signIn('uid-partner', 'partner@x.test', true);
-        guest.finance.push({ id: 'gf2', type: 'expense', amount: 90, category: 'Supplies', date: '2026-06-03', note: 'after removal' });
-        window.save();
-        window.cloudFormatKnown = false;
-        await window.cloudPush(true);
-        ok('a removed member’s writes are refused by the database, not by the UI',
-          db.workspaces[ws.wsId].data.v2.finance.gf2 === undefined);
-        ok('...and nothing of theirs is lost locally: the record is still here and still pending',
-          (guest.finance || []).some((r) => r.id === 'gf2') &&
-          guest.meta.sync.recs['finance/gf2'].at !== guest.meta.sync.recs['finance/gf2'].sy);
-        const before = JSON.stringify(db.workspaces[ws.wsId].data);
-        await window.cloudPull();
-        ok('...and a removed member can no longer read the books either',
-          JSON.stringify(db.workspaces[ws.wsId].data) === before &&
-          seen.filter((c) => c.uid === 'uid-partner').length > 0);
-
-        // ---------- leaving is local, and takes nothing with it ----------
-        const sharedBefore = JSON.stringify(db.workspaces[ws.wsId]);
-        window.wsLeave();
-        ok('leaving points this device back at its own path and leaves the shared copy alone',
-          guest.settings.share.enabled === false && guest.settings.share.wsId === '' &&
-          window.cloudRoot() === 'https://db.test/p' &&
-          JSON.stringify(db.workspaces[ws.wsId]) === sharedBefore);
-
-        // ---------- with no account, nothing above happens at all ----------
-        signOut();
-        const solo = device(); window.state = solo; window.DEVICE_ID = 'dev-solo';
-        ok('with sharing off the books address is the private path it always was',
-          window.cloudRoot() === 'https://db.test/p' && window.cloudQ() === '');
-        solo.finance.push({ id: 'sf1', type: 'income', amount: 10, category: 'Sales', date: '2026-06-01' });
-        window.save();
-        window.cloudFormatKnown = false;
-        const soloFrom = seen.length;
-        await window.cloudPush(true);
-        ok('...and not one request it makes carries a token',
-          seen.slice(soloFrom).length > 0 && seen.slice(soloFrom).every((c) => c.uid === null) &&
-          !!db.p.v2.finance.sf1);
-      } finally {
-        window.clearTimeout(window.cloudTimer);
-        window.fetch = realFetch; window.toast = realToast; window.render = realRender;
-        window.confirm = realConfirm; window.state = realState; window.Date.now = realNow;
-        if (realAuth === null) window.localStorage.removeItem('bizpilot.auth');
-        else window.localStorage.setItem('bizpilot.auth', realAuth);
-      }
-    })();
-
-    // ================= the rules are the access control, and the pages say so =================
-    (function rulesAndHonesty() {
-      const share = window.state.settings.share;
-      const saved = JSON.parse(JSON.stringify(share));
-      try {
-        // ---------- the rules ship as text somebody can actually paste ----------
-        const txt = window.shareRulesJSON();
-        let parsed = null, parseErr = '';
-        try { parsed = JSON.parse(txt); } catch (e) { parseErr = e.message; }
-        ok('the workspace rules are valid JSON, so they can be pasted as they are', !!parsed, parseErr);
-        ok('...with no comments in them, which Firebase rejects', !/\/\*|\/\//.test(txt.replace(/https?:\/\//g, '')));
-
-        const r = parsed && parsed.rules;
-        const ws = r && r.workspaces && r.workspaces.$ws;
-        ok('deny by default at the root', r && r['.read'] === false && r['.write'] === false);
-        ok('the owner’s own sync path is still open, so sharing is added and nothing is taken away',
-          !!r && r[(window.state.settings.sync.path || 'bizpilot')] &&
-          r[(window.state.settings.sync.path || 'bizpilot')]['.read'] === true);
-        ok('only a member reads a workspace', !!ws && /members'\)\.child\(auth\.uid\)\.exists\(\)/.test(ws['.read']));
-        // The correction that matters: a blanket ".write" at $ws would GRANT write to
-        // everything under it, and rules can only ever grant, so the owner-only rules
-        // below would be decoration. Write is attached per child instead.
-        ok('there is NO blanket write at the workspace level (rules grant, they never take back)',
-          !!ws && ws['.write'] === undefined);
-        ok('a member writes the books', !!ws && /members'\)\.child\(auth\.uid\)\.exists\(\)/.test(ws.data['.write']));
-        ok('only the owner changes membership', !!ws && /role'\)\.val\(\) === 'owner'/.test(ws.members['.write']));
-        ok('only the owner creates an invitation', !!ws && /role'\)\.val\(\) === 'owner'/.test(ws.invites.$token['.write']));
-        ok('an invite is readable by anybody holding its token, and listable by nobody',
-          !!ws && ws.invites.$token['.read'] === 'auth != null' && ws.invites['.read'] === undefined);
-        // single use and expiry are enforced by the rules, not only by the app
-        const claim = ws && ws.members.$uid['.write'];
-        ok('claiming a membership needs a verified email that matches the invitation',
-          !!claim && /auth\.token\.email_verified === true/.test(claim) && /\.child\('email'\)\.val\(\) === auth\.token\.email/.test(claim));
-        ok('...and an invitation that has not expired', !!claim && /expiresAt'\)\.val\(\) > now/.test(claim));
-        ok('...and it can only ever write your own row, once', !!claim && /\$uid === auth\.uid/.test(claim) && /!data\.exists\(\)/.test(claim));
-        ok('a user’s own workspace list is their own', !!r && r.users.$uid['.read'] === "auth != null && auth.uid === $uid");
-        // and it is on screen, next to the sync rules, as copyable text
-        ok('the rules are shipped in Settings as copyable text',
-          window.databaseRulesCardHTML().indexOf(window.esc(txt)) > -1);
-
-        // ---------- pages that describe the product tell the truth about BOTH states ----------
-        const sharingOff = () => { share.enabled = false; share.wsId = ''; share.wsName = ''; share.role = ''; };
-        const sharingOn = () => { share.enabled = true; share.wsId = 'ws_test'; share.wsName = 'Shared Books'; share.role = 'member'; };
-
-        sharingOff();
-        ok('shareOn() is false with sharing off', window.shareOn() === false);
-        const privOff = window.viewPrivacy();
-        sharingOn();
-        ok('shareOn() is true once this copy has joined a workspace', window.shareOn() === true);
-        const privOn = window.viewPrivacy();
-
-        ok('with sharing off the privacy page says there is no account, which is true then',
-          /There is no account and no server holding them/.test(privOff));
-        ok('with sharing on it stops saying that, because it stops being true',
-          !/There is no account and no server holding them/.test(privOn));
-        ok('...and says what is true instead: an account, a workspace, and other people in it',
-          /shared workspace you joined/.test(privOn) && /every one of them can read and write everything/.test(privOn));
+        const priv = window.viewPrivacy();
+        ok('the privacy page says there is no account and no server, which is true',
+          /There is no account and no server holding them/.test(priv));
+        ok('...and lists the connections that exist: rates and the receipt scanner',
+          /open\.er-api\.com/.test(priv) && /cdn\.jsdelivr\.net/.test(priv));
+        ok('...and no connection that does not: no sign-in, no sync, no database, no workspace',
+          !/sign(ed)?[ -]?in|sign out|password|Firebase|Google|cloud|sync|database|workspace|sharing|token/i.test(priv.replace(/<[^>]+>/g, ' ')),
+          (priv.replace(/<[^>]+>/g, ' ').match(/.{0,40}(sign(ed)?[ -]?in|sign out|password|Firebase|Google|cloud|sync|database|workspace|sharing|token).{0,40}/i) || [])[0]);
         ok('the privacy page no longer promises a fixed number of connections it does not have',
-          !/four connections/.test(privOff) && !/four connections/.test(privOn));
+          !/four connections/.test(priv));
+        ok('...and names the storage it really uses, and not the keys that were retired',
+          /bizpilot\.v1/.test(priv) && /trakora\.lock/.test(priv) && !/bizpilot\.auth|bizpilot\.device/.test(priv));
+        ok('...and its date moved, because the list of connections did',
+          window.PRIVACY_UPDATED > '2026-09-12', window.PRIVACY_UPDATED);
 
         // the consent notice gets the same treatment, because it is the first thing a
         // customer ever reads and a wrong notice is worse than none
         const root = d.getElementById('consent-root');
-        sharingOff(); window.showConsentNotice(); const consentOff = root.innerHTML;
-        sharingOn(); window.showConsentNotice(); const consentOn = root.innerHTML;
+        window.showConsentNotice(); const consent = root.textContent;
         window.dismissConsent();
-        ok('the consent notice claims no account only while there is no account',
-          /There is no account/.test(consentOff) && !/There is no account/.test(consentOn));
-        ok('...and names the workspace once there is one',
-          /workspace you are sharing/.test(consentOn) && !/workspace you are sharing/.test(consentOff));
+        ok('the consent notice says there is no account, and names no workspace',
+          /There is no account/.test(consent) && !/workspace|sharing|sign/i.test(consent), consent);
+
+        // Settings: the About block and the connections card describe the same product
+        window.ui.settingsTab = 'business'; window.location.hash = '#/settings'; window.render();
+        const about = d.getElementById('main').textContent;
+        ok('Settings ▸ About says the only copy elsewhere is a backup you export',
+          /There is no account and no server, and the only copy anywhere else is a backup file you export yourself/.test(about));
+        ok('the outside-connections card no longer mentions sign-in or cloud sync',
+          !/sign-in|cloud sync/i.test(window.connectionsCardHTML().replace(/<[^>]+>/g, ' ')));
+        ok('the lock screen does not promise a sync that could carry data off the device',
+          !/unless you enable cloud sync/.test(html) && /Your data never leaves it unless you export a backup/.test(html));
       } finally {
-        Object.keys(share).forEach((k) => { delete share[k]; });
-        Object.assign(share, saved);
         const cr = d.getElementById('consent-root'); if (cr) cr.innerHTML = '';
         d.body.classList.remove('consent-on');
+        window.ui.settingsTab = 'business'; window.location.hash = '#/dashboard'; window.render();
       }
     })();
 
-    // ---------- the account menu ----------
-    // The owner's report was "i cant see the log in log out or sign up when i click the
-    // profile name". Both chips drew a chevron and both went to Settings. These assert
-    // on live DOM STATE (which actions the open menu carries, what aria says, whether it
-    // is in the document) rather than on rendered markup: matching HTML strings has
-    // reported a pass as a failure twice in this project.
-    await (async function accountMenu() {
-      const savedAuth = window.localStorage.getItem('bizpilot.auth');
-      const share = window.state.settings.share;
-      const savedShare = JSON.parse(JSON.stringify(share));
+    // ---------- the menu behind the top bar chip ----------
+    // It used to be an account menu with four states: signed out, signed in with a
+    // password, signed in with Google, and a local preview session. There are no
+    // accounts now, so there is one state: the person using this copy, and the places
+    // they go to change that. These assert on live DOM STATE (which actions the open menu
+    // carries, what aria says, whether it is in the document) rather than on rendered
+    // markup: matching HTML strings has reported a pass as a failure twice in this project.
+    (function profileMenu() {
+      const savedProfile = JSON.parse(JSON.stringify(window.state.settings.profile || {}));
+      const savedName = window.state.settings.displayName;
       const acts = () => Array.prototype.map.call(
         d.querySelectorAll('#acct-menu [data-action]'), (e) => e.getAttribute('data-action'));
+      const labels = () => Array.prototype.map.call(
+        d.querySelectorAll('#acct-menu [role="menuitem"] span:first-of-type'), (e) => e.textContent.trim());
       const open = (sel) => { window.acctMenuClose(true); window.render(); click(d.querySelector(sel)); };
       try {
         window.location.hash = '#/dashboard';
-        window.authStore(null);
-        share.apiKey = 'AIzaTEST'; share.clientId = 'test.apps.googleusercontent.com';
-        share.enabled = false; share.wsId = ''; share.wsName = ''; share.role = '';
+        window.state.settings.profile = { name: '', position: '', rate: 0, ratePer: 'month' };
+        window.state.settings.displayName = '';
 
         // one trigger, in the top bar, at every width
         open('.tb-acct');
-        ok('the account menu opens from the top bar chip', window.acctMenuIsOpen() === true);
+        ok('the menu opens from the top bar chip', window.acctMenuIsOpen() === true);
         ok('...and the chip says so', d.querySelector('.tb-acct').getAttribute('aria-expanded') === 'true');
         ok('the menu is mounted on <body>, so the top bar cannot clip it',
           d.getElementById('acct-menu').parentNode === d.body);
         /* The sidebar used to carry a second chip onto the same menu. It was removed for
            looking crooked, which is only safe because the top bar chip no longer hides on
-           a phone. If it ever hides again, a phone has no way to sign in or out at all. */
+           a phone. If it ever hides again, a phone loses its way to the profile page. */
         ok('the sidebar no longer carries a second account chip',
           !d.querySelector('.biz-chip') && html.indexOf('biz-chip') === -1);
         ok('...so the top bar chip may not be hidden on small screens',
           !/\.tb-search,\.tb-bell,\.tb-acct\{display:none\}/.test(html) &&
           /\.tb-search,\.tb-bell\{display:none\}/.test(html));
 
-        // signed out: the two ways in, and nothing else
-        open('.tb-acct');
-        const out = acts();
-        ok('signed out, the menu offers Sign in and Create account',
-          ['auth-signin-email', 'auth-signup'].every((a) => out.indexOf(a) >= 0), out);
-        /* Google is a METHOD, and methods belong next to the email field on the sign-in
-           screen, not in an account menu. Dropping the row also takes the last
-           authClientId() branch out of acctMenuHTML(). */
-        ok('signed out, Google is not offered here: it lives on the sign-in screen',
-          out.indexOf('auth-google') < 0, out);
-        ok('signed out, there is nothing to sign out of', out.indexOf('auth-signout') < 0, out);
-        ok('signed out, Settings and Privacy are still reachable',
-          out.indexOf('settings-go') >= 0 && out.indexOf('nav') >= 0, out);
-        ok('signed out, the menu is five rows at most and carries no prose',
-          out.length <= 5 && !d.querySelector('#acct-menu .acct-note'), out);
-        ok('...and the labels are the standard ones', (() => {
-          const labels = Array.prototype.map.call(
-            d.querySelectorAll('#acct-menu [role="menuitem"] span:first-of-type'), (e) => e.textContent.trim());
-          return labels.join('|') === 'Sign in|Create account|Settings|Privacy';
-        })(), Array.prototype.map.call(d.querySelectorAll('#acct-menu [role="menuitem"]'), (e) => e.textContent.trim()));
+        // the rows: profile, settings, privacy, and not one word about getting in or out
+        const rows = acts();
+        ok('the menu offers the profile, Settings and Privacy, in that order',
+          rows.join('|') === 'nav|settings-go|nav' && labels().join('|') === 'Your profile|Settings|Privacy', [rows, labels()]);
+        ok('...and the profile row really goes to the profile page',
+          d.querySelector('#acct-menu [data-action="nav"]').getAttribute('data-route') === 'profile');
+        ok('...and nothing in it is about logging in, logging out or a password',
+          !/log ?in|log ?out|sign|password|account|session/i.test(d.getElementById('acct-menu').textContent),
+          d.getElementById('acct-menu').textContent);
+        ok('...and it says nothing about a project, a key or setting anything up',
+          !/project|key|set ?up|configur|Firebase|developer/i.test(d.getElementById('acct-menu').textContent),
+          d.getElementById('acct-menu').textContent);
+        ok('...and it carries no prose, only a head and rows',
+          !d.querySelector('#acct-menu p') && !d.querySelector('#acct-menu a'));
         ok('every row in the menu is a real menuitem (keyboard reachable)',
           d.querySelectorAll('#acct-menu [data-action]').length > 0 &&
           Array.prototype.every.call(d.querySelectorAll('#acct-menu [data-action]'),
             (e) => e.getAttribute('role') === 'menuitem'));
 
-        /* THE REPORTED DEFECT, written down so it cannot come back. This block used to
-           assert the opposite: that a copy with no Firebase project swapped the sign-in
-           rows for a "Set up sign-in" row into the developer fold. That is what the owner
-           objected to, in those words, and they were right. A product offers its front
-           door unconditionally and explains itself at the door. So the contract is now
-           equality: the rows are IDENTICAL with and without a key, and the truth about
-           the deployment is told on the sign-in screen instead (see signInAndSettings). */
-        share.apiKey = ''; share.clientId = '';
+        /* The head is a name and one line under it. With no profile filled in the name is
+           the business and the line is where the books are, said once: the head used to
+           print "On this device" on two consecutive lines, and an address twice. */
+        const headLines = () => {
+          const who = d.querySelector('#acct-menu .acct-who');
+          return [who.querySelector('b')].concat(Array.prototype.slice.call(who.querySelectorAll('span')))
+            .filter(Boolean).map((e) => e.textContent.trim()).filter(Boolean);
+        };
+        ok('with no profile yet the head names the business and says the books are on this device',
+          headLines().join('|') === window.appName() + '|On this device', headLines());
+        ok('...and so does the chip', window.acctChipName() === window.appName() && window.acctChipLine() === 'On this device');
+        window.state.settings.profile = { name: 'Ira Santos', position: 'Owner', rate: 0, ratePer: 'month' };
         open('.tb-acct');
-        const bare = acts();
-        ok('with no project configured the menu is byte-for-byte the same menu',
-          bare.join('|') === out.join('|'), [bare, out]);
-        ok('...so it still offers to sign in and to create an account',
-          bare.indexOf('auth-signin-email') >= 0 && bare.indexOf('auth-signup') >= 0, bare);
-        ok('...and no row anywhere in it leads to the setup tab',
-          Array.prototype.every.call(d.querySelectorAll('#acct-menu [data-action]'),
-            (e) => e.getAttribute('data-tab') !== 'data'), bare);
-        ok('...and it says nothing about a project, a key or setting anything up',
-          !/project|key|set ?up|configur|Firebase|developer/i.test(d.getElementById('acct-menu').textContent),
-          d.getElementById('acct-menu').textContent);
-        share.apiKey = 'AIzaTEST'; share.clientId = 'test.apps.googleusercontent.com';
-
-        // signed in with an email and password
-        window.authStore({ uid: 'u1', email: 'owner@example.com', name: 'Ira Santos', idToken: 't',
-          refreshToken: 'r', expiresAt: Date.now() + 3.6e6, provider: 'password', verified: true, at: Date.now() });
-        open('.tb-acct');
-        const inp = acts();
-        ok('signed in, the menu carries the profile, the password and the way out',
-          ['auth-profile', 'auth-change-password', 'auth-signout'].every((a) => inp.indexOf(a) >= 0), inp);
-        ok('signed in, it stops offering to sign in',
-          inp.indexOf('auth-signin-email') < 0 && inp.indexOf('auth-google') < 0 && inp.indexOf('auth-signup') < 0, inp);
-        ok('signed in, the header names the account',
-          d.querySelector('#acct-menu .acct-who').textContent.indexOf('owner@example.com') >= 0);
-        /* The head has three sources and two of them share a fallback. meProfile().name
-           falls back through authName() to the address, and meSubtitle() falls back to the
-           address as well when no position and no rate are set. An owner who never filled
-           in a profile therefore had their address printed twice, one line above the other.
-           A previous fix compared the second line against the third and never against the
-           NAME, which is the pair that actually collided, so it survived.
-           Asserted on the RENDERED lines rather than on the logic, because the only reason
-           this reached a branch is that nothing ever compared the strings on screen. */
-        (function noRepeatedLine(label) {
-          const saved = JSON.parse(JSON.stringify(window.state.settings.profile || {}));
-          const savedAuth = window.localStorage.getItem('bizpilot.auth');
-          try {
-            /* The collision needs an account carrying NO display name, so authName() falls
-               back to the address and the name line becomes the address too. A fixture with
-               a name never collides, which is why an earlier version of this very assertion
-               passed against the broken code. */
-            window.state.settings.profile = { name: '', position: '', rate: 0, ratePer: 'month' };
-            window.authStore(Object.assign(JSON.parse(savedAuth || '{}'), { name: '' }));
-            open('.tb-acct');
-            const who = d.querySelector('#acct-menu .acct-who');
-            const lines = [who.querySelector('b')].concat(Array.prototype.slice.call(who.querySelectorAll('span')))
-              .filter(Boolean).map((e) => e.textContent.trim()).filter(Boolean);
-            ok('an account with no profile name does not print its address twice ' + label,
-              lines.length === new Set(lines).size, lines);
-          } finally {
-            window.state.settings.profile = saved;
-            if (savedAuth) window.localStorage.setItem('bizpilot.auth', savedAuth);
-          }
-        })('(password)');
-
-        // a Google account's password is not this app's to change
-        window.authStore(Object.assign(JSON.parse(window.localStorage.getItem('bizpilot.auth')), { provider: 'google' }));
-        open('.tb-acct');
-        ok('a Google account is shown no Change password control', acts().indexOf('auth-change-password') < 0, acts());
-        ok('...it is pointed at Google, where the password actually lives',
-          Array.prototype.some.call(d.querySelectorAll('#acct-menu a[href]'),
-            (a) => /myaccount\.google\.com/.test(a.getAttribute('href'))));
-        // and the refusal is real, not only a hidden button: the function itself says no
-        // before a single request leaves the device.
-        const refusal = await window.authChangePassword('old', 'newpassword').then(
-          () => null, (e) => e);
-        ok('authChangePassword refuses a Google account rather than failing at the server',
-          !!refusal && refusal.code === 'notpassword', refusal);
-        ok('...with a reason a person can act on', !!refusal && /Google/.test(refusal.msg || ''));
-
-        // members and invites only exist once sharing does
-        ok('members and invites is hidden while nothing is shared',
-          acts().filter((a) => a === 'settings-go').length === 1, acts());
-        share.enabled = true; share.wsId = 'ws_test'; share.wsName = 'Lumina Studio'; share.role = 'owner';
-        open('.tb-acct');
-        ok('members and invites appears once this copy has joined a workspace',
-          acts().filter((a) => a === 'settings-go').length === 2, acts());
-        ok('the header names the workspace',
-          d.querySelector('#acct-menu .acct-who').textContent.indexOf('Lumina Studio') >= 0);
-        ok('both chips stop claiming the books are local once they are shared',
-          window.acctChipLine() === 'Lumina Studio');
+        ok('once the person has a name and a position the head shows those instead',
+          headLines().join('|') === 'Ira Santos|Owner', headLines());
+        ok('...with no line printed twice', headLines().length === new Set(headLines()).size, headLines());
+        ok('...and the same three rows: who you are does not change what the menu offers',
+          acts().join('|') === rows.join('|'), acts());
 
         // Escape closes it and hands focus back to the chip that opened it
         open('.tb-acct');
@@ -4516,1008 +3803,91 @@ async function main() {
         click(d.querySelector('.tb-acct'));
         ok('a second click on the chip closes what the first one opened', window.acctMenuIsOpen() === false);
 
-        /* An expired session. The books are untouched and the person is still shown as
-           themselves, so the menu has to say why the sharing stopped: the one prose note
-           the design allows, and a way straight back in above everything else. */
-        share.enabled = false; share.wsId = ''; share.wsName = ''; share.role = '';
-        window.authStore({ uid: 'u1', email: 'owner@example.com', name: 'Ira Santos', idToken: '',
-          refreshToken: 'r', expiresAt: Date.now() - 1000, provider: 'password', verified: true,
-          expired: true, at: Date.now() });
-        open('.tb-acct');
-        const exp = acts();
-        ok('an ended session is explained in the menu, not left as a mystery',
-          /Your session ended/.test(d.querySelector('#acct-menu .acct-note').textContent),
-          d.querySelector('#acct-menu .acct-note') && d.querySelector('#acct-menu .acct-note').textContent);
-        ok('...and the way back in is the first row, above the profile',
-          exp[0] === 'auth-signin-email' && exp.indexOf('auth-profile') === 1, exp);
-        ok('...and the note does not send anyone to a settings tab to fix it',
-          !/Settings|Data & Sync|Developer/.test(d.querySelector('#acct-menu .acct-note').textContent));
-
-        /* State D: the local session written by "Continue on this device". Nobody is
-           signed in to anything, so there is no password to change and no workspace to
-           invite anyone to, but there is still a profile and still a way out. */
-        window.authStore(null);
-        window.state.settings.localIn = true;
-        open('.tb-acct');
-        const loc = acts();
-        ok('a local session gets the profile, the settings, the privacy page and a way out',
-          loc.join('|') === 'auth-profile|settings-go|nav|auth-signout', loc);
-        ok('...and is told plainly that it is on this device',
-          /On this device/.test(d.querySelector('#acct-menu .acct-who').textContent),
-          d.querySelector('#acct-menu .acct-who').textContent);
-        /* Once. meSubtitle() falls back to the same sentence when no position and no rate
-           are set, so the head used to print "On this device" on two consecutive lines. */
-        ok('...once, not on two lines in a row', (() => {
-          const lines = Array.prototype.map.call(
-            d.querySelectorAll('#acct-menu .acct-who span'), (e) => e.textContent.trim());
-          return lines.filter((l) => l === 'On this device').length === 1;
-        })(), Array.prototype.map.call(d.querySelectorAll('#acct-menu .acct-who span'), (e) => e.textContent.trim()));
-        ok('...with no account-only rows it has no account for',
-          loc.indexOf('auth-change-password') < 0 && loc.indexOf('auth-signin-email') < 0, loc);
-        window.state.settings.localIn = false;
-
-        /* The rule the whole change rests on, asserted against the source rather than
-           against one rendered state, because a fifth branch could be added tomorrow. */
+        /* One state, asserted against the source rather than against one rendering,
+           because a second branch could be added tomorrow. */
         const menuSrc = window.acctMenuHTML.toString();
-        ok('acctMenuHTML never asks whether a project is configured',
-          menuSrc.indexOf('authConfigured') < 0 && menuSrc.indexOf('authClientId') < 0 &&
-          menuSrc.indexOf('authApiKey') < 0, menuSrc.slice(0, 200));
+        ok('acctMenuHTML has no signed-in and signed-out branches left to disagree',
+          !/auth|session|expired|localIn|provider/.test(menuSrc), menuSrc.slice(0, 200));
         ok('the words "Set up sign-in" appear nowhere in the app',
           html.indexOf('Set up sign-in') === -1);
 
-        // acting on a row puts the menu away
-        window.authStore(null);
-        share.enabled = false; share.wsId = ''; share.wsName = ''; share.role = '';
+        // acting on a row puts the menu away, and takes you where it said
         open('.tb-acct');
         click(d.querySelector('#acct-menu [data-action="settings-go"]'));
-        ok('choosing a row closes the menu behind it', window.acctMenuIsOpen() === false);
+        ok('choosing Settings closes the menu behind it and opens Settings',
+          window.acctMenuIsOpen() === false && window.currentRoute() === 'settings');
+        window.location.hash = '#/dashboard';
+        open('.tb-acct');
+        click(d.querySelector('#acct-menu [data-action="nav"][data-route="profile"]'));
+        ok('choosing the profile closes the menu and lands on #/profile',
+          window.acctMenuIsOpen() === false && window.location.hash === '#/profile');
       } finally {
-        window.state.settings.localIn = false;
         window.acctMenuClose(true);
-        Object.keys(share).forEach((k) => { delete share[k]; });
-        Object.assign(share, savedShare);
-        if (savedAuth) window.localStorage.setItem('bizpilot.auth', savedAuth);
-        else window.localStorage.removeItem('bizpilot.auth');
+        window.state.settings.profile = savedProfile;
+        window.state.settings.displayName = savedName;
         window.location.hash = '#/dashboard';
         window.render();
       }
     })();
 
-    // ---------- Sign in with Google, driven end to end with the transport mocked ----------
-    /* The owner asked for two things and this is the second: "make the log in google
-       work". The flow was already built and the brief said to prove it rather than
-       rewrite it, so this block drives the whole of it — the URL Google is sent, the
-       three postMessage checks, the token exchange, every failure branch and the
-       blocked-popup redirect — against a stubbed window.open and a stubbed fetch.
-
-       WHAT THIS CANNOT PROVE, stated here so nobody reads a green suite as more than it
-       is: that Google itself accepts the request. That needs a real client id and the
-       deployment's domain registered as an authorised redirect URI, and neither exists
-       in this repository. Everything on this side of the wire is checked below. What is
-       left is console configuration on the owner's side, and the two ways it goes wrong
-       (redirect_uri_mismatch, and the provider switched off) both surface as a sentence
-       rather than a popup that dies in silence.
-
-       The security of the whole flow is three lines in authGoogle(), and every one of
-       them is asserted on its own below. A popup credential is only ever as good as the
-       checks on the message that carries it. */
-    await (async function googleSignIn() {
-      const realOpen = window.open, realFetch = window.fetch, realToast = window.toast;
-      const share = window.state.settings.share;
-      const savedShare = JSON.parse(JSON.stringify(share));
-      const savedAuth = window.localStorage.getItem('bizpilot.auth');
-      // A stand-in for the popup: only the three things authGoogle() touches.
-      const fakePopup = () => ({ closed: false, close() { this.closed = true; } });
-      /* postMessage arrives as a MessageEvent whose `source` is the popup window. jsdom
-         refuses a plain object for `source` through the constructor, so it is defined on
-         the event afterwards — which is also the only way to forge a wrong one. */
-      const deliver = (origin, source, data) => {
-        const e = new window.MessageEvent('message', { data });
-        Object.defineProperty(e, 'origin', { value: origin, configurable: true });
-        Object.defineProperty(e, 'source', { value: source, configurable: true });
-        window.dispatchEvent(e);
-      };
-      let popup = null, openUrl = '';
-      const calls = [];
-      try {
-        window.toast = () => {};
-        window.authStore(null);
-        share.apiKey = 'AIzaTEST';
-        share.clientId = '1234-abc.apps.googleusercontent.com';
-
-        // ---- the URL Google is sent ----
-        ok('the redirect URI is this origin plus /oauth-callback.html',
-          window.authRedirectUri() === 'https://x.test/oauth-callback.html', window.authRedirectUri());
-        const u = new window.URL(window.authGoogleUrl('ST123', 'NONCE456'));
-        const q = u.searchParams;
-        ok('the sign-in URL is ordinary OAuth at accounts.google.com',
-          u.origin + u.pathname === 'https://accounts.google.com/o/oauth2/v2/auth', u.href);
-        ok('...carrying the client id and the redirect URI',
-          q.get('client_id') === '1234-abc.apps.googleusercontent.com' &&
-          q.get('redirect_uri') === 'https://x.test/oauth-callback.html', [q.get('client_id'), q.get('redirect_uri')]);
-        /* response_type=id_token puts the credential in the FRAGMENT, which never leaves
-           the browser and is never sent to a server or written to a log. */
-        ok('...asking for an id_token, so the credential stays in the fragment',
-          q.get('response_type') === 'id_token' && q.get('scope') === 'openid email profile',
-          [q.get('response_type'), q.get('scope')]);
-        ok('...and both nonces, which are what the two replay checks are made of',
-          q.get('state') === 'ST123' && q.get('nonce') === 'NONCE456');
-        ok('...and the account chooser every time, because a shared device is normal here',
-          q.get('prompt') === 'select_account');
-
-        // ---- no client id: refuse before opening anything ----
-        share.clientId = '';
-        let opens = 0;
-        window.open = () => { opens++; return fakePopup(); };
-        const noconf = await window.authGoogle().then(() => null, (e) => e);
-        ok('with no client id Google sign-in refuses without opening a dead popup',
-          !!noconf && noconf.code === 'noconfig' && opens === 0, [noconf, opens]);
-        ok('...and says only the fact, with no instruction aimed at someone who cannot act on it',
-          !!noconf && !/Settings|Developer|Data & Sync/.test(noconf.msg || ''), noconf);
-        share.clientId = '1234-abc.apps.googleusercontent.com';
-
-        // ---- the happy path ----
-        window.open = (url) => { openUrl = url; popup = fakePopup(); return popup; };
-        window.fetch = (url, opt) => {
-          calls.push({ url, body: opt && opt.body ? JSON.parse(opt.body) : null });
-          return resp(200, JSON.stringify({ localId: 'guid1', email: 'Owner@Gmail.com',
-            displayName: 'Ira Santos', idToken: 'idt', refreshToken: 'rft', expiresIn: '3600', emailVerified: true }));
-        };
-        let p = window.authGoogle();
-        await wait(20);
-        const st = openUrl ? new window.URL(openUrl).searchParams.get('state') : '';
-        ok('pressing the button opens a popup with a freshly minted state',
-          !!popup && st.length === 32, [openUrl.slice(0, 60), st]);
-
-        /* THE THREE CHECKS. Each is refused on its own, and each is asserted by the same
-           evidence: zero requests left the device, so a forged credential never reached
-           the exchange. This is the entire security of popup auth. */
-        deliver('https://evil.test', popup, { type: 'trakora-oauth', state: st, idToken: 'forged' });
-        await wait(15);
-        ok('a message from another origin is ignored', calls.length === 0, calls);
-        deliver('https://x.test', { closed: false }, { type: 'trakora-oauth', state: st, idToken: 'forged' });
-        await wait(15);
-        ok('a message from a window we did not open is ignored', calls.length === 0, calls);
-        deliver('https://x.test', popup, { type: 'trakora-oauth', state: 'someone-elses', idToken: 'forged' });
-        await wait(15);
-        ok('a message carrying the wrong state is ignored', calls.length === 0, calls);
-        deliver('https://x.test', popup, { type: 'not-ours', state: st, idToken: 'forged' });
-        await wait(15);
-        ok('a message of another type is ignored', calls.length === 0, calls);
-
-        // ...and the real one is accepted
-        deliver('https://x.test', popup, { type: 'trakora-oauth', state: st, idToken: 'google-id-token' });
-        const sess = await p.then((s) => s, (e) => ({ err: e }));
-        ok('the one real message is exchanged, and exactly once', calls.length === 1, calls.length);
-        ok('...at signInWithIdp with the project key',
-          calls.length === 1 && calls[0].url === 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=AIzaTEST',
-          calls.length && calls[0].url);
-        ok('...handing the id_token over as a google.com credential from this origin',
-          calls.length === 1 && calls[0].body.postBody === 'id_token=google-id-token&providerId=google.com' &&
-          calls[0].body.requestUri === 'https://x.test', calls.length && calls[0].body);
-        ok('a session comes back and is stored as a Google account',
-          !!sess && !sess.err && window.authUser() && window.authUser().provider === 'google', sess);
-        ok('...with the address lowercased, and verified because Google verified it',
-          window.authUser().email === 'owner@gmail.com' && window.authUser().verified === true, window.authUser());
-        ok('...and the popup is closed once the credential is in hand', popup.closed === true);
-
-        // ---- Google refuses ----
-        window.authStore(null);
-        calls.length = 0;
-        p = window.authGoogle();
-        await wait(20);
-        deliver('https://x.test', popup, { type: 'trakora-oauth',
-          state: new window.URL(openUrl).searchParams.get('state'), error: 'access_denied' });
-        const denied = await p.then(() => null, (e) => e);
-        ok('an error from Google rejects with its code and writes no session',
-          !!denied && denied.code === 'access_denied' && window.authSignedIn() === false, denied);
-
-        // ---- a message with neither a token nor an error ----
-        p = window.authGoogle();
-        await wait(20);
-        deliver('https://x.test', popup, { type: 'trakora-oauth',
-          state: new window.URL(openUrl).searchParams.get('state') });
-        const empty = await p.then(() => null, (e) => e);
-        ok('an empty credential rejects rather than exchanging nothing',
-          !!empty && empty.code === 'nokey', empty);
-
-        // ---- the person closes the popup ----
-        p = window.authGoogle();
-        await wait(20);
-        popup.closed = true;
-        const cancelled = await p.then(() => null, (e) => e);
-        ok('closing the popup is a cancellation, and it says nothing',
-          !!cancelled && cancelled.code === 'cancelled' && cancelled.msg === '', cancelled);
-        /* Which the handler has to honour, or the owner gets an error toast for having
-           changed their mind. */
-        ok('...which the button handler reports by saying nothing at all',
-          /if\(err&&err\.code==='cancelled'\) return;/.test(html));
-
-        // ---- the browser blocks the popup ----
-        /* jsdom cannot navigate and window.location is [Unforgeable], so the navigation
-           itself is not observable here. What is: the URL the code built (handed to
-           window.open first, which is the call being blocked), that authGoogle RESOLVES
-           rather than rejecting, and that the state and nonce were parked for the return
-           trip. The jsdomError the attempted navigation raises is expected, so it is
-           swallowed for the length of this one call rather than printed as a failure. */
-        window.sessionStorage.removeItem('trakora.gstate');
-        window.sessionStorage.removeItem('trakora.gnonce');
-        openUrl = '';
-        window.open = (url) => { openUrl = url; return null; };
-        const vcHandlers = dom.virtualConsole.listeners('jsdomError');
-        dom.virtualConsole.removeAllListeners('jsdomError');
-        dom.virtualConsole.on('jsdomError', () => {});
-        const redirected = await window.authGoogle();
-        dom.virtualConsole.removeAllListeners('jsdomError');
-        vcHandlers.forEach((fn) => dom.virtualConsole.on('jsdomError', fn));
-        const rst = openUrl ? new window.URL(openUrl).searchParams.get('state') : '';
-        const rnonce = openUrl ? new window.URL(openUrl).searchParams.get('nonce') : '';
-        ok('a blocked popup is not an error: the page leaves and comes back instead',
-          redirected === null, redirected);
-        ok('...remembering the state and the nonce across the navigation',
-          window.sessionStorage.getItem('trakora.gstate') === rst && !!rst &&
-          window.sessionStorage.getItem('trakora.gnonce') === rnonce && !!rnonce, rst);
-
-        // ---- and coming back from it ----
-        calls.length = 0;
-        const realReplace = window.history.replaceState;
-        window.history.replaceState = () => {};
-        window.location.hash = '#id_token=back-from-redirect&state=' + rst;
-        const back = await window.authGoogleResume().then((s) => s, (e) => ({ err: e }));
-        ok('the redirect branch resumes on boot and adopts the session',
-          calls.length === 1 && !!back && !back.err && back.uid === 'guid1', [calls.length, back]);
-        /* The same state check as the popup, on the path that has no opener to check. */
-        window.sessionStorage.setItem('trakora.gstate', 'ours');
-        window.sessionStorage.setItem('trakora.gnonce', 'n');
-        calls.length = 0;
-        window.location.hash = '#id_token=forged&state=theirs';
-        const forged = await window.authGoogleResume().then((s) => s, (e) => ({ err: e }));
-        ok('a returning fragment with the wrong state is refused, with no request made',
-          forged === null && calls.length === 0, [forged, calls.length]);
-        window.history.replaceState = realReplace;
-
-        /* WHERE A FAILURE IS REPORTED. Once, and where the person is looking: the inline
-           line when the sign-in screen is up, a toast when it is not. A toast fired over
-           an open sign-in card is the same message twice, in the one place it is least
-           likely to be read. */
-        const realGoogle = window.authGoogle;
-        const toasts = [];
-        window.toast = (m) => { toasts.push(String(m)); };
-        try {
-          /* Opened through its own address rather than by calling signInOpen() directly.
-             #/signin is an address, not a route, and the hashchange listener closes the
-             screen whenever the hash is anything else — including the id_token fragments
-             this block set a moment ago, whose events are still queued. */
-          window.location.hash = '#/signin';
-          await wait(40);
-          ok('the sign-in screen is up for this check', window.signInIsOpen() === true,
-            d.getElementById('signin-root').innerHTML.length);
-          window.authGoogle = () => Promise.reject({ code: 'offline', msg: 'raw' });
-          click(d.querySelector('.si-oauth'));
-          await wait(30);
-          ok('a Google failure lands on the sign-in screen, inline',
-            d.getElementById('si-msg').textContent === 'Could not reach Google. Check your connection and try again.',
-            d.getElementById('si-msg').textContent);
-          ok('...and not also as a toast, which would be the same message twice',
-            toasts.length === 0, toasts);
-
-          toasts.length = 0;
-          window.authGoogle = () => Promise.reject({ code: 'nokey', msg: 'raw' });
-          click(d.querySelector('.si-oauth'));
-          await wait(30);
-          ok('a sign-in Google did not finish says so in its own words',
-            d.getElementById('si-msg').textContent === 'Google did not complete the sign-in. Try again.',
-            d.getElementById('si-msg').textContent);
-
-          toasts.length = 0;
-          window.authGoogle = () => Promise.reject({ code: 'cancelled', msg: '' });
-          d.getElementById('si-msg').textContent = 'untouched';
-          click(d.querySelector('.si-oauth'));
-          await wait(30);
-          ok('closing the popup reports nothing anywhere',
-            toasts.length === 0 && d.getElementById('si-msg').textContent === 'untouched',
-            [toasts, d.getElementById('si-msg').textContent]);
-
-          /* Off the sign-in screen there is no inline line, so it has to be a toast or
-             the failure is silent. */
-          window.location.hash = '#/dashboard';
-          await wait(40);
-          window.signInClose();
-          toasts.length = 0;
-          window.authGoogle = () => Promise.reject({ code: 'access_denied', msg: 'raw' });
-          const btn = d.createElement('button');
-          btn.setAttribute('data-action', 'auth-google');
-          d.getElementById('main').appendChild(btn);
-          click(btn);
-          await wait(30);
-          ok('with the screen closed the same failure is a toast instead',
-            toasts.length === 1 &&
-            toasts[0] === 'Could not sign in with Google. Try again, or use your email and password.', toasts);
-          btn.remove();
-        } finally {
-          window.authGoogle = realGoogle;
-          window.signInClose();
-          window.toast = () => {};
-        }
-
-        /* The callback page is the other half of the flow and it is where the credential
-           is physically handed over. It must name this exact origin: with '*' the token
-           would be readable by whatever else the opener happens to be embedded in. */
-        const cb = fs.readFileSync(path.join(__dirname, '..', 'oauth-callback.html'), 'utf8');
-        ok('the callback page posts to this exact origin, never to a wildcard',
-          /postMessage\(payload, window\.location\.origin\)/.test(cb) &&
-          cb.indexOf("postMessage(payload, '*')") === -1 && cb.indexOf('postMessage(payload, "*")') === -1);
-        ok('...and carries nothing but what came back in the fragment',
-          /type: 'trakora-oauth'/.test(cb) && /p\.get\('state'\)/.test(cb) && /p\.get\('id_token'\)/.test(cb));
-        ok('...and falls back to the app when it was reached without an opener',
-          /window\.opener && window\.opener !== window/.test(cb) && /location\.replace\(back\)/.test(cb));
-        ok('...storing nothing, because it is a doorway and not a page',
-          cb.indexOf('localStorage') === -1 && cb.indexOf('sessionStorage') === -1);
-      } finally {
-        window.open = realOpen; window.fetch = realFetch; window.toast = realToast;
-        window.sessionStorage.removeItem('trakora.gstate');
-        window.sessionStorage.removeItem('trakora.gnonce');
-        Object.keys(share).forEach((k) => { delete share[k]; });
-        Object.assign(share, savedShare);
-        if (savedAuth) window.localStorage.setItem('bizpilot.auth', savedAuth);
-        else window.localStorage.removeItem('bizpilot.auth');
-        window.location.hash = '#/dashboard';
-        window.render();
-      }
-    })();
-
-    // ---------- one place to paste the deployment config, and it is honest about itself ----------
-    /* The hard constraint on this whole change: we do not have the owner's Web API key or
-       OAuth client id and cannot get them. So AUTH_CFG stays empty, with one obvious place
-       to paste, and the app has to degrade honestly with nothing in it. */
-    (function deploymentConfig() {
-      const block = html.slice(html.indexOf('var AUTH_CFG={'), html.indexOf('var AUTH_IDT='));
-      ok('AUTH_CFG is empty, because inventing a credential is not an option',
-        /apiKey:\s*'',/.test(block) && /clientId:\s*''/.test(block), block);
-      ok('...with exactly one place to paste each value, marked as such',
-        (block.match(/<-- paste/g) || []).length === 2, block);
-      /* The two sentences an owner most needs and is least likely to be told: these are
-         public values, and the thing that actually keeps the data private is elsewhere. */
-      const doc = html.slice(html.indexOf('DEPLOYMENT CONFIG'), html.indexOf('var AUTH_CFG={'));
-      ok('the block says the two values are public and cannot be secrets',
-        /THESE TWO VALUES ARE PUBLIC/.test(doc) && /View Source/.test(doc), doc.length);
-      ok('...and that the database rules, not these, are what keep the data private',
-        /DATABASE RULES/.test(doc) && /unpublished\s+rules as the emergency/.test(doc.replace(/\s+/g, ' ')), doc.length);
-      ok('...and names the redirect URI that has to be registered on the OAuth client',
-        /oauth-callback\.html/.test(doc));
-      ok('...and says the Settings fields are a per-device override, not the deployment',
-        /OVERRIDE/.test(doc) && /source of truth is here/.test(doc.replace(/\s+/g, ' ')));
-      /* Precedence, asserted in the code rather than only in the prose above it. */
-      ok('the settings override is read first, falling back to AUTH_CFG',
-        /function authApiKey\(\)\{ var o=\(state&&state\.settings&&state\.settings\.share&&state\.settings\.share\.apiKey\)\|\|''; return String\(o\|\|AUTH_CFG\.apiKey\|\|''\)\.trim\(\); \}/.test(html));
-
-      /* THE ONE PLACE THE MISSING CLIENT ID IS EXPLAINED. The realistic path is that the
-         owner pastes the API key first, because that is the value the Firebase console
-         puts in front of them, and the client id lives somewhere else entirely. They then
-         open the sign-in screen, find no Google button, and conclude Google was never
-         built. The sentence that catches that belongs where somebody doing setup is
-         already standing, with the client id field in front of them, and not on a login
-         screen in front of an owner trying to get in. */
-      (function clientIdConsequence() {
-        const share = window.state.settings.share;
-        const savedKey = share.apiKey, savedCid = share.clientId;
-        const line = 'Without this, the sign-in screen does not show the Google button.';
-        try {
-          share.apiKey = 'AIzaTEST'; share.clientId = '';
-          const fold = window.developerSetupHTML();
-          ok('a key with no client id says so, in the setup fold, under that field',
-            fold.indexOf(line) > 0 && fold.indexOf(line) > fold.indexOf('name="clientId"'), fold.indexOf(line));
-          ok('...and nowhere else in the product', (() => {
-            window.ui.signin = { mode: 'in', show: false };
-            const screen = window.signInHTML();
-            const menu = window.acctMenuHTML();
-            return screen.indexOf(line) === -1 && menu.indexOf(line) === -1 &&
-              !/Google/.test(menu) && !/Google/.test(screen);
-          })());
-          share.clientId = 'test.apps.googleusercontent.com';
-          ok('...and stops being said once the client id is there',
-            window.developerSetupHTML().indexOf(line) === -1);
-          share.apiKey = ''; share.clientId = '';
-          ok('...and is not said before there is a key, when it is not yet the problem',
-            window.developerSetupHTML().indexOf(line) === -1);
-        } finally {
-          share.apiKey = savedKey; share.clientId = savedCid;
-          window.ui.signin = { mode: 'in', show: false };
-        }
-      })();
-
-      /* And the degradation. With nothing pasted, the profile page must not offer to go
-         and configure anything either: that was the owner's complaint's second half. */
-      const share = window.state.settings.share;
-      const savedKey = share.apiKey, savedCid = share.clientId;
-      const savedAuth = window.localStorage.getItem('bizpilot.auth');
-      try {
-        share.apiKey = ''; share.clientId = '';
-        window.authStore(null);
-        window.state.settings.localIn = true;
-        window.location.hash = '#/profile'; window.render();
-        const card = d.getElementById('main');
-        ok('the profile page offers no setup button in the local state',
-          !card.querySelector('[data-action="settings-go"][data-tab="data"]'),
-          card.innerHTML.indexOf('data-tab="data"'));
-        ok('...only a way out', card.querySelectorAll('[data-action="auth-signout"]').length === 1);
-        ok('...and says what is true about this copy without naming a console',
-          /This copy has no accounts yet/.test(card.textContent) &&
-          !/API key|Firebase|client id|Developer setup/i.test(card.textContent));
-      } finally {
-        window.state.settings.localIn = false;
-        share.apiKey = savedKey; share.clientId = savedCid;
-        if (savedAuth) window.localStorage.setItem('bizpilot.auth', savedAuth);
-        else window.localStorage.removeItem('bizpilot.auth');
-        window.location.hash = '#/dashboard'; window.render();
-      }
-    })();
-
-    // ---------- connecting a Firebase project is one paste ----------
-    /* The old save handler took any string at all and answered "You can sign in now" — a
-       promise it had no way of keeping, so a typo surfaced later as a failed sign-in with
-       nothing to go on. The key is now checked with Google before it is believed, and the
-       answer carries enough to finish the rest of the setup on its own. */
-    await (async function projectKeys() {
-      const realFetch = window.fetch, realToast = window.toast;
-      const saidSo = [];
-      window.toast = (m, t) => { saidSo.push(String(m)); };
-      const share = window.shareCfg();
-      const savedKey = share.apiKey, savedSync = JSON.parse(JSON.stringify(window.state.settings.sync || {}));
-      const reply = (ok, body) => { window.fetch = () => Promise.resolve({ ok, status: ok ? 200 : 400,
-        text: () => Promise.resolve(JSON.stringify(body)) }); };
-      try {
-        /* Google's real rejection body, copied from an actual call to the endpoint:
-           {"error":{"code":400,"message":"API key not valid. Please pass a valid API key."}} */
-        reply(false, { error: { code: 400, message: 'API key not valid. Please pass a valid API key.' } });
-        let msg = null;
-        await window.authVerifyKey('AIzaTypo').then(() => {}, (e) => { msg = e.msg; });
-        ok('a key Google rejects is reported in words the owner can act on',
-          /Copy it again from Project settings/.test(msg || ''), msg);
-
-        reply(true, { projectId: 'studio-hiraya-books', authorizedDomains: ['localhost', 'studio-hiraya-books.firebaseapp.com'] });
-        const info = await window.authVerifyKey('AIzaGood');
-        ok('a key Google accepts names the project', info.projectId === 'studio-hiraya-books', info);
-        ok('...and the default database address comes with it, so it need not be typed',
-          info.dbUrl === 'https://studio-hiraya-books-default-rtdb.firebaseio.com', info.dbUrl);
-        /* The domain list is the single most common reason a CORRECT key still refuses to
-           sign anyone in, and Google's error for it names nothing useful. */
-        ok('a domain that is not on the project list is caught',
-          window.authDomainAllowed(['studio-hiraya-books.firebaseapp.com']) === true ||
-          !['a.example'].some((d) => d === 'books.example.com'));
-
-        // one paste, end to end
-        window.state.settings.sync = Object.assign({}, window.state.settings.sync, { url: '' });
-        share.apiKey = '';
-        reply(true, { projectId: 'studio-hiraya-books', authorizedDomains: ['localhost'] });
-        window.location.hash = '#/settings'; window.ui.settingsTab = 'data'; window.render();
-        const form = d.querySelector('form[data-form="share-keys"]');
-        ok('the key field is on the page, inside the developer fold', !!form);
-        form.elements.apiKey.value = 'AIzaPasted';
-        form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
-        await new Promise((r) => setTimeout(r, 60));
-        ok('one paste saves the key', window.shareCfg().apiKey === 'AIzaPasted');
-        ok('...and fills in the database address by itself',
-          (window.state.settings.sync || {}).url === 'https://studio-hiraya-books-default-rtdb.firebaseio.com',
-          (window.state.settings.sync || {}).url);
-        ok('...and says which project it reached', saidSo.some((m) => /studio-hiraya-books/.test(m)), saidSo);
-
-        /* The important half: a key that fails the check must not be stored, or the app
-           goes on claiming it can sign people in with a string Google has never seen. */
-        share.apiKey = 'KEEPME';
-        reply(false, { error: { message: 'API_KEY_INVALID' } });
-        const f2 = d.querySelector('form[data-form="share-keys"]');
-        f2.elements.apiKey.value = 'AIzaTypo';
-        f2.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
-        await new Promise((r) => setTimeout(r, 60));
-        ok('a key that fails the check is NOT saved over the working one',
-          window.shareCfg().apiKey === 'KEEPME', window.shareCfg().apiKey);
-      } finally {
-        window.fetch = realFetch; window.toast = realToast;
-        share.apiKey = savedKey;
-        window.state.settings.sync = savedSync;
-        window.save();
-      }
-    })();
-
-    // ---------- the sign-in screen, and a settings page an owner can read ----------
-    /* "the log in ... is not the standard, plus the setting has a horizontal scroll all
-       over it" and "i don't need all the codes to be in there, business owner will not
-       know that". Measured first: the only thing still scrolling sideways anywhere on the
-       site was .code-block on the Data & Sync tab, 3,377px wider than a 320px phone. It
-       was also the codes. One cause, both complaints. */
-    (function signInAndSettings() {
-      /* Plain white, one column, centred. It started as a copy of a supplied reference:
-         a blue page, a hairline frame, a white panel split down the middle with artwork
-         beside the form. That was a lot of chrome around six controls, so the chrome went
-         and the form stayed. */
-      ok('the screen is a plain centred column, not a framed split panel',
-        /\.si-wrap\{[^}]*place-items:center/.test(html) &&
-        /\.si-card\{width:100%;max-width:\d+px\}/.test(html));
-      ok('...with the frame, the panel and the artwork gone, not just hidden',
-        ['si-frame', 'si-panel', 'si-art', 'si-side', 'siArtSVG'].every((c) => html.indexOf(c) === -1));
-      ok('...and the parts that matter still there',
-        ['si-oauth', 'si-or', 'si-field', 'si-eye', 'si-cta', 'si-foot']
-          .every((c) => html.indexOf(c) > 0));
-      /* "Remember me" is gone. It was read into ui.signin.remember and used by nothing:
-         the session goes to localStorage and outlives a browser restart whatever the box
-         said, so unticking it told the person something untrue. The behaviour did not
-         change; the control that misdescribed it did. */
-      ok('...and the checkbox that promised something the code never did is gone',
-        html.indexOf('si-remember') === -1 && !/id="si-remember"/.test(html) &&
-        !/st\.remember=rem\.checked/.test(html));
-      ok('...and the business name, not a hardcoded one',
-        /si-name">'\+appNameEsc\(\)/.test(html));
-      /* Two things in the reference are deliberately absent, and both would be a lie: a
-         gradient the owner ruled out, and a Facebook button this app cannot honour. */
-      // The Google button carries data-action="auth-google" and NOTHING ELSE. It used to
-      // be interpolated, so it could also come out as signin-preview; it cannot any more,
-      // because in demo it renders disabled with no action at all (see below).
-      ok('...with no gradient, and no federated button it cannot honour',
-        !/\.si-[a-z-]*\{[^}]*linear-gradient/.test(html) &&
-        /class="si-oauth"'\+\s*\(demo\?' disabled aria-describedby="si-oauth-hint"':' data-action="auth-google"'\)/.test(html) &&
-        html.indexOf('auth-facebook') === -1);
-
-      /* THE SIGN-IN SCREEN IS THE ONE PLACE THE DEPLOYMENT IS DESCRIBED. The account
-         menu offers "Sign in" whether or not AUTH_CFG has been filled in, because that is
-         what a product does. The honest answer is given here, at the door, to somebody
-         who is actually trying to get in.
-
-         With no project there are no accounts, so there is no form. The screen used to
-         render the full form and pre-fill it from an SI_DEMO pair of made-up credentials,
-         which is the one lie it could tell: an Email label and a Password label promise
-         those two values get checked, and with an empty AUTH_CFG they are checked against
-         nothing at all. */
-      (function signInWithoutAProject() {
-        const share = window.state.settings.share;
-        const savedKey = share.apiKey, savedCid = share.clientId;
-        try {
-          share.apiKey = ''; share.clientId = '';
-          window.ui.signin = { mode: 'in', show: false };
-          const bare = window.signInHTML();
-          /* The screen used to render NO form at all with no project behind it, on the
-             grounds that an Email label promises the value gets checked. That is right for
-             a shipped product and wrong for a screen somebody is being asked to look at and
-             click through before any backend exists, which is what this is for now. So the
-             whole form renders and every control works. What keeps it honest is the banner
-             and the absence of a session, not the absence of the UI. */
-          ok('with no project connected the whole form is still there to look at',
-            ['si-oauth', 'si-or', 'si-form', 'si-field', 'si-eye', 'si-cta']
-              .every((c) => bare.indexOf(c) > 0), bare.slice(0, 400));
-          ok('...pre-filled, so a tester can press Log in and be in the app',
-            /id="si-email"[^>]*value="tester@example\.com"/.test(bare) &&
-            /id="si-pass"[^>]*value="preview1234"/.test(bare), bare.slice(0, 600));
-          ok('...with forgot password and create account both reachable',
-            bare.indexOf('data-action="signin-forgot"') > 0 &&
-            /data-action="signin-mode" data-mode="up"/.test(bare), bare.slice(0, 600));
-          /* The Google button must not open a dead popup when there is no client id
-             behind it. It used to carry data-action="signin-preview", i.e. a control
-             wearing Google's mark that performed an action having nothing to do with
-             Google: the mark is a claim about what pressing it does. It is now rendered
-             disabled with no action at all, which also drops it out of the tab order,
-             and it says why in a line it points at with aria-describedby. */
-          ok('...and Google is disabled rather than wired to a non-Google action',
-            / class="si-oauth" disabled aria-describedby="si-oauth-hint"/.test(bare) &&
-            bare.indexOf('data-action="signin-preview"') === -1 &&
-            bare.indexOf('data-action="auth-google"') === -1, bare.slice(0, 900));
-          ok('...with the hint it names actually present',
-            /<p class="si-hint" id="si-oauth-hint">/.test(bare), bare.slice(0, 900));
-          /* The mark itself must not be dimmed to say "disabled": opacity and grayscale
-             both repaint Google's four colours, which is a brand breach of its own. The
-             chrome goes quiet and the svg is untouched. */
-          ok('...without dimming the four-colour mark to do it',
-            /\.si-oauth\[disabled\]\{[^}]*\}/.test(html) &&
-            !/\.si-oauth\[disabled\]\{[^}]*(opacity|filter)/.test(html) &&
-            /\.si-oauth\[disabled\]\{[^}]*background:var\(--bg-sunken\)/.test(html), true);
-          /* CRITICAL-1: the banner used to say "every button just opens the books", which
-             was false of two of the four controls on the screen (Create account toggles
-             the form, Forgot password prints a line). It names the one button it is
-             actually describing, which is true of the CTA in both modes and claims
-             nothing about Google, Forgot password or the footer toggle. */
-          ok('...and it says plainly that nothing is checked and nobody is signed in',
-            /Demo\. No accounts are connected yet/.test(bare) &&
-            /the button below just opens the books/.test(bare) &&
-            /nothing is checked and nothing is sent/.test(bare) &&
-            /Nobody is signed in and no account is created/.test(bare), bare);
-          ok('...and no longer claims that EVERY button just opens the books',
-            bare.indexOf('every button just opens the books') === -1 &&
-            html.indexOf('every button just opens the books') === -1, bare);
-          /* It is a system notice about the screen, so it is a strip on .si-wrap rather
-             than a card inside the form, and it no longer shares .si-msg.ok with #si-msg,
-             the form's own result line. Two identically shaped rounded notices, one of
-             them accent-blue and reading as promotional, was the reason. */
-          ok('...as a strip on the screen, not a second .si-msg inside the card',
-            /<div class="si-demo" id="si-demo">/.test(bare) &&
-            !/class="si-msg show ok" style="margin-bottom/.test(bare) &&
-            /\.si-demo\{/.test(html), bare.slice(0, 900));
-          ok('...it does not send the owner off to configure anything',
-            !/API key|Firebase|client id|Developer setup|Settings/i.test(bare), bare);
-          /* The whole point of the honesty: continuing must not leave the app believing a
-             session exists, or every screen downstream lies about who is signed in. The
-             demo branch of the form's submit handler is now the ONLY place that
-             behaviour lives; signin-preview, whose last caller was the Google button, is
-             deleted rather than left orphaned. */
-          ok('...which writes no auth session, so nothing downstream thinks anyone signed in',
-            !/state\.settings\.localIn=true[\s\S]{0,400}?authStore\(/.test(html) &&
-            /Opened in demo\. No accounts are connected yet, so nobody is signed in\./.test(html));
-          ok('...and the orphaned signin-preview action is gone, not left dangling',
-            html.indexOf("action==='signin-preview'") === -1 &&
-            html.indexOf('data-action="signin-preview"') === -1 &&
-            html.indexOf("'signin-preview'") === -1, true);
-
-          /* A key but no client id: the real form, and no Google button, because a Google
-             button with no client id behind it can open exactly one thing, a dead popup.
-             The OR rule has nothing left to separate, so it goes with it. */
-          share.apiKey = 'AIzaTEST';
-          const noGoogle = window.signInHTML();
-          ok('a project with no client id gets the real form',
-            noGoogle.indexOf('si-form') > 0 && noGoogle.indexOf('id="si-email"') > 0 &&
-            noGoogle.indexOf('id="si-pass"') > 0, noGoogle.slice(0, 300));
-          ok('...and no Google button, and no OR rule with nothing to separate',
-            noGoogle.indexOf('si-oauth') === -1 && noGoogle.indexOf('si-or') === -1);
-          ok('...and no pre-filled values in either field',
-            !/id="si-email"[^>]*value=/.test(noGoogle) && !/id="si-pass"[^>]*value=/.test(noGoogle));
-
-          share.clientId = 'test.apps.googleusercontent.com';
-          const withGoogle = window.signInHTML();
-          ok('add the client id and the Google button appears, above the email field',
-            withGoogle.indexOf('si-oauth') > 0 && withGoogle.indexOf('si-or') > 0 &&
-            withGoogle.indexOf('si-oauth') < withGoogle.indexOf('id="si-email"'), true);
-          ok('...opening the real popup, not the local shortcut',
-            /class="si-oauth" data-action="auth-google"/.test(withGoogle));
-          ok('...labelled the standard way in both modes', (() => {
-            const inLbl = withGoogle.indexOf('Continue with Google') > 0;
-            window.ui.signin.mode = 'up';
-            const upLbl = window.signInHTML().indexOf('Sign up with Google') > 0;
-            window.ui.signin.mode = 'in';
-            return inLbl && upLbl;
-          })());
-        } finally {
-          share.apiKey = savedKey; share.clientId = savedCid;
-          window.ui.signin = { mode: 'in', show: false };
-        }
-      })();
-
-      /* ---------- the screen has to be ON TOP, and reachable ----------
-         It sat at z-index 300 while the first-run greeting was 520 and the welcome tour
-         500, so on a first visit (and every visit until the tour was finished) the login
-         was painted, opaque, and completely uninteractable: clicks landed on the overlay
-         above it and fourteen Tab presses never reached the form. The same 300 was above
-         .toast-root at 200 and the modal layer at 100, so a toast fired while the screen
-         was up was drawn underneath it. That is what made Sign out look like it had done
-         nothing: the confirmation existed and could not be seen.
-
-         Five layers, one order, and the numbers are asserted against each other rather
-         than individually so that moving one of them has to move the rest. */
-      (function signInStackingOrder() {
-        const z = (sel, re) => {
-          const m = html.match(re);
-          return m ? parseInt(m[1], 10) : NaN;
-        };
-        const si    = z('.si-wrap',        /\.si-wrap\{position:fixed;inset:0;z-index:(\d+)/);
-        const greet = z('.greet-overlay',  /\.greet-overlay\{position:fixed;inset:0;z-index:(\d+)/);
-        const onb   = z('.onb-overlay',    /\.onb-overlay\{position:fixed;inset:0;z-index:(\d+)/);
-        const modal = z('.modal-overlay',  /\.modal-overlay\{position:fixed;inset:0;background:rgba\(8,10,22,\.6\);z-index:(\d+)/);
-        const toast = z('.toast-root',     /\.toast-root\{position:fixed;bottom:20px;right:20px;z-index:(\d+)/);
+    // ---------- the top of the stack, and a settings page an owner can read ----------
+    (function stackAndSettings() {
+      /* The sign-in screen used to sit in the middle of this stack (560) and the first-run
+         overlays stood aside for it. It is gone. What is left is four layers and one order,
+         and the numbers are asserted against each other rather than individually so that
+         moving one of them has to move the rest. */
+      (function stackingOrder() {
+        const z = (re) => { const m = html.match(re); return m ? parseInt(m[1], 10) : NaN; };
+        const greet = z(/\.greet-overlay\{position:fixed;inset:0;z-index:(\d+)/);
+        const onb   = z(/\.onb-overlay\{position:fixed;inset:0;z-index:(\d+)/);
+        const modal = z(/\.modal-overlay\{position:fixed;inset:0;background:rgba\(8,10,22,\.6\);z-index:(\d+)/);
+        const toast = z(/\.toast-root\{position:fixed;bottom:20px;right:20px;z-index:(\d+)/);
         ok('every layer in the top of the stack has a z-index that parses',
-          [si, greet, onb, modal, toast].every((n) => Number.isFinite(n)), { si, greet, onb, modal, toast });
-        ok('the sign-in screen outranks the first-run greeting and the welcome tour',
-          si > greet && si > onb, { si, greet, onb });
-        ok('...and the toast root and the modal layer outrank the sign-in screen',
-          toast > si && modal > si, { si, modal, toast });
+          [greet, onb, modal, toast].every((n) => Number.isFinite(n)), { greet, onb, modal, toast });
+        ok('a dialog outranks the first-run greeting and the welcome tour',
+          modal > greet && modal > onb, { modal, greet, onb });
         ok('...with the toasts last, so nothing can cover a message',
           toast > modal && toast > greet && toast > onb, { toast, modal, greet, onb });
-        ok('...and the order is written down where the next person will read it',
-          /THE TOP OF THE STACK/.test(html) && /\.si-wrap\s+the sign-in screen/.test(html));
-
-        /* Covering the greeting is not the same as dismissing it. If .si-wrap merely
-           outranked 520 the greeting would still be OPEN underneath an opaque sheet, and
-           sitting there the moment somebody pressed "Not now". Both first-run overlays
-           stand aside while the screen is up and take their turn when it closes, and
-           neither burns its once-ever flag while it waits. */
-        ok('the first-run overlays stand aside while the sign-in screen is open',
-          /function maybeGreet\(\)\{[\s\S]{0,1400}?signInIsOpen\(\)\) return;/.test(html) &&
-          /function maybeOnboard\(\)\{[\s\S]{0,1400}?signInIsOpen\(\)\) return;/.test(html));
-        ok('...deferring, not cancelling: closing the screen gives them their turn',
-          /function signInClose\(\)\{[\s\S]{0,700}?maybeOnboard\(\);[\s\S]{0,200}?maybeGreet\(\);/.test(html));
-        ok('...and the tour does not burn its once-ever flag while it is waiting',
-          /onbPending=false;\s*if\(state\.settings\.onboarded\) return;[\s\S]{0,160}?state\.settings\.onboarded=true; save\(\);/.test(html));
+        ok('...and the order is written down where the next person will read it, without the layer that left',
+          /THE TOP OF THE STACK/.test(html) && !/sign-in screen/.test(html));
+        /* The greeting and the tour deferred to the sign-in screen and were called back
+           when it closed. With nothing to defer to they are scheduled once, at boot. */
+        ok('the first-run overlays wait for nothing but the lock, a dialog and each other',
+          /function maybeGreet\(\)\{[\s\S]{0,420}?greetShownThisSession=true;\s*setTimeout\(showGreeting,450\);/.test(html) &&
+          /function maybeOnboard\(\)\{[\s\S]{0,420}?state\.settings\.onboarded=true; save\(\);[^\n]*\n[^\n]*\n\s*setTimeout\(function\(\)\{ showOnboard\(0\); \},600\);/.test(html));
       })();
 
-      /* ---------- focus containment ----------
-         .si-wrap had no role and no aria-modal, and .app had neither inert nor
-         aria-hidden, so the app's whole nav came BEFORE the card in the accessibility
-         tree: 10 of 16 Tab stops walked out of the form onto sidebar items that were
-         completely hidden under an opaque sheet, and Shift+Tab did not bring you back. */
-      ok('the sign-in screen is a modal dialog and the app goes inert behind it',
-        /class="si-wrap'\+\(demo\?' si-has-demo':''\)\+'" role="dialog" aria-modal="true"/.test(html) &&
-        /function siAppInert\(on\)\{[\s\S]{0,200}?setAttribute\('inert',''\)[\s\S]{0,80}?removeAttribute\('inert'\)/.test(html));
-      ok('...and the inert is lifted again on close, not just set on open',
-        /function signInClose\(\)\{[\s\S]{0,300}?siAppInert\(false\)/.test(html) &&
-        /function signInRender\(keepFocus\)\{[\s\S]{0,200}?siAppInert\(true\)/.test(html));
-      ok('...with the two ends of the tab cycle joined up',
-        /function siTrapTab\(e\)\{/.test(html) &&
-        /e\.shiftKey && document\.activeElement===first\)\{ e\.preventDefault\(\); last\.focus\(\)/.test(html) &&
-        /document\.activeElement===last\)\{ e\.preventDefault\(\); first\.focus\(\)/.test(html));
-
-      /* ---------- the one thing on this screen a screen reader can hear ----------
-         querySelectorAll('[aria-live],[role=status],[role=alert]') on #/signin returned
-         [] : nothing here was announced at all. Pressing Forgot password changed the text
-         under the button and said nothing. #si-msg is where every answer the screen gives
-         lands, so it is the live region. */
-      ok('the message line is a polite live region',
-        /<div class="si-msg" id="si-msg" role="status" aria-live="polite">/.test(html));
-      ok('...and the form is pointed at the demo notice it is described by',
-        /<form id="si-form" autocomplete="'\+\(demo\?'off':'on'\)\+'" novalidate'\+\s*\(demo\?' aria-describedby="si-demo"':''\)/.test(html));
-
-      /* ---------- the demo used to skip validation entirely ----------
-         The submit handler returned inside if(!authConfigured()) before authSubmitEmail(),
-         and the form is novalidate with no required, so cleared fields, a malformed
-         address, a three-character password and whitespace-only all just opened the app.
-         The error state on a screen whose entire job is previewing the login could
-         therefore not be reached at all, and filling in AUTH_CFG later would have
-         silently flipped empty-submit from "opens the app" to "shows an error".
-
-         It runs the SAME check, not a copy of it: authEmailFormError is the one function
-         and authSubmitEmail calls it too, so the two paths cannot drift. It deliberately
-         adds NOTHING of its own: no email regex, no six-character minimum. Format and
-         length are the server's to refuse, and a demo that turned away a malformed
-         address would be refusing something the real path accepts, which is the same
-         class of lie pointing the other way. */
-      (function demoValidatesLikeTheRealPath() {
-        ok('there is exactly one client-side check on the email form',
-          /function authEmailFormError\(email,password\)\{\s*if\(!String\(email\|\|''\)\.trim\(\)\|\|!String\(password\|\|''\)\) return \{code:'empty',msg:'Enter an email address and a password\.'\};/.test(html) &&
-          (html.match(/Enter an email address and a password\./g) || []).length === 1,
-          (html.match(/Enter an email address and a password\./g) || []).length);
-        ok('...and both the configured path and the demo path call it',
-          /function authSubmitEmail\([\s\S]{0,200}?var bad=authEmailFormError\(email,password\);\s*if\(bad\) return Promise\.reject\(bad\);/.test(html) &&
-          /if\(demo\)\{\s*var bad=authEmailFormError\(byId\('si-email'\)\.value,byId\('si-pass'\)\.value\);/.test(html));
-        ok('...the demo shows it inline and does NOT open the app',
-          /if\(bad\)\{\s*btn\.disabled=false; btn\.textContent=was;\s*msg\.className='si-msg show err'; msg\.textContent=tr\(bad\.msg\);\s*return;\s*\}/.test(html));
-        ok('...and invents no format or length rule the real path does not have',
-          !/\[\^@\]\+@\[\^@\]\+/.test(html.slice(html.indexOf('function authEmailFormError'), html.indexOf('function authEmailFormError') + 400)) &&
-          !/password\.length\s*<\s*6/.test(html));
-        /* and the real thing, driven: the function the screen actually calls */
-        const F = window.authEmailFormError;
-        ok('empty and whitespace-only are refused',
-          !!F('', '') && !!F('   ', 'preview1234') && !!F('', 'x') &&
-          F('', '').msg === 'Enter an email address and a password.',
-          [F('', ''), F('   ', 'preview1234')]);
-        ok('...and a malformed address and a three-character password are NOT',
-          F('not-an-email', 'abc') === null && F('a@b.co', 'xyz') === null,
-          [F('not-an-email', 'abc'), F('a@b.co', 'xyz')]);
-      })();
-
-      /* ---------- the loading label used to assert something that never happened ----------
-         "Signing in…" / "Creating your account…" were set BEFORE the demo branch was
-         checked, so for 420ms the button claimed an action that was not going to happen
-         and the toast correcting it arrived afterwards. The configured labels are
-         untouched; the demo gets one of its own, because one thing happens either way. */
-      ok('the demo CTA says what it is actually about to do',
-        /esc\(tr\(demo\?'Opening the demo…':\(st\.mode==='up'\?'Creating your account…':'Signing in…'\)\)\)/.test(html));
-
-      /* ---------- MEDIUM-10: a filled current-password of "preview1234" in an
-         autocomplete=on form is exactly what Chrome and Safari offer to save, which
-         would train a real owner's password manager with a made-up credential for the
-         deployed origin. Demo only; the configured path still wants the save prompt. */
-      ok('the demo-prefilled fields are not offered to the password manager',
-        /autocomplete="'\+\(demo\?'off':'username'\)\+'"/.test(html) &&
-        /autocomplete="'\+\(demo\?'off':\(up\?'new-password':'current-password'\)\)\+'"/.test(html));
-
-      /* ---------- HIGH-6: the eye rebuilt the card and the autofocus then threw the
-         keyboard user back to the email field on every toggle. ---------- */
-      ok('showing the password no longer steals focus back to the email field',
-        /if\(!keepFocus\) setTimeout\(function\(\)\{ var el=byId\('si-email'\); if\(el\) el\.focus\(\); \},120\);/.test(html) &&
-        /action==='signin-eye'\)\{[\s\S]{0,200}?signInRender\(true\);[\s\S]{0,140}?eye\.focus\(\)/.test(html));
-      ok('...while opening the screen and switching mode still land on email',
-        /action==='signin-mode'\)\{ ui\.signin\.mode=el\.getAttribute\('data-mode'\)\|\|'in'; signInRender\(\);/.test(html));
-
-      /* ---------- D1: --accent is #2563eb light and #60a5fa dark, so a hardcoded white
-         foreground is legible in exactly one of them. White on #60a5fa is 2.54:1. ------- */
-      ok('the primary button takes a themed foreground, not a hardcoded white',
-        /\.si-cta\{[^}]*color:var\(--accent-on\)/.test(html) &&
-        !/\.si-cta\{[^}]*color:#fff/.test(html) &&
-        /--accent-on:#ffffff;/.test(html) && /--accent-on:#0b1220;/.test(html));
-      ok('...without darkening --accent itself, which is shared app-wide',
-        /--accent:#2563eb;/.test(html) && /--accent:#60a5fa;/.test(html));
-
-      /* ---------- D3 + the focus ring (the resolution of conflict 2) ---------- */
-      ok('the fields have a real resting border, not a transparent one',
-        /\.si-field\{[^}]*border:1px solid var\(--border-field\)/.test(html) &&
-        /--border-field:#d0d5dd;/.test(html) && /--border-field:#3a475c;/.test(html) &&
-        !/\.si-field\{[^}]*border:1px solid transparent/.test(html));
-      ok('both input-level focus layers are gone and the indicator is on the wrapper',
-        /\.si-field input:focus,\.si-field input:focus-visible\{outline:none;box-shadow:none\}/.test(html) &&
-        /\.si-field:focus-within\{border-color:var\(--accent\);background:var\(--bg-card\);\s*outline:2px solid var\(--accent\);outline-offset:2px\}/.test(html));
-      ok('...scoped to the input, so the eye inside the field keeps its own ring',
-        !/\.si-field \*\{/.test(html) && !/\.si-field \*:focus/.test(html));
-
-      /* ---------- D2: the button had no visible edge in either theme ---------- */
-      ok('the Google button uses Google’s own stroke colours and dark fill',
-        /--goog-border:#747775;/.test(html) && /--goog-border:#8E918F;/.test(html) &&
-        /--goog-bg:#131314;/.test(html) &&
-        /\.si-oauth\{[^}]*border:1px solid var\(--goog-border\);[^}]*background:var\(--goog-bg\)/.test(html));
-      ok('...keeping the shadow in light and dropping it in dark',
-        /\.si-oauth\{[^}]*box-shadow:var\(--shadow-sm\)/.test(html) &&
-        /html\[data-theme="dark"\] \.si-oauth\{box-shadow:none/.test(html));
-      ok('...and hover no longer fires on the disabled one',
-        /\.si-oauth:not\(\[disabled\]\):hover\{/.test(html) && !/\.si-oauth:hover\{/.test(html));
-
-      /* ---------- D5/D6/D9/D10/D11a/D13/D14: the polish pass ---------- */
-      ok('the eleven vertical gaps collapse to three tokens',
-        /--si-1:8px;/.test(html) && /--si-2:16px;/.test(html) && /--si-3:24px;/.test(html) &&
-        /\.si-name\{[^}]*margin:var\(--si-1\) 0 var\(--si-3\)/.test(html) &&
-        /\.si-field\{[^}]*margin-bottom:var\(--si-2\)/.test(html) &&
-        /\.si-foot\{margin-top:var\(--si-3\)/.test(html) &&
-        /\.si-msg\{margin-top:var\(--si-2\)/.test(html) &&
-        /\.si-note\{margin-top:var\(--si-2\)/.test(html) &&
-        /\.si-skip\{[^}]*margin-top:var\(--si-1\)/.test(html) &&
-        /\.si-or\{[^}]*margin:var\(--si-3\) 0/.test(html));
-      ok('the CTA carries its own separation, so it stops jumping between modes',
-        /\.si-row\{[^}]*margin:var\(--si-1\) 0 0\}/.test(html) &&
-        /\.si-cta\{[^}]*margin-top:var\(--si-3\)/.test(html));
-      ok('the header is a login header, not a landing-page hero',
-        /\.si-name\{[^}]*font-size:var\(--f6\)[^}]*color:var\(--text\)/.test(html) &&
-        /\.si-name\{[^}]*overflow-wrap:break-word/.test(html) &&
-        !/\.si-name\{[^}]*overflow-wrap:anywhere/.test(html) &&
-        /\.si-kicker\{font-size:var\(--f2\)/.test(html));
-      ok('...and the header block is centred with the rest of the column',
-        /\.si-kicker\{[^}]*text-align:center/.test(html) &&
-        /\.si-name\{[^}]*text-align:center/.test(html));
-      // Asserted as the goal rather than as the literal that was first prescribed.
-      // .si-link was written as padding:10px, which measured 36px tall: the 13px font's
-      // line box is ~16px, so 10+16+10 lands 8px under the 44px floor the rule exists to
-      // clear. The padding has to be >=14px, and the margin has to cancel it exactly or
-      // the control moves. Checking the arithmetic keeps the next edit honest.
-      ok('the two smallest touch targets are padded out without moving a pixel', (function () {
-        const eye = /\.si-eye\{[^}]*padding:12px;margin:-12px/.test(html);
-        const m = /\.si-link\{[^}]*padding:(\d+)px (\d+)px;margin:-(\d+)px -(\d+)px\}/.exec(html);
-        if (!m) return false;
-        const [padY, padX, marY, marX] = m.slice(1).map(Number);
-        return eye && padY >= 14 && padY + 16 + padY >= 44 && marY === padY && marX === padX;
-      })());
-      ok('the stray closing brace after the sign-in media query is gone',
-        !/@media \(max-width:560px\)\{\s*\.si-wrap\{padding:24px 18px;align-content:start\}\s*\}\s*\}/.test(html));
-
-      /* ONE sign-in surface, not two. A modal version of the same two fields survived
-         here as dead code after the screen replaced it, carrying its own copy, its own
-         Forgot password button and a guard toast naming Firebase. A dead second version
-         of the login is how two answers to "what does signing in look like" come back,
-         so it is gone, along with the auth-reset action only it used. */
-      ok('there is no second, modal version of the sign-in form left lying around',
-        typeof window.authEmailModal === 'undefined' && html.indexOf('authEmailModal') === -1 &&
-        html.indexOf("action==='auth-reset'") === -1);
-      ok('...and password reset itself is untouched, on the screen that has the field',
-        typeof window.authSendReset === 'function' && html.indexOf("action==='signin-forgot'") > 0);
-      ok('sign in, create an account and forgot password all lead to the one screen',
-        /action==='auth-signin-email'\)\{ acctMenuClose\(true\); signInOpen\('in'\)/.test(html) &&
-        /action==='auth-signup'\)\{ acctMenuClose\(true\); signInOpen\('up'\)/.test(html) &&
-        html.indexOf("action==='signin-forgot'") > 0);
-      /* A screen, not a wall. The books work with no account, so there is always a way
-         past it unless this copy was deliberately set to demand one. */
-      ok('it can be dismissed unless the copy was set to require an account',
-        /var dismissible=!REQUIRE_SIGNIN/.test(html) && html.indexOf("action==='signin-dismiss'") > 0);
-
-      ok('code blocks wrap instead of scrolling sideways',
-        /\.code-block\{[\s\S]*?white-space:pre-wrap/.test(html) &&
-        !/\.code-block\{[\s\S]*?white-space:pre;/.test(html));
-      ok('the keys and the database rules are folded away, shut by default',
-        html.indexOf('developerSetupHTML') > 0 && /<details class="adv-setup"/.test(html) &&
-        !/<details class="adv-setup" open/.test(html));
-      /* The same trap as .start-details and as [hidden] on the sidebar body: author
-         display on content inside a closed <details> defeats the browser's own hiding.
-         Without this rule the fold reported closed and rendered 1,976px of JSON anyway. */
-      ok('...and the stylesheet actually lets a closed fold hide them',
-        /\.adv-setup:not\(\[open\]\) \.adv-body\{display:none\}/.test(html));
+      /* SETTINGS ▸ DATA. It used to end in a "Developer setup" fold holding a Web API key
+         field, an OAuth client id and two screens of database rules, with a cloud sync
+         card and a sharing card above it. All of it is gone, and what is asserted is that
+         the tab is whole without it: the cards an owner came for, in a grid with no hole. */
+      window.ui.settingsTab = 'data'; window.location.hash = '#/settings'; window.render();
+      const main = d.getElementById('main');
+      const heads = Array.prototype.map.call(main.querySelectorAll('.settings-grid > .card .card-head h3'), (e) => e.textContent.trim());
+      ok('Settings ▸ Data is six cards: lock, connections, storage, backup, CSV import, sample and reset',
+        heads.length === 6 && /lock/i.test(heads[0]) && /Outside connections/.test(heads[1]) && /Storage/i.test(heads[2]) &&
+        /Backup & restore/.test(heads[3]) && /Smart CSV import/.test(heads[4]) && /Sample data & reset/.test(heads[5]), heads);
+      ok('...every one of them a direct child of the grid with something in it, so there is no gap',
+        Array.prototype.every.call(main.querySelector('.settings-grid').children,
+          (c) => c.classList.contains('card') && c.textContent.trim().length > 40) &&
+        main.querySelector('.settings-grid').children.length === 6);
+      ok('...and nothing after the grid: no fold, no placeholder, no empty container',
+        main.querySelector('.settings-grid').nextElementSibling === null && !main.querySelector('details.adv-setup'));
       ok('nothing technical is left on the page an owner reads',
-        html.indexOf('Firebase Web API key') > 0 &&
-        /developerSetupHTML[\s\S]{0,2000}Firebase Web API key/.test(html));
-      ok('the cloud sync card no longer puts a database URL in front of the owner',
-        /function cloudSyncCardHTML[\s\S]{0,2600}?\n\}/.test(html) &&
-        !/function cloudSyncCardHTML[\s\S]{0,2600}?label>Realtime Database URL/.test(html) &&
-        /function cloudSyncAdvancedHTML[\s\S]{0,900}Realtime Database URL/.test(html));
-      /* Both forms post to one handler. "enabled" is a checkbox in the owner's card and a
-         hidden input in the fold, and reading .checked off a hidden input gives undefined,
-         which would have switched auto-sync off every time the URL was saved. */
-      ok('...and saving the database settings cannot silently switch auto-sync off',
-        /enEl\.type==='checkbox'\?enEl\.checked:!!String\(enEl\.value\|\|''\)\.trim\(\)/.test(html));
+        !/Firebase|API key|OAuth|client id|database|rules|Developer setup|cloud sync|workspace|sign in/i.test(main.textContent),
+        (main.textContent.match(/.{0,30}(Firebase|API key|OAuth|client id|database|rules|Developer setup|cloud sync|workspace|sign in).{0,30}/i) || [])[0]);
+      ok('the tab is called Data, since there is nothing left to sync',
+        Array.prototype.map.call(main.querySelectorAll('.tabs button'), (b) => b.textContent.trim()).join('|') === 'Business|Customization|Data');
+      ok('backup, restore, CSV import, sample data and reset are all still one click away',
+        ['export-data', 'import-data', 'csv-import', 'csv-sample', 'load-sample', 'reset-data']
+          .every((a) => !!main.querySelector('[data-action="' + a + '"]')));
       ok('settings cards size to their content instead of stretching to their neighbour',
         /\.settings-grid>\.card\{align-self:start\}/.test(html) &&
         /class="grid grid-2 settings-grid"/.test(html));
-    })();
-
-    // ---------- the key field takes what the console actually gives you ----------
-    /* The Firebase console does not hand you a Web API key on its own. It hands you a block
-       of JavaScript. Asking somebody to pick one line out of it is how a two minute job
-       becomes a support conversation, so the field takes either the bare key or the whole
-       snippet pasted as it was copied. */
-    (function pastedConfig() {
-      const SNIP = 'const firebaseConfig = {\n' +
-        '  apiKey: "AIzaSyD-ExampleKey_1234567890abcdefg",\n' +
-        '  authDomain: "google-auth-x1.firebaseapp.com",\n' +
-        '  projectId: "google-auth-x1",\n' +
-        '  appId: "1:123456789012:web:abc123def456"\n};';
-      const bare = window.authParseConfig('AIzaSyD-ExampleKey_1234567890abcdefg');
-      ok('a bare key is taken as a key and not mangled by the parser',
-        bare.apiKey === 'AIzaSyD-ExampleKey_1234567890abcdefg' && !bare.projectId, bare);
-      const snip = window.authParseConfig(SNIP);
-      ok('the whole console snippet yields the key, the project and the auth domain',
-        snip.apiKey === 'AIzaSyD-ExampleKey_1234567890abcdefg' &&
-        snip.projectId === 'google-auth-x1' &&
-        snip.authDomain === 'google-auth-x1.firebaseapp.com', snip);
-      /* The one value the Firebase snippet does NOT carry, so it is recognised by its own
-         unmistakable shape wherever it appears. */
-      ok('an OAuth client id is recognised anywhere in a paste, by its shape',
-        window.authParseConfig('99-xyz.apps.googleusercontent.com').clientId === '99-xyz.apps.googleusercontent.com' &&
-        window.authParseConfig(SNIP.replace('};', '  clientId: "99-xyz.apps.googleusercontent.com"\n};')).clientId === '99-xyz.apps.googleusercontent.com');
-      ok('a JSON-shaped config works too, since people paste both',
-        window.authParseConfig('{"apiKey":"AIzaSyD-ExampleKey_1234567890abcdefg"}').apiKey === 'AIzaSyD-ExampleKey_1234567890abcdefg');
-      /* Anything that is not a config block is taken WHOLE as the key, even when it does
-         not look like one, and Google decides. A pattern strict enough to recognise a real
-         key also silently discards a mistyped one, and a value that vanishes on save with
-         no message is worse than one that comes back rejected by name. */
-      ok('text that is not a config block is passed on as the key for Google to judge',
-        window.authParseConfig('hello there').apiKey === 'hello there');
-      ok('...but an empty paste yields nothing at all',
-        Object.keys(window.authParseConfig('')).length === 0 &&
-        Object.keys(window.authParseConfig('   ')).length === 0);
-    })();
-
-    // ---------- connecting a project says which step is missing ----------
-    /* Three things in two consoles have to be right before Google sign-in works, and each
-       one fails with an error naming none of them: a wrong key answers "API key not valid",
-       an unlisted domain answers with a redirect_uri_mismatch the popup swallows, and a
-       provider left switched off answers only when somebody actually tries. The check says
-       which of the three is missing instead of leaving somebody to guess.
-       The host is a parameter because a test harness necessarily runs on a local address,
-       where the domain check short-circuits, so the branch that matters could not otherwise
-       be exercised at all. */
-    await (async function setupCheck() {
-      const realFetch = window.fetch;
-      const share = window.shareCfg();
-      const savedKey = share.apiKey, savedCid = share.clientId;
-      const reply = (ok, body) => { window.fetch = () => Promise.resolve({ ok, status: ok ? 200 : 400,
-        text: () => Promise.resolve(JSON.stringify(body)) }); };
-      try {
-        share.apiKey = ''; share.clientId = '';
-        let rows = await window.authSetupCheck('books.example.com');
-        ok('with nothing pasted, every step reports as not done',
-          rows.length === 4 && rows.slice(0, 3).every((r) => r.ok === false), rows);
-        /* The one failure nothing can detect at runtime. An unregistered redirect URI makes
-           Google stop on its own error page before it ever comes back, so the callback never
-           fires and the popup just sits there. It is stated up front, with the exact string
-           to paste, because the alternative is a silent hang with nothing to go on. */
-        ok('...and the redirect URI is given outright, since its failure is undetectable',
-          rows[3].ok === null && rows[3].fix.indexOf(window.authRedirectUri()) === 0, rows[3]);
-
-        share.apiKey = 'AIzaOK';
-        reply(true, { projectId: 'google-auth-x1', authorizedDomains: ['google-auth-x1.firebaseapp.com'] });
-        rows = await window.authSetupCheck('books.example.com');
-        ok('a good key names the project it reached', rows[0].ok && /google-auth-x1/.test(rows[0].fix), rows[0]);
-        /* The single most common reason a CORRECT key still refuses every sign-in, and the
-           one Google's own error is least helpful about. */
-        ok('a domain that is not on the project list is named, with where to add it',
-          !rows[1].ok && /books\.example\.com/.test(rows[1].fix) && /Authorised domains/.test(rows[1].fix), rows[1]);
-        ok('...and a missing client id is reported as no Google button, not as a failure',
-          !rows[2].ok && /email and password/.test(rows[2].fix), rows[2]);
-
-        share.clientId = 'x.apps.googleusercontent.com';
-        reply(true, { projectId: 'google-auth-x1', authorizedDomains: ['books.example.com'] });
-        rows = await window.authSetupCheck('books.example.com');
-        ok('with all three done, all three report done',
-          rows.slice(0, 3).every((r) => r.ok === true), rows);
-        ok('...and the redirect URI is still shown, because it cannot be checked either way',
-          rows[3].ok === null, rows[3]);
-
-        reply(false, { error: { message: 'API key not valid. Please pass a valid API key.' } });
-        rows = await window.authSetupCheck('books.example.com');
-        ok('a key Google rejects says so, and the later steps say they could not be checked',
-          !rows[0].ok && /Copy it again/.test(rows[0].fix) && /Cannot be checked/.test(rows[1].fix), rows);
-      } finally {
-        window.fetch = realFetch;
-        share.apiKey = savedKey; share.clientId = savedCid;
-        window.save();
-      }
+      ok('the stylesheet for the fold, the pasteable rules and the signed-in panel went with them',
+        ['.adv-setup', '.adv-body', '.adv-steps', '.setup-check', '.code-block', '.code-head', '.acct-panel', '.acct-note', '.acct-sub']
+          .every((c) => html.indexOf(c) === -1));
+      window.ui.settingsTab = 'business'; window.location.hash = '#/dashboard'; window.render();
     })();
 
     // ---------- the profile is a page, and the top bar collapses instead of clipping ----------
@@ -5527,8 +3897,8 @@ async function main() {
       /if\(h==='profile'\) return 'profile';/.test(html) &&
       /profile:viewProfile/.test(html) && /function viewProfile\(\)\{/.test(html));
     ok('...and the modal it replaced is gone, not left beside it',
-      html.indexOf('function authProfileModal') === -1 &&
-      /action==='auth-profile'\)\{ acctMenuClose\(true\); nav\('profile'\)/.test(html));
+      !/function \w*[pP]rofileModal\(\)/.test(html) &&
+      /acctRow\('nav','idcard','Your profile',' data-route="profile"'\)/.test(html));
     ok('...carrying the name, the position and the rate, with a way to save them',
       /data-form="profile"/.test(html) &&
       /name="position"/.test(html) && /name="rate"/.test(html) && /name="ratePer"/.test(html) &&
@@ -5576,21 +3946,16 @@ async function main() {
     ok('...with no dangling selector left in the stylesheet',
       !/\.app\.nav-collapsed\s*\/\*/.test(html) && !/^\s*font-size:calc\(14px\*var\(--nav-scale,1\)\);font-weight:600/m.test(html));
 
-    /* WHO IS USING THIS COPY. The owner's point: if the app has let someone in, the icon
-       at the top must offer them their profile and a way out, and both must work. That is
-       true whether they got in through a real account or through the preview a copy with
-       no sign-in project behind it offers. */
+    /* WHO IS USING THIS COPY. One person, on this device: there is no "in" to be let into
+       and no way out to offer. What the chip owes them is their profile, and the profile
+       has to hold what they put in it. */
     (function meAndProfile() {
       const saved = JSON.parse(JSON.stringify(window.state.settings.profile || {}));
-      const savedIn = window.state.settings.localIn;
+      const savedName = window.state.settings.displayName;
       try {
-        window.state.settings.localIn = false; window.authStore(null);
-        ok('with nobody using it, the menu offers a way IN, not a way out',
-          acts0().indexOf('auth-signout') < 0);
-        window.state.settings.localIn = true;
-        const rows = acts0();
-        ok('once somebody is in, the menu offers their profile and a sign out',
-          rows.indexOf('auth-profile') >= 0 && rows.indexOf('auth-signout') >= 0, rows);
+        ok('there is no signed-in question left to ask: the helper and the flag are gone',
+          typeof window.meIsIn === 'undefined' && !('localIn' in window.state.settings) &&
+          !('localIn' in window.DEFAULT_STATE.settings));
         /* The profile is the person, not the business, and it holds what their time
            costs, which is the part that makes "what did that job cost me" answerable. */
         window.state.settings.profile = { name: 'Ira Santos', position: 'Owner', rate: 1200, ratePer: 'hour' };
@@ -5602,22 +3967,30 @@ async function main() {
           /hour/.test(window.meSubtitle()), window.meSubtitle());
         ok('...and the chip in the top bar becomes the person, not the business again',
           window.acctChipName() === 'Ira Santos' && window.acctChipLine() === 'Owner');
-        /* The preview must never leave an AUTH session behind: a local flag decides which
-           rows the menu shows, and nothing treats it as proof of identity. */
-        ok('the local session is a flag, not a forged account',
-          window.authSignedIn() === false && !window.localStorage.getItem('bizpilot.auth') &&
-          window.meIsIn() === true);
-        ok('signing out clears it and puts the sign-in screen back',
-          /state\.settings\.localIn=false;[\s\S]{0,220}?signInOpen\('in'\)/.test(html));
+
+        // the page itself: what it shows, and that saving it works with nothing to sign in to
+        window.location.hash = '#/profile'; window.render();
+        const main = d.getElementById('main');
+        ok('the profile page shows the person and their line, and no account card beside it',
+          main.querySelector('.prof-who b').textContent === 'Ira Santos' &&
+          main.querySelectorAll('.card').length === 2 && !main.querySelector('.badge') &&
+          !/sign|account|log ?out|password/i.test(main.querySelector('.prof-head').textContent + main.querySelector('form[data-form="profile"]').parentNode.querySelector('h3').textContent),
+          main.querySelectorAll('.card').length);
+        ok('...and offers nothing that signs anybody in or out',
+          !main.querySelector('[data-action^="auth-"]') && !/Sign (in|out)|Log (in|out)|Change password/.test(main.textContent));
+        const form = main.querySelector('form[data-form="profile"]');
+        form.elements['name'].value = 'Ira S.'; form.elements['position'].value = 'Bookkeeper';
+        form.elements['rate'].value = '900'; form.elements['ratePer'].value = 'month';
+        fire(form, 'submit');
+        ok('saving the profile form stores it on this device and nowhere else',
+          window.state.settings.profile.name === 'Ira S.' && window.state.settings.profile.position === 'Bookkeeper' &&
+          window.state.settings.profile.rate === 900 && window.state.settings.profile.ratePer === 'month' &&
+          window.state.settings.displayName === 'Ira S.', window.state.settings.profile);
       } finally {
         window.state.settings.profile = saved;
-        window.state.settings.localIn = savedIn;
-        window.save();
-      }
-      function acts0() {
-        window.acctMenuClose(true); window.render(); click(d.querySelector('.tb-acct'));
-        return Array.prototype.map.call(d.querySelectorAll('#acct-menu [data-action]'),
-          (e) => e.getAttribute('data-action'));
+        window.state.settings.displayName = savedName;
+        window.location.hash = '#/dashboard';
+        window.save(); window.render();
       }
     })();
 
@@ -5672,6 +4045,175 @@ async function main() {
         window.save();
         window.renderSidebar();
       }
+    })();
+
+    // ================= accounts, sharing and cloud sync are GONE =================
+    // The owner's instruction was to remove the credentials feature, and that covers the
+    // whole accounts system and everything that only worked with it: the sign-in screen,
+    // Firebase Auth, Google sign-in, workspaces and invites, the per-record sync engine
+    // and the developer fold that configured them. Without accounts, sync could only run
+    // against a database anyone could read. What is asserted here is the removal, and
+    // that books and backups written by the builds that had all that still open.
+    await (async function accountsRetired() {
+      const root = path.join(__dirname, '..');
+
+      // 1. the code: every top-level name those features defined, and the hosts they called
+      const goneFromApp = ('AUTH_CFG AUTH_IDT AUTH_KEY AUTH_PROJECTS AUTH_TOK DEVICE_ID GOOGLE_AUTH REQUIRE_SIGNIN SI_DEMO ' +
+        'SYNC_COLLECTIONS SYNC_DOCS SYNC_TOMB_TTL WS_INVITE_DAYS WS_INVITE_STASH _gsiPending appBooted authAccountCardHTML ' +
+        'authAdopt authApiKey authChangePassword authClientId authConfigured authDomainAllowed authEmailFormError authErrMsg ' +
+        'authGoogle authGoogleExchange authGoogleResume authGoogleUrl authLoad authMergeSession authModalBusy authName ' +
+        'authParseConfig authPasswordModal authPost authRandom authRedirectUri authRefresh authRefreshing authSendReset ' +
+        'authSetupCheck authSignIn authSignOut authSignUp authSignedIn authStale authStore authSubmitEmail authToken ' +
+        'authTokenQuiet authUpdateProfile authUser authVerifyKey cloudAdoptLegacy cloudBusy cloudEnsureFormat cloudErr ' +
+        'cloudFormatKnown cloudMerge cloudPatch cloudPull cloudPush cloudQ cloudReady cloudReap cloudRoot cloudSend ' +
+        'cloudSyncAdvancedHTML cloudSyncCardHTML cloudTimer cloudWriteTree databaseRulesCardHTML developerSetupHTML meIsIn ' +
+        'onbPending renderSignInWall scheduleCloudPush shareCfg shareOn shareRulesJSON siAppInert siFieldHTML siGoogleMark ' +
+        'siTrapTab signInClose signInHTML signInIsOpen signInOpen signInRender signInRouteCheck syncApplyDoc syncAuthor ' +
+        'syncCarryLedger syncConfirm syncDocValue syncHash syncLedger syncMarkTree syncPending syncPersist syncRulesJSON ' +
+        'syncScan syncSummaryText wsCardBodyHTML wsClaimInvite wsClearInvite wsCreate wsDbBase wsInvite wsInviteLink ' +
+        'wsInvitesList wsLeave wsMaybeClaim wsMembers wsParseInviteHash wsPendingInvite wsReady wsRemoveMember wsReq ' +
+        'wsRevokeInvite wsRoot wsStashInvite wsTakeInviteFromUrl wsUserRoot').split(' ');
+      const live = goneFromApp.filter((n) => typeof window[n] !== 'undefined');
+      ok('every symbol of the accounts, sharing and sync code is gone from the running app', live.length === 0, live);
+      const named = goneFromApp.filter((n) => new RegExp('(^|[^A-Za-z0-9_$])' + n.replace(/\$/g, '\\$') + '([^A-Za-z0-9_$]|$)').test(html));
+      ok('...and not one of those names is left anywhere in the file, comments included', named.length === 0, named);
+      // Case matters for the first two: "authority" and "signing" are words, authX and signInX were code.
+      const families = (html.match(/auth[A-Z]\w*|signIn\w*|AUTH_CFG|cloudPush|cloudPull|wsInvite\w*|shareOn/g) || [])
+        .concat(html.match(/identitytoolkit|securetoken|googleusercontent|googleapis|oauth\w*|firebase\w*/gi) || []);
+      ok('no auth*, signIn*, oauth, Firebase or Google-identity token of any spelling survives', families.length === 0, families.slice(0, 8));
+      // The one place the old flag is still named is the list that strips it from saved books.
+      ok('localIn is named exactly once, in the list of settings dropped on load',
+        (html.match(/localIn/g) || []).length === 1 && /var RETIRED_SETTINGS=\['sync','share','localIn'\];/.test(html));
+      const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>'));
+      ok('the sign-in stylesheet went with the screen: no .si-* rule, no Google button tokens',
+        !/\.si-[a-z]/.test(css) && !/--goog-|--border-field|--accent-on\b|--si-\d/.test(html) && html.indexOf('signin-root') === -1);
+      const acts = (html.match(/data-action="[a-z-]+"/g) || []).concat(html.match(/action==='[a-z-]+'/g) || [], html.match(/kind==='[a-z-]+'/g) || [], html.match(/data-form="[a-z-]+"/g) || []);
+      const deadActs = acts.filter((a) => /"(auth-|signin-|ws-|cloud-|share-|sync-)|'(auth-|signin-|ws-|cloud-|share-|sync-)|copy-code/.test(a));
+      ok('no button, handler or form for signing in, sharing or syncing is left wired or unwired', deadActs.length === 0, deadActs);
+      ok('the icons only those screens drew are gone from the set',
+        ['signin', 'signout', 'mail', 'key', 'eye', 'eyeoff', 'cloud', 'users'].every((n) => !(n in window.ICONS)));
+
+      // 2. the files that existed only for them
+      const goneFiles = ['oauth-callback.html', 'TURN-ON-GOOGLE-SIGNIN.md', 'tests/real-auth.js', 'tests/real-google.js', 'tests/google-signin-emulator.md']
+        .filter((f) => fs.existsSync(path.join(root, f)));
+      ok('the OAuth callback page, the Google setup guide and the emulator tests are deleted', goneFiles.length === 0, goneFiles);
+      const lib = fs.readFileSync(path.join(root, 'tests', 'browser-lib.js'), 'utf8');
+      ok('the browser helper is kept, without its auth-emulator proxy',
+        /module\.exports=\{serve,boot,settle,CLEAN\}/.test(lib) && !/__emu|9099|emulator/i.test(lib));
+
+      // 3. there is no sign-in route and no sign-in screen: the old addresses are just
+      //    unknown addresses, and an unknown address is the dashboard.
+      const wasHash = window.location.hash;
+      window.location.hash = '#/signin';
+      ok('#/signin is not a route: it resolves to the dashboard like any unknown address',
+        window.currentRoute() === 'dashboard');
+      window.render();
+      ok('...and nothing is drawn over the app when it is opened',
+        !d.querySelector('[role="dialog"]') && !d.getElementById('app').hasAttribute('inert') &&
+        d.getElementById('main').innerHTML.length > 50 && !d.querySelector('input[type="email"]'));
+      window.location.hash = '#/join?ws=ws_abc&t=tok';
+      ok('an old invitation link opens the dashboard too, and nothing reads its token',
+        window.currentRoute() === 'dashboard' && window.sessionStorage.getItem('trakora.invite') === null);
+      window.location.hash = wasHash; window.render();
+
+      // 4. BOOKS SAVED BY AN OLDER BUILD. A real boot, in a second window, with
+      //    localStorage already holding what a signed-in, sharing, syncing copy left
+      //    behind: the settings blocks, the local-session flag, the sync ledger, the
+      //    session token and the device id. It has to open, keep every record, and carry
+      //    none of that forward.
+      const legacy = () => ({
+        v: 2,
+        settings: { businessName: 'Lumina Studio', currency: '₱', onboarded: true, greetDone: true, tourDone: true, startDismissed: true,
+          profile: { name: 'Ira', position: 'Owner', rate: 0, ratePer: 'month' }, localIn: true,
+          sync: { url: 'https://old-project-default-rtdb.firebaseio.com', path: 'bizpilot-7fq2', enabled: true, lastSync: '2026-10-01T00:00:00.000Z' },
+          share: { enabled: true, wsId: 'ws_abc', wsName: 'Shared Books', role: 'owner', apiKey: 'AIzaOLDKEY', clientId: '1-x.apps.googleusercontent.com' },
+          privacy: { consent: 'all', at: '2026-01-01T00:00:00Z', fxWasAuto: null }, fx: { auto: false } },
+        finance: [{ id: 'f1', type: 'income', amount: 1500, category: 'Services', date: '2026-10-02', note: 'kept', client: 'Verde' }],
+        clients: [{ id: 'c1', name: 'Verde', status: 'Active' }],
+        meta: { createdAt: '2026-01-01', updatedAt: 1, deviceId: 'dev-old',
+          sync: { recs: { 'finance/f1': { at: 1, sy: 1, h: 'x' }, 'doc/settings': { at: 1, sy: 0, h: 'y' } }, tombs: { 'finance/f0': { at: 1, sy: 1 } } } }
+      });
+      const errors = []; let fetches = 0;
+      const dom2 = new JSDOM(html, { runScripts: 'dangerously', url: 'https://legacy.test/', pretendToBeVisual: true,
+        beforeParse(w) {
+          w.localStorage.setItem('bizpilot.v1', JSON.stringify(legacy()));
+          w.localStorage.setItem('bizpilot.auth', JSON.stringify({ uid: 'u1', email: 'owner@example.com', idToken: 'tok', refreshToken: 'ref', provider: 'password' }));
+          w.localStorage.setItem('bizpilot.device', 'dev-old');
+          w.fetch = function () { fetches++; return Promise.reject(new Error('no network in this test')); };
+          w.addEventListener('error', (e) => errors.push(String((e.error && e.error.message) || e.message)));
+          w.addEventListener('unhandledrejection', (e) => errors.push('rejection: ' + String(e.reason && e.reason.message)));
+          w.Element.prototype.getBoundingClientRect = function () { return { top: 100, left: 90, right: 260, bottom: 140, width: 170, height: 40, x: 90, y: 100 }; };
+        } });
+      const w2 = dom2.window, d2 = w2.document;
+      const strippedState = (st) => !('sync' in st.settings) && !('share' in st.settings) && !('localIn' in st.settings) &&
+        !('sync' in st.meta) && !('deviceId' in st.meta);
+      const cleanText = (t) => !/firebaseio|AIzaOLDKEY|googleusercontent|ws_abc|dev-old|"localIn"/.test(t);
+      try {
+        await wait(120);   // the page boots itself: loadState(); bootApp();
+        ok('books saved by a signed-in, syncing build boot without an error', errors.length === 0 && !!w2.state, errors);
+        ok('...straight into the app, with the dashboard drawn and no screen over it',
+          d2.getElementById('main').innerHTML.length > 50 && !d2.querySelector('[role="dialog"]') && d2.getElementById('signin-root') === null);
+        ok('...with the sharing keys, the database address and the local-session flag stripped from settings',
+          strippedState(w2.state), [Object.keys(w2.state.settings).filter((k) => /sync|share|localIn/.test(k)), Object.keys(w2.state.meta)]);
+        ok('...and the sync ledger and device id stripped from meta, leaving what is still meant',
+          w2.state.meta.createdAt === '2026-01-01' && Object.keys(w2.state.meta).every((k) => k === 'createdAt' || k === 'updatedAt'), Object.keys(w2.state.meta));
+        ok('...and every record and every other setting exactly where it was',
+          w2.state.finance.length === 1 && w2.state.finance[0].note === 'kept' && w2.state.finance[0].amount === 1500 &&
+          w2.state.clients.length === 1 && w2.state.settings.businessName === 'Lumina Studio' &&
+          w2.state.settings.profile.name === 'Ira' && w2.state.settings.privacy.consent === 'all');
+        ok('the orphaned session token and device id are removed from the browser, and nothing else is',
+          w2.localStorage.getItem('bizpilot.auth') === null && w2.localStorage.getItem('bizpilot.device') === null &&
+          w2.localStorage.getItem('bizpilot.v1') !== null);
+        ok('a copy that had auto-sync switched on makes no request at all on boot or on save',
+          (w2.save(), fetches === 0), fetches);
+        await wait(20);
+        const stored = w2.localStorage.getItem('bizpilot.v1');
+        ok('...and the next save writes the books back without any of it',
+          cleanText(stored) && strippedState(JSON.parse(stored)) && JSON.parse(stored).finance[0].note === 'kept',
+          (stored.match(/.{0,30}(firebaseio|AIzaOLDKEY|googleusercontent|ws_abc|dev-old|"localIn").{0,30}/) || [])[0]);
+        ok('the chip shows the person who was there all along, and offers no way in or out',
+          w2.acctChipName() === 'Ira' && w2.acctChipLine() === 'Owner' && !/auth-/.test(w2.acctMenuHTML()));
+        // the PIN path decrypts and then goes through the same door
+        w2.applyLoaded(legacy());
+        ok('books unlocked with a PIN are stripped by the same code on the way in', strippedState(w2.state) && w2.state.finance.length === 1);
+
+        // 5. AN OLD BACKUP FILE. importData() does not go through loadState(), so it has
+        //    its own call to the same clean-up, and this is what proves it is there.
+        const backup = legacy();
+        backup.settings.businessName = 'Restored Books';
+        backup.finance.push({ id: 'f2', type: 'expense', amount: 300, category: 'Rent & Utilities', date: '2026-10-05', note: 'restored', client: '' });
+        w2.state.finance = []; w2.state.settings.businessName = 'Before restore';
+        w2.importData(new w2.File([JSON.stringify(backup)], 'lumina-backup-2026-10-06.json', { type: 'application/json' }));
+        await waitFor(() => w2.state.finance.length === 2, 3000);
+        ok('a backup exported by an older build restores every record',
+          w2.state.finance.length === 2 && w2.state.finance[1].note === 'restored' && w2.state.clients.length === 1 &&
+          w2.state.settings.businessName === 'Restored Books', w2.state.finance.length);
+        ok('...without bringing the old accounts, sharing or sync settings back with it', strippedState(w2.state));
+        await wait(20);
+        const restored = w2.localStorage.getItem('bizpilot.v1');
+        ok('...and what is saved after the restore carries none of them either',
+          cleanText(restored) && strippedState(JSON.parse(restored)) && JSON.parse(restored).finance.length === 2);
+        ok('none of it threw, toasted an error or tried the network', errors.length === 0 && fetches === 0 && !d2.querySelector('.toast.error'), [errors, fetches]);
+        // a file from this build round-trips too: what export writes is what import reads
+        const fresh = JSON.parse(JSON.stringify(w2.state));
+        w2.state.finance = [];
+        w2.importData(new w2.File([JSON.stringify(fresh)], 'now.json', { type: 'application/json' }));
+        await waitFor(() => w2.state.finance.length === 2, 3000);
+        ok('a backup from this build restores to the same books', w2.state.finance.length === 2 && strippedState(w2.state) &&
+          JSON.stringify(w2.state.finance) === JSON.stringify(fresh.finance));
+      } finally {
+        w2.close();
+      }
+
+      // 6. a new copy starts without any of it, and still saves on this device
+      const def = window.DEFAULT_STATE;
+      ok('a new copy has no sync, sharing or session setting to begin with',
+        !('sync' in def.settings) && !('share' in def.settings) && !('localIn' in def.settings) && !!def.settings.profile);
+      const before = window.localStorage.getItem('bizpilot.device');
+      window.save();
+      ok('saving no longer stamps a device id on the books or into the browser',
+        before === null && window.localStorage.getItem('bizpilot.device') === null &&
+        !('deviceId' in window.state.meta) && !('sync' in window.state.meta) && typeof window.state.meta.updatedAt === 'number');
     })();
 
     console.log('\n' + pass + ' passed, ' + fail + ' failed');

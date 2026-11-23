@@ -22,9 +22,9 @@ npm test
    - **the retired licence gate**: every gate symbol is gone, the app opens with no wall, and a forged `bizpilot.activation` in `localStorage` grants nothing;
    - **no licence artefact** survives anywhere in the repo: no keygen, no licence page, no signing key, no embedded public key;
    - **App Lock (PIN)**: PBKDF2 set/verify, boot-gate, unlock;
-   - **workspaces and invites**: create, invite, claim, single use, expiry, email mismatch, an unverified address, and a removed member refused by the database rather than by the UI — against a stub that enforces the same rules the app ships;
-   - **the rules themselves**: the workspace rules parse as JSON, deny by default, carry no blanket workspace-level write, and enforce single use and expiry on the server;
-   - **honest copy**: the privacy page and the consent notice say one thing with sharing off and another with it on, and neither claims there is no account while there is one;
+   - **accounts, sharing and cloud sync are gone**: no sign-in route or screen, none of the removed identifiers left in the file, the CSP allows only the exchange-rate host, the files that existed for Google sign-in are deleted, and books or backups written by an older build (carrying `settings.share`, `settings.sync`, `settings.localIn`, the sync ledger and a stored `bizpilot.auth` session) boot and restore with those stripped and every record intact;
+   - **the profile menu**: the top-bar chip offers the profile, Settings and Privacy, and nothing about logging in or out;
+   - **honest copy**: the privacy page, the consent notice and Settings describe one product, with no account and nothing leaving the device but the rate lookup and the receipt scanner;
    - **dashboard**: 13 per-card widgets + single-card reorder;
    - **onboarding carousel**: all 6 slides render with mockups + dots, advancing reuses the same card (no blink rebuild) and applies a directional slide;
    - **Advisor page + floating bubble**: narrative read, prioritized actions, and the bubble that cycles 3–5 typed prompts off the Advisor page;

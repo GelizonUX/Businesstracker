@@ -4,25 +4,6 @@ const TYPES={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
 function serve(){
   return new Promise(function(res){
     var s=http.createServer(function(req,rp){
-      /* Proxy the Firebase Auth emulator through this origin. The app's CSP is
-         connect-src 'self', so a different PORT is a different origin and would be
-         refused: the only way the real page can talk to the real emulator is same-origin. */
-      if(req.url.indexOf('/__emu/')===0){
-        var body='';
-        req.on('data',function(c){ body+=c; });
-        req.on('end',function(){
-          var opt={host:'127.0.0.1',port:9099,path:req.url.replace('/__emu',''),method:req.method,
-                   headers:{'Content-Type':'application/json'}};
-          var pr=http.request(opt,function(pres){
-            rp.writeHead(pres.statusCode,{'Content-Type':'application/json'});
-            pres.pipe(rp);
-          });
-          pr.on('error',function(e){ rp.writeHead(502); rp.end(JSON.stringify({error:{message:String(e.message)}})); });
-          if(body) pr.write(body);
-          pr.end();
-        });
-        return;
-      }
       var u=decodeURIComponent(req.url.split('?')[0].split('#')[0]);
       if(u==='/') u='/index.html';
       var f=path.join(ROOT,u);
