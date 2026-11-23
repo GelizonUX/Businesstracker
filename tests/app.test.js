@@ -2566,8 +2566,14 @@ async function main() {
       window.state.settings.fx.lastTryAt = minsAgo(window.FX_RETRY_MIN + 1);
       await enter('report');
       window.toast = function () {};
+      /* Asserted against messages about rates, not against silence. Entering Invoices can
+         rightly say other things in the same window: on CI it said "1 recurring invoice
+         generated", which is correct and has nothing to do with a failed refresh, and a
+         demand for total silence failed on it. The word boundary matters: "generated"
+         contains "rate". */
+      const aboutRates = warns.filter((w) => /\brates?\b|exchange|refresh/i.test(String(w[1])));
       ok('failed automatic refreshes never interrupt the owner with a message',
-        warns.length === 0 && !!window.state.settings.fx.lastError, warns.map((w) => w[1].slice(0, 40)));
+        aboutRates.length === 0 && !!window.state.settings.fx.lastError, aboutRates.map((w) => w[1].slice(0, 40)));
 
       // ---- the opt-out ----
       window.fetch = goodFetch;
