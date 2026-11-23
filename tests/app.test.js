@@ -4726,6 +4726,67 @@ async function main() {
       }
     })();
 
+    /* Two route changes inside one transition: the browser skips the older transition
+       and rejects its promises with AbortError. That used to reach the page's
+       unhandledrejection listener and raise a red "Background task failed" toast for a
+       navigation that had worked. jsdom has no View Transitions API, so it is stubbed
+       with the shape Chromium gives it: the callback always runs, `ready` rejects with
+       the abort, and a callback failure rejects all three promises with the one error.
+       An unhandled rejection is what the page turns into a toast, so that is what is
+       counted. */
+    await (async function viewTransitionSkip() {
+      const unhandled = [];
+      const onRej = (reason) => unhandled.push(reason);
+      const realRender = window.render, realMM = window.matchMedia;
+      let renders = 0, started = 0;
+      function stubVT(fail) {
+        d.startViewTransition = function (cb) {
+          started++;
+          const done = Promise.resolve().then(cb);
+          const abort = new window.DOMException('Transition was skipped. New ViewTransition started', 'AbortError');
+          return { updateCallbackDone: done, ready: done.then(() => { throw abort; }), finished: done.then(() => {}) };
+        };
+        window.render = function () { renders++; if (fail) throw fail; };
+      }
+      process.on('unhandledRejection', onRej);
+      try {
+        stubVT(null);
+        window.renderRouted(); window.renderRouted(); window.renderRouted();
+        await wait(30);
+        ok('a skipped view transition is not reported as a failure', unhandled.length === 0,
+          unhandled.map((r) => (r && r.name) + ': ' + (r && r.message)));
+        ok('...and every navigation behind it still rendered', renders === 3 && started === 3, { renders, started });
+
+        const boom = new Error('boom from render');
+        renders = 0; unhandled.length = 0;
+        stubVT(boom);
+        window.renderRouted();
+        await wait(30);
+        ok('a real exception inside render() still surfaces, once rather than once per promise',
+          unhandled.length === 1 && unhandled[0] === boom,
+          unhandled.map((r) => (r && r.name) + ': ' + (r && r.message)));
+
+        // the two fallbacks are untouched: no transition under reduced motion, and a
+        // transition that cannot even start does not cost the user their navigation
+        renders = 0; started = 0; unhandled.length = 0;
+        stubVT(null);
+        window.matchMedia = () => ({ matches: true });
+        window.renderRouted();
+        ok('reduced motion renders straight away with no transition', renders === 1 && started === 0, { renders, started });
+        window.matchMedia = realMM;
+        renders = 0;
+        d.startViewTransition = function () { throw new Error('cannot start'); };
+        window.renderRouted();
+        await wait(30);
+        ok('a transition that throws on start still renders the route', renders === 1 && unhandled.length === 0, { renders, unhandled: unhandled.length });
+      } finally {
+        process.removeListener('unhandledRejection', onRej);
+        delete d.startViewTransition;
+        window.matchMedia = realMM;
+        window.render = realRender;
+      }
+    })();
+
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
   } catch (e) {
