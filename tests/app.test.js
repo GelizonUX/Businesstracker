@@ -90,8 +90,8 @@ async function main() {
       ok('the meta description and title name the job, not a "command center"',
         !/command cent/i.test(html) && /<meta name="description" content="Keeps a small business/.test(html) &&
         !/<title>Trakora/.test(html));
-      ok('the About blurb describes the same product in the same nouns',
-        /Trakora is one HTML file\. It records income and expenses, invoices, orders, stock, staff pay and unpaid balances/.test(html));
+      ok('the About line says where the records are, in the owner\'s words, and names no file format',
+        /Trakora keeps your records in this browser\. There is no account and no server\./.test(html) && !/Trakora is one HTML file/.test(html));
       // the register the owner objects to: tricolons, possessive couplets, cheering
       const banned = [
         'Your software, your brand', 'Your table, your fields, your data',
@@ -112,8 +112,8 @@ async function main() {
       // (A second one was permitted for a while: the sign-in screen's demo notice. The
       // screen is gone and so is its dash.)
       const proseDashes = html.match(/\S[  ]—[  ]\S/g) || [];
-      ok('no em dash is used as prose (placeholder glyphs are fine)',
-        proseDashes.length === 1 && /e — u/.test(proseDashes[0]), proseDashes.slice(0, 5));
+      ok('no em dash is used as prose, and none is the empty-value glyph: cells take an en dash, sentences take words',
+        proseDashes.length === 0 && html.indexOf("'—'") < 0 && /if\(!dateStr\) return '–';/.test(html), proseDashes.slice(0, 5));
       ok('the mobile-table placeholder regex still has its glyph', /\/\^\[—–-\]\+\$\//.test(html));
     })();
 
@@ -179,9 +179,9 @@ async function main() {
     ok('malicious bizLogo is escaped (no raw onerror)', d.getElementById('bar').innerHTML.indexOf('onerror="alert(1)"') === -1);
     window.state.settings.bizLogo = '';
     // user-chosen colors are sanitized before going into style="" attributes (no CSS/attr injection)
-    ok('account color tamed + sanitized at source', /var col=tameColor\(a\.color/.test(html) && /c=safeColor\(c,fb\|\|'#6B695F'\)/.test(html));
-    ok('task table color tamed (sanitizes via safeColor inside)', html.indexOf("'box-shadow:inset 3px 0 0 '+tameColor(t.color)") > -1);
-    ok('calendar task color tamed', /tcol=\s*t\.color\?tameColor\(t\.color\)/.test(html));
+    ok('an account carries no colour of its own, and any colour that is drawn is sanitized at source', !/BRAND_COLORS|brandColorFor/.test(html) && /c=safeColor\(c,fb\|\|'#6B695F'\)/.test(html));
+    ok('a task colour is drawn as a tamed dot, never as a fill or a stripe', /function taskDot\(t\)\{ return t\.color\?'<i class="dot" style="background:'\+esc\(tameColor\(t\.color\)\)/.test(html) && html.indexOf('box-shadow:inset 3px 0 0') < 0);
+    ok('a calendar task shows its colour as the same tamed dot', /class="cal-chip'\+\(t\.done\?' is-done':''\)\+'"[^;]*taskDot\(t\)/.test(html));
     // file-attachment href is scheme-allowlisted (no javascript: / attribute breakout)
     ok('attachment href is scheme-allowlisted', html.indexOf('/^(data:|https?:|blob:)/i.test(v.data') > -1);
     // behavioral: a malicious account color cannot break out of the style attribute
@@ -325,14 +325,8 @@ async function main() {
       const m = html.match(/\.nav-item>span:not\(\.nav-badge\):not\(\.nav-fav\)\{([^}]*)\}/);
       const rule = m ? m[1] : '';
     })();
-    ok('roadmap task rows stack on mobile (title not crushed by the status select)', /class="list-row rm-task-row"/.test(html) && /\.rm-task-row \.rm-task-main\{flex:1 1 100%!important;order:-1/.test(html));
     // sleek mobile redesign: account cards become a 2-up colourful wallet grid
-    ok('mobile account cards sit 2-up (the wallet grid) and override the desktop inline track', /\.acct-grid\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/.test(html) && /class="grid acct-grid mt"/.test(html));
-    ok('mobile account name wraps to 2 lines (no "BPI Busines…" clip) and balance clips gracefully', /\.acct-card \.acct-name\{[^}]*-webkit-line-clamp:2/.test(html) && /\.acct-card \.acct-balance\{[^}]*white-space:nowrap\}/.test(html) && /<b class="acct-name"/.test(html));
-    ok('mobile add-account tile spans the full wallet-grid row', /\.acct-grid>\[data-action="account-new"\]\{grid-column:1 \/ -1/.test(html));
     // finance: desktop keeps the spreadsheet table; phones get a clean day-grouped timeline
-    ok('finance timeline is desktop-hidden and swaps in for the table on phones', /\.fin-timeline\{display:none\}/.test(html) && /\.fin-table-wrap\{display:none\}\s*\.fin-timeline\{display:block\}/.test(html) && /class="table-wrap fin-table-wrap"/.test(html));
-    ok('finance timeline groups by day with colour-coded dots + amounts', /function financeTimelineHTML/.test(html) && /\.fin-tl-row\[data-type="income"\] \.fin-tl-dot\{background:var\(--chart-in\)/.test(html) && /class="fin-day"/.test(html) && /class="fin-tl-amt"/.test(html));
     // No decorative colour ramps anywhere in the stylesheet. The only gradients
     // allowed are the ones doing a drawing job (grid, hatch, ruled line, scroll
     // mask) and the Liquid Glass specular rim, which is a 1px light model.
@@ -371,13 +365,11 @@ async function main() {
     /* Orders are flex rows, not a table, so the rule above cannot reach them and they need
        their own container. Without it the orders list was the last thing on the site still
        scrolling sideways, at 900px. */
-    ok('order rows stack on their own width too',
-      /class="'\+\(list\.length\?'sec rows order-rows'/.test(html) &&
-      /\.order-rows\{container-type:inline-size\}/.test(html) &&
-      /@container \(max-width:660px\)\{\s*\.order-row\{flex-wrap:wrap/.test(html));
+    ok('order rows are record rows, so they stack with every other list under 900px',
+      /\.table-wrap tbody tr\{display:grid/.test(html) && !/order-rows/.test(html));
     (function () {
       window.location.hash = '#/orders'; window.render();
-      ok('order cards are tagged for the mobile stack rule', /class="list-row order-row"/.test(d.getElementById('main').innerHTML));
+      ok('an order is one record row with its cells named', !!d.querySelector('#main table.recs tbody tr td.c-main') && !!d.querySelector('#main table.recs td.c-acts .row-actions'));
       window.location.hash = '#/dashboard'; window.render();
     })();
     (function () {
@@ -488,7 +480,7 @@ async function main() {
     (function () { const h = d.getElementById('modal-root').innerHTML; ok('employee detail surfaces photo + address', /hr-detail-photo/.test(h) && /Mabini/.test(h)); })();
     window.closeModal();
     window.location.hash = '#/manpower'; window.render(); await wait(10);
-    ok('directory grid renders employee photo', /hr-emp-photo/.test(d.getElementById('main').innerHTML));
+    ok('the people list shows an employee photo as the row avatar', !!d.querySelector('#main .rows [data-action="hr-view"] img.avatar'));
     window.state.employees = [empX];
     // malicious bank/doc/contract fields render escaped — no LIVE (unescaped) tags injected
     const empM = { id: 'eM', name: 'Z', bank: { name: '<img src=x onerror="alert(1)">', acct: '1', holder: 'x' }, documents: [{ id: 'd1', name: '<svg onload=alert(2)>.pdf', size: 100, data: 'data:,', addedAt: '2026-06-19' }], contracts: [{ id: 'k1', title: '<b onmouseover=alert(3)>t</b>', createdAt: '2026-06-19' }], customFields: [] };
@@ -546,7 +538,8 @@ async function main() {
     window.state.finance = [{ id: 'fa', type: 'income', amount: 5000, date: window.todayISO(), category: 'Sales', note: 'x' }, { id: 'fb', type: 'expense', amount: 2000, date: window.todayISO(), category: 'Marketing & Ads', note: 'y' }];
     window.location.hash = '#/insights'; window.render();
     const advHtml = d.getElementById('main').innerHTML;
-    ok('Advisor shows a narrative read', /Here is your read/.test(advHtml) && /brought in/.test(advHtml));
+    ok('Advisor opens on its read as a plain statement, with the score in words and no ring or box', /class="t-statement adv-narrative"/.test(advHtml) && /brought in/.test(advHtml) &&
+      /Health score \d+ out of 100\./.test(advHtml) && !/advisor-hero|adv-avatar/.test(advHtml));
     ok('Advisor shows a prioritized action list or all-clear', /Do this now/.test(advHtml));
 
     // ---------- floating Advisor bubble ----------
@@ -646,7 +639,7 @@ async function main() {
     // overdue invoice row marker
     window.state.invoices = [{ id: 'o1', number: 'INV-1', client: 'X', amount: 100, currency: 'PHP', issueDate: '2026-01-01', dueDate: '2026-01-15', status: 'Sent' }];
     window.location.hash = '#/invoices'; window.render();
-    ok('overdue invoices get a visual row marker', d.getElementById('main').innerHTML.indexOf('inv-overdue') > -1);
+    ok('an overdue invoice says so with the late stamp, not a row tint', !!d.querySelector('#main tr td.c-status .stamp-late') && d.getElementById('main').innerHTML.indexOf('inv-overdue') < 0);
 
     // ---------- assistant (beta): NL parser + log-through ----------
     const T = new Date('2026-06-30T08:00:00');
@@ -900,7 +893,8 @@ async function main() {
           (window.state.roadmaps[0].phases[0].tasks || []).length === n0 + 1 && d.getElementById('modal-root').innerHTML.length < 100);
       })();
       click(d.querySelector('[data-action="roadmap-mode"][data-mode="list"]'));
-      ok('List mode still renders the classic phase rows', !!d.querySelector('.rm-task-row'));
+      ok('List mode renders each phase as a section whose steps are task rows with a More menu and no select',
+        !!d.querySelector('#main section.sec .task-rows .task-row [data-action="row-status"][data-kind="phase-task-status"]') && !d.querySelector('#main .task-rows select'));
       click(d.querySelector('[data-action="roadmap-mode"][data-mode="map"]'));
       // camera engine: cursor-centred zoom writes a full transform + keeps world point fixed
       window.render();
@@ -924,7 +918,8 @@ async function main() {
       // premium polish from the 3-agent canvas validation ---------------------
       (function(){ var css=''; d.querySelectorAll('style').forEach(function(s){ css+=s.textContent; });
         ok('done tasks are not struck through (premium done-state, not "deleted")', !/rm-leaf\.done[^{]*\{[^}]*line-through/.test(css) && /rm-leaf\.done::before/.test(css));
-        ok('minimap is anchored bottom-left, clear of the toast/chat corner', /\.rm-mini\{[^}]*left:14px/.test(css) && !/\.rm-mini\{[^}]*right:14px/.test(css));
+        ok('minimap is anchored bottom-left and can be driven from the keyboard', /\.rm-mini\{[^}]*left:12px/.test(css) && !/\.rm-mini\{[^}]*right:/.test(css) &&
+          d.getElementById('rm-mini').getAttribute('tabindex') === '0' && /Arrow keys/.test(d.getElementById('rm-mini').getAttribute('aria-label')));
       })();
       // camera keys only fire when the canvas is the intended target (M1 fix)
       (function(){ var btn=d.querySelector('button');
@@ -945,7 +940,8 @@ async function main() {
         window.render();
         var rm = window.state.roadmaps[0];
         ok('canvas has an upper-left tool rail (add · shape · hand)', !!d.querySelector('.rm-canvas .rm-rail [data-action="rm-place-start"]') && !!d.querySelector('.rm-rail [data-action="rm-shape-flyout"]'));
-        ok('boards panel lists the roadmap on the side', !!d.querySelector('.rm-maps [data-action="roadmap-switch"][data-id="' + rm.id + '"]'));
+        ok('the roadmap is picked from one select above the canvas, not a panel floating over it', !d.querySelector('.rm-maps') &&
+          !!d.querySelector('#main .tools select[data-action-change="roadmap-switch"] option[value="' + rm.id + '"]'));
         var pnode = d.querySelector('.rm-node.rm-phase');
         ok('phase nodes carry a shape class + inline label + 4 quick-add slots', /rm-s-/.test(pnode.className) && !!pnode.querySelector('.rm-node-label') && pnode.querySelectorAll('.rm-qadd').length === 4);
         // placement mode — faint predictive ghost, positioned by clicking, no form
@@ -1362,7 +1358,7 @@ async function main() {
         ok('a stroke can be erased', !(window.state.roadmaps[0].ink || []).some(function(k){ return k.id === 'ink_t'; }));
         // TEMPLATES: create a board from a template with fresh ids
         var boards0 = window.state.roadmaps.length;
-        click(d.querySelector('.rm-maps [data-action="rm-template"][data-tpl="0"]'));
+        click(d.querySelector('#main .page-head [data-action="rm-template"][data-tpl="0"]'));
         ok('a template creates a new populated board', window.state.roadmaps.length === boards0 + 1 && window.currentRoadmap().phases.length >= 3);
         // COMMENTS: place a pin, edit text, delete
         window.render(); var rc = window.currentRoadmap(); var cm0 = (rc.comments || []).length;
@@ -2067,9 +2063,12 @@ async function main() {
         window.state.finance.length === 0 && stamped.status === 'Sent' && !stamped.paidDate,
         [stamped.status, stamped.paidDate, window.state.finance.length]);
       window.render();
-      const statusSel = d.querySelector('[data-action-change="invoice-status"][data-id="seedstamp"]');
-      statusSel.value = 'Paid'; fire(statusSel, 'change');
-      ok('2/3 the status DROPDOWN books nothing and rolls the status back',
+      // the More menu changes status through row-status, which replays the old select's change event
+      const viaMenu = d.createElement('button');
+      viaMenu.setAttribute('data-action', 'row-status'); viaMenu.setAttribute('data-kind', 'invoice-status');
+      viaMenu.setAttribute('data-id', 'seedstamp'); viaMenu.setAttribute('data-val', 'Paid');
+      d.body.appendChild(viaMenu); click(viaMenu); viaMenu.remove();
+      ok('2/3 a status change to Paid through the row menu books nothing and rolls the status back',
         window.state.finance.length === 0 && window.state.invoices[0].status === 'Sent',
         [window.state.invoices[0].status, window.state.finance.length]);
       window.toast = realToast;
@@ -2179,7 +2178,7 @@ async function main() {
       ok('a $450 invoice is not rendered as "PHP 450" on the dashboard',
         dashTxt.includes('$450') && !/₱450\b/.test(dashTxt), dashTxt.slice(0, 0));
       ok('and the receivables total carries the same unverified-rate caveat as every other tile',
-        /Includes 1 at an unverified rate/.test(dashTxt));
+        /Includes 1 at an estimated rate/.test(dashTxt));
 
       // ---- the notice tells a PAID invoice the truth, not the unpaid copy ----
       window.state.invoices = [{ id: 'p1', number: 'INV-9300', client: 'A', desc: 'x', amount: 1000,
@@ -2188,13 +2187,13 @@ async function main() {
       // the wall of prose is now the modal body; the page keeps one line
       const notice = window.fxInvoiceNoticeDetailHTML();
       ok('the rate notice does not tell an already-Paid invoice it "cannot be marked paid"',
-        /already marked paid at an unverified rate/.test(notice) && !/It cannot be marked paid/.test(notice));
+        /already marked paid at an estimated rate/.test(notice) && !/It cannot be marked paid/.test(notice));
       ok('and it warns that the books and the printed invoice now state different things',
         /state different things/.test(notice) && /state different things/.test(window.fxInvoiceNoticeHTML()));
       ok('the on-page notice is one line with a way into the full explanation, not a wall of prose',
         (function () { const line = window.fxInvoiceNoticeHTML();
-          return /^<p class="noteline"/.test(line) && /data-action="fx-why"/.test(line) &&
-            line.length < 460 && !/<ul/.test(line); })(), window.fxInvoiceNoticeHTML().length);
+          return /^<div class="notice"/.test(line) && /data-action="fx-why"/.test(line) &&
+            line.replace(/<[^>]+>/g, '').length < 330 && !/<ul/.test(line); })(), window.fxInvoiceNoticeHTML().replace(/<[^>]+>/g, '').length);
       window.state.invoices = []; window.state.finance = [];
 
       // ---- a printed invoice never asserts a peso figure from an unverified rate ----
@@ -2236,7 +2235,7 @@ async function main() {
       form.elements['client'].value = 'Aussie Wellness Co.';
       form.elements['amount'].value = '1000';
       ok('the modal shows the rate provenance where the amount is entered',
-        /estimate — unverified/.test(d.getElementById('inv-fx-wrap').textContent));
+        /Estimate/.test(d.getElementById('inv-fx-wrap').textContent));
       ok('the modal offers an inline manual rate field when the rate is unverified',
         !!form.querySelector('[name="fxManual"]'));
       spyToasts();
@@ -2321,14 +2320,14 @@ async function main() {
       window.toast = realToast;
       ok('a failed refresh is recorded on state (lastError + lastTryAt)',
         window.state.settings.fx.lastError === 'Failed to fetch' && !!window.state.settings.fx.lastTryAt);
-      ok('an AUTOMATIC refresh failure warns the user instead of failing silently',
-        autoToasts.length === 1 && autoToasts[0][0] === 'warn' && /could not be refreshed/.test(autoToasts[0][1]), autoToasts);
-      ok('a manual refresh failure warns too', toasts.length === 2 && toasts[1][0] === 'warn');
+      ok('an AUTOMATIC refresh failure is recorded, and is not announced over whatever page is open',
+        autoToasts.length === 0 && window.state.settings.fx.lastError === 'Failed to fetch', autoToasts);
+      ok('a refresh the owner asked for says that it failed', toasts.length === 1 && toasts[0][0] === 'warn' && /Could not fetch/.test(toasts[0][1]), toasts);
       ok('a failed refresh leaves saved rates untouched AND still unusable for money',
         window.state.settings.fx.phpPer.USD === 58.5 && window.fxRecordRate('USD') === null);
       ok('the Settings card surfaces the failure and the unverified currencies', (function () {
         const t = window.fxCardHTML();
-        return /Last rate refresh failed/.test(t) && /no verified rate/.test(t) && /estimate — unverified/.test(t);
+        return /Last rate refresh failed/.test(t) && /no verified rate/.test(t) && /Estimate/.test(t);
       })());
       window.fetch = realFetch;
 
@@ -2370,7 +2369,7 @@ async function main() {
         const before = window.invPHP(legacy);
         window.fxSetManualRate('USD', 70);
         return before === 26325 && window.invPHP(legacy) === 26325 &&
-          window.ivRateInfo(legacy).verified === false && /unverified rate/.test(window.invPHPText(legacy));
+          window.ivRateInfo(legacy).verified === false && /estimated rate/.test(window.invPHPText(legacy));
       })());
       ok('the Invoices screen warns about rates that need attention', (function () {
         window.state.invoices = [{ id: 'n1', number: 'INV-N1', client: 'A', amount: 450, currency: 'AUD', fxRate: null, fxRateBy: 'none', status: 'Sent' }];
@@ -2387,7 +2386,7 @@ async function main() {
           { id: 'c3', number: 'INV-C3', client: 'C', amount: 5000, currency: 'PHP', fxRate: 1, fxRateBy: 'local', status: 'Sent', dueDate: window.todayISO() }
         ];
         const t = window.fxTotalsCaveat(rows);
-        return t === '1 at an unverified rate · 1 with no rate, left out' &&
+        return t === '1 at an estimated rate · 1 with no rate, left out' &&
           window.fxTotalsCaveat([rows[2]]) === '' && window.sum(rows, window.invPHP) === 63500;
       })(), window.fxTotalsCaveat([{ currency: 'USD', amount: 1000, fxRate: 58.5 }]));
       ok('all four peso headlines carry that sub-line — the Invoices tiles and the Advisor bars', (function () {
@@ -2399,13 +2398,13 @@ async function main() {
         ];
         const inv = window.viewInvoices();
         // Outstanding, Overdue, Collected this month, All-time invoiced
-        const tiles = (inv.match(/incl\. \d+ /g) || []).length;
+        const tiles = (inv.match(/<dd class="note">[^]*?\d+ at an estimated rate/g) || []).length;
         // the Advisor's "Waiting on payments" bars roll up the same invoices
         window.location.hash = '#/insights'; window.render();
         const advHTML = d.getElementById('main').innerHTML;
         return tiles === 4 && /Foreign invoices in these figures/.test(advHTML) &&
-          /unverified rate/.test(advHTML) && /no rate, left out/.test(advHTML);
-      })(), (window.viewInvoices().match(/incl\. \d+ [^<]*/g) || []));
+          /estimated rate/.test(advHTML) && /no rate, left out/.test(advHTML);
+      })(), (window.viewInvoices().match(/\d+ at an estimated rate[^<]*/g) || []));
       // ---- the demo data a NEW user loads must not reproduce the bug ----
       ok('sample data ships its USD invoice explicitly unverified, so it cannot book income', (function () {
         const src = html.slice(html.indexOf("client:'Aussie Wellness Co.',desc:'Brand kit"), html.indexOf("client:'Aussie Wellness Co.',desc:'Brand kit") + 400);
@@ -2567,8 +2566,8 @@ async function main() {
       window.state.settings.fx.lastTryAt = minsAgo(window.FX_RETRY_MIN + 1);
       await enter('report');
       window.toast = function () {};
-      ok('three failed automatic refreshes warn the owner ONCE, not three times',
-        warns.filter((w) => /could not be refreshed/.test(w[1])).length === 1, warns.map((w) => w[1].slice(0, 40)));
+      ok('failed automatic refreshes never interrupt the owner with a message',
+        warns.length === 0 && !!window.state.settings.fx.lastError, warns.map((w) => w[1].slice(0, 40)));
 
       // ---- the opt-out ----
       window.fetch = goodFetch;
@@ -2605,8 +2604,8 @@ async function main() {
       window.toast = function () {};
       ok('a fresh live rate replaces a manual one — the live number is the more accurate of the two',
         window.state.settings.fx.phpPer.USD === 61.732 && window.state.settings.fx.src.USD.by === 'live');
-      ok('and replacing a manual rate is never silent — the owner is told which one changed',
-        said.some((m) => /USD/.test(m) && /replac/i.test(m)), said);
+      ok('and the replacement is recorded with its source, without a message over the page the owner is on',
+        said.length === 0 && window.state.settings.fx.src.USD.by === 'live' && !!window.state.settings.fx.src.USD.at, said);
 
       // a live rate landing on top of another LIVE rate is not worth a toast
       //
@@ -2717,7 +2716,7 @@ async function main() {
         window.fxJustRefreshed = false;
         const before = window.fxInvoiceNoticeHTML();
         ok('a foreign invoice with no verified rate today raises the amber notice',
-          /class="noteline"/.test(before) && /No verified rate today/.test(before) && /fx-why/.test(before), before.slice(0, 120));
+          /class="notice"/.test(before) && /No verified rate today/.test(before) && /fx-why/.test(before), before.slice(0, 120));
 
         window.fetch = goodFetch;
         // arrive from a screen with no money on it, so the refresh fires on ENTERING
@@ -2857,8 +2856,8 @@ async function main() {
         // Settings: the About block and the connections card describe the same product
         window.ui.settingsTab = 'business'; window.location.hash = '#/settings'; window.render();
         const about = d.getElementById('main').textContent;
-        ok('Settings ▸ About says the only copy elsewhere is a backup you export',
-          /There is no account and no server, and the only copy anywhere else is a backup file you export yourself/.test(about));
+        ok('Settings ▸ About says there is no account and no server',
+          /Trakora keeps your records in this browser\. There is no account and no server\./.test(about));
         ok('the outside-connections card no longer mentions sign-in or cloud sync',
           !/sign-in|cloud sync/i.test(window.connectionsCardHTML().replace(/<[^>]+>/g, ' ')));
         ok('the lock screen does not promise a sync that could carry data off the device',
@@ -2890,21 +2889,22 @@ async function main() {
          the tab is whole without it: the cards an owner came for, in a grid with no hole. */
       window.ui.settingsTab = 'data'; window.location.hash = '#/settings'; window.render();
       const main = d.getElementById('main');
-      const heads = Array.prototype.map.call(main.querySelectorAll('.settings-grid > .card .card-head h3'), (e) => e.textContent.trim());
-      ok('Settings ▸ Data is six cards: lock, connections, storage, backup, CSV import, sample and reset',
-        heads.length === 6 && /lock/i.test(heads[0]) && /Outside connections/.test(heads[1]) && /Storage/i.test(heads[2]) &&
-        /Backup & restore/.test(heads[3]) && /Smart CSV import/.test(heads[4]) && /Sample data & reset/.test(heads[5]), heads);
-      ok('...every one of them a direct child of the grid with something in it, so there is no gap',
-        Array.prototype.every.call(main.querySelector('.settings-grid').children,
-          (c) => c.classList.contains('card') && c.textContent.trim().length > 40) &&
-        main.querySelector('.settings-grid').children.length === 6);
-      ok('...and nothing after the grid: no fold, no placeholder, no empty container',
-        main.querySelector('.settings-grid').nextElementSibling === null && !main.querySelector('details.adv-setup'));
+      const heads = Array.prototype.map.call(main.querySelectorAll('.form-secs > .form-sec > header h2'), (e) => e.textContent.trim());
+      ok('Settings ▸ Backup and data is five ruled groups in the owner\'s order: backup, lock, connections, import, erase',
+        heads.join('|') === 'Backup|Privacy lock|Connections|Bring in records|Erase', heads);
+      ok('...each a label column beside its fields, never a card, with something in it',
+        Array.prototype.every.call(main.querySelectorAll('.form-secs > .form-sec'), (c) => c.children.length === 2 && c.children[0].tagName === 'HEADER' && c.textContent.trim().length > 40) &&
+        !main.querySelector('.card,.settings-grid'));
+      ok('...and what most owners never need (storage, sample data) is behind one Advanced row',
+        (function () { const adv = main.querySelector('.form-secs > details.adv'); return !!adv && !adv.open &&
+          /Advanced/.test(adv.querySelector('summary').textContent) && !!adv.querySelector('[data-action="trim-receipts"]') && !!adv.querySelector('[data-action="load-sample"]'); })());
+      ok('erasing is a quiet red-lettered button at rest, never a filled red one',
+        (function () { const b = main.querySelector('[data-action="reset-data"]'); return b.classList.contains('is-danger') && !b.classList.contains('btn-danger'); })());
       ok('nothing technical is left on the page an owner reads',
         !/Firebase|API key|OAuth|client id|database|rules|Developer setup|cloud sync|workspace|sign in/i.test(main.textContent),
         (main.textContent.match(/.{0,30}(Firebase|API key|OAuth|client id|database|rules|Developer setup|cloud sync|workspace|sign in).{0,30}/i) || [])[0]);
-      ok('the tab is called Data, since there is nothing left to sync',
-        Array.prototype.map.call(main.querySelectorAll('.tabs button'), (b) => b.textContent.trim()).join('|') === 'Business|Customization|Data');
+      ok('the tabs are Business, Look and menu, Backup and data',
+        Array.prototype.map.call(main.querySelectorAll('.tabs button'), (b) => b.textContent.trim()).join('|') === 'Business|Look and menu|Backup and data');
       ok('backup, restore, CSV import, sample data and reset are all still one click away',
         ['export-data', 'import-data', 'csv-import', 'csv-sample', 'load-sample', 'reset-data']
           .every((a) => !!main.querySelector('[data-action="' + a + '"]')));
@@ -3172,11 +3172,11 @@ async function main() {
         // the page itself: what it shows, and that saving it works with nothing to sign in to
         window.location.hash = '#/profile'; window.render();
         const main = d.getElementById('main');
-        ok('the profile page shows the person and their line, and no account card beside it',
-          main.querySelector('.prof-who b').textContent === 'Ira Santos' &&
-          main.querySelectorAll('.card').length === 2 && !main.querySelector('.badge') &&
-          !/sign|account|log ?out|password/i.test(main.querySelector('.prof-head').textContent + main.querySelector('form[data-form="profile"]').parentNode.querySelector('h3').textContent),
-          main.querySelectorAll('.card').length);
+        ok('the profile page is two ruled groups in one form (You, Your rate), with no card and no account beside it',
+          main.querySelector('form[data-form="profile"] [name="name"]').value === 'Ira Santos' &&
+          Array.prototype.map.call(main.querySelectorAll('form[data-form="profile"] .form-sec > header h2'), (h) => h.textContent).join('|') === 'You|Your rate' &&
+          !main.querySelector('.card,.badge') && !/sign|account|log ?out|password/i.test(main.textContent),
+          main.querySelectorAll('.form-sec').length);
         ok('...and offers nothing that signs anybody in or out',
           !main.querySelector('[data-action^="auth-"]') && !/Sign (in|out)|Log (in|out)|Change password/.test(main.textContent));
         const form = main.querySelector('form[data-form="profile"]');
@@ -3544,14 +3544,24 @@ async function main() {
       // a form with something typed in it asks before Escape throws it away
       click(d.querySelector('#main [data-action="invoice-new"]'));
       type(d.querySelector('#modal-form [name="client"]'), 'Half-typed client');
-      const realConfirm = window.confirm; let asked = 0;
-      window.confirm = function () { asked++; return false; };
+      const realConfirm = window.confirm; let native = 0;
+      window.confirm = function () { native++; return true; };
       key(d, 'Escape');
-      ok('Escape on a form with typing in it asks first, and "no" keeps the form', asked === 1 && !!d.getElementById('modal-form') && d.querySelector('#modal-form [name="client"]').value === 'Half-typed client');
+      ok('Escape on a form with typing in it asks first, in the app\'s own dialog, with focus on the safe answer',
+        !!d.querySelector('#dialog [role="alertdialog"][aria-modal="true"]') && d.activeElement === d.querySelector('#dialog [data-action="dialog-cancel"]') &&
+        /Keep editing/.test(d.querySelector('#dialog [data-action="dialog-cancel"]').textContent) && !!d.getElementById('modal-form') && native === 0);
+      click(d.querySelector('#dialog [data-action="dialog-cancel"]'));
+      ok('"Keep editing" closes the question and keeps what was typed', !d.getElementById('dialog') && d.querySelector('#modal-form [name="client"]').value === 'Half-typed client');
       click(d.querySelector('#modal-root .modal-overlay'));
-      ok('...and so does a click on the dimmed page', asked === 2 && !!d.getElementById('modal-form'));
+      ok('...and a click on the dimmed page asks too', !!d.getElementById('dialog') && !!d.getElementById('modal-form'));
+      key(d, 'Escape');
+      ok('Escape answers the question with no, and leaves the form open', !d.getElementById('dialog') && !!d.getElementById('modal-form'));
+      key(d, 'Escape'); click(d.querySelector('#dialog [data-action="dialog-confirm"]'));
+      ok('"Discard" closes the question and the form', !d.getElementById('dialog') && !d.getElementById('modal-root').innerHTML && !d.body.classList.contains('drawer-open'));
+      click(d.querySelector('#main [data-action="invoice-new"]'));
+      type(d.querySelector('#modal-form [name="client"]'), 'Half-typed client');
       click(d.querySelector('#modal-root .modal-foot [data-action="close-modal"]'));
-      ok('...but Cancel is deliberate and does not ask', asked === 2 && !d.getElementById('modal-root').innerHTML);
+      ok('...but Cancel is deliberate and does not ask', !d.getElementById('dialog') && !d.getElementById('modal-root').innerHTML && native === 0);
       window.confirm = realConfirm;
       // a save through the drawer
       await go('dashboard');
@@ -3566,7 +3576,7 @@ async function main() {
       window.toast('first'); window.toast('second');
       const toasts = d.querySelectorAll('#toast-root .toast');
       ok('one toast at a time: a newer message replaces the one showing', toasts.length === 1 && /second/.test(toasts[0].textContent));
-      ok('toasts sit at the top under the bar, where they cannot cover a drawer\'s Save', /\.toast-root\{[^}]*top:calc\(var\(--bar-h\) \+ 12px/.test(css) && !/\.toast-root\{[^}]*bottom:/.test(css));
+      ok('toasts live inside the top bar, so they cannot cover a page title or a drawer\'s Save', /\.toast-root\{[^}]*top:env\(safe-area-inset-top\)[^}]*height:var\(--bar-h\)/.test(css) && !/\.toast-root\{[^}]*bottom:/.test(css) && d.body.classList.contains('has-toast'));
       ok('there is no "Saved" chip pinned to the bottom of the screen', !d.getElementById('saved-chip') && typeof window.flashSaved === 'undefined');
       d.getElementById('toast-root').innerHTML = '';
     })();
@@ -3579,9 +3589,9 @@ async function main() {
       const row = t.querySelector('tbody tr');
       const role = (h) => { const i = heads.indexOf(h); return i < 0 ? null : (row.children[i].className.match(/c-(main|amt|status|due|id|acts|more)/) || [null])[0]; };
       ok('each column of a table is given the role it plays in a stacked record',
-        role('Client') === 'c-main' && role('Amount') === 'c-amt' && role('Status') === 'c-status' && role('Due') === 'c-due' && role('') === 'c-acts',
+        role('Client') === 'c-main' && role('Amount') === 'c-amt' && role('Status') === 'c-status' && role('Due') === 'c-due' && role('Actions') === 'c-acts',
         heads.map((h) => h + '=' + role(h)));
-      ok('...and what is left stays, as a labelled line', role('Description') === 'c-more' && row.children[heads.indexOf('Description')].getAttribute('data-label') === 'Description');
+      ok('...and the id column is named, so a phone folds it into the line under the title', role('Invoice') === 'c-id' && /INV-/.test(row.querySelector('td.c-main .sub .only-phone').textContent));
       ok('every cell of every row has exactly one role', Array.from(t.querySelectorAll('tbody tr')).filter((tr) => tr.children.length === heads.length)
         .every((tr) => Array.from(tr.children).every((td) => (td.className.match(/\bc-(main|amt|status|due|id|acts|more)\b/g) || []).length === 1)));
       ok('a view that names its own cells keeps them', window.tableRoles(['Client', 'Amount'], null).join() === 'c-main,c-more' &&
@@ -3589,7 +3599,7 @@ async function main() {
           window.labelizeTables(x); return x.querySelector('td.c-id').className === 'c-id'; })());
       ok('below 900px a table stops being a table, and nothing scrolls sideways',
         /@media \(max-width:899px\)\{[\s\S]*?\.table-wrap tbody tr\{display:grid/.test(css) && /td\.c-main\{grid-column:1;grid-row:1/.test(css) &&
-        /td\.c-more::before\{content:attr\(data-label\)/.test(css) && !/\.table-wrap\{[^}]*overflow-x:auto/.test(css));
+        /\.recs td\.c-more\{display:none\}/.test(css) && /td\.c-more::before\{content:attr\(data-label\)/.test(css) && !/\.table-wrap\{[^}]*overflow-x:auto/.test(css));
     })();
 
     // ---------- home: the sentence and "Do today" ----------
@@ -3836,6 +3846,255 @@ async function main() {
           !used.d.querySelector('form[data-form="first-run"]') && !used.d.querySelector('#main .notice') && !used.d.querySelector('[role="dialog"]') &&
           used.w.state.finance[0].note === 'kept' && used.errs.length === 0, used.errs);
       } finally { used.close(); }
+    })();
+
+    // =====================================================================
+    // Phase 3: the pages. One row anatomy for every record, figures on one
+    // ruled strip, a toast that lives in the bar, the app's own confirm
+    // dialog, and settings as labelled groups. Asserted on the rendered DOM.
+    // =====================================================================
+    await (async function pagesPhase3() {
+      const cssText = html.slice(html.indexOf('<style>'), html.indexOf('</style>'));
+      const keyDown = (k) => d.dispatchEvent(new window.KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
+      const main = () => d.getElementById('main');
+      const goto = (r) => { window.location.hash = '#/' + r; window.render(); };
+      const realConfirm = window.confirm; let nativeAsked = 0;
+      window.confirm = function () { nativeAsked++; return true; };
+      window.closeModal(); window.closeDialog(true); d.getElementById('toast-root').innerHTML = ''; d.body.classList.remove('has-toast');
+      window.ui.flash = null;
+      window.loadSampleData(); await wait(20);
+      d.getElementById('toast-root').innerHTML = ''; d.body.classList.remove('has-toast');
+      Object.assign(window.ui, { invFilter: 'all', invFind: '', orderView: 'list', orderFilter: 'all', taskView: 'list', financeTab: 'entries', productTab: 'catalog', productCat: 'all', clientFilter: 'all', goalFilter: 'all', settingsTab: 'business' });
+
+      // ---- row anatomy ----
+      goto('invoices');
+      const rows = Array.from(main().querySelector('table.recs').querySelectorAll('tbody tr'));
+      ok('an invoice row shows one labelled next step and one labelled More, and nothing else to press but its title',
+        rows.length === window.state.invoices.length && rows.every((tr) => {
+          const acts = tr.querySelector('td.c-acts .row-actions');
+          const visible = Array.from(acts.children).filter((el) => !el.hidden);
+          return visible.length === 2 && visible[0].classList.contains('row-next') && visible[0].textContent.trim().length > 2 &&
+            visible[1].getAttribute('data-action') === 'row-more' && /More/.test(visible[1].textContent) &&
+            visible[1].getAttribute('aria-haspopup') === 'menu' && /^More actions for INV-/.test(visible[1].getAttribute('aria-label'));
+        }), rows.map((tr) => Array.from(tr.querySelector('td.c-acts .row-actions').children).map((el) => (el.hidden ? 'H:' : '') + el.className + '|' + el.getAttribute('aria-label')).join(' ; ')).slice(0, 2));
+      ok('no row holds a select or an icon-only button, on any list page', (function () {
+        const bad = [];
+        ['invoices', 'finance', 'orders', 'products', 'utang', 'clients', 'tasks', 'goals', 'accounts', 'notes', 'manpower'].forEach((r) => {
+          goto(r);
+          main().querySelectorAll('table.recs tbody, ul.rows, .rows').forEach((box) => {
+            if (box.querySelector('select')) bad.push(r + ':select');
+            box.querySelectorAll('button').forEach((b) => { if (!b.textContent.trim() && !b.classList.contains('task-check')) bad.push(r + ':' + (b.getAttribute('data-action') || b.className)); });
+            if (box.querySelector('.btn-icon')) bad.push(r + ':btn-icon');
+          });
+        });
+        goto('invoices');
+        return bad;
+      })().length === 0);
+      const sent = window.state.invoices.find((iv) => iv.status === 'Sent' && (!iv.currency || iv.currency === 'PHP'));
+      const sentRow = main().querySelector('[data-action="row-more"][data-id="' + sent.id + '"]').closest('tr');
+      ok('every action an invoice had is still in its row, behind More, with its own action and id',
+        ['invoice-remind', 'invoice-print', 'invoice-edit', 'invoice-delete'].every((a) => !!sentRow.querySelector('.row-menu [data-action="' + a + '"][data-id="' + sent.id + '"]')) &&
+        sentRow.querySelector('.row-next').getAttribute('data-action') === 'invoice-paid' && sentRow.querySelector('.row-menu').hidden === true);
+      ok('the title of a record is a button that opens it', sentRow.querySelector('td.c-main button.rec-open').getAttribute('data-action') === 'invoice-edit');
+      ok('the stamp says the status in words, and late is the only yellow one',
+        Array.from(main().querySelectorAll('td.c-status')).every((td) => td.querySelectorAll('.stamp,.badge').length === 1 && td.textContent.trim().length > 3) &&
+        Array.from(main().querySelectorAll('td.c-status .stamp-late')).every((s) => /late/.test(s.textContent)));
+
+      // ---- the More menu: keyboard, Escape, focus ----
+      const more = sentRow.querySelector('[data-action="row-more"]');
+      more.focus(); click(more);
+      const pop = d.getElementById('pop');
+      ok('More opens a menu of labelled rows and moves focus into it',
+        !!pop && pop.getAttribute('role') === 'menu' && pop.querySelectorAll('[role="menuitem"]').length >= 4 &&
+        more.getAttribute('aria-expanded') === 'true' && d.activeElement === pop.querySelector('[role="menuitem"]') &&
+        Array.from(pop.querySelectorAll('[role="menuitem"]')).every((b) => b.textContent.trim().length > 2));
+      keyDown('ArrowDown');
+      ok('the arrow keys walk the rows', d.activeElement === d.getElementById('pop').querySelectorAll('[role="menuitem"]')[1]);
+      keyDown('Escape');
+      ok('Escape closes it and hands focus back to More', !d.getElementById('pop') && d.activeElement === more && more.getAttribute('aria-expanded') === 'false');
+      click(more); click(d.querySelector('#pop [data-action="invoice-edit"]'));
+      ok('a row picked from the menu acts: Edit opens the invoice in the drawer', !d.getElementById('pop') && !!d.querySelector('#modal-root [role="dialog"] #modal-form [name="client"]'));
+      window.closeModal();
+
+      // ---- status from the row, without the edit form ----
+      click(main().querySelector('.row-menu [data-action="row-status"][data-kind="invoice-status"][data-id="' + sent.id + '"][data-val="Draft"]'));
+      ok('a status is changed from the row\'s menu, without opening the form', window.state.invoices.find((iv) => iv.id === sent.id).status === 'Draft' && !d.getElementById('modal-root').innerHTML);
+      d.getElementById('toast-root').innerHTML = '';
+      click(main().querySelector('[data-action="invoice-sent"][data-id="' + sent.id + '"]'));
+      const fin0 = window.state.finance.length;
+      click(main().querySelector('.row-next[data-action="invoice-paid"][data-id="' + sent.id + '"]'));
+      ok('Mark paid asks nothing: it records the income and offers Undo',
+        !d.getElementById('dialog') && nativeAsked === 0 && window.state.invoices.find((iv) => iv.id === sent.id).status === 'Paid' && window.state.finance.length === fin0 + 1 &&
+        !!d.querySelector('#toast-root .toast [data-action="do-undo"]') && !main().querySelector('[data-action="invoice-paid"][data-id="' + sent.id + '"]'));
+      click(d.querySelector('#toast-root [data-action="do-undo"]'));
+      ok('...and Undo takes both back', window.state.invoices.find((iv) => iv.id === sent.id).status === 'Sent' && window.state.finance.length === fin0);
+      goto('orders');
+      const ord = window.state.orders.find((o) => o.status === 'Pending' || o.status === 'Preparing');
+      const before = ord.status;
+      click(main().querySelector('.row-next[data-action="order-next-stage"][data-id="' + ord.id + '"]'));
+      ok('an order\'s visible step moves it to the next stage, and its other statuses are in More',
+        window.state.orders.find((o) => o.id === ord.id).status !== before &&
+        !!main().querySelector('.row-menu [data-action="row-status"][data-kind="order-status"][data-id="' + ord.id + '"][data-val="Cancelled"]') &&
+        !!main().querySelector('.row-menu [data-action="order-paid"][data-id="' + ord.id + '"]'));
+      ok('the order checkbox sits in a 44px label that names the order',
+        (function () { const lab = main().querySelector('label.pick'); return !!lab && !!lab.querySelector('input[data-action-change="order-select"]') && /Select ORD-/.test(lab.textContent); })() &&
+        /\.pick\{[^}]*width:44px;height:44px/.test(cssText));
+      goto('clients');
+      const cl = window.state.clients[0];
+      click(main().querySelector('.row-menu [data-action="row-status"][data-kind="client-status"][data-id="' + cl.id + '"][data-val="' + (cl.status === 'Inactive' ? 'Active' : 'Inactive') + '"]'));
+      ok('a client\'s status changes from its row too', /Active|Inactive/.test(window.state.clients[0].status) && !main().querySelector('table.recs select'));
+      goto('tasks');
+      ok('a task row is a tick box, a title that opens it, plain-word details and More; the quick add is one box and Add',
+        (function () { const li = main().querySelector('.task-rows .task-row'); const f = main().querySelector('form[data-form="quick-task"]');
+          return !!li.querySelector('.task-check[data-action="toggle-task"][aria-label]') && !!li.querySelector('.rec-open[data-action="edit-task"]') &&
+            !li.querySelector('select') && !!li.querySelector('.row-menu [data-action="row-status"][data-kind="task-priority"]') &&
+            f.querySelectorAll('input:not([type="hidden"]),select').length === 1 && f.elements['priority'].value === 'Medium' && f.elements['bucket'].value === 'weekly'; })());
+
+      // ---- strips ----
+      ok('figures above a list are one ruled strip of at most four cells, never tiles', (function () {
+        const bad = [];
+        ['invoices', 'finance', 'orders', 'products', 'utang', 'clients', 'tasks', 'goals', 'accounts'].forEach((r) => {
+          goto(r);
+          const strips = main().querySelectorAll('dl.strip');
+          if (strips.length !== 1) { bad.push(r + ':' + strips.length); return; }
+          const cells = strips[0].children;
+          if (cells.length < 3 || cells.length > 4) bad.push(r + ':cells' + cells.length);
+          Array.from(cells).forEach((c) => { if (!c.querySelector('dt') || !c.querySelector('dd.stat-value')) bad.push(r + ':cell'); });
+          if (main().querySelector('.grid > .stat-card')) bad.push(r + ':tiles');
+        });
+        return bad;
+      })().length === 0);
+      goto('invoices');
+      const owed = main().querySelector('dl.strip > :first-child').textContent;
+      ok('a figure carries one note, with its parts separated ("3 unpaid, 1 at an estimated rate", never "invoicesincl.")',
+        /\d+ unpaid, \d+ at an estimated rate/.test(owed) && !/[a-z]incl\.|invoices\d|unpaid\d/.test(main().querySelector('dl.strip').textContent), owed);
+      ok('no other sublabel in the file is glued to its neighbour', !/<\/span>'\+recv\.caveat|<\/span>'\+recv\.overdueCaveat/.test(html) &&
+        /replace\(\/<\\\/span>\\s\*<span\/g,'<\/span> <span'\)/.test(html));
+      ok('strip notes are secondary ink; only a note that needs the owner is a yellow stamp',
+        !/\.stat-delta\.(up|down)\{/.test(cssText) && !!main().querySelector('dl.strip .stamp-late') && /needs? a follow-up/.test(main().querySelector('dl.strip .stamp-late').textContent));
+      const keepInv = window.state.invoices, keepRec = window.state.recurringInvoices;
+      window.state.invoices = []; window.state.recurringInvoices = []; window.render();
+      ok('an empty page is its head and one empty state: no row of zeros, no tools, one secondary button',
+        !main().querySelector('.strip,.tools,table') && main().querySelectorAll('.empty').length === 1 &&
+        main().querySelectorAll('.btn-primary').length === 1 && main().querySelector('.empty .btn').classList.contains('btn-secondary'));
+      window.state.invoices = keepInv; window.state.recurringInvoices = keepRec; window.render();
+
+      // ---- toast ----
+      d.getElementById('toast-root').innerHTML = ''; d.body.classList.remove('has-toast');
+      window.toast('Invoice saved');
+      ok('a receipt is a one-line pill in the top bar, and the tabs step aside while it shows',
+        d.querySelectorAll('#toast-root .toast').length === 1 && d.body.classList.contains('has-toast') && /body:has\(#toast-root \.toast\) \.nav\{visibility:hidden\}/.test(cssText) &&
+        /\.toast\{[^}]*height:40px/.test(cssText) && /\.toast\{[^}]*white-space:nowrap/.test(cssText));
+      d.getElementById('toast-root').innerHTML = ''; d.body.classList.remove('has-toast');
+      window.toast('This is a whole sentence about something that happened, far too long to be a receipt in the bar.', 'warn');
+      ok('a message too long for the bar is written into the page as a notice under the page head, never over it',
+        !d.querySelector('#toast-root .toast') && !!d.getElementById('flash') && d.getElementById('flash').parentNode === main() &&
+        main().querySelector('.page-head').nextElementSibling === d.getElementById('flash') && d.getElementById('flash').getAttribute('role') === 'alert');
+      window.render();
+      ok('...it stays through a redraw of that page and closes on request', !!d.getElementById('flash') && (click(d.querySelector('#flash [data-action="flash-close"]')), !d.getElementById('flash')));
+      click(main().querySelector('[data-action="invoice-new"]'));
+      window.toast('Rate fetched');
+      ok('nothing toasts over an open drawer: the message waits', !d.querySelector('#toast-root .toast'));
+      window.toast('Enter the client name.', 'error');
+      ok('...and a failure is written inside the drawer instead', !d.querySelector('#toast-root .toast') && /Enter the client name/.test(d.querySelector('#modal-form .modal-error[role="alert"]').textContent));
+      window.closeModal();
+      ok('...the held message shows once the drawer has closed', /Enter the client name|Rate fetched/.test((d.querySelector('#toast-root .toast') || { textContent: '' }).textContent));
+      d.getElementById('toast-root').innerHTML = ''; d.body.classList.remove('has-toast');
+
+      // ---- confirm dialog and delete-with-undo ----
+      const victim = window.state.invoices[0], nInv = window.state.invoices.length;
+      click(main().querySelector('.row-menu [data-action="invoice-delete"][data-id="' + victim.id + '"]'));
+      const dlg = d.getElementById('dialog');
+      ok('deleting an invoice asks in the app\'s own dialog: it names the invoice, says what stays, and starts on Cancel',
+        !!dlg && !!dlg.querySelector('[role="alertdialog"][aria-modal="true"][aria-labelledby="dialog-title"][aria-describedby="dialog-body"]') &&
+        dlg.querySelector('#dialog-title').textContent === 'Delete ' + victim.number + '?' && /stays/.test(dlg.querySelector('#dialog-body').textContent) &&
+        d.activeElement === dlg.querySelector('[data-action="dialog-cancel"]') && nativeAsked === 0 && window.state.invoices.length === nInv);
+      ok('the confirming button repeats the verb and the thing, and is the only filled red button', /^Delete invoice$/.test(dlg.querySelector('[data-action="dialog-confirm"]').textContent) &&
+        dlg.querySelector('[data-action="dialog-confirm"]').classList.contains('btn-danger') && !main().querySelector('.btn-danger'));
+      click(dlg.querySelector('[data-action="dialog-cancel"]'));
+      ok('Cancel deletes nothing', !d.getElementById('dialog') && window.state.invoices.length === nInv);
+      click(main().querySelector('.row-menu [data-action="invoice-delete"][data-id="' + victim.id + '"]'));
+      click(d.querySelector('#dialog [data-action="dialog-confirm"]'));
+      ok('the confirming button deletes it, with Undo offered', !d.getElementById('dialog') && window.state.invoices.length === nInv - 1 && !!d.querySelector('#toast-root [data-action="do-undo"]'));
+      click(d.querySelector('#toast-root [data-action="do-undo"]'));
+      goto('finance');
+      const nFin = window.state.finance.length, fe = window.state.finance.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+      click(main().querySelector('.row-menu [data-action="delete-entry"]'));
+      ok('a cheap delete (a money entry) asks nothing: it goes at once, with Undo', !d.getElementById('dialog') && window.state.finance.length === nFin - 1 && !!d.querySelector('#toast-root [data-action="do-undo"]'), fe && fe.id);
+      click(d.querySelector('#toast-root [data-action="do-undo"]'));
+      ok('no native confirm or prompt is left in the file', !/[^.\w]confirm\(/.test(html.replace(/window\.confirm|realConfirm/g, '')) && !/[^.\w]prompt\(/.test(html) && nativeAsked === 0);
+      ok('Finance entries carry no Income or Expense stamp: money out is red with a true minus, money in is plain ink',
+        !main().querySelector('table.recs .stamp,table.recs .badge') && !!main().querySelector('table.recs .amt.is-out') && /^−/.test(main().querySelector('table.recs .amt.is-out').textContent) &&
+        Array.from(main().querySelectorAll('table.recs .amt:not(.is-out)')).every((a) => !/^[+]/.test(a.textContent)));
+
+      // ---- settings ----
+      window.fxManualFailed = false;
+      goto('settings');
+      ok('Settings ▸ Business is ruled groups with a label column inside one form, with one Save that is asleep until something changes',
+        Array.from(main().querySelectorAll('.form-secs .form-sec > header h2')).map((h) => h.textContent).join('|') === 'Your business|Money|On your invoices|You|Other currencies|About' &&
+        main().querySelectorAll('form[data-form="settings"]').length === 1 && main().querySelectorAll('form[data-form="settings"] .form-sec').length === 3 &&
+        main().querySelectorAll('form[data-form="settings"] button[type="submit"]').length === 1 &&
+        main().querySelector('form[data-form="settings"] button[type="submit"]').disabled && !main().querySelector('.card'));
+      const moneyForm = main().querySelector('form[data-form="settings"]');
+      moneyForm.elements['monthlyTarget'].value = '123456'; fire(moneyForm.elements['monthlyTarget'], 'input');
+      const nameBefore = window.state.settings.businessName, backupBefore = window.state.settings.autoBackupDays;
+      ok('typing in the form wakes its Save', !moneyForm.querySelector('button[type="submit"]').disabled);
+      fire(moneyForm, 'submit');
+      ok('saving changes the fields on the page and leaves the ones kept on another tab alone',
+        window.state.settings.monthlyTarget === 123456 && window.state.settings.businessName === nameBefore && !!window.state.settings.businessName && window.state.settings.autoBackupDays === backupBefore);
+      ok('the other currencies are one table behind Advanced: the state is said once per row in plain words, with no red chips',
+        (function () { const adv = main().querySelector('details.adv'); const t = adv.querySelector('table.fx-table');
+          return !adv.open && t.querySelectorAll('tbody tr').length === 8 && !t.querySelector('.stamp,.badge') &&
+            Array.from(t.querySelectorAll('.fx-status')).every((c) => /Estimate|Set by you|Fetched|No rate/.test(c.textContent)) && !!adv.querySelector('form[data-form="fx-rates"] [name="fx_USD"]'); })(),
+        (function () { const adv = main().querySelector('details.adv'); return [adv.open, Array.from(adv.querySelectorAll('.fx-status')).map((c) => c.textContent).join(',')]; })());
+      ok('...and an estimate still cannot record money', window.fxRecordRate('USD') === null || window.fxVerified('USD') === true);
+      ok('the page carries no build number or developer words', !/build \d|PBKDF2|JSON|Beta|Storage health/.test(main().textContent));
+      window.ui.settingsTab = 'custom'; window.render();
+      ok('Look and menu holds the theme, the way into the menu and Home editors, and categories as rows',
+        Array.from(main().querySelectorAll('.form-secs > .form-sec > header h2')).map((h) => h.textContent).join('|') === 'Theme|Menu|Home page|Categories' &&
+        !!main().querySelector('[data-action="set-theme"]') && !!main().querySelector('[data-action="menu-edit"]') && !!main().querySelector('[data-action="dash-customize"]') &&
+        !!main().querySelector('.cat-rows li') && !main().querySelector('.form-secs > .form-sec input[type="checkbox"]'));
+      window.ui.settingsTab = 'business';
+
+      // ---- accounts, landing, pins, materials ----
+      goto('accounts');
+      ok('accounts are ruled rows in plain ink: no tile, no brand colour, one Reconcile and More each',
+        main().querySelectorAll('.acct-rows > li').length === window.state.accounts.length && !main().querySelector('.acct-card,.acct-add,[style*="background:#"]') &&
+        Array.from(main().querySelectorAll('.acct-rows > li')).every((li) => !!li.querySelector('.row-next[data-action="account-reconcile"]') && !!li.querySelector('.row-menu [data-action="account-delete"]')) &&
+        main().querySelectorAll('[data-action="transfer-new"]').length === 1);
+      ok('the landing page offers a returning owner their own book by name', /Open Studio Hiraya/.test(window.landingHTML()) && /Your book is on this device\./.test(window.landingHTML()));
+      window.localStorage.setItem('trakora.lock', JSON.stringify({ hash: 'x', salt: 'y' }));
+      ok('...but a locked copy keeps the name to itself until the PIN is given', !/Studio Hiraya/.test(window.landingHTML()) && /Open Trakora/.test(window.landingHTML()));
+      window.localStorage.removeItem('trakora.lock');
+      const keepFav = window.state.settings.favorites, keepChosen = window.state.settings.pinsChosen;
+      window.state.settings.favorites = []; window.state.settings.pinsChosen = false;
+      window.pinnedIds().slice().forEach((id) => window.togglePin(id));
+      ok('unpinning every page leaves the tab row empty instead of bringing the usual six back', window.pinnedIds().length === 0 && window.state.settings.pinsChosen === true);
+      window.openMenu({ edit: true });
+      click(d.querySelector('#menu [data-action="pins-restore"]'));
+      ok('"Restore the usual pins" in Menu edit mode puts them back', window.pinnedIds().length === 6 && window.state.settings.pinsChosen === false);
+      window.closeMenu(true);
+      window.state.settings.favorites = keepFav; window.state.settings.pinsChosen = keepChosen;
+      window.location.hash = '#/materials'; window.renderRouted();
+      ok('an old link to Materials lands on Products with its Materials tab open, not on Home',
+        window.currentRoute() === 'products' && window.ui.productTab === 'materials' && /Materials/.test(main().querySelector('.tabs .active').textContent));
+      window.ui.productTab = 'catalog';
+
+      // ---- targets and print ----
+      ok('row controls keep a 44px target: compact buttons are narrower, not shorter', /\.btn\{[^}]*min-height:var\(--ctl-h\)/.test(cssText) && /\.btn-sm\{padding:0 12px;font-size:15px\}/.test(cssText) &&
+        /\.rec-open\{[^}]*min-height:44px/.test(cssText) && /\.task-check\{[^}]*width:44px;height:44px/.test(cssText) && /summary\{[^}]*min-height:44px/.test(cssText) &&
+        /\.notice-acts \.link\{[^}]*min-height:44px/.test(cssText));
+      const printCss = cssText.slice(cssText.indexOf('@media print{'));
+      ok('print is ink on white: light tokens, no controls, and no yellow or tinted fill spent on a stamp or a notice',
+        /--bg:#fff/.test(printCss) && /\.tools,\.tabs,\.tabs-select,\.row-actions,\.flash,\.dialog,\.pop\{display:none !important\}/.test(printCss) &&
+        /\.stamp,\.badge,\.count,mark,\.mark,\.notice\{background:none !important;color:#000 !important\}/.test(printCss) && /#print-area\{color:#000;background:#fff\}/.test(printCss));
+      goto('roadmap');
+      ok('the roadmap toolbar wraps to whole rows instead of scrolling, and the zoom strip never wraps',
+        /\.rm-rail\{[^}]*flex-wrap:wrap/.test(cssText) && /\.rm-rail\{grid-template-columns:repeat\(6,44px\)\}/.test(cssText) && !/\.rm-(rail|cam-bar)\{[^}]*overflow-x:(auto|scroll)/.test(cssText) &&
+        !/\.rm-cam-bar\{[^}]*flex-wrap:wrap/.test(cssText));
+      window.confirm = realConfirm;
+      d.getElementById('toast-root').innerHTML = ''; d.body.classList.remove('has-toast');
+      window.location.hash = '#/dashboard'; window.render();
     })();
 
     console.log('\n' + pass + ' passed, ' + fail + ' failed');
